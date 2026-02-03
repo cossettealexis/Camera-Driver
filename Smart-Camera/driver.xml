@@ -1,0 +1,124 @@
+<devicedata>
+  <copyright>2025 Slomins Inc. All rights reserved.</copyright>
+  <creator>Slomins.com</creator>
+  <manufacturer>Slomins</manufacturer>
+  <name>Smart Camera</name>
+  <model>Smart Camera</model>
+  <created>05/23/2025 8:40 PM</created>
+  <modified>08/21/2025 3:20 PM</modified>
+  <version>5</version>
+  <small>icons/device_sm.png</small>
+  <large>icons/device_lg.png</large>
+  <control>lua_gen</control>
+  <driver>DriverWorks</driver>
+  <proxies>
+    <proxy proxybindingid="5001" name="Smart Camera" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
+  </proxies>
+  <config>
+    <documentation file="www/documentation/index.html">Smart Camera Document</documentation>
+    <script file="driver.lua" encryption="2" />
+    <actions></actions>
+    <properties>
+      <property>
+        <name>ClientId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>ClientSecret</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>Contract</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>Enable</default>
+      </property>
+      <property>
+        <name>UserId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>DeviceId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>VideoQuality</name>
+        <type>STRING</type>
+        <readonly>true</readonly>
+        <default>SD</default>
+      </property>
+      <property>
+        <name>Mute</name>
+        <type>LIST</type>
+        <readonly>true</readonly>
+        <default>Off</default>
+        <items>
+          <item>Off</item>
+          <item>On</item>
+        </items>
+      </property>
+    </properties>
+    <serialsettings></serialsettings>
+  </config>
+  <capabilities>
+    <web_view_url proxybindingid="5001">controller://driver/Slomins_SmartCamera/contents/index.html</web_view_url>
+    <mobile_web_view_enabled>true</mobile_web_view_enabled>
+    <navigator_display_option proxybindingid="5001">
+      <display_icons>
+        <Icon width="70" height="70">controller://driver/Slomins_SmartCamera/icons/device/petfeeder_70.png</Icon>
+        <Icon width="90" height="90">controller://driver/Slomins_SmartCamera/icons/device/petfeeder_90.png</Icon>
+        <Icon width="300" height="300">controller://driver/Slomins_SmartCamera/icons/device/petfeeder_300.png</Icon>
+      </display_icons>
+    </navigator_display_option>
+  </capabilities>
+  <connections>
+    <connection>
+      <id>5001</id>
+      <facing>6</facing>
+      <connectionname>UIBUTTON</connectionname>
+      <type>2</type>
+      <consumer>False</consumer>
+      <audiosource>False</audiosource>
+      <videosource>False</videosource>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>UIBUTTON</classname>
+        </class>
+      </classes>
+    </connection>
+  </connections>
+  <connection>
+    <id>6001</id>
+    <connectionname>TCP</connectionname>
+    <type>4</type>
+    <hidden>True</hidden>
+    <consumer>True</consumer>
+    <classes>
+      <class>
+        <classname>TCP</classname>
+        <ports>
+          <port>
+            <number>8081</number>
+            <suppress_connection_events>True</suppress_connection_events>
+            <auto_connect>True</auto_connect>
+            <monitor_connection>True</monitor_connection>
+            <keep_connection>True</keep_connection>
+            <keep_alive>True</keep_alive>
+            <delimiter>0d0a</delimiter>
+          </port>
+        </ports>
+      </class>
+    </classes>
+  </connection>
+</devicedata>

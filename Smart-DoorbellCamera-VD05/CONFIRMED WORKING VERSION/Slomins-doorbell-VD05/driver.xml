@@ -1,0 +1,629 @@
+<?xml version="1.0" encoding="utf-8"?>
+<devicedata>
+    <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
+    <name>Slomins VD05 Video Doorbell</name>
+    <version>1.0.0</version>
+    <creator>Slomins</creator>
+    <manufacturer>Slomins</manufacturer>
+    <model>VD05</model>
+    <created>2025-12-16</created>
+    <modified>2025-12-17</modified>
+    <minimum_os_version>3.3.2</minimum_os_version>
+    <control>lua_gen</control>
+    <controlmethod>ip</controlmethod>
+    <auto_update>true</auto_update>
+    <driver>DriverWorks</driver>
+    <search_type>slomins:camera</search_type>
+    <composer_categories>
+        <category>Cameras</category>
+    </composer_categories>
+    <proxies qty="1">
+        <proxy proxybindingid="5001" name="Slomins VD05 Video Doorbell">camera</proxy>
+    </proxies>
+    <OnlineCategory>Cameras</OnlineCategory>
+    <controlmethod>ip</controlmethod>
+    <capabilities>
+        <modes>H264, SNAPSHOT, MJPEG</modes>
+        <default_http_port>8080</default_http_port>
+        <default_rtsp_port>8554</default_rtsp_port>
+        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
+        <default_username>SystemConnect</default_username>
+        <default_password>123456</default_password>
+        <address_readonly>False</address_readonly>
+        <http_port_readonly>False</http_port_readonly>
+        <rtsp_port_readonly>False</rtsp_port_readonly>
+        <has_extras>true</has_extras>
+        <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
+        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <has_pan>true</has_pan>
+        <has_tilt>true</has_tilt>
+        <has_zoom>true</has_zoom>
+        <number_presets>8</number_presets>
+        <can_view>true</can_view>
+        <show_test_url>true</show_test_url>
+    </capabilities>
+    <notification_attachment_provider>True</notification_attachment_provider>
+    <notification_attachments>
+        <attachment>
+            <id>1003</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (URL)</description>
+            <source>URL</source>
+        </attachment>
+    </notification_attachments>
+    <events>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
+
+        <event>
+            <id>2</id>
+            <name>Doorbell Ring</name>
+            <description>When NAME doorbell is pressed</description>
+        </event>
+
+        <event>
+            <id>3</id>
+            <name>Face Detected</name>
+            <description>When NAME detects a face</description>
+        </event>
+        <event>
+            <id>4</id>
+            <name>Clip Recorded</name>
+            <description>When NAME records a video clip</description>
+        </event>
+        <event>
+            <id>6</id>
+            <name>Camera Online</name>
+            <description>When NAME comes online</description>
+        </event>
+
+        <event>
+            <id>7</id>
+            <name>Camera Offline</name>
+            <description>When NAME goes offline</description>
+        </event>
+        <event>
+            <id>8</id>
+            <name>Camera Restarted</name>
+            <description>When NAME restarts or storage is reset</description>
+        </event>
+        <event>
+            <id>9</id>
+            <name>Line Crossing</name>
+            <description>When NAME detected Line Crossing</description>
+        </event>
+        <event>
+            <id>10</id>
+            <name>Region Intrusion</name>
+            <description>When NAME detected Region Intrusion</description>
+        </event>
+        <event>
+            <id>11</id>
+            <name>Human Detected</name>
+            <description>When NAME detects a human</description>
+        </event>
+
+        <event>
+            <id>12</id>
+            <name>Intruder Detected</name>
+            <description>When NAME detects an intruder</description>
+        </event>
+
+        <event>
+            <id>13</id>
+            <name>Low Battery</name>
+            <description>When NAME battery is low</description>
+        </event>
+        <event>
+            <id>14</id>
+            <name>Power On</name>
+            <description>When NAME power is restored</description>
+        </event>
+
+        <event>
+            <id>15</id>
+            <name>Power Off</name>
+            <description>When NAME loses power</description>
+        </event>
+    </events>
+    <config>
+        <script file="driver.lua"/>
+        <documentation file="README.md">Slomins VD05 Video Doorbell Documentation</documentation>
+        <properties>
+            <property>
+                <name>IP Address</name>
+                <type>STRING</type>
+                <default>192.168.60.180</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>HTTP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>8080</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>RTSP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>8554</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Stream Path</name>
+                <type>STRING</type>
+                <default>stream1</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Username</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Password</name>
+                <type>STRING</type>
+                <default></default>
+                <password>true</password>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Snapshot URL Path</name>
+                <type>STRING</type>
+                <default>/GetSnapshot</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Default Resolution</name>
+                <type>LIST</type>
+                <items>
+                    <item>640x480</item>
+                    <item>1280x720</item>
+                    <item>1920x1080</item>
+                </items>
+                <default>1280x720</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Authentication Type</name>
+                <type>LIST</type>
+                <items>
+                    <item>BASIC</item>
+                    <item>DIGEST</item>
+                    <item>NONE</item>
+                </items>
+                <default>NONE</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>VID</name>
+                <type>STRING</type>
+                <default>d4n44no1k1vs73fqjjo0</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Product ID</name>
+                <type>STRING</type>
+                <default>VD05</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Device Name</name>
+                <type>STRING</type>
+                <default>LNDU Camera</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>PTZ Enabled</name>
+                <type>LIST</type>
+                <items>
+                    <item>Yes</item>
+                    <item>No</item>
+                </items>
+                <default>Yes</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Status</name>
+                <type>STRING</type>
+                <default>Initializing...</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Account</name>
+                <type>STRING</type>
+                <default>pyabu@slomins.com</default>
+                <readonly>false</readonly>
+            </property>
+              <property>
+                <name>Enable MQTT</name>
+                <type>LIST</type>
+                <items>
+                    <item>False</item>
+                    <item>True</item>
+                </items>
+                <default>False</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Alert Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+
+            <property>
+                <name>Enable Info Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>ClientID</name>
+                <type>STRING</type>
+                <default>064d0d44-29dd-48bc-9ff7-3f69bd24c91f</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Public Key</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Base API URL</name>
+                <type>STRING</type>
+                <default>https://api.arpha-tech.com</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Pre-Encrypted Post Data</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>            
+            <property>
+                <name>Temp Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Exchange Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Auth Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Main Stream URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Sub Stream URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>    
+            <property>
+                <name>IP Scan Range End</name>
+                <type>RANGED_INTEGER</type>
+                <default>50</default>
+                <minimum>1</minimum>
+                <maximum>999</maximum>
+                <readonly>false</readonly>
+            </property>   
+        </properties>
+        <actions>
+            <action>
+                <name>PTZ Up</name>
+                <command>PTZ_MOVE</command>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <value>up</value>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <value>1</value>
+                    </param>
+                </params>
+            </action>
+            <action>
+                <name>PTZ Down</name>
+                <command>PTZ_MOVE</command>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <value>down</value>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <value>1</value>
+                    </param>
+                </params>
+            </action>
+            <action>
+                <name>PTZ Left</name>
+                <command>PTZ_MOVE</command>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <value>left</value>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <value>1</value>
+                    </param>
+                </params>
+            </action>
+            <action>
+                <name>PTZ Right</name>
+                <command>PTZ_MOVE</command>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <value>right</value>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <value>1</value>
+                    </param>
+                </params>
+            </action>
+            <action>
+                <name>Test Snapshot</name>
+                <command>TEST_SNAPSHOT</command>
+            </action>
+            <action>
+                <name>Bind Device</name>
+                <command>BIND_DEVICE</command>
+            </action>
+            <action>
+                <name>Initialize</name>
+                <command>INITIALIZE_CAMERA</command>
+            </action>
+            <action>
+                <name>Login/Register</name>
+                <command>LOGIN_OR_REGISTER</command>
+            </action>
+            <action>
+                <name>Get Temp Token</name>
+                <command>GET_TEMP_TOKEN</command>
+            </action>
+            <action>
+                <name>Get Exchange Token</name>
+                <command>GET_EXCHANGE_TOKEN</command>
+            </action>
+            <action>
+                <name>Get Devices</name>
+                <command>GET_DEVICES</command>
+            </action>
+            <action>
+                <name>Test Main Stream</name>
+                <command>TEST_MAIN_STREAM</command>
+            </action>
+            <action>
+                <name>Test Sub Stream</name>
+                <command>TEST_SUB_STREAM</command>
+            </action>
+            <action>
+                <name>Discover Cameras (HTTP Scan)</name>
+                <command>DISCOVER_CAMERAS</command>
+            </action>
+            <action>
+                <name>Discover Cameras (SDDP)</name>
+                <command>DISCOVER_CAMERAS_SDDP</command>
+            </action>
+            <action>
+                <name>Set Device active (SDDP)</name>
+                <command>SET_DEVICE_PROPERTY</command>
+            </action>
+              <action>
+                <name>Test Wake Local</name>
+                <command>TEST_WAKE_LOCAL</command>
+            </action>
+            <action>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
+            </action>
+            <action>
+                <name>Test Push Notification (Human)</name>
+                <command>SEND_TEST_NOTIFICATION_HUMAN</command>
+            </action>
+        </actions>
+        <commands>
+            <command>
+                <name>PTZ_MOVE</name>
+                <description>Move PTZ camera</description>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <type>STRING</type>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <type>INTEGER</type>
+                        <default>1</default>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PTZ_CONT_START</name>
+                <description>Start continuous PTZ movement</description>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <type>STRING</type>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <type>INTEGER</type>
+                        <default>1</default>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PTZ_CONT_STOP</name>
+                <description>Stop continuous PTZ movement</description>
+            </command>
+            <command>
+                <name>TEST_SNAPSHOT</name>
+                <description>Test camera snapshot URL</description>
+            </command>
+            <command>
+                <name>TEST_MAIN_STREAM</name>
+                <description>Dynamic stream API - Main Stream</description>
+            </command>
+            <command>
+                <name>TEST_SUB_STREAM</name>
+                <description>Dynamic stream API - Sub Stream</description>
+            </command>
+            <command>
+                <name>BIND_DEVICE</name>
+                <description>Bind device to CldBus API</description>
+            </command>
+            <command>
+                <name>INITIALIZE_CAMERA</name>
+                <description>Initialize CldBus</description>
+            </command>
+            <command>
+                <name>LOGIN_OR_REGISTER</name>
+                <description>Login or register a user</description>
+            </command>
+            <command>
+                <name>GET_TEMP_TOKEN</name>
+                <description>Get temporary token for user</description>
+            </command>
+            <command>
+                <name>GET_EXCHANGE_TOKEN</name>
+                <description>Get exchange token for user</description>
+            </command>
+            <command>
+                <name>GET_DEVICES</name>
+                <description>Get list of devices for user</description>
+            </command>
+            <command>
+                <name>DISCOVER_CAMERAS</name>
+                <description>Discover IP cameras on local network via HTTP scan</description>
+            </command>
+            <command>
+                <name>DISCOVER_CAMERAS_SDDP</name>
+                <description>Discover IP cameras via SDDP protocol (multicast)</description>
+            </command>
+            <command>
+                <name>SET_DEVICE_PROPERTY</name>
+                <description>Set device active via API (e.g., sddp_swt)</description>
+            </command>
+            <command>
+                <name>GET_MQTT_INFO</name>
+                <description>Get MQTT connection info from API</description>
+            </command>
+            <command>
+                <name>CONNECT_MQTT</name>
+                <description>Connect to MQTT broker and subscribe to device events</description>
+            </command>
+            <command>
+                <name>DISCONNECT_MQTT</name>
+                <description>Disconnect from MQTT broker</description>
+            </command>
+            <command>
+                <name>GET_CAMERA_PROPERTIES</name>
+                <description>Get current camera properties and send to UI</description>
+            </command>
+            <command>
+                <name>UPDATE_UI_PROPERTIES</name>
+                <description>Update Control4 UI with current camera properties</description>
+            </command>
+            <command>
+                <name>START_HTTP_POLLING</name>
+                <description>Start HTTP polling for device events (MQTT alternative)</description>
+            </command>
+            <command>
+                <name>STOP_HTTP_POLLING</name>
+                <description>Stop HTTP polling for device events</description>
+            </command>
+            <command>
+                <name>PRESET_SAVE</name>
+                <description>Save current position as preset</description>
+                <params>
+                    <param>
+                        <name>preset_id</name>
+                        <type>INTEGER</type>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PRESET_RECALL</name>
+                <description>Recall a saved preset</description>
+                <params>
+                    <param>
+                        <name>preset_id</name>
+                        <type>INTEGER</type>
+                    </param>
+                </params>
+            </command>
+        </commands>
+    </config>
+    <connections>
+        <connection>
+            <id>5001</id>
+            <facing>6</facing>
+            <connectionname>Camera</connectionname>
+            <type>2</type>
+            <consumer>false</consumer>
+            <classes>
+                <class>
+                    <classname>CAMERA</classname>
+                </class>
+            </classes>
+            <hidden>True</hidden>
+        </connection>
+        <connection proxybindingid="5001">
+            <id>6001</id>
+            <facing>1</facing>
+            <connectionname>Network/MQTT</connectionname>
+            <type>4</type>
+            <consumer>true</consumer>
+            <classes>
+                <class>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>3333</number>
+                        </port>
+                        <port>
+                            <number>554</number>
+                        </port>
+                        <port>
+                            <number>8884</number>
+                        </port>
+                    </ports>
+                </class>
+            </classes>
+        </connection>
+    </connections>
+</devicedata>

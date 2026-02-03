@@ -1,0 +1,153 @@
+<devicedata>
+	<copyright>Copyright 2016 Control4 Corporation.  All rights reserved.</copyright>
+	<creator>Control4</creator>
+	<!-- 
+	If you are making your own driver then change the details below.  Note the date is in US format: Month/Day/Year
+	-->
+	<manufacturer>Control4</manufacturer>
+	<name>Camera Compatibility Test</name>
+	<model>Camera Compatibility Test</model>
+	<created>08/28/2015 12:00 AM</created>
+	<modified>01/14/2016 12:00 AM</modified>
+	<!-- 
+	Each time you modify the driver update the version number below.
+	-->
+	<version>4</version>
+	<capabilities>
+		<!-- 
+		These are the modes the camera might support.  If the camera does not support H264 then remove the H264 entries
+		If H264I is not supported just remove that entry.  Cameras must support MJPEG in order to be displayed on Flash based UIs.
+		-->
+		<modes>SNAPSHOT, MJPEG, H264, H264I</modes>
+		<!-- 
+		This driver assumes a static camera.  For PTZ cameras change the supported capabilities below to True.
+		Then complete the corresponding functions in the Lua code.
+		-->
+		<has_pan>False</has_pan>
+		<has_pan_scan>False</has_pan_scan>
+		<has_tilt>False</has_tilt>
+		<has_tilt_scan>False</has_tilt_scan>
+		<has_home>False</has_home>
+		<has_zoom>False</has_zoom>
+		<number_presets>0</number_presets>
+		<!-- 
+		This is the default port number that you access the camera's images on.  If you just type a URL without a port number then the port number is the standard 80.
+		For the H264 stream this is often accessed using RTSP.  The default port number for this is 554 unless stated otherwise in the camera's documentation.
+		-->
+		<default_http_port>80</default_http_port>
+		<default_rtsp_port>554</default_rtsp_port>
+		<!-- 
+		If the camera requires a username and password to access the streams (most do) then complete the default values below.
+		-->
+		<default_authentication_required>False</default_authentication_required>
+		<default_authentication_type>BASIC</default_authentication_type>
+		<default_username>username</default_username>
+		<default_password>password</default_password>
+		<!-- 
+		Unless the camera uses SDDP and you wish to make the connections on the Network tab leave both the below as False.
+		-->
+		<address_readonly>False</address_readonly>
+		<http_port_readonly>False</http_port_readonly>
+		<!-- 
+		Unless you wish to hide the details of the URLs on the test page leave the following as false.
+		-->
+		<show_test_url>True</show_test_url>
+		<!-- 
+		Most cameras provide their H264 stream over RTSP.  Check the camera documentation and if its URI is in the form RTSP://XXX.XXX.XXX.XXX keep the below false.
+		If the H264 stream does not appear or the documentation states it is accessed over HTTP then set the below to True.
+		-->
+		<use_http_for_h264>False</use_http_for_h264>
+	</capabilities>
+	<small>devices_sm\camera_sm.gif</small>
+	<large>devices_lg\camera_lg.gif</large>
+	<control>lua_gen</control>
+	<controlmethod>ip</controlmethod>
+	<driver>DriverWorks</driver>
+	<proxies qty="1">
+		<proxy proxybindingid="5001" name = 'IP Camera Test'>camera</proxy>
+	</proxies>
+	<connections>
+		<connection>
+			<id>5001</id>
+			<facing>6</facing>
+			<connectionname>Camera</connectionname>
+			<type>2</type>
+			<consumer>False</consumer>
+			<audiosource>False</audiosource>
+			<videosource>False</videosource>
+			<linelevel>False</linelevel>
+			<hidden>True</hidden>
+			<classes>
+				<class>
+					<classname>CAMERA</classname>
+				</class>
+			</classes>
+		</connection>
+	</connections>
+	<config>
+		<properties>
+			<!-- 
+			If you are making a permanent driver for a camera, delete these three properties.
+			-->
+			<property>
+				<name>Still JPEG URL</name>
+				<type>STRING</type>
+				<readonly>false</readonly>
+				<default></default>
+			</property>
+			<property>
+				<name>MJPEG URL</name>
+				<type>STRING</type>
+				<readonly>false</readonly>
+				<default></default>
+			</property>
+			<property>
+				<name>H264 URL</name>
+				<type>STRING</type>
+				<readonly>false</readonly>
+				<default></default>
+			</property>
+			<!-- 
+			To here
+			-->
+			<property>
+				<name>Log Level</name>
+				<type>LIST</type>
+				<readonly>false</readonly>
+				<default>2 - Warning</default>
+				<items>
+					<item>0 - Fatal</item>
+					<item>1 - Error</item>
+					<item>2 - Warning</item>
+					<item>3 - Info</item>
+					<item>4 - Debug</item>
+					<item>5 - Trace</item>
+				</items>
+			</property>
+			<property>
+				<name>Log Mode</name>
+				<type>LIST</type>
+				<readonly>false</readonly>
+				<default>Off</default>
+				<items>
+					<item>Off</item>
+					<item>Print</item>
+					<item>Log</item>
+					<item>Print and Log</item>
+				</items>
+			</property>
+		</properties>
+		<!-- 
+		Update the documentation rtf file then copy the text version between the two documentation tabs for Composer Express
+		-->
+		<documentation file = "www/documentation.rtf"></documentation>
+		<script file="driver.lua"></script>
+		<power_management_method>AlwaysOn</power_management_method>
+		<power_command_delay>0</power_command_delay>
+		<power_delay>0</power_delay>
+		<power_command_needed>False</power_command_needed>
+	</config>
+	<composer_categories>
+		<category>Camera</category>
+	</composer_categories>
+</devicedata>
