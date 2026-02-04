@@ -57,7 +57,7 @@ GlobalObject.ClientID = ""
 GlobalObject.ClientSecret = ""
 GlobalObject.AES_KEY = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG" -- 32 bytes = AES-256
 GlobalObject.AES_IV = "33rj6KNVN4kFvd0s"                  --16 bytes
-GlobalObject.BaseUrl = "https://openapi.tuyaus.com" 
+GlobalObject.BaseUrl = "" 
 GlobalObject.TCP_SERVER_IP = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT = 8081
 
@@ -86,8 +86,17 @@ local EVENT                      = {
     LINE_CROSSING    = "Line Crossing",
     REGION_INTRUSION = "Region Intrusion",
     HUMAN            = "Human Detected",
-    INTRUDER         = "Intruder Detected",
-    LOW_BATTERY      = "Low Battery"
+    INTRUDER         = "Intruder Detected"
+}
+
+-- Map event names to event IDs (from driver.xml)
+-- These IDs are REQUIRED for Camera History on OS 3.x
+local EVENT_ID_MAP = {
+    ["Motion Detected"]    = 1,
+    ["Human Detected"]     = 2,
+    ["Camera Online"]      = 3,
+    ["Camera Offline"]     = 4,
+    ["Camera Restarted"]   = 5
 }
 
 
@@ -425,7 +434,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = Properties["AppSecret"] or ""
     
     print("Client ID: " .. client_id)
     print("Request ID: " .. request_id)
@@ -618,7 +627,7 @@ function LoginOrRegister(country_code, account)
     local client_id = Properties["ClientID"] or util.uuid_v4()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = Properties["AppSecret"] or ""
     
     print("Client ID: " .. client_id)
     print("Request ID: " .. request_id)
@@ -1328,9 +1337,98 @@ local function can_notify(key, cooldown)
     return true
 end
 
+-- ============================================================
+-- CAMERA HISTORY & NOTIFICATION HANDLING
+-- ============================================================
+-- This function handles both push notifications AND Camera History
+-- For OS 3.x Camera History to work, we need:
+-- 1. Fire event with NAME (for push notifications)
+-- 2. Fire event with ID (for Camera History)
+-- 3. Add recorded clip (for History screen display)
+-- ============================================================
 local function fire_camera_event(event_name)
-    print("[EVENT] 📸 Camera event:", event_name)
-     C4:FireEvent(event_name, CAMERA_BINDING)
+    print("[HISTORY] ========================================")
+    print("[HISTORY] Processing event:", event_name)
+    
+    -- Get event ID from mapping
+    local event_id = EVENT_ID_MAP[event_name]
+    if not event_id then
+        print("[HISTORY] ⚠️ No event ID mapping - firing with name only")
+        C4:FireEvent(event_name, CAMERA_BINDING)
+        return
+    end
+    
+    -- Get camera properties for URLs
+    local ip = Properties["IP Address"] or ""
+    local http_port = Properties["HTTP Port"] or "3333"
+    local rtsp_port = Properties["RTSP Port"] or "554"
+    local username = Properties["Username"] or ""
+    local password = Properties["Password"] or ""
+    local auth_type = Properties["Authentication Type"] or "NONE"
+    local auth_required = (auth_type ~= "NONE")
+    
+    -- Build thumbnail URL (snapshot)
+    local thumbnail_url = ""
+    if ip ~= "" then
+        if auth_required and username ~= "" and password ~= "" then
+            thumbnail_url = string.format("http://%s:%s@%s:%s/wps-cgi/image.cgi", 
+                username, password, ip, http_port)
+        else
+            thumbnail_url = string.format("http://%s:%s/wps-cgi/image.cgi", ip, http_port)
+        end
+    end
+    
+    -- Build video URL (RTSP stream for live cameras)
+    local video_url = ""
+    if ip ~= "" and rtsp_port ~= "" then
+        if auth_required and username ~= "" and password ~= "" then
+            video_url = string.format("rtsp://%s:%s@%s:%s/streamtype=1", 
+                username, password, ip, rtsp_port)
+        else
+            video_url = string.format("rtsp://%s:%s/streamtype=1", ip, rtsp_port)
+        end
+    end
+    
+    -- Get timestamp
+    local ts = os.time()
+    local clip_id = string.format("%d_%d", ts, event_id)
+    
+    print("[HISTORY] Event ID:", event_id)
+    print("[HISTORY] Clip ID:", clip_id)
+    print("[HISTORY] Timestamp:", ts)
+    
+    -- STEP 1: Add recorded clip FIRST (before firing events)
+    -- Some Camera Proxy implementations require the clip to exist before the event
+    -- This creates the entry in the History screen
+    -- For live cameras, provide RTSP URL in VIDEO_URL
+    print("[HISTORY] Adding clip to Camera Proxy...")
+    C4:SendToProxy(CAMERA_BINDING, "ADD_RECORDED_CLIP", {
+        CLIP_ID = clip_id,
+        CLIP_TYPE = "EVENT",
+        CLIP_DESCRIPTION = event_name,
+        CLIP_START_TIME = tostring(ts),
+        CLIP_END_TIME = tostring(ts),
+        CLIP_DURATION = "1",
+        THUMBNAIL_URL = thumbnail_url,
+        VIDEO_URL = video_url
+    })
+    print("[HISTORY] ✅ Added recorded clip to History")
+    print("[HISTORY] Thumbnail:", thumbnail_url)
+    print("[HISTORY] Video:", video_url)
+    
+    -- Small delay to ensure clip is processed before firing events
+    C4:SetTimer(50, function()
+        -- STEP 2: Fire event with NAME (for push notifications)
+        -- Push notifications require event names, not IDs
+        C4:FireEvent(event_name, CAMERA_BINDING)
+        print("[HISTORY] ✅ Fired event by NAME (for notifications)")
+        
+        -- STEP 3: Fire event with ID (for Camera History)
+        -- Camera History on OS 3.x requires numeric event IDs
+        C4:FireEvent(event_id, CAMERA_BINDING)
+        print("[HISTORY] ✅ Fired event by ID (for history)")
+        print("[HISTORY] ========================================")
+    end)
 end
 local function send_notification(category, event_name, cooldown_key, cooldown_sec)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
@@ -1340,6 +1438,12 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
         print("[NOTIFY] ⏳ Suppressed:", event_name)
         return
     end
+      C4:SendToProxy(
+            CAMERA_BINDING,
+            "GET_CAMERA_SNAPSHOT",
+            { WIDTH = 640, HEIGHT = 480 }
+        )
+
 
     print("[NOTIFY] 🔔 Fired:", event_name)
     fire_camera_event(event_name)
@@ -1755,15 +1859,9 @@ function SEND_TEST_NOTIFICATION()
     -- Informational notifications
     send_notification(NOTIFY.INFO, EVENT.MOTION, "test_motion", 0)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "test_human", 0)
-    send_notification(NOTIFY.INFO, EVENT.FACE, "test_face", 0)
-    send_notification(NOTIFY.INFO, EVENT.CLIP, "test_clip", 0)
-
-    -- Alert notifications
-    send_notification(NOTIFY.ALERT, EVENT.INTRUDER, "test_intruder", 0)
-    send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "test_battery", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "test_restart", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_OFFLINE, "test_offline", 0)
-
+   send_notification(NOTIFY.ALERT, EVENT.CAMERA_ONLINE, "test_online", 0)
     print("[TEST] ✅ Test notifications fired")
 end
 
@@ -3083,4 +3181,66 @@ function RTSP_URL_PUSH(idBinding, tParams)
     C4:UpdateProperty("Status", "RTSP streaming ready")
     print("================================================================")
     return rtsp_url
+end
+
+function GetNotificationAttachmentURL()
+	print("GetNotificationAttachmentURL()")
+    local ip = Properties["IP Address"];
+    local http_port = Properties["HTTP Port"] or "3333"
+    local snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi", ip, http_port)
+    local tParams = {}
+    return snapshot_url
+    --return "<snapshot_query_string>" .. C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>" 
+	-- return "https://www.control4.com/files/large/19302fc18de7c3b74f3e1b72475b634b.png"
+--	return "http://10.12.80.4:80/snap1vga"
+end
+
+function GetNotificationAttachmentFile()
+	print("GetNotificationAttachmentFile()")
+	local fileName = "/mnt/internal/c4z/notification_driver/www/snap1vga.jpg"
+
+	return fileName
+end
+
+function GetNotificationAttachmentBytes()
+	print("GetNotificationAttachmentBytes()")
+	local fileData = ""
+	C4:FileSetDir("/mnt/internal/c4z/notification_driver/www")
+
+	if (C4:FileExists("snap1vga.jpg")) then
+		print("File Exists")
+		local fh = C4:FileOpen("snap1vga.jpg")
+		if (fh == -1) then
+			print("Error opening jpg file")
+			return
+		end
+		if (C4:FileIsValid(fh)) then
+			print("FileIsValid")
+			C4:FileSetPos(fh, 0)
+			fileData = C4:FileRead(fh, 20000)
+		else
+			print("Error: file is invalid")
+		end
+		C4:FileClose(fh)
+	else
+		print("Error image File does not exist")
+	end
+
+	--local encoded = C4:Base64Encode(fileData)
+	return C4:Base64Encode(fileData)
+end
+
+function FinishedWithNotificationAttachment(id)
+	print("id = " .. id)
+
+	if (id == 1001) then
+		-- do some cleanup for Memory
+		print ("Memory cleanup")
+	elseif (id == 1002) then
+		print ("File cleanup")
+	elseif (id == 1003) then
+		print ("URL cleanup")
+	else
+		print ("invalid id")
+	end
 end

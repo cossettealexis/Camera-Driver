@@ -25,9 +25,9 @@ local MQTT = require("mqtt_manager")
 local CAMERA_BINDING = 5001
 local WAKE_DELAY_MS = tonumber(Properties["Wake Delay (ms)"]) or 5000
 
-
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call = true
+
 
 local NOTIFY = {
     ALERT = "ALERT",
@@ -47,7 +47,7 @@ local COOLDOWN = {
     face     = 120,
     clip     = 120,
     online   = 10,
-    offline  = 45,
+    offline  = 10,
     restart  = 30,
     battery  = 300,
     intruder = 0,
@@ -131,8 +131,17 @@ function WakeCamera(retry)
 
         SET_DEVICE_PROPERTY({})
 
+        if attempt < retry then
+            local next_wake_delay = (WAKE_DURATION + WAKE_INTERVAL) * 1000 -- Convert to milliseconds
+            C4:SetTimer(next_wake_delay, function(timer)
+    try_wake()
+            end)
+        else
+            print("Wake retry " .. retry .. " times done")
+        end
     end
 
+    -- Start first attempt immediately (runs in parallel with RTSP connection)
     try_wake()
 end
 
@@ -163,7 +172,6 @@ end
 
 function OnDriverDestroyed()
     print("=== K26 Driver Destroyed ===")
-    
     MQTT.disconnect()
 end
 
@@ -227,6 +235,7 @@ function OnDriverLateInit()
     C4:UpdateProperty("Status", "Ready")
 
     -- Auto-initialize on startup
+    -- Auto-initialize on startup
     if not AUTO_FLOW_STARTED then
         AUTO_FLOW_STARTED = true
         _initializing = true
@@ -289,7 +298,7 @@ function OnDriverLateInit()
 
         -- Generate and push initial URLs to Control4 app
         local rtsp_url = string.format("rtsp://%s:%s/stream0", ip, rtsp_port)
-        local snapshot_url = string.format("http://%s:%s/stream0", ip, http_port)
+        local snapshot_url = string.format("http://%s:%s/tmp/snap.jpeg", ip, http_port)
 
         -- Store in properties
         C4:UpdateProperty("Main Stream URL", rtsp_url)
@@ -1459,7 +1468,7 @@ function ReceivedFromNetwork(id, port, data)
     end
 
 
-    local payload = decoded.message or decoded
+    --[[local payload = decoded.message or decoded
 
     if payload.EventName ~= "LnduUpdate" then
         print("[TCP] Ignoring Event:", tostring(payload.EventName))
@@ -1471,7 +1480,7 @@ function ReceivedFromNetwork(id, port, data)
         UpdateAuthToken(payload.Token)
             else
         print("[TCP] Token missing in payload")
-    end
+    end--]]
 
     local payload = decoded.message or decoded
 
@@ -1545,8 +1554,8 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
 
     if not can_notify(cooldown_key, cooldown_sec) then
-        print("[NOTIFY] Suppressed:", event_name)
-        return
+        print("[NOTIFY] ⏳ Suppressed:", event_name)
+    return
     end
     C4:FireEvent(event_name, CAMERA_BINDING)
 end
@@ -1708,7 +1717,6 @@ function HANDLE_JSON_EVENT(payload)
 
         ------------------------------------------------
         -- 🎥 log_rec (Continuous Motion / Human)
-        -- ALL DETECTION DISABLED FOR TESTING
         ------------------------------------------------
         if id == "log_rec" then
             if params.type == 10021 then
@@ -1858,10 +1866,10 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
     -- Build snapshot URL
     local snapshot_url
     if auth_required and username ~= "" and password ~= "" then
-        snapshot_url = string.format("http://%s:%s@%s:8080/stream0",
+        snapshot_url = string.format("http://%s:%s@%s:8080/tmp/snap.jpeg",
             username, password, ip, width, height)
     else
-        snapshot_url = string.format("http://%s:8080/stream0",
+        snapshot_url = string.format("http://%s:8080/tmp/snap.jpeg",
             ip, width, height)
     end
 
@@ -2093,7 +2101,7 @@ function GET_SNAPSHOT_URL(params)
     local port = Properties["HTTP Port"] or "8080"
     local username = Properties["Username"] or "SystemConnect"
     local password = Properties["Password"] or "123456"
-    local path = Properties["Snapshot Path"] or "/stream0"
+    local path = Properties["Snapshot Path"] or "tmp/snap.jpeg"
 
     if not ip or ip == "" then
         print("IP Address not set")
@@ -2500,6 +2508,7 @@ function UIRequest(strCommand, tParams)
 
     -- Legacy support
     if strCommand == "GET_CAMERA_URL" or strCommand == "GET_SNAPSHOT_URL" then
+        print("legacy support for GET_CAMERA_URL/GET_SNAPSHOT_URL")
         local result = "<snapshot_query_string>" ..
             C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
         return result
@@ -2564,15 +2573,6 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 480)
 
     print("Requested resolution: " .. width .. "x" .. height)
-    
-    -- Log ALL parameters to understand the pattern
-    if tParams then
-        print("ALL PARAMETERS:")
-        for k, v in pairs(tParams) do
-            print("  " .. tostring(k) .. " = " .. tostring(v))
-        end
-    end
-
 
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -2585,7 +2585,7 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     end
 
     -- Camera Proxy will build: http://username:password@ip:port/path
-    local snapshot_path = "/tmp/snap.jpeg"
+    local snapshot_path = string.format("tmp/snap.jpeg", width, height)
 
     print("Snapshot Path: " .. snapshot_path)
     print("Camera Proxy will build full URL with IP: " .. ip .. " and port: " .. http_port)
@@ -2619,10 +2619,6 @@ function GET_STREAM_URLS(idBinding, tParams)
         C4:UpdateProperty("Status", "Get Stream URLs failed: No IP Address")
         return
     end
-
-    -- Wake camera before providing stream URLs
-    print("[STREAM_URLS] Waking camera for streaming...")
-    SET_DEVICE_PROPERTY({})
 
     -- Build RTSP URLs for K26-SL camera
     -- Main stream (high quality): stream0
@@ -2689,10 +2685,8 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     local delay = tonumber((tParams and tParams.DELAY) or 0)
 
     print("Requested H264 stream:")
-    print(tParams)
     print("  Resolution: " .. width .. "x" .. height)
     print("  Frame rate: " .. rate .. " fps")
-    -- print("  C4 Delay: " .. delay .. " ms")
 
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -2707,10 +2701,16 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
         return
     end
 
-    -- Always wake camera before streaming
-    print("[RTSP] Waking camera for streaming...")
-    SET_DEVICE_PROPERTY({})  -- Wake camera immediately
-    
+    -- Skip wake on first call, only wake on subsequent calls
+    if rtsp_first_call then
+        print("[RTSP] First call - skipping wake")
+        rtsp_first_call = false
+    else
+        print("[RTSP] Subsequent call - waking camera for streaming session...")
+        WakeCamera(1)
+    end
+
+
     -- Determine stream type based on resolution
     -- Higher resolution -> main stream (stream0)
     -- Lower resolution -> sub stream (stream1)
@@ -2729,7 +2729,7 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("RTSP Path: " .. rtsp_path)
     print("Camera Proxy will build full URL with IP: " .. ip .. " and port: " .. rtsp_port)
 
-    C4:UpdateProperty("Status", "H264 streaming with keep-alive")
+    C4:UpdateProperty("Status", "H264 stream path generated")
     print("================================================================")
     return rtsp_path
 end
@@ -2832,7 +2832,7 @@ function URL_GET(idBinding, tParams)
             username, password, ip, rtsp_port)
         rtsp_sub_url = string.format("rtsp://%s:%s@%s:%s/stream1",
             username, password, ip, rtsp_port)
-        snapshot_url = string.format("http://%s:%s@%s:%s/stream0",
+        snapshot_url = string.format("http://%s:%s@%s:%s/tmp/snap.jpeg",
             username, password, ip, http_port)
         mjpeg_url = string.format("http://%s:%s@%s:%s/video.mjpg",
             username, password, ip, http_port)
@@ -2841,7 +2841,7 @@ function URL_GET(idBinding, tParams)
             ip, rtsp_port)
         rtsp_sub_url = string.format("rtsp://%s:%s/stream1",
             ip, rtsp_port)
-        snapshot_url = string.format("http://%s:%s/stream0",
+        snapshot_url = string.format("http://%s:%s/tmp/snap.jpeg",
             ip, http_port)
         mjpeg_url = string.format("http://%s:%s/video.mjpg",
             ip, http_port)
@@ -2942,7 +2942,7 @@ function GetNotificationAttachmentURL()
     print("GetNotificationAttachmentURL()")
     local ip = Properties["IP Address"];
     local http_port = Properties["HTTP Port"] or "8080"
-    local snapshot_url = string.format("http://%s:%s/stream0", ip, http_port)
+    local snapshot_url = string.format("http://%s:%s/tmp/snap.jpeg", ip, http_port)
     return snapshot_url
 end
 

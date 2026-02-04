@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
-    <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.1.0</version>
+    <name>Slomins VD05 Video Doorbell</name>
+    <version>1.0.0</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
-    <model>K26-SL</model>
-    <created>2025-11-11</created>
-    <modified>2026-1-20</modified>
+    <model>VD05</model>
+    <created>2025-12-16</created>
+    <modified>2026-1-21</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -18,11 +18,11 @@
         <category>Cameras</category>
     </composer_categories>
     <proxies qty="1">
-        <proxy proxybindingid="5001" name="Slomins K26-SL Outdoor Camera">camera</proxy>
+        <proxy proxybindingid="5001" name="Slomins VD05 Video Doorbell">camera</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H265, SNAPSHOT, MJPEG, H264</modes>
+        <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
         <default_authentication_required>True</default_authentication_required>
@@ -35,90 +35,93 @@
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
+        <supports_streaming>true</supports_streaming>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
-    <notification_attachments>
-        <attachment>
-            <id>1001</id>
-            <type>IMAGE_JPEG</type>
-            <description>Current Snapshot</description>
-            <source>MEMORY</source>
-        </attachment>
-        <attachment>
-            <id>1002</id>
-            <type>IMAGE_JPEG</type>
-            <description>Snapshot (File)</description>
-            <source>FILE</source>
-        </attachment>
-        <attachment>
-            <id>1003</id>
-            <type>IMAGE_JPEG</type>
-            <description>Snapshot (URL)</description>
-            <source>URL</source>
-        </attachment>
+     <notification_attachments>
+    <attachment>
+      <id>1001</id>
+      <type>IMAGE_JPEG</type>
+      <description>Current Snapshot</description>
+      <source>MEMORY</source>
+    </attachment>
+    <attachment>
+      <id>1002</id>
+      <type>IMAGE_JPEG</type>
+      <description>Snapshot (File)</description>
+      <source>FILE</source>
+    </attachment>
+    <attachment>
+      <id>1003</id>
+      <type>IMAGE_JPEG</type>
+      <description>Snapshot (URL)</description>
+      <source>URL</source>
+    </attachment>
     </notification_attachments>
-    <events>
-        <event>
-            <id>1</id>
-            <name>Motion Detected</name>
-            <description>When NAME detects motion</description>
-        </event>
-        <event>
-            <id>2</id>
-            <name>Human Detected</name>
-            <description>When NAME detects a human</description>
-        </event>
-        <event>
-            <id>3</id>
-            <name>Face Detected</name>
-            <description>When NAME detects a face</description>
-        </event>
-        <event>
-            <id>4</id>
-            <name>Stranger Detected</name>
-            <description>When NAME detects a stranger</description>
-        </event>
-        <event>
-            <id>5</id>
-            <name>Low Battery</name>
-            <description>When NAME battery is low</description>
-        </event>
-        <event>
-            <id>6</id>
-            <name>Camera Online</name>
-            <description>When NAME comes online</description>
-        </event>
-        <event>
-            <id>7</id>
-            <name>Camera Offline</name>
-            <description>When NAME goes offline</description>
-        </event>
-        <event>
-            <id>8</id>
-            <name>Camera Restarted</name>
-            <description>When NAME restarts</description>
-        </event>
-        <event>
-            <id>9</id>
-            <name>Intruder Detected</name>
-            <description>When NAME detects an intruder</description>
-        </event>
-    </events>
+   <events>
+    <event>
+        <id>1</id>
+        <name>Motion Detected</name>
+        <description>When NAME detects motion</description>
+    </event>
+    <event>
+        <id>2</id>
+        <name>Human Detected</name>
+        <description>When NAME detects a human</description>
+    </event>
+    <event>
+        <id>3</id>
+        <name>Face Detected</name>
+        <description>When NAME detects a face</description>
+    </event>
+    <event>
+        <id>4</id>
+        <name>Stranger Detected</name>
+        <description>When NAME detects a stranger</description>
+    </event>
+    <event>
+        <id>5</id>
+        <name>Doorbell Ring</name>
+        <description>When NAME doorbell is pressed</description>
+    </event>
+    <event>
+        <id>6</id>
+        <name>Low Battery</name>
+        <description>When NAME battery is low</description>
+    </event>
+    <event>
+        <id>7</id>
+        <name>Camera Online</name>
+        <description>When NAME comes online</description>
+    </event>
+    <event>
+        <id>8</id>
+        <name>Camera Offline</name>
+        <description>When NAME goes offline</description>
+    </event>
+    <event>
+        <id>9</id>
+        <name>Camera Restarted</name>
+        <description>When NAME restarts</description>
+    </event>
+</events>
 
     <config>
-        <script file="driver.lua" />
-        <documentation file="README.md">Slomins K26-SL Camera Documentation</documentation>
+        <script file="driver.lua"/>
+        <documentation file="README.md">Slomins VD05 Video Doorbell Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.71</default>
+                <default>192.168.60.180</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -146,13 +149,13 @@
             <property>
                 <name>Username</name>
                 <type>STRING</type>
-                <default>SystemConnect</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Password</name>
                 <type>STRING</type>
-                <default>123456</default>
+                <default></default>
                 <password>true</password>
                 <readonly>false</readonly>
             </property>
@@ -181,25 +184,25 @@
                     <item>DIGEST</item>
                     <item>NONE</item>
                 </items>
-                <default>BASIC</default>
+                <default>NONE</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d50gu5mbtn8c73cnacvg</default>
+                <default>d4n44no1k1vs73fqjjo0</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Product ID</name>
                 <type>STRING</type>
-                <default>K26-SL</default>
+                <default>VD05</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>K26 jan 26 2026</default>
+                <default>VD05</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -224,15 +227,15 @@
                 <default>pyabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
-            <property>
+              <property>
                 <name>Wake Delay (ms)</name>
                 <type>RANGED_INTEGER</type>
-                <default>5000</default>
+                <default>7000</default>
                 <minimum>0</minimum>
                 <maximum>30000</maximum>
                 <readonly>false</readonly>
             </property>
-            <property>
+              <property>
                 <name>Enable MQTT</name>
                 <type>LIST</type>
                 <items>
@@ -286,7 +289,7 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>false</readonly>
-            </property>
+            </property>            
             <property>
                 <name>Temp Token</name>
                 <type>STRING</type>
@@ -329,7 +332,7 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
-            </property>
+            </property>    
             <property>
                 <name>IP Scan Range End</name>
                 <type>RANGED_INTEGER</type>
@@ -337,68 +340,7 @@
                 <minimum>1</minimum>
                 <maximum>999</maximum>
                 <readonly>false</readonly>
-            </property>
-            <property>
-                <name>MQTT Host</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Port</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Client ID</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Secret</name>
-                <type>STRING</type>
-                <password>true</password>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Motion</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Snapshot URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Face</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Clip URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Online</name>
-                <type>STRING</type>
-                <default>false</default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Doorbell</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
+            </property>   
         </properties>
         <actions>
             <action>
@@ -509,15 +451,6 @@
                 <name>Test Push Notification</name>
                 <command>TEST_PUSH_NOTIFICATION</command>
             </action>
-            <action>
-                <name>Get Camera Properties</name>
-                <command>GET_CAMERA_PROPERTIES</command>
-            </action>
-            <action>
-                <name>Update UI Properties</name>
-                <command>UPDATE_UI_PROPERTIES</command>
-            </action>
-
         </actions>
         <commands>
             <command>
@@ -602,7 +535,18 @@
                 <name>SET_DEVICE_PROPERTY</name>
                 <description>Set device active via API (e.g., sddp_swt)</description>
             </command>
-
+            <command>
+                <name>GET_MQTT_INFO</name>
+                <description>Get MQTT connection info from API</description>
+            </command>
+            <command>
+                <name>CONNECT_MQTT</name>
+                <description>Connect to MQTT broker and subscribe to device events</description>
+            </command>
+            <command>
+                <name>DISCONNECT_MQTT</name>
+                <description>Disconnect from MQTT broker</description>
+            </command>
             <command>
                 <name>GET_CAMERA_PROPERTIES</name>
                 <description>Get current camera properties and send to UI</description>
@@ -611,7 +555,14 @@
                 <name>UPDATE_UI_PROPERTIES</name>
                 <description>Update Control4 UI with current camera properties</description>
             </command>
-
+            <command>
+                <name>START_HTTP_POLLING</name>
+                <description>Start HTTP polling for device events (MQTT alternative)</description>
+            </command>
+            <command>
+                <name>STOP_HTTP_POLLING</name>
+                <description>Stop HTTP polling for device events</description>
+            </command>
             <command>
                 <name>PRESET_SAVE</name>
                 <description>Save current position as preset</description>
@@ -633,16 +584,6 @@
                 </params>
             </command>
         </commands>
-        <interfaces>
-            <interface>
-                <id>6001</id>
-                <type>network</type>
-                <network>
-                    <protocol>TCP</protocol>
-                    <incoming>false</incoming>
-                </network>
-            </interface>
-        </interfaces>
     </config>
     <connections>
         <connection>

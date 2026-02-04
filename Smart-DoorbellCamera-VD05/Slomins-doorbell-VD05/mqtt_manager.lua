@@ -8,11 +8,13 @@ MQTT.BINDING = 6001
 
 MQTT.state = {
     connected = false,
+    connecting = false,   
     packet_id = 1,
     manual_disconnect = false,
     subscribed = false,
     ping_timer = nil
 }
+
 
 MQTT.props = nil
 MQTT.callbacks = nil
@@ -60,16 +62,24 @@ end
 -- CONNECT / DISCONNECT
 -- =========================
 function MQTT.connect()
+    if MQTT.state.connected or MQTT.state.connecting then
+        print("[MQTT] Connect skipped (already connecting/connected)")
+        return
+    end
+
     local M = MQTT.props.MQTT
     if not (M and M.host and M.port) then return end
 
+    MQTT.state.connecting = true
     print("[MQTT] Connecting:", M.host, M.port)
+
     C4:CreateNetworkConnection(MQTT.BINDING, M.host, "TCP")
 
     C4:SetTimer(300, function()
         C4:NetConnect(MQTT.BINDING, M.port)
     end)
 end
+
 
 function MQTT.disconnect()
     if not MQTT.state.connected then return end
@@ -140,7 +150,7 @@ end
 
 function MQTT.unsubscribe(vid)
     if not vid then return end
-
+    MQTT.state.manual_disconnect = true 
     local topic = "$push/down/device/" .. vid
     local pid = MQTT.state.packet_id
     MQTT.state.packet_id = pid + 1
@@ -151,6 +161,9 @@ function MQTT.unsubscribe(vid)
 
     C4:SendToNetwork(MQTT.BINDING, MQTT.props.MQTT.port, packet)
     print("[MQTT] UNSUBSCRIBE →", topic)
+     C4:SetTimer(300, function()
+        MQTT.disconnect()
+    end)
 end
 
 -- =========================
@@ -163,14 +176,19 @@ function MQTT.onConnectionStatusChanged(id, port, status)
         print("[MQTT] TCP ONLINE")
         C4:SetTimer(200, send_connect)
 
-    elseif status == "OFFLINE" then
-        print("[MQTT] TCP OFFLINE")
-        if MQTT.state.manual_disconnect then
-            MQTT.state.manual_disconnect = false
-            return
-        end
-        C4:SetTimer(5000, MQTT.reconnect)
+   elseif status == "OFFLINE" then
+    print("[MQTT] TCP OFFLINE")
+
+    if MQTT.state.manual_disconnect then
+        print("[MQTT] Manual disconnect – skipping reconnect")
+        MQTT.state.manual_disconnect = false
+        MQTT.state.connecting = false
+        return
     end
+
+    MQTT.state.connecting = false
+    C4:SetTimer(5000, MQTT.reconnect)
+end
 end
 
 function MQTT.onData(id, port, data)
@@ -202,7 +220,9 @@ function MQTT.handle_connack(data)
     print("[MQTT] CONNACK rc =", rc)
 
     if rc == 0 then
-        MQTT.state.connected = true
+    MQTT.state.connected = true
+    MQTT.state.connecting = false   
+
 
         -- Start keepalive
         C4:SetTimer((MQTT.props.MQTT.keepalive or 30) * 1000, send_ping, true)
