@@ -22,11 +22,13 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H265, SNAPSHOT, MJPEG, H264</modes>
+        <modes>H264, H265, SNAPSHOT</modes>
+        <default_mode>H264</default_mode>
+        <preferred_mode>H264</preferred_mode>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>True</default_authentication_required>
-        <default_authentication_type>BASIC</default_authentication_type>
+        <default_authentication_required>false</default_authentication_required>
+        <default_authentication_type>NONE</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -34,16 +36,17 @@
         <rtsp_port_readonly>False</rtsp_port_readonly>
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
-        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
-        <!-- <snapshot_cache_enabled>true</snapshot_cache_enabled> -->
-        <!-- <snapshot_cache_duration>5</snapshot_cache_duration> -->
+        <requires_dynamic_stream_urls>true</requires_dynamic_stream_urls>
+        <dynamic_urls_use_type>MULTIPLE</dynamic_urls_use_type>
+        <snapshot_cache_enabled>false</snapshot_cache_enabled>
+        <snapshot_cache_duration>0</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
-        <!-- <supports_streaming>true</supports_streaming> -->
+        <supports_streaming>true</supports_streaming>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
      <notification_attachments>

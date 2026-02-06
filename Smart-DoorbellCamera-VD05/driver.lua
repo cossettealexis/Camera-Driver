@@ -9,9 +9,20 @@ local util = require("CldBusApi.util")
 
 local LOW_BATTERY_THRESHOLD = 20
 local MQTT = require("mqtt_manager")
-
 local CAMERA_BINDING = 5001
 local WAKE_DELAY_MS = tonumber(Properties["Wake Delay (ms)"]) or 7000
+
+-- Camera wake timing for asynchronous streaming (in milliseconds)
+-- Camera stays awake for 10 seconds, needs 3 seconds cooldown before next wake
+-- RTSP server takes 2-3 seconds to start after wake
+-- 8 seconds = wake time (2-4s) + RTSP startup (2-3s) + safety buffer (1-2s)
+CAMERA_WAKE_DELAY_MS = 8000
+
+-- RTSP streaming keep-alive timer
+local rtsp_wake_timer = nil
+local rtsp_timeout_timer = nil
+local RTSP_WAKE_INTERVAL = 120000  -- Wake every 2 minutes (120 seconds = 120000 ms)
+local RTSP_TIMEOUT = 600000  -- Auto-stop after 10 minutes (600 seconds = 600000 ms)
 
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call = true
@@ -33,7 +44,7 @@ local COOLDOWN = {
     human    = 0,
     face     = 120,
     online   = 10,
-    offline  = 10,
+    offline  = 45,
     restart  = 30,
     battery  = 300,
     power    = 60
@@ -97,10 +108,8 @@ local EVENT = {
 
 
 local mqtt_enabled      = false
-local AUTO_FLOW_STARTED = true -- Prevent multiple auto-flows
+local AUTO_FLOW_STARTED = false
 local last_power_status = nil
-local WAKE_DURATION     = 17 -- seconds
-local WAKE_INTERVAL     = 23 -- seconds
 
 -- Wake Camera with Retry and stop retry after retry attempts
 function WakeCamera(retry)
@@ -112,17 +121,8 @@ function WakeCamera(retry)
 
         SET_DEVICE_PROPERTY({})
 
-        if attempt < retry then
-            local next_wake_delay = (WAKE_DURATION + WAKE_INTERVAL) * 1000 -- Convert to milliseconds
-            C4:SetTimer(next_wake_delay, function(timer)
-                try_wake()
-            end)
-        else
-            print("Wake retry " .. retry .. " times done")
-        end
     end
 
-    -- Start first attempt immediately (runs in parallel with RTSP connection)
     try_wake()
 end
 
@@ -191,6 +191,10 @@ end
 
 function OnDriverDestroyed()
     print("=== VD05 Driver Destroyed ===")
+    
+    -- Stop RTSP wake polling if active
+    StopRTSPWakePolling()
+    
     MQTT.disconnect()
 end
 
@@ -1482,13 +1486,6 @@ function ReceivedFromNetwork(id, port, data)
         print("[PROP] AppSecret updated (hidden)")
     end
 
-    --AccountName
-    if payload.AccountName and payload.AccountName ~= "" then
-        GlobalObject.AccountName = payload.AccountName
-        _props["AccountName"] = payload.AccountName
-        C4:UpdateProperty("AccountName", payload.AccountName)
-        print("[PROP] AccountName updated => " .. payload.AccountName)
-    end
     C4:UpdateProperty("Status", "Authenticated via TCP")
     print("[TCP] LnduUpdate processing complete")
 
@@ -1530,9 +1527,13 @@ local function can_notify(key, cooldown)
 end
 
 local function send_notification(category, event_name, cooldown_key, cooldown_sec)
-    if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
-    if category == NOTIFY.INFO and not user_settings.enable_info then return end
-    if not can_notify(cooldown_key, cooldown_sec) then return end
+    -- ALL NOTIFICATIONS DISABLED
+    print("[NOTIFY] Disabled: " .. event_name)
+    return
+    
+    -- if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
+    -- if category == NOTIFY.INFO and not user_settings.enable_info then return end
+    -- if not can_notify(cooldown_key, cooldown_sec) then return end
 
     -- C4:SendToProxy(
     --         CAMERA_BINDING,
@@ -1540,25 +1541,28 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     --         { WIDTH = 640, HEIGHT = 480 }
     --     )
 
-        -- 🔔 ALWAYS fire event (even if snapshot fails)
-        print("[NOTIFY] 🔔 Fired:", event_name)
-        C4:FireEvent(event_name, CAMERA_BINDING)
+    --     print("[NOTIFY] Fired:", event_name)
+    --     C4:FireEvent(event_name, CAMERA_BINDING)
 end
 
 
 local function handle_motion()
-    send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion)
+    -- MOTION DETECTION DISABLED
+    -- send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion)
 end
 local function handle_doorbell()
-    send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell)
+    -- DOORBELL DETECTION DISABLED
+    -- send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell)
 end
 
 local function handle_human()
-    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human)
+    -- HUMAN DETECTION DISABLED
+    -- send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human)
 end
 
 local function handle_face()
-    send_notification(NOTIFY.INFO, EVENT.FACE, "face", COOLDOWN.face)
+    -- FACE DETECTION DISABLED
+    -- send_notification(NOTIFY.INFO, EVENT.FACE, "face", COOLDOWN.face)
 end
 
 
@@ -1683,7 +1687,7 @@ end
 
 
 function WakeThen(fn)
-    WakeCamera(1)
+    -- WakeCamera(1)
     C4:SetTimer(WAKE_DELAY_MS, function()
         fn()
     end)
@@ -1708,17 +1712,17 @@ function HANDLE_JSON_EVENT(payload)
         ------------------------------------------------
         if id == "log_rec" then
             if params.type == 10021 then
-                WakeThen(handle_motion)
+                -- WakeThen(handle_motion)
                 return true
             end
 
             if params.type == 10022 then
-                WakeThen(handle_human)
+                -- WakeThen(handle_human)
                 return true
             end
 
             if params.type == 10024 then
-                WakeThen(handle_doorbell)
+                -- WakeThen(handle_doorbell)
                 return true
             end
 
@@ -1730,12 +1734,12 @@ function HANDLE_JSON_EVENT(payload)
         ------------------------------------------------
         if id == "alarm_rec_v2" then
             if params.type == 21 then
-                WakeThen(handle_intruder)
+                -- WakeThen(handle_intruder)
                 return true
             end
 
             if params.type == 1 then
-                WakeThen(handle_low_battery)
+                -- WakeThen(handle_low_battery)
                 return true
             end
 
@@ -1754,7 +1758,7 @@ function HANDLE_JSON_EVENT(payload)
         -- 🔄 Camera Restart
         ------------------------------------------------
         if id == "stored_reset" then
-            WakeThen(handle_restart)
+            -- WakeThen(handle_restart)
             return true
         end
 
@@ -1888,6 +1892,108 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
             C4:UpdateProperty("Status", "Snapshot failed")
         end
     end)
+
+    print("================================================================")
+end
+
+-- PTZ Commands
+function PTZ_COMMAND(idBinding, strCommand, tParams)
+    print("================================================================")
+    print("              PTZ_COMMAND: " .. strCommand .. "                ")
+    print("================================================================")
+
+    -- Get VID and auth token for API calls
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    -- Map Control4 commands to camera PTZ directions
+    local direction_map = {
+        PAN_LEFT = "left",
+        PAN_RIGHT = "right",
+        TILT_UP = "up",
+        TILT_DOWN = "down",
+        ZOOM_IN = "zoom_in",
+        ZOOM_OUT = "zoom_out"
+    }
+
+    local direction = direction_map[strCommand]
+    if not direction then
+        print("Unknown PTZ command: " .. strCommand)
+        return
+    end
+
+    local speed = (tParams and tonumber(tParams.SPEED)) or 1
+
+    print("PTZ Direction: " .. direction)
+    print("PTZ Speed: " .. speed)
+
+    -- Build API request for PTZ control
+    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/device/do-action"
+
+    local input_params = {
+        dir = direction,
+        speed = speed
+    }
+
+    local body = {
+        vid = vid,
+        action_id = "ac_ptz",
+        input_params = json.encode(input_params),
+        check_t = 0,
+        is_async = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("Sending PTZ command to API...")
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code == 200 or code == 20000 then
+            print("PTZ command successful")
+            C4:UpdateProperty("Status", "PTZ " .. direction)
+        else
+            print("PTZ command failed: " .. tostring(code))
+            if err then
+                print("Error: " .. err)
+            end
+        end
+    end)
+
+    print("================================================================")
+end
+
+function PTZ_HOME(idBinding, tParams)
+    print("================================================================")
+    print("                  PTZ_HOME CALLED                               ")
+    print("================================================================")
+
+    -- Return camera to home position
+    print("Returning camera to home position...")
+    C4:UpdateProperty("Status", "PTZ Home")
+
+    -- You would call your camera's home position API here
+    -- For now, this is a placeholder
 
     print("================================================================")
 end
@@ -2413,32 +2519,38 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     print("================================================================")
 
     -- Handle camera proxy commands
-    -- if strCommand == "CAMERA_ON" then
-    --     CAMERA_ON(idBinding, tParams)
-    -- elseif strCommand == "CAMERA_OFF" then
-    --     CAMERA_OFF(idBinding, tParams)
-    -- elseif strCommand == "GET_CAMERA_SNAPSHOT" then
-    --     return GET_CAMERA_SNAPSHOT(idBinding, tParams)
-    -- elseif strCommand == "GET_SNAPSHOT_QUERY_STRING" then
-    --     local result = "<snapshot_query_string>" ..
-    --     C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
-    --     return result
-    -- elseif strCommand == "GET_STREAM_URLS" then
-    --     GET_STREAM_URLS(idBinding, tParams)
-    -- elseif strCommand == "GET_RTSP_H264_QUERY_STRING" then
-    --     local result = "<rtsp_h264_query_string>" ..
-    --     C4:XmlEscapeString(GET_RTSP_H264_QUERY_STRING(5001, tParams)) .. "</rtsp_h264_query_string>"
-    --     return result
-    -- elseif strCommand == "GET_MJPEG_QUERY_STRING" then
-    --     return "<mjpeg_query_string>" ..
-    --     C4:XmlEscapeString(GET_MJPEG_QUERY_STRING(idBinding, tParams)) .. "</mjpeg_query_string>"
-    -- elseif strCommand == "URL_GET" then
-    --     URL_GET(idBinding, tParams)
-    -- elseif strCommand == "RTSP_URL_PUSH" then
-    --     RTSP_URL_PUSH(idBinding, tParams)
-    -- else
-    --     print("Unknown command from proxy: " .. strCommand)
-    -- end
+    if strCommand == "CAMERA_ON" then
+        CAMERA_ON(idBinding, tParams)
+    elseif strCommand == "CAMERA_OFF" then
+        CAMERA_OFF(idBinding, tParams)
+    elseif strCommand == "GET_CAMERA_SNAPSHOT" then
+        return GET_CAMERA_SNAPSHOT(idBinding, tParams)
+    elseif strCommand == "GET_SNAPSHOT_QUERY_STRING" then
+        local result = "<snapshot_query_string>" ..
+        C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
+        return result
+    elseif strCommand == "GET_STREAM_URLS" then
+        GET_STREAM_URLS(idBinding, tParams)
+    elseif strCommand == "GET_RTSP_H264_QUERY_STRING" then
+        local result = "<rtsp_h264_query_string>" ..
+        C4:XmlEscapeString(GET_RTSP_H264_QUERY_STRING(5001, tParams)) .. "</rtsp_h264_query_string>"
+        return result
+    elseif strCommand == "GET_MJPEG_QUERY_STRING" then
+        return "<mjpeg_query_string>" ..
+        C4:XmlEscapeString(GET_MJPEG_QUERY_STRING(idBinding, tParams)) .. "</mjpeg_query_string>"
+    elseif strCommand == "URL_GET" then
+        URL_GET(idBinding, tParams)
+    elseif strCommand == "RTSP_URL_PUSH" then
+        RTSP_URL_PUSH(idBinding, tParams)
+    elseif strCommand == "PAN_LEFT" or strCommand == "PAN_RIGHT" or
+        strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
+        strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
+        PTZ_COMMAND(idBinding, strCommand, tParams)
+    elseif strCommand == "HOME" then
+        PTZ_HOME(idBinding, tParams)
+    else
+        print("Unknown command from proxy: " .. strCommand)
+    end
 end
 
 -- GET_SNAPSHOT_QUERY_STRING - Return snapshot URL query string
@@ -2452,6 +2564,15 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 480)
 
     print("Requested resolution: " .. width .. "x" .. height)
+    
+    -- Log ALL parameters to understand the pattern
+    if tParams then
+        print("ALL PARAMETERS:")
+        for k, v in pairs(tParams) do
+            print("  " .. tostring(k) .. " = " .. tostring(v))
+        end
+    end
+
 
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -2474,10 +2595,10 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     return snapshot_path
 end
 
--- GET_STREAM_URLS - Return streaming URLs for various codecs
+-- GET_STREAM_URLS - Return streaming URLs for dynamic camera streams API (ASYNCHRONOUS)
 function GET_STREAM_URLS(idBinding, tParams)
     print("================================================================")
-    print("              GET_STREAM_URLS CALLED                            ")
+    print("         GET_STREAM_URLS CALLED (Async Dynamic API)             ")
     print("================================================================")
 
     if tParams then
@@ -2496,59 +2617,75 @@ function GET_STREAM_URLS(idBinding, tParams)
     if not ip or ip == "" then
         print("ERROR: IP Address not configured")
         C4:UpdateProperty("Status", "Get Stream URLs failed: No IP Address")
-        return
+        return "<streams></streams>"
     end
 
-    -- Build RTSP URLs for VD05 camera
-    -- Main stream (high quality): stream0
-    -- Sub stream (low quality): stream1
+    -- Generate unique key for this request
+    local key = tostring(os.time())
+    print("[STREAM_URLS] Generated key: " .. key)
 
-    -- Check if authentication is required
-    local auth_required = Properties["Authentication Type"] ~= "NONE"
+    -- Wake camera FIRST
+    print("[STREAM_URLS] Waking camera for streaming...")
+    SET_DEVICE_PROPERTY({})
 
-    local rtsp_main, rtsp_sub
-    if auth_required and username ~= "" and password ~= "" then
-        rtsp_main = string.format("rtsp://%s:%s@%s:%s/stream0",
-            username, password, ip, rtsp_port)
-        rtsp_sub = string.format("rtsp://%s:%s@%s:%s/stream1",
-            username, password, ip, rtsp_port)
-    else
-        rtsp_main = string.format("rtsp://%s:%s/stream0",
-            ip, rtsp_port)
-        rtsp_sub = string.format("rtsp://%s:%s/stream1",
-            ip, rtsp_port)
-    end
+    -- Return generating_key immediately (tells Control4 to wait)
+    local generating_xml = string.format('<streams generating_key="%s"/>', key)
+    print("Returning generating_key XML (async mode):")
+    print(generating_xml)
+    
+    C4:UpdateProperty("Status", "Camera waking, URLs pending...")
 
-    print("Main Stream URL (H264): " .. rtsp_main)
-    print("Sub Stream URL (H264): " .. rtsp_sub)
+    -- Wait for camera to wake up, THEN send the URLs
+    -- Using global CAMERA_WAKE_DELAY_MS (8 seconds by default)
+    C4:SetTimer(CAMERA_WAKE_DELAY_MS, function()
+        print("================================================================")
+        print("         STREAM_URLS_READY - Camera should be awake now         ")
+        print("================================================================")
 
-    -- Store URLs in properties
-    C4:UpdateProperty("Main Stream URL", rtsp_main)
-    C4:UpdateProperty("Sub Stream URL", rtsp_sub)
+        -- Check if authentication is required
+        local auth_required = Properties["Authentication Type"] ~= "NONE"
 
-    -- Send response back to proxy
-    if C4 and C4.SendToProxy then
-        -- Send H264 URLs
-        C4:SendToProxy(idBinding, "RTSP_H264_URL", {
-            URL = rtsp_main,
-            RESOLUTION = "1920x1080"
+        -- Build complete RTSP URLs with authentication
+        local rtsp_main, rtsp_sub
+        if auth_required and username ~= "" and password ~= "" then
+            rtsp_main = string.format("rtsp://%s:%s@%s:%s/stream0",
+                username, password, ip, rtsp_port)
+            rtsp_sub = string.format("rtsp://%s:%s@%s:%s/stream1",
+                username, password, ip, rtsp_port)
+        else
+            rtsp_main = string.format("rtsp://%s:%s/stream0",
+                ip, rtsp_port)
+            rtsp_sub = string.format("rtsp://%s:%s/stream1",
+                ip, rtsp_port)
+        end
+
+        print("High Quality Stream: " .. rtsp_main)
+        print("Low Quality Stream: " .. rtsp_sub)
+
+        -- Build final XML with same key
+        local urls_xml = string.format([[<streams key="%s" camera_address="%s">
+  <stream url="%s" codec="h264" resolution="1920x1080" fps="15"/>
+  <stream url="%s" codec="h264" resolution="640x480" fps="15"/>
+</streams>]], key, ip, rtsp_main, rtsp_sub)
+
+        print("Sending STREAM_URLS_READY notify with URLs:")
+        print(urls_xml)
+
+        -- Send STREAM_URLS_READY notify to Camera Proxy
+        C4:SendToProxy(5001, "STREAM_URLS_READY", {
+            KEY = key,
+            URLS = urls_xml
         })
 
-        C4:SendToProxy(idBinding, "RTSP_H264_SUB_URL", {
-            URL = rtsp_sub,
-            RESOLUTION = "640x480"
-        })
+        C4:UpdateProperty("Status", "Stream URLs sent to Control4")
+        print("STREAM_URLS_READY notify sent successfully")
+        print("================================================================")
+    end)
 
-        print("Sent stream URLs to proxy")
-    end
-
-    C4:UpdateProperty("Status", "Stream URLs generated")
+    print("Returning generating_key, will send STREAM_URLS_READY in " .. (CAMERA_WAKE_DELAY_MS/1000) .. " seconds (camera wake time)")
     print("================================================================")
-
-    return {
-        RTSP_H264_MAIN = rtsp_main,
-        RTSP_H264_SUB = rtsp_sub
-    }
+    
+    return generating_xml
 end
 
 -- GET_RTSP_H264_QUERY_STRING - Return H264 RTSP stream URL
@@ -2564,8 +2701,10 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     local delay = tonumber((tParams and tParams.DELAY) or 0)
 
     print("Requested H264 stream:")
+    print(tParams)
     print("  Resolution: " .. width .. "x" .. height)
     print("  Frame rate: " .. rate .. " fps")
+    -- print("  C4 Delay: " .. delay .. " ms")
 
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -2606,7 +2745,7 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("RTSP Path: " .. rtsp_path)
     print("Camera Proxy will build full URL with IP: " .. ip .. " and port: " .. rtsp_port)
 
-    C4:UpdateProperty("Status", "H264 stream path generated")
+    C4:UpdateProperty("Status", "H264 streaming with keep-alive")
     print("================================================================")
     return rtsp_path
 end

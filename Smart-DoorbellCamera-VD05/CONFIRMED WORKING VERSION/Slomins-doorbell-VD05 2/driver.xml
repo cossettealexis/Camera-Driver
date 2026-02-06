@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
-    <name>Slomins P160-SL Indoor Camera</name>
+    <name>Slomins VD05 Video Doorbell</name>
     <version>1.0.0</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
-    <model>P160-SL</model>
+    <model>VD05</model>
     <created>2025-12-16</created>
-    <modified>2025-12-17</modified>
+    <modified>2026-1-21</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -18,14 +18,13 @@
         <category>Cameras</category>
     </composer_categories>
     <proxies qty="1">
-        <proxy proxybindingid="5001" name="Slomins P160-SL Indoor Camera">camera</proxy>
+        <proxy proxybindingid="5001" name="Slomins VD05 Video Doorbell">camera</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
-    <controlmethod>ip</controlmethod>
     <capabilities>
-        <modes>H264, SNAPSHOT, MJPEG</modes>
-        <default_http_port>3333</default_http_port>
-        <default_rtsp_port>554</default_rtsp_port>
+        <modes>H264, H265</modes>
+        <default_http_port>8080</default_http_port>
+        <default_rtsp_port>8554</default_rtsp_port>
         <default_authentication_required>True</default_authentication_required>
         <default_authentication_type>BASIC</default_authentication_type>
         <default_username>SystemConnect</default_username>
@@ -36,53 +35,99 @@
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
+        <supports_streaming>true</supports_streaming>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
-    <notification_attachments>
-        <attachment>
-            <id>1003</id>
-            <type>IMAGE_JPEG</type>
-            <description>Snapshot (URL)</description>
-            <source>URL</source>
-        </attachment>
+     <notification_attachments>
+    <attachment>
+      <id>1001</id>
+      <type>IMAGE_JPEG</type>
+      <description>Current Snapshot</description>
+      <source>MEMORY</source>
+    </attachment>
+    <attachment>
+      <id>1002</id>
+      <type>IMAGE_JPEG</type>
+      <description>Snapshot (File)</description>
+      <source>FILE</source>
+    </attachment>
+    <attachment>
+      <id>1003</id>
+      <type>IMAGE_JPEG</type>
+      <description>Snapshot (URL)</description>
+      <source>URL</source>
+    </attachment>
     </notification_attachments>
-    <events>
-        <event>
-            <id>1</id>
-            <name>Motion Detection</name>
-            <description>When NAME detected Motion</description>
-        </event>
-        <event>
-            <id>2</id>
-            <name>Line Crossing</name>
-            <description>When NAME detected Line Crossing</description>
-        </event>
-        <event>
-            <id>3</id>
-            <name>Region Intrusion</name>
-            <description>When NAME detected Region Intrusion</description>
-        </event>
-    </events>
+   <events>
+    <event>
+        <id>1</id>
+        <name>Motion Detected</name>
+        <description>When NAME detects motion</description>
+    </event>
+    <event>
+        <id>2</id>
+        <name>Human Detected</name>
+        <description>When NAME detects a human</description>
+    </event>
+    <event>
+        <id>3</id>
+        <name>Face Detected</name>
+        <description>When NAME detects a face</description>
+    </event>
+    <event>
+        <id>4</id>
+        <name>Stranger Detected</name>
+        <description>When NAME detects a stranger</description>
+    </event>
+    <event>
+        <id>5</id>
+        <name>Doorbell Ring</name>
+        <description>When NAME doorbell is pressed</description>
+    </event>
+    <event>
+        <id>6</id>
+        <name>Low Battery</name>
+        <description>When NAME battery is low</description>
+    </event>
+    <event>
+        <id>7</id>
+        <name>Camera Online</name>
+        <description>When NAME comes online</description>
+    </event>
+    <event>
+        <id>8</id>
+        <name>Camera Offline</name>
+        <description>When NAME goes offline</description>
+    </event>
+    <event>
+        <id>9</id>
+        <name>Camera Restarted</name>
+        <description>When NAME restarts</description>
+    </event>
+</events>
+
     <config>
         <script file="driver.lua"/>
-        <documentation file="README.md">Slomins P160-SL Camera Documentation</documentation>
+        <documentation file="README.md">Slomins VD05 Video Doorbell Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.196</default>
+                <default>192.168.60.180</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>HTTP Port</name>
                 <type>RANGED_INTEGER</type>
-                <default>3333</default>
+                <default>8080</default>
                 <minimum>1</minimum>
                 <maximum>65535</maximum>
                 <readonly>false</readonly>
@@ -90,7 +135,7 @@
             <property>
                 <name>RTSP Port</name>
                 <type>RANGED_INTEGER</type>
-                <default>554</default>
+                <default>8554</default>
                 <minimum>1</minimum>
                 <maximum>65535</maximum>
                 <readonly>false</readonly>
@@ -145,19 +190,19 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d4kg2q4dlcmc73d477hg</default>
+                <default>d4n44no1k1vs73fqjjo0</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Product ID</name>
                 <type>STRING</type>
-                <default>P160-SL</default>
+                <default>VD05</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>LNDU Camera</default>
+                <default>VD05</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -180,6 +225,45 @@
                 <name>Account</name>
                 <type>STRING</type>
                 <default>pyabu@slomins.com</default>
+                <readonly>false</readonly>
+            </property>
+              <property>
+                <name>Wake Delay (ms)</name>
+                <type>RANGED_INTEGER</type>
+                <default>7000</default>
+                <minimum>0</minimum>
+                <maximum>30000</maximum>
+                <readonly>false</readonly>
+            </property>
+              <property>
+                <name>Enable MQTT</name>
+                <type>LIST</type>
+                <items>
+                    <item>False</item>
+                    <item>True</item>
+                </items>
+                <default>False</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Alert Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+
+            <property>
+                <name>Enable Info Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -223,6 +307,19 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>false</readonly>
+            </property>
+            <property>
+                <name>AppId</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>AppSecret</name>
+                <type>STRING</type>
+                <password>true</password>
+                <default></default>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>Main Stream URL</name>
@@ -351,32 +448,8 @@
                 <command>SET_DEVICE_PROPERTY</command>
             </action>
             <action>
-                <name>Get MQTT Info</name>
-                <command>GET_MQTT_INFO</command>
-            </action>
-            <action>
-                <name>Connect MQTT</name>
-                <command>CONNECT_MQTT</command>
-            </action>
-            <action>
-                <name>Disconnect MQTT</name>
-                <command>DISCONNECT_MQTT</command>
-            </action>
-            <action>
-                <name>Get Camera Properties</name>
-                <command>GET_CAMERA_PROPERTIES</command>
-            </action>
-            <action>
-                <name>Update UI Properties</name>
-                <command>UPDATE_UI_PROPERTIES</command>
-            </action>
-            <action>
-                <name>Start HTTP Polling</name>
-                <command>START_HTTP_POLLING</command>
-            </action>
-            <action>
-                <name>Stop HTTP Polling</name>
-                <command>STOP_HTTP_POLLING</command>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
             </action>
         </actions>
         <commands>
@@ -544,6 +617,29 @@
                         </port>
                         <port>
                             <number>8884</number>
+                        </port>
+                    </ports>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>7001</id>
+            <connectionname>TCP</connectionname>
+            <type>4</type>
+            <hidden>True</hidden>
+            <consumer>True</consumer>
+            <classes>
+                <class>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>8081</number>
+                            <suppress_connection_events>True</suppress_connection_events>
+                            <auto_connect>True</auto_connect>
+                            <monitor_connection>True</monitor_connection>
+                            <keep_connection>True</keep_connection>
+                            <keep_alive>True</keep_alive>
+                            <delimiter>0d0a</delimiter>
                         </port>
                     </ports>
                 </class>
