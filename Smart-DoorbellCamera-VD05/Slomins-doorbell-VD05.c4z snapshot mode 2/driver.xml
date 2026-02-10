@@ -22,7 +22,7 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H264, H265</modes>
+        <modes>SNAPSHOT</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
         <default_authentication_required>True</default_authentication_required>

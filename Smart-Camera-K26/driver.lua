@@ -31,6 +31,12 @@ local WAKE_DELAY_MS = tonumber(Properties["Wake Delay (ms)"]) or 5000
 -- 8 seconds = wake time (2-4s) + RTSP startup (2-3s) + safety buffer (1-2s)
 CAMERA_WAKE_DELAY_MS = 8000
 
+-- Dynamic streams API - unique key counter (32-bit integer, starts at 1)
+local stream_key_counter = 1
+local last_stream_urls = nil
+local last_stream_time = 0
+local STREAM_URL_VALIDITY_SECONDS = 300 -- URLs valid for 5 minutes
+
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call = true
 
@@ -1599,7 +1605,7 @@ local function confirm_online_state(new_online)
     online_timer = nil
 
     if new_online then
-        print("[EVENT] ✅ Camera ONLINE (confirmed)")
+        print("[EVENT] Camera ONLINE (confirmed)")
         send_notification(
             NOTIFY.INFO,
             EVENT.CAMERA_ONLINE,
@@ -1607,7 +1613,7 @@ local function confirm_online_state(new_online)
             COOLDOWN.online
         )
     else
-        print("[EVENT] ❌ Camera OFFLINE (confirmed)")
+        print("[EVENT] Camera OFFLINE (confirmed)")
         send_notification(
             NOTIFY.ALERT,
             EVENT.CAMERA_OFFLINE,
@@ -1694,7 +1700,7 @@ local function handle_device_status(msg)
     -- 🔋 LOW BATTERY (ALWAYS FIRE ≤ 20%)
     ------------------------------------------------
     if battery_percent and battery_percent <= LOW_BATTERY_THRESHOLD then
-        print("[BATTERY] ⚠️ LOW BATTERY:", battery_percent .. "%")
+        print("[BATTERY] LOW BATTERY:", battery_percent .. "%")
 
         handle_low_battery()
     end
@@ -1807,7 +1813,7 @@ function SEND_TEST_NOTIFICATION()
     HANDLE_JSON_EVENT(motion_payload)
 
 
-    print("[TEST] ✅ Test notifications fired")
+    print("[TEST] Test notifications fired")
 end
 
 -- Camera On/Off Commands
@@ -2618,10 +2624,11 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     return snapshot_path
 end
 
--- GET_STREAM_URLS - Return streaming URLs for dynamic camera streams API (ASYNCHRONOUS)
+-- GET_STREAM_URLS - Return streaming URLs for dynamic camera streams API
+-- Since our RTSP URLs are static (don't change), we return them SYNCHRONOUSLY
 function GET_STREAM_URLS(idBinding, tParams)
     print("================================================================")
-    print("         GET_STREAM_URLS CALLED (Async Dynamic API)             ")
+    print("         GET_STREAM_URLS CALLED (Synchronous)                   ")
     print("================================================================")
 
     if tParams then
@@ -2643,72 +2650,43 @@ function GET_STREAM_URLS(idBinding, tParams)
         return "<streams></streams>"
     end
 
-    -- Generate unique key for this request
-    local key = tostring(os.time())
-    print("[STREAM_URLS] Generated key: " .. key)
-
-    -- Wake camera FIRST
+    -- Wake camera for streaming (URLs are static, but camera needs to be awake)
     print("[STREAM_URLS] Waking camera for streaming...")
     SET_DEVICE_PROPERTY({})
 
-    -- Return generating_key immediately (tells Control4 to wait)
-    local generating_xml = string.format('<streams generating_key="%s"/>', key)
-    print("Returning generating_key XML (async mode):")
-    print(generating_xml)
-    
-    C4:UpdateProperty("Status", "Camera waking, URLs pending...")
+    -- Check if authentication is required
+    local auth_required = Properties["Authentication Type"] ~= "NONE"
 
-    -- Wait for camera to wake up, THEN send the URLs
-    -- Using global CAMERA_WAKE_DELAY_MS (8 seconds by default)
-    C4:SetTimer(CAMERA_WAKE_DELAY_MS, function()
-        print("================================================================")
-        print("         STREAM_URLS_READY - Camera should be awake now         ")
-        print("================================================================")
+    -- Build complete RTSP URLs with authentication if needed
+    local rtsp_main, rtsp_sub
+    if auth_required and username ~= "" and password ~= "" then
+        rtsp_main = string.format("rtsp://%s:%s@%s:%s/stream0",
+            username, password, ip, rtsp_port)
+        rtsp_sub = string.format("rtsp://%s:%s@%s:%s/stream1",
+            username, password, ip, rtsp_port)
+    else
+        rtsp_main = string.format("rtsp://%s:%s/stream0",
+            ip, rtsp_port)
+        rtsp_sub = string.format("rtsp://%s:%s/stream1",
+            ip, rtsp_port)
+    end
 
-        -- Check if authentication is required
-        local auth_required = Properties["Authentication Type"] ~= "NONE"
+    print("High Quality Stream: " .. rtsp_main)
+    print("Low Quality Stream: " .. rtsp_sub)
 
-        -- Build complete RTSP URLs with authentication if needed
-        local rtsp_main, rtsp_sub
-        if auth_required and username ~= "" and password ~= "" then
-            rtsp_main = string.format("rtsp://%s:%s@%s:%s/stream0",
-                username, password, ip, rtsp_port)
-            rtsp_sub = string.format("rtsp://%s:%s@%s:%s/stream1",
-                username, password, ip, rtsp_port)
-        else
-            rtsp_main = string.format("rtsp://%s:%s/stream0",
-                ip, rtsp_port)
-            rtsp_sub = string.format("rtsp://%s:%s/stream1",
-                ip, rtsp_port)
-        end
-
-        print("High Quality Stream: " .. rtsp_main)
-        print("Low Quality Stream: " .. rtsp_sub)
-
-        -- Build final XML with same key
-        local urls_xml = string.format([[<streams key="%s" camera_address="%s">
+    -- Build final XML with streams (no key needed - synchronous response)
+    local urls_xml = string.format([[<streams camera_address="%s">
   <stream url="%s" codec="h264" resolution="1920x1080" fps="15"/>
   <stream url="%s" codec="h264" resolution="640x480" fps="15"/>
-</streams>]], key, ip, rtsp_main, rtsp_sub)
+</streams>]], ip, rtsp_main, rtsp_sub)
 
-        print("Sending STREAM_URLS_READY notify with URLs:")
-        print(urls_xml)
-
-        -- Send STREAM_URLS_READY notify to Camera Proxy
-        C4:SendToProxy(5001, "STREAM_URLS_READY", {
-            KEY = key,
-            URLS = urls_xml
-        })
-
-        C4:UpdateProperty("Status", "Stream URLs sent to Control4")
-        print("STREAM_URLS_READY notify sent successfully")
-        print("================================================================")
-    end)
-
-    print("Returning generating_key, will send STREAM_URLS_READY in " .. (CAMERA_WAKE_DELAY_MS/1000) .. " seconds (camera wake time)")
+    print("Returning streams XML directly (synchronous mode):")
+    print(urls_xml)
+    
+    C4:UpdateProperty("Status", "Stream URLs provided")
     print("================================================================")
     
-    return generating_xml
+    return urls_xml
 end
 
 -- GET_RTSP_H264_QUERY_STRING - Return H264 RTSP stream URL
