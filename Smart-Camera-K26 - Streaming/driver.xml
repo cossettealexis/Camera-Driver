@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<devicedata>
+    <copyright>Copyright © 2026 Slomins. All Rights Reserved.</copyright>
+    <name>Slomins K26-SL Camera - Streaming Only</name>
+    <version>1.0.0</version>
+    <creator>Slomins</creator>
+    <manufacturer>Slomins</manufacturer>
+    <model>K26-SL-STREAMING</model>
+    <created>2026-02-13</created>
+    <modified>2026-02-13</modified>
+    <minimum_os_version>3.3.2</minimum_os_version>
+    <control>lua_gen</control>
+    <controlmethod>ip</controlmethod>
+    <auto_update>true</auto_update>
+    <driver>DriverWorks</driver>
+    <search_type>slomins:camera</search_type>
+    <composer_categories>
+        <category>Cameras</category>
+    </composer_categories>
+    <proxies qty="1">
+        <proxy proxybindingid="5001" name="Slomins K26-SL Camera">camera</proxy>
+    </proxies>
+    <OnlineCategory>Cameras</OnlineCategory>
+    <capabilities>
+        <modes>H264, H265</modes>
+        <default_http_port>8080</default_http_port>
+        <default_rtsp_port>8554</default_rtsp_port>
+        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
+        <default_username>SystemConnect</default_username>
+        <default_password>123456</default_password>
+        <address_readonly>False</address_readonly>
+        <http_port_readonly>False</http_port_readonly>
+        <rtsp_port_readonly>False</rtsp_port_readonly>
+        <has_extras>false</has_extras>
+        <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
+        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
+        <can_view>true</can_view>
+        <show_test_url>true</show_test_url>
+        <supports_streaming>true</supports_streaming>
+    </capabilities>
+
+    <config>
+        <script file="driver.lua" />
+        <script file="CldBusApi/dkjson.lua" />
+        <documentation file="README.md">Slomins K26-SL Camera - Streaming Only</documentation>
+        <properties>
+            <!-- Network Configuration -->
+            <property>
+                <name>IP Address</name>
+                <type>STRING</type>
+                <default>192.168.60.111</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>HTTP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>8080</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>RTSP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>8554</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Stream Path</name>
+                <type>STRING</type>
+                <default>stream0</default>
+                <readonly>false</readonly>
+            </property>
+            
+            <!-- Authentication -->
+            <property>
+                <name>Username</name>
+                <type>STRING</type>
+                <default>SystemConnect</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Password</name>
+                <type>STRING</type>
+                <default>123456</default>
+                <password>true</password>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Authentication Type</name>
+                <type>LIST</type>
+                <items>
+                    <item>BASIC</item>
+                    <item>DIGEST</item>
+                    <item>NONE</item>
+                </items>
+                <default>BASIC</default>
+                <readonly>false</readonly>
+            </property>
+            
+            <!-- Camera Configuration -->
+            <property>
+                <name>VID</name>
+                <type>STRING</type>
+                <default>d50gububtn8c73cnas9g</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>API Key</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>API Secret</name>
+                <type>STRING</type>
+                <default></default>
+                <password>true</password>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Bearer Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            
+            <!-- Status Properties -->
+            <property>
+                <name>Status</name>
+                <type>STRING</type>
+                <default>Initializing...</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Driver Status</name>
+                <type>LIST</type>
+                <items>
+                    <item>Online</item>
+                    <item>Offline</item>
+                </items>
+                <default>Offline</default>
+                <readonly>true</readonly>
+            </property>
+            
+            <!-- URL Properties for Camera Test -->
+            <property>
+                <name>Main Stream URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Sub Stream URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+        </properties>
+        
+        <!-- Actions for testing -->
+        <actions>
+            <action>
+                <name>Wake Camera</name>
+                <command>WAKE_CAMERA</command>
+            </action>
+            <action>
+                <name>Set Device Property</name>
+                <command>SET_DEVICE_PROPERTY</command>
+            </action>
+        </actions>
+        
+        <!-- Commands -->
+        <commands>
+            <command>
+                <name>WAKE_CAMERA</name>
+                <description>Wake the camera from sleep mode</description>
+            </command>
+            <command>
+                <name>SET_DEVICE_PROPERTY</name>
+                <description>Set device property and wake camera</description>
+            </command>
+        </commands>
+    </config>
+    
+    <!-- Connections (empty for IP-based camera) -->
+    <connections>
+    </connections>
+</devicedata>

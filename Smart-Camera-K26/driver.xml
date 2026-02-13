@@ -22,13 +22,11 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H264, H265, SNAPSHOT</modes>
-        <default_mode>H264</default_mode>
-        <preferred_mode>H264</preferred_mode>
+        <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>false</default_authentication_required>
-        <default_authentication_type>NONE</default_authentication_type>
+        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -36,15 +34,16 @@
         <rtsp_port_readonly>False</rtsp_port_readonly>
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
-        <requires_dynamic_stream_urls>true</requires_dynamic_stream_urls>
-        <dynamic_urls_use_type>MULTIPLE</dynamic_urls_use_type>
-        <snapshot_cache_enabled>false</snapshot_cache_enabled>
+        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
+        <supports_streaming>true</supports_streaming>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
@@ -116,13 +115,13 @@
     </events>
 
     <config>
-        <script file="driver.lua" encrypted="true" />
+        <script file="driver.lua" />
         <documentation file="README.md">Slomins K26-SL Camera Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.71</default>
+                <default>192.168.60.111</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -191,7 +190,7 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d50gu5mbtn8c73cnacvg</default>
+                <default>d50gububtn8c73cnas9g</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -203,7 +202,7 @@
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>K26 jan 26 2026</default>
+                <default>K26-SL</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -312,14 +311,14 @@
             <property>
                 <name>AppId</name>
                 <type>STRING</type>
-                <default>hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8</default>
+                <default></default>
                 <readonly>true</readonly>
             </property>
             <property>
                 <name>AppSecret</name>
                 <type>STRING</type>
                 <password>true</password>
-                <default>hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8</default>
+                <default></default>
                 <readonly>true</readonly>
             </property>
             <property>
@@ -521,6 +520,10 @@
                 <name>Update UI Properties</name>
                 <command>UPDATE_UI_PROPERTIES</command>
             </action>
+            <action>
+                <name>Wake Camera</name>
+                <command>WAKE_CAMERA</command>
+            </action>
 
         </actions>
         <commands>
@@ -614,6 +617,10 @@
             <command>
                 <name>UPDATE_UI_PROPERTIES</name>
                 <description>Update Control4 UI with current camera properties</description>
+            </command>
+            <command>
+                <name>WAKE_CAMERA</name>
+                <description>Wake the camera from sleep mode</description>
             </command>
 
             <command>

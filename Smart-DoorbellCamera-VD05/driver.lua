@@ -2642,15 +2642,19 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
             
             -- Wait for camera to wake up (3 seconds), then check RTSP
             C4:SetTimer(3000, function()
-                local rtsp_test_url = string.format("http://%s:%s", ip, rtsp_port)
+                -- Build RTSP URL for logging (without auth)
+                local rtsp_test_url = string.format("rtsp://%s:%s/stream0", ip, rtsp_port)
                 print("[WAKE] Testing RTSP accessibility at: " .. rtsp_test_url)
                 
-                C4:urlGet(rtsp_test_url, {}, false, function(strError, responseCode, tHeaders, data)
+                -- Test RTSP by checking the HTTP management port instead (8080)
+                local http_test_url = string.format("http://%s:8080", ip)
+                
+                C4:urlGet(http_test_url, {}, false, function(strError, responseCode, tHeaders, data)
                     if responseCode and (responseCode == 200 or responseCode == 401 or responseCode == 404) then
-                        print("[WAKE] RTSP server is ACCESSIBLE (response: " .. responseCode .. ")")
-                        C4:UpdateProperty("Status", "RTSP server ready")
+                        print("[WAKE] Camera HTTP server is ACCESSIBLE (response: " .. responseCode .. ") - RTSP should be ready")
+                        C4:UpdateProperty("Status", "Camera ready - RTSP available")
                     else
-                        print("[WAKE] RTSP server NOT ACCESSIBLE (response: " .. tostring(responseCode) .. ")")
+                        print("[WAKE] Camera NOT ACCESSIBLE (response: " .. tostring(responseCode) .. ")")
                         print("[WAKE] Error: " .. tostring(strError))
                         
                         -- Check if we can retry (not in cooldown yet)
@@ -2663,20 +2667,20 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
                                 
                                 -- Test again after retry
                                 C4:SetTimer(3000, function()
-                                    C4:urlGet(rtsp_test_url, {}, false, function(err2, code2)
+                                    C4:urlGet(http_test_url, {}, false, function(err2, code2)
                                         if code2 and (code2 == 200 or code2 == 401 or code2 == 404) then
-                                            print("[WAKE] RTSP server is NOW ACCESSIBLE after retry")
-                                            C4:UpdateProperty("Status", "RTSP server ready after retry")
+                                            print("[WAKE] Camera is NOW ACCESSIBLE after retry - RTSP should be ready")
+                                            C4:UpdateProperty("Status", "Camera ready after retry")
                                         else
-                                            print("[WAKE] RTSP server STILL NOT ACCESSIBLE after retry")
-                                            C4:UpdateProperty("Status", "RTSP server not responding")
+                                            print("[WAKE] Camera STILL NOT ACCESSIBLE after retry")
+                                            C4:UpdateProperty("Status", "Camera not responding")
                                         end
                                     end)
                                 end)
                             end)
                         else
                             print("[WAKE] Camera awake period ended, cannot retry now")
-                            C4:UpdateProperty("Status", "RTSP server not responding")
+                            C4:UpdateProperty("Status", "Camera not responding")
                         end
                     end
                 end)
