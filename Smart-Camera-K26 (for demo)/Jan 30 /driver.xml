@@ -22,11 +22,11 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H264, H265</modes>
+        <modes>SNAPSHOT, H264l</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>False</default_authentication_required>
-        <default_authentication_type>NONE</default_authentication_type>
+        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -67,13 +67,11 @@
         </attachment>
     </notification_attachments>
     <events>
-       <event>
-    <id>1</id>
-    <name>Motion Detected</name>
-    <description>When NAME detects motion</description>
-    <is_alert>true</is_alert>
-    <supports_notification_attachment>true</supports_notification_attachment>
-</event>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
         <event>
             <id>2</id>
             <name>Human Detected</name>
@@ -117,13 +115,13 @@
     </events>
 
     <config>
-        <script file="driver.lua" />
+        <script file="driver.lua" encrypted="true" />
         <documentation file="README.md">Slomins K26-SL Camera Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.120</default>
+                <default>192.168.60.71</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -192,7 +190,7 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d4kg2q4dlcmc73d477hg</default>
+                <default>d50gu5mbtn8c73cnacvg</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -204,7 +202,7 @@
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>K26-SL</default>
+                <default>K26 jan 26 2026</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -230,7 +228,7 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Event Interval (ms)</name>
+                <name>Wake Delay (ms)</name>
                 <type>RANGED_INTEGER</type>
                 <default>5000</default>
                 <minimum>0</minimum>
@@ -313,14 +311,14 @@
             <property>
                 <name>AppId</name>
                 <type>STRING</type>
-                <default></default>
+                <default>hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8</default>
                 <readonly>true</readonly>
             </property>
             <property>
                 <name>AppSecret</name>
                 <type>STRING</type>
                 <password>true</password>
-                <default></default>
+                <default>hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8</default>
                 <readonly>true</readonly>
             </property>
             <property>
@@ -398,7 +396,12 @@
                 <default>false</default>
                 <readonly>true</readonly>
             </property>
-           
+            <property>
+                <name>Last Doorbell</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
         </properties>
         <actions>
             <action>
