@@ -7,11 +7,17 @@ local transport = require("CldBusApi.transport_c4")
 local util = require("CldBusApi.util")
 
 -- Local state
-local pending_notification = nil
-local pending_binding = nil
-local MQTT = require("mqtt_manager")
+local LAST_EVENT_ID          = 0
+local NOTIFICATION_URLS      = {}
+local NOTIFICATION_QUEUE     = {}
+PENDING_NOTIFICATION_URL     = nil
+ACTIVE_NOTIFICATION_URL      = nil
+LAST_NOTIFY_ID               = LAST_NOTIFY_ID or nil
+MAX_TIME_DRIFT               = 600 -- seconds (acceptable drift)
 
+local MQTT = require("mqtt_manager")
 local CAMERA_BINDING = 5001
+local EVENT_DELAY_MS = tonumber(Properties["Event Interval (ms)"]) or 5000
 
 local NOTIFY = {
     ALERT = "ALERT",
@@ -26,15 +32,12 @@ local user_settings = {
 
 -- Cooldown windows (seconds)
 local COOLDOWN = {
-    motion   = 60,
-    human    = 60,
-    face     = 120,
-    clip     = 120,
-    online   = 10,   
-    offline  = 45,
-    restart  = 30,
-    battery  = 300,
-    intruder = 120
+    motion   = 0,
+    human    = 0,
+    online   = 0,   
+    offline  = 0,
+    restart  = 0,
+
 }
 
 -- Track last notification times
@@ -77,26 +80,11 @@ local PROP_MQTT_SECRET           = "MQTT Secret"
 
 local EVENT                      = {
     MOTION           = "Motion Detected",
-    DOORBELL         = "Doorbell Ring",
-    FACE             = "Face Detected",
-    CLIP             = "Clip Recorded",
     CAMERA_ONLINE    = "Camera Online",
     CAMERA_OFFLINE   = "Camera Offline",
     CAMERA_RESTARTED = "Camera Restarted",
-    LINE_CROSSING    = "Line Crossing",
-    REGION_INTRUSION = "Region Intrusion",
     HUMAN            = "Human Detected",
-    INTRUDER         = "Intruder Detected"
-}
 
--- Map event names to event IDs (from driver.xml)
--- These IDs are REQUIRED for Camera History on OS 3.x
-local EVENT_ID_MAP = {
-    ["Motion Detected"]    = 1,
-    ["Human Detected"]     = 2,
-    ["Camera Online"]      = 3,
-    ["Camera Offline"]     = 4,
-    ["Camera Restarted"]   = 5
 }
 
 
@@ -292,7 +280,11 @@ function OnPropertyChanged(strProperty)
         return
     end
     
-    
+       if strProperty == "Event Interval (ms)" then
+        EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
+        print("[EVENT_DELAY_MS] Event interval updated to:", EVENT_DELAY_MS, "ms")
+        return
+    end
     local value = Properties[strProperty]
     print("Property [" .. strProperty .. "] changed to: " .. tostring(value))
     _props[strProperty] = value
@@ -1337,137 +1329,121 @@ local function can_notify(key, cooldown)
     return true
 end
 
--- ============================================================
--- CAMERA HISTORY & NOTIFICATION HANDLING
--- ============================================================
--- This function handles both push notifications AND Camera History
--- For OS 3.x Camera History to work, we need:
--- 1. Fire event with NAME (for push notifications)
--- 2. Fire event with ID (for Camera History)
--- 3. Add recorded clip (for History screen display)
--- ============================================================
-local function fire_camera_event(event_name)
-    print("[HISTORY] ========================================")
-    print("[HISTORY] Processing event:", event_name)
-    
-    -- Get event ID from mapping
-    local event_id = EVENT_ID_MAP[event_name]
-    if not event_id then
-        print("[HISTORY] ⚠️ No event ID mapping - firing with name only")
-        C4:FireEvent(event_name, CAMERA_BINDING)
-        return
+local function extract_filename(url)
+    if not url then return nil end
+    return url:match("([^/]+%.jpg)")
+end
+-- Replace normalize_signed_url with this:
+local function normalize_http_url(url)
+    if not url or url == "" then return url end
+    -- Convert JSON-style escaped ampersands and slashes to raw
+    url = url:gsub("\\u0026", "&") -- JSON escape → raw &
+    url = url:gsub("&amp;", "&")   -- Defensive: HTML entity → raw &
+    url = url:gsub("\\/", "/")     -- JSON-escaped slashes → raw /
+    -- Trim whitespace
+    url = url:gsub("^%s+", ""):gsub("%s+$", "")
+    return url
+end
+function GetImageForEvent(extp, done)
+    local vid   = Properties["VID"]
+    local token = Properties["Auth Token"]
+    local base  = Properties["Base API URL"] or "https://api.arpha-tech.com"
+
+    if not extp then
+        return done(nil)
     end
-    
-    -- Get camera properties for URLs
-    local ip = Properties["IP Address"] or ""
-    local http_port = Properties["HTTP Port"] or "3333"
-    local rtsp_port = Properties["RTSP Port"] or "554"
-    local username = Properties["Username"] or ""
-    local password = Properties["Password"] or ""
-    local auth_type = Properties["Authentication Type"] or "NONE"
-    local auth_required = (auth_type ~= "NONE")
-    
-    -- Build thumbnail URL (snapshot)
-    local thumbnail_url = ""
-    if ip ~= "" then
-        if auth_required and username ~= "" and password ~= "" then
-            thumbnail_url = string.format("http://%s:%s@%s:%s/wps-cgi/image.cgi", 
-                username, password, ip, http_port)
-        else
-            thumbnail_url = string.format("http://%s:%s/wps-cgi/image.cgi", ip, http_port)
+
+    local wanted_file = extp:match("([^/]+%.jpg)")
+    if not wanted_file then
+        return done(nil)
+    end
+
+    local url = base .. "/api/v3/openapi/notifications/query"
+
+    transport.execute({
+        url = url,
+        method = "POST",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"]      = "cldbus"
+        },
+        body = json.encode({ page = 1, page_size = 10, vids = { vid } })
+    }, function(code, resp)
+        if code ~= 200 and code ~= 20000 then
+            return done(nil)
         end
-    end
-    
-    -- Build video URL (RTSP stream for live cameras)
-    local video_url = ""
-    if ip ~= "" and rtsp_port ~= "" then
-        if auth_required and username ~= "" and password ~= "" then
-            video_url = string.format("rtsp://%s:%s@%s:%s/streamtype=1", 
-                username, password, ip, rtsp_port)
-        else
-            video_url = string.format("rtsp://%s:%s/streamtype=1", ip, rtsp_port)
+
+        local ok, parsed = pcall(json.decode, resp or "")
+        if not ok or not parsed or not parsed.data then
+            return done(nil)
         end
-    end
-    
-    -- Get timestamp
-    local ts = os.time()
-    local clip_id = string.format("%d_%d", ts, event_id)
-    
-    print("[HISTORY] Event ID:", event_id)
-    print("[HISTORY] Clip ID:", clip_id)
-    print("[HISTORY] Timestamp:", ts)
-    
-    -- STEP 1: Add recorded clip FIRST (before firing events)
-    -- Some Camera Proxy implementations require the clip to exist before the event
-    -- This creates the entry in the History screen
-    -- For live cameras, provide RTSP URL in VIDEO_URL
-    print("[HISTORY] Adding clip to Camera Proxy...")
-    C4:SendToProxy(CAMERA_BINDING, "ADD_RECORDED_CLIP", {
-        CLIP_ID = clip_id,
-        CLIP_TYPE = "EVENT",
-        CLIP_DESCRIPTION = event_name,
-        CLIP_START_TIME = tostring(ts),
-        CLIP_END_TIME = tostring(ts),
-        CLIP_DURATION = "1",
-        THUMBNAIL_URL = thumbnail_url,
-        VIDEO_URL = video_url
-    })
-    print("[HISTORY] ✅ Added recorded clip to History")
-    print("[HISTORY] Thumbnail:", thumbnail_url)
-    print("[HISTORY] Video:", video_url)
-    
-    -- Small delay to ensure clip is processed before firing events
-    C4:SetTimer(50, function()
-        -- STEP 2: Fire event with NAME (for push notifications)
-        -- Push notifications require event names, not IDs
-        C4:FireEvent(event_name, CAMERA_BINDING)
-        print("[HISTORY] ✅ Fired event by NAME (for notifications)")
-        
-        -- STEP 3: Fire event with ID (for Camera History)
-        -- Camera History on OS 3.x requires numeric event IDs
-        C4:FireEvent(event_id, CAMERA_BINDING)
-        print("[HISTORY] ✅ Fired event by ID (for history)")
-        print("[HISTORY] ========================================")
+
+        local list = parsed.data.notifications
+        if not list then return done(nil) end
+
+        for _, n in ipairs(list) do
+            local img = normalize_http_url(n.image_url)
+            local fname = extract_filename(img)
+
+            if fname == wanted_file then
+                print("[MATCH] Found image for event:", fname)
+                return done(img)
+            end
+        end
+
+        print("[MATCH] No matching image yet")
+        return done(nil)
     end)
 end
-local function send_notification(category, event_name, cooldown_key, cooldown_sec)
+
+
+local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
-    if category == NOTIFY.INFO  and not user_settings.enable_info then return end
+    if category == NOTIFY.INFO and not user_settings.enable_info then return end
+    if not can_notify(cooldown_key, cooldown_sec) then return end
 
-    if not can_notify(cooldown_key, cooldown_sec) then
-        print("[NOTIFY] ⏳ Suppressed:", event_name)
-        return
+    local tries = 0
+
+    local function fetch()
+        tries = tries + 1
+
+        GetImageForEvent(extp, function(url)
+            if not url and tries < 6 then
+                C4:SetTimer(400, fetch)
+                return
+            end
+
+            LAST_EVENT_ID = LAST_EVENT_ID + 1
+            local id = LAST_EVENT_ID
+
+            if url then
+                NOTIFICATION_URLS[id] = url
+                table.insert(NOTIFICATION_QUEUE, id)
+                print("[NOTIFY] image attached", url)
+            else
+                print("[NOTIFY] no image after retry")
+            end
+
+            C4:SetTimer(EVENT_DELAY_MS, function()
+                C4:FireEvent(event_name, CAMERA_BINDING)
+            end)
+        end)
     end
-      C4:SendToProxy(
-            CAMERA_BINDING,
-            "GET_CAMERA_SNAPSHOT",
-            { WIDTH = 640, HEIGHT = 480 }
-        )
 
-
-    print("[NOTIFY] 🔔 Fired:", event_name)
-    fire_camera_event(event_name)
+    fetch()
 end
 
-local function handle_motion()
-    send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion)
+
+
+local function handle_motion(filename, extp)
+    send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
 end
 
-local function handle_human()
-    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human)
+local function handle_human(filename, extp)
+    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
 end
 
-local function handle_face()
-    send_notification(NOTIFY.INFO, EVENT.FACE, "face", COOLDOWN.face)
-end
-
-local function handle_clip()
-    send_notification(NOTIFY.INFO, EVENT.CLIP, "clip", COOLDOWN.clip)
-end
-
-local function handle_offline()
-    send_notification(NOTIFY.ALERT, EVENT.CAMERA_OFFLINE, "offline", COOLDOWN.offline)
-end
 
 local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
@@ -1477,9 +1453,6 @@ local function handle_low_battery()
     send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
 end
 
-local function handle_intruder()
-    send_notification(NOTIFY.ALERT, EVENT.INTRUDER, "intruder", COOLDOWN.intruder)
-end
 
 local function confirm_online_state(new_online)
 
@@ -1662,13 +1635,20 @@ function HANDLE_JSON_EVENT(payload)
         -- 🎥 log_rec (Continuous Motion / Human)
         ------------------------------------------------
         if id == "log_rec" then
+             local filename = nil
+            local extp = params.ext_p
+
+            if extp then
+                filename = extp:match("([^/]+%.jpg)")
+            end
+
             if params.type == 10021 then
-                handle_motion()
+                handle_motion(filename, extp)
                 return true
             end
 
             if params.type == 10022 then
-                handle_human()
+                handle_human(filename, extp)
                 return true
             end
 
@@ -1679,10 +1659,6 @@ function HANDLE_JSON_EVENT(payload)
         -- 🚨 alarm_rec_v2 (Critical Alerts)
         ------------------------------------------------
         if id == "alarm_rec_v2" then
-            if params.type == 21 then
-                handle_intruder()
-                return true
-            end
 
             if params.type == 1 then
                 handle_low_battery()
@@ -3183,64 +3159,43 @@ function RTSP_URL_PUSH(idBinding, tParams)
     return rtsp_url
 end
 
-function GetNotificationAttachmentURL()
-	print("GetNotificationAttachmentURL()")
-    local ip = Properties["IP Address"];
-    local http_port = Properties["HTTP Port"] or "3333"
-    local snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi", ip, http_port)
-    local tParams = {}
-    return snapshot_url
-    --return "<snapshot_query_string>" .. C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>" 
-	-- return "https://www.control4.com/files/large/19302fc18de7c3b74f3e1b72475b634b.png"
---	return "http://10.12.80.4:80/snap1vga"
+function GetNotificationAttachmentURL(id)
+    print("GetNotificationAttachmentURL called")
+
+    local event_id = table.remove(NOTIFICATION_QUEUE, 1)
+    if not event_id then
+        print("no event id")
+        return nil
+    end
+
+    local url = NOTIFICATION_URLS[event_id]
+    print("returning url for", event_id, url)
+    return url
 end
 
 function GetNotificationAttachmentFile()
-	print("GetNotificationAttachmentFile()")
-	local fileName = "/mnt/internal/c4z/notification_driver/www/snap1vga.jpg"
+    print("GetNotificationAttachmentFile()")
+    local fileName = "/mnt/internal/c4z/notification_driver/www/snap1vga.jpg"
 
-	return fileName
+    return fileName
 end
 
 function GetNotificationAttachmentBytes()
-	print("GetNotificationAttachmentBytes()")
-	local fileData = ""
-	C4:FileSetDir("/mnt/internal/c4z/notification_driver/www")
-
-	if (C4:FileExists("snap1vga.jpg")) then
-		print("File Exists")
-		local fh = C4:FileOpen("snap1vga.jpg")
-		if (fh == -1) then
-			print("Error opening jpg file")
-			return
-		end
-		if (C4:FileIsValid(fh)) then
-			print("FileIsValid")
-			C4:FileSetPos(fh, 0)
-			fileData = C4:FileRead(fh, 20000)
-		else
-			print("Error: file is invalid")
-		end
-		C4:FileClose(fh)
-	else
-		print("Error image File does not exist")
-	end
-
-	--local encoded = C4:Base64Encode(fileData)
-	return C4:Base64Encode(fileData)
+    print("GetNotificationAttachmentBytes()")
+    return nil
 end
 
 function FinishedWithNotificationAttachment(id)
-	print("id = " .. id)
+    print("FinishedWithNotificationAttachment id =", id)
 
-	if (id == 1001) then
-		-- do some cleanup for Memory
-		print ("Memory cleanup")
-	elseif (id == 1002) then
-		print ("File cleanup")
-	elseif (id == 1003) then
-		print ("URL cleanup")
-	else
-		print ("invalid id")
-	end
+    if (id == 1001) then
+        -- do some cleanup for Memory
+        print("Memory cleanup")
+    elseif (id == 1002) then
+        print("File cleanup")
+    elseif (id == 1003) then
+        print("[NOTIFY] URL cleanup (safe)")
+    else
+        print("invalid id")
+    end
 end

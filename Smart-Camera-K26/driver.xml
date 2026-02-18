@@ -25,8 +25,8 @@
         <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>True</default_authentication_required>
-        <default_authentication_type>BASIC</default_authentication_type>
+        <default_authentication_required>False</default_authentication_required>
+        <default_authentication_type>NONE</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -67,11 +67,13 @@
         </attachment>
     </notification_attachments>
     <events>
-        <event>
-            <id>1</id>
-            <name>Motion Detected</name>
-            <description>When NAME detects motion</description>
-        </event>
+       <event>
+    <id>1</id>
+    <name>Motion Detected</name>
+    <description>When NAME detects motion</description>
+    <is_alert>true</is_alert>
+    <supports_notification_attachment>true</supports_notification_attachment>
+</event>
         <event>
             <id>2</id>
             <name>Human Detected</name>
@@ -121,7 +123,7 @@
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.111</default>
+                <default>192.168.60.18</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -190,7 +192,7 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d50gububtn8c73cnas9g</default>
+                <default>d4hs21qvkt0c73f2q5vg</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -228,7 +230,7 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Wake Delay (ms)</name>
+                <name>Event Interval (ms)</name>
                 <type>RANGED_INTEGER</type>
                 <default>5000</default>
                 <minimum>0</minimum>
@@ -396,12 +398,7 @@
                 <default>false</default>
                 <readonly>true</readonly>
             </property>
-            <property>
-                <name>Last Doorbell</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
+           
         </properties>
         <actions>
             <action>
@@ -520,10 +517,6 @@
                 <name>Update UI Properties</name>
                 <command>UPDATE_UI_PROPERTIES</command>
             </action>
-            <action>
-                <name>Wake Camera</name>
-                <command>WAKE_CAMERA</command>
-            </action>
 
         </actions>
         <commands>
@@ -617,10 +610,6 @@
             <command>
                 <name>UPDATE_UI_PROPERTIES</name>
                 <description>Update Control4 UI with current camera properties</description>
-            </command>
-            <command>
-                <name>WAKE_CAMERA</name>
-                <description>Wake the camera from sleep mode</description>
             </command>
 
             <command>

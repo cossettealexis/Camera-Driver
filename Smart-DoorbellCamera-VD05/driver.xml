@@ -46,76 +46,76 @@
         <supports_streaming>true</supports_streaming>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
-     <notification_attachments>
-    <attachment>
-      <id>1001</id>
-      <type>IMAGE_JPEG</type>
-      <description>Current Snapshot</description>
-      <source>MEMORY</source>
-    </attachment>
-    <attachment>
-      <id>1002</id>
-      <type>IMAGE_JPEG</type>
-      <description>Snapshot (File)</description>
-      <source>FILE</source>
-    </attachment>
-    <attachment>
-      <id>1003</id>
-      <type>IMAGE_JPEG</type>
-      <description>Snapshot (URL)</description>
-      <source>URL</source>
-    </attachment>
+    <notification_attachments>
+        <attachment>
+            <id>1001</id>
+            <type>IMAGE_JPEG</type>
+            <description>Current Snapshot</description>
+            <source>MEMORY</source>
+        </attachment>
+        <attachment>
+            <id>1002</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (File)</description>
+            <source>FILE</source>
+        </attachment>
+        <attachment>
+            <id>1003</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (URL)</description>
+            <source>URL</source>
+        </attachment>
     </notification_attachments>
-   <events>
-    <event>
-        <id>1</id>
-        <name>Motion Detected</name>
-        <description>When NAME detects motion</description>
-    </event>
-    <event>
-        <id>2</id>
-        <name>Human Detected</name>
-        <description>When NAME detects a human</description>
-    </event>
-    <event>
-        <id>3</id>
-        <name>Face Detected</name>
-        <description>When NAME detects a face</description>
-    </event>
-    <event>
-        <id>4</id>
-        <name>Stranger Detected</name>
-        <description>When NAME detects a stranger</description>
-    </event>
-    <event>
-        <id>5</id>
-        <name>Doorbell Ring</name>
-        <description>When NAME doorbell is pressed</description>
-    </event>
-    <event>
-        <id>6</id>
-        <name>Low Battery</name>
-        <description>When NAME battery is low</description>
-    </event>
-    <event>
-        <id>7</id>
-        <name>Camera Online</name>
-        <description>When NAME comes online</description>
-    </event>
-    <event>
-        <id>8</id>
-        <name>Camera Offline</name>
-        <description>When NAME goes offline</description>
-    </event>
-    <event>
-        <id>9</id>
-        <name>Camera Restarted</name>
-        <description>When NAME restarts</description>
-    </event>
-</events>
+    <events>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
+        <event>
+            <id>2</id>
+            <name>Human Detected</name>
+            <description>When NAME detects a human</description>
+        </event>
+        <event>
+            <id>3</id>
+            <name>Face Detected</name>
+            <description>When NAME detects a face</description>
+        </event>
+        <event>
+            <id>4</id>
+            <name>Stranger Detected</name>
+            <description>When NAME detects a stranger</description>
+        </event>
+        <event>
+            <id>5</id>
+            <name>Doorbell Ring</name>
+            <description>When NAME doorbell is pressed</description>
+        </event>
+        <event>
+            <id>6</id>
+            <name>Low Battery</name>
+            <description>When NAME battery is low</description>
+        </event>
+        <event>
+            <id>7</id>
+            <name>Camera Online</name>
+            <description>When NAME comes online</description>
+        </event>
+        <event>
+            <id>8</id>
+            <name>Camera Offline</name>
+            <description>When NAME goes offline</description>
+        </event>
+        <event>
+            <id>9</id>
+            <name>Camera Restarted</name>
+            <description>When NAME restarts</description>
+        </event>
+    </events>
 
     <config>
-        <script file="driver.lua"/>
+        <script file="driver.lua" />
         <documentation file="README.md">Slomins VD05 Video Doorbell Documentation</documentation>
         <properties>
             <property>
@@ -194,6 +194,12 @@
                 <readonly>false</readonly>
             </property>
             <property>
+                <name>Active Notification URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
                 <name>Product ID</name>
                 <type>STRING</type>
                 <default>VD05</default>
@@ -227,15 +233,15 @@
                 <default>pyabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
-              <property>
-                <name>Wake Delay (ms)</name>
+            <property>
+                <name>Event Interval (ms)</name>
                 <type>RANGED_INTEGER</type>
                 <default>7000</default>
                 <minimum>0</minimum>
                 <maximum>30000</maximum>
                 <readonly>false</readonly>
             </property>
-              <property>
+            <property>
                 <name>Enable MQTT</name>
                 <type>LIST</type>
                 <items>
@@ -289,7 +295,7 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>false</readonly>
-            </property>            
+            </property>
             <property>
                 <name>Temp Token</name>
                 <type>STRING</type>
@@ -332,7 +338,7 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
-            </property>    
+            </property>
             <property>
                 <name>IP Scan Range End</name>
                 <type>RANGED_INTEGER</type>
@@ -340,7 +346,68 @@
                 <minimum>1</minimum>
                 <maximum>999</maximum>
                 <readonly>false</readonly>
-            </property>   
+            </property>
+            <property>
+                <name>MQTT Host</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Port</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Client ID</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Secret</name>
+                <type>STRING</type>
+                <password>true</password>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Motion</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Snapshot URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Face</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Clip URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Online</name>
+                <type>STRING</type>
+                <default>false</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Doorbell</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
         </properties>
         <actions>
             <action>

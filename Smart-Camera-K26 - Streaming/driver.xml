@@ -25,8 +25,8 @@
         <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>True</default_authentication_required>
-        <default_authentication_type>BASIC</default_authentication_type>
+        <default_authentication_required>False</default_authentication_required>
+        <default_authentication_type>NONE</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -35,7 +35,7 @@
         <has_extras>false</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
-        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_enabled>false</snapshot_cache_enabled>
         <snapshot_cache_duration>5</snapshot_cache_duration>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
@@ -44,7 +44,12 @@
 
     <config>
         <script file="driver.lua" />
-        <script file="CldBusApi/dkjson.lua" />
+        <!-- <script file="CldBusApi/dkjson.lua" />
+        <script file="CldBusApi/http.lua" />
+        <script file="CldBusApi/auth.lua" />
+        <script file="CldBusApi/transport_c4.lua" />
+        <script file="CldBusApi/util.lua" />
+        <script file="CldBusApi/sha256.lua" /> -->
         <documentation file="README.md">Slomins K26-SL Camera - Streaming Only</documentation>
         <properties>
             <!-- Network Configuration -->
@@ -111,6 +116,12 @@
                 <readonly>false</readonly>
             </property>
             <property>
+                <name>Account</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
                 <name>API Key</name>
                 <type>STRING</type>
                 <default></default>
@@ -128,6 +139,18 @@
                 <type>STRING</type>
                 <default></default>
                 <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Public Key</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>ClientID</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
             </property>
             
             <!-- Status Properties -->
@@ -166,6 +189,14 @@
         <!-- Actions for testing -->
         <actions>
             <action>
+                <name>Initialize Camera</name>
+                <command>INITIALIZE_CAMERA</command>
+            </action>
+            <action>
+                <name>Login/Register</name>
+                <command>LOGIN_OR_REGISTER</command>
+            </action>
+            <action>
                 <name>Wake Camera</name>
                 <command>WAKE_CAMERA</command>
             </action>
@@ -178,6 +209,14 @@
         <!-- Commands -->
         <commands>
             <command>
+                <name>INITIALIZE_CAMERA</name>
+                <description>Initialize camera and get public key</description>
+            </command>
+            <command>
+                <name>LOGIN_OR_REGISTER</name>
+                <description>Login or register with account</description>
+            </command>
+            <command>
                 <name>WAKE_CAMERA</name>
                 <description>Wake the camera from sleep mode</description>
             </command>
@@ -188,7 +227,20 @@
         </commands>
     </config>
     
-    <!-- Connections (empty for IP-based camera) -->
+    <!-- Connections for camera proxy -->
     <connections>
+        <connection>
+            <id>5001</id>
+            <facing>6</facing>
+            <connectionname>Camera</connectionname>
+            <type>2</type>
+            <consumer>false</consumer>
+            <classes>
+                <class>
+                    <classname>CAMERA</classname>
+                </class>
+            </classes>
+            <hidden>True</hidden>
+        </connection>
     </connections>
 </devicedata>

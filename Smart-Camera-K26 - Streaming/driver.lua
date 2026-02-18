@@ -4,6 +4,17 @@
     Copyright © 2026 Slomins. All Rights Reserved.
 ]]--
 
+print("================================================================")
+print("   K26 STREAMING DRIVER FILE LOADED - TOP OF FILE")
+print("================================================================")
+
+-- Required libraries
+local json = require("CldBusApi.dkjson")
+local http = require("CldBusApi.http")
+local auth = require("CldBusApi.auth")
+local transport = require("CldBusApi.transport_c4")
+local util = require("CldBusApi.util")
+
 -- Global Variables
 local CAMERA_BINDING = 5001
 
@@ -47,8 +58,9 @@ function WakeCamera(retry)
         return
     end
     
-    -- Get bearer token
-    if not bearer_token or bearer_token == "" then
+    -- Get bearer token from Bearer Token property (same as VD05 uses Auth Token)
+    local auth_token = Properties["Bearer Token"]
+    if not auth_token or auth_token == "" then
         print("ERROR: No bearer token available")
         return
     end
@@ -72,7 +84,7 @@ function WakeCamera(retry)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Accept-Language"] = "en",
-        ["Authorization"] = "Bearer " .. bearer_token
+        ["Authorization"] = "Bearer " .. auth_token
     }
     
     print_debug("Wake Request URL: " .. wake_url)
@@ -116,74 +128,8 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("================================================================")
     print("         GET_RTSP_H264_QUERY_STRING CALLED                      ")
     print("================================================================")
-    
-    local width = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or 1280)
-    local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 720)
-    local rate = tonumber((tParams and tParams.RATE) or 15)
-    
-    print("Requested H264 stream:")
-    print("  Resolution: " .. width .. "x" .. height)
-    print("  Frame rate: " .. rate .. " fps")
-    
-    -- Get camera properties
-    local ip = Properties["IP Address"]
-    local rtsp_port = Properties["RTSP Port"] or "8554"
-    local username = Properties["Username"] or "SystemConnect"
-    local password = Properties["Password"] or "123456"
-    
-    if not ip or ip == "" then
-        print("ERROR: IP Address not configured")
-        return ""
-    end
-    
-    -- Skip wake on first call, only wake on subsequent calls
-    if rtsp_first_call then
-        print("[RTSP] First call - skipping wake")
-        rtsp_first_call = false
-    else
-        print("[RTSP] Subsequent call - waking camera for streaming session...")
-        WakeCamera(1)
-    end
-    
-    -- Determine stream type based on resolution
-    -- Higher resolution -> main stream (stream0)
-    -- Lower resolution -> sub stream (stream1)
-    local streamtype = 0
-    if width >= 1280 or height >= 720 then
-        streamtype = 0
-        print("Using main stream (high quality)")
-    else
-        streamtype = 1
-        print("Using sub stream (low quality)")
-    end
-    
-    local rtsp_path = "stream" .. streamtype
-    
-    print("RTSP Path: " .. rtsp_path)
-    print("Camera Proxy will build full URL with IP: " .. ip .. " and port: " .. rtsp_port)
-    
-    -- Build full RTSP URL for display/testing
-    local auth_required = Properties["Authentication Type"] ~= "NONE"
-    local rtsp_url
-    
-    if auth_required and username ~= "" and password ~= "" then
-        rtsp_url = string.format("rtsp://%s:%s@%s:%s/%s", username, password, ip, rtsp_port, rtsp_path)
-    else
-        rtsp_url = string.format("rtsp://%s:%s/%s", ip, rtsp_port, rtsp_path)
-    end
-    
-    -- Update URL properties for camera test
-    if C4 and C4.UpdateProperty then
-        if streamtype == 0 then
-            C4:UpdateProperty("Main Stream URL", rtsp_url)
-        else
-            C4:UpdateProperty("Sub Stream URL", rtsp_url)
-        end
-    end
-    
-    print("Full RTSP URL: " .. rtsp_url)
-    
-    print("================================================================")
+
+    local rtsp_path = "stream0"
     return rtsp_path
 end
 
@@ -213,6 +159,13 @@ function OnDriverInit()
     print("                    Driver Initialized                          ")
     print("================================================================")
     
+    -- Initialize properties cache
+    for k, v in pairs(Properties) do
+        if k ~= "Password" then
+            print("Property [" .. k .. "] = " .. tostring(v))
+        end
+    end
+    
     -- Set initial bearer token from properties
     bearer_token = Properties["Bearer Token"] or ""
     
@@ -226,6 +179,58 @@ function OnDriverInit()
     print("  VID: " .. (Properties["VID"] or "Not Set"))
     print("  Username: " .. (Properties["Username"] or "SystemConnect"))
     print("================================================================")
+end
+
+function OnDriverLateInit()
+    print("=== K26 Streaming Driver Late Init ===")
+    C4:UpdateProperty("Status", "Ready")
+
+    -- Send camera configuration to Camera Proxy
+    local ip = Properties["IP Address"]
+    local http_port = Properties["HTTP Port"] or "8080"
+    local rtsp_port = Properties["RTSP Port"] or "8554"
+    local username = Properties["Username"] or "SystemConnect"
+    local password = Properties["Password"] or "123456"
+
+    if ip and ip ~= "" then
+        print("Sending camera configuration to Camera Proxy:")
+        print("  IP Address: " .. ip)
+        print("  HTTP Port: " .. http_port)
+        print("  RTSP Port: " .. rtsp_port)
+        print("  Username: " .. username)
+
+        -- Send camera address and ports to Camera Proxy
+        if C4 and C4.SendToProxy then
+            -- Send camera address
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
+            print("  Sent ADDRESS_CHANGED to Camera Proxy")
+
+            -- Send HTTP port
+            C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
+            print("  Sent HTTP_PORT_CHANGED to Camera Proxy")
+
+            -- Send RTSP port
+            C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+            print("  Sent RTSP_PORT_CHANGED to Camera Proxy")
+
+            -- No authentication required for streaming
+            C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
+            print("  Sent AUTHENTICATION_REQUIRED: False to Camera Proxy")
+
+            print("Camera Proxy configuration complete!")
+        end
+
+        -- Generate and push initial RTSP URLs to Control4 app (streaming only - no authentication in URL)
+        local rtsp_url = string.format("rtsp://%s:%s/stream0", ip, rtsp_port)
+
+        -- Store in properties
+        C4:UpdateProperty("Main Stream URL", rtsp_url)
+        C4:UpdateProperty("Sub Stream URL", string.gsub(rtsp_url, "stream0", "stream1"))
+
+        print("Camera URLs initialized:")
+        print("  RTSP Main: " .. rtsp_url)
+        print("  RTSP Sub: " .. string.gsub(rtsp_url, "stream0", "stream1"))
+    end
 end
 
 --[[=============================================================================
@@ -244,19 +249,29 @@ end
 
 function UIRequest(idBinding, controlMethod, tParams)
     print("================================================================")
-    print("UIRequest called: " .. controlMethod)
+    print("UIRequest called: " .. tostring(controlMethod))
     
     if tParams then
         print("UIRequest Parameters:")
         for k, v in pairs(tParams) do
-            print(k .. " = " .. tostring(v))
+            print("  " .. tostring(k) .. " = " .. tostring(v))
         end
     end
     print("================================================================")
     
-    -- Route to appropriate function
+    -- Route camera commands and RETURN their results with XML wrapper
     if controlMethod == "GET_RTSP_H264_QUERY_STRING" then
-        return GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
+        local result = "<rtsp_h264_query_string>" ..
+        C4:XmlEscapeString(GET_RTSP_H264_QUERY_STRING(5001, tParams)) .. "</rtsp_h264_query_string>"
+        return result
+    elseif controlMethod == "GET_SNAPSHOT_QUERY_STRING" then
+        -- Streaming only - no snapshot support
+        print("Snapshot not supported (streaming only)")
+        return "<snapshot_query_string></snapshot_query_string>"
+    elseif controlMethod == "GET_MJPEG_QUERY_STRING" then
+        -- Streaming only - no MJPEG support
+        print("MJPEG not supported (streaming only)")
+        return "<mjpeg_query_string></mjpeg_query_string>"
     elseif controlMethod == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(idBinding, tParams)
     end
@@ -268,22 +283,242 @@ end
 
 function ReceivedFromProxy(idBinding, strCommand, tParams)
     print("================================================================")
-    print("ReceivedFromProxy: binding=" .. idBinding .. " command=" .. strCommand)
+    print("ReceivedFromProxy: binding=" .. tostring(idBinding) .. " command=" .. tostring(strCommand))
     
     if tParams then
         print("Parameters:")
         for k, v in pairs(tParams) do
-            print(k .. " = " .. tostring(v))
+            print("  " .. tostring(k) .. " = " .. tostring(v))
         end
     end
     print("================================================================")
     
-    -- Route to appropriate function
+    -- Handle camera proxy commands
     if strCommand == "GET_RTSP_H264_QUERY_STRING" then
-        return GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
+        local result = GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
+        local xml_result = "<rtsp_h264_query_string>" .. C4:XmlEscapeString(result) .. "</rtsp_h264_query_string>"
+        print("Returning XML result: " .. xml_result)
+        return xml_result
     elseif strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(idBinding, tParams)
     end
+end
+
+--[[=============================================================================
+    Authentication Functions
+===============================================================================]]
+
+function InitializeCamera()
+    print("================================================================")
+    print("                 INITIALIZE CAMERA CALLED                        ")
+    print("================================================================")
+
+    local client_id = util.uuid_v4()
+    local request_id = util.uuid_v4()
+    local time = tostring(os.time())
+    local version = "0.0.1"
+    local app_secret = Properties["API Secret"] or ""
+
+    print("Client ID: " .. client_id)
+    print("Request ID: " .. request_id)
+    print("Time: " .. time)
+
+    local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
+        client_id, request_id, time, version)
+    
+    local signature = util.hmac_sha256_hex(message, app_secret)
+    
+    local body_tbl = {
+        sign = signature,
+        client_id = client_id,
+        request_id = request_id,
+        time = time,
+        version = version
+    }
+
+    local body_json = json.encode(body_tbl)
+    
+    C4:UpdateProperty("Status", "Initializing camera...")
+
+    local base_url = "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/init"
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["App-Name"] = "cldbus"
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = body_json
+    }
+
+    print("Sending request to: " .. url)
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+
+        if code == 200 then
+            local ok, parsed = pcall(json.decode, resp)
+            if ok and parsed and parsed.data then
+                local public_key = parsed.data.public_key
+                if public_key then
+                    print("Received public key")
+                    C4:UpdateProperty("Status", "Initialized - Ready to login")
+                    Properties["Public Key"] = public_key
+                    Properties["ClientID"] = client_id
+                end
+            end
+        else
+            C4:UpdateProperty("Status", "Initialization failed: " .. tostring(code))
+        end
+    end)
+
+    print("================================================================")
+end
+
+function RsaOaepEncrypt(data, publicKey, callback)
+    print("RsaOaepEncrypt called")
+    
+    local data_obj = json.decode(data)
+    
+    local body_tbl = {
+        publicKey = publicKey,
+        payload = {
+            country_code = data_obj.country_code,
+            account = data_obj.account
+        }
+    }
+
+    local body_json = json.encode(body_tbl)
+    local url = "http://54.90.205.243:5000/lndu-encrypt"
+
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = body_json
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code == 200 then
+            local ok, parsed = pcall(json.decode, resp)
+            if ok and parsed and parsed.encrypted then
+                callback(true, parsed.encrypted, nil)
+            else
+                callback(false, nil, "Invalid response from encryption API")
+            end
+        else
+            callback(false, nil, "Encryption API failed: " .. tostring(code))
+        end
+    end)
+end
+
+function LoginOrRegister(country_code, account)
+    print("================================================================")
+    print("              LOGIN OR REGISTER CALLED                          ")
+    print("================================================================")
+
+    local public_key = Properties["Public Key"]
+
+    if not public_key or public_key == "" then
+        print("ERROR: No public key available. Please run InitializeCamera first.")
+        C4:UpdateProperty("Status", "Login failed: No public key")
+        return
+    end
+
+    print("Country Code: " .. country_code)
+    print("Account: " .. account)
+
+    local client_id = Properties["ClientID"] or util.uuid_v4()
+    local request_id = util.uuid_v4()
+    local time = tostring(os.time())
+    local app_secret = Properties["API Secret"] or ""
+
+    local post_data_obj = {
+        country_code = country_code,
+        account = account
+    }
+
+    local post_data_json = json.encode(post_data_obj)
+    
+    C4:UpdateProperty("Status", "Encrypting credentials...")
+
+    RsaOaepEncrypt(post_data_json, public_key, function(success, encrypted_data, error_msg)
+        if not success or not encrypted_data then
+            print("ERROR: Failed to encrypt post_data")
+            C4:UpdateProperty("Status", "Login failed: Encryption error")
+            return
+        end
+
+        local post_data_hex = encrypted_data
+
+        local message = string.format("client_id=%s&post_data=%s&request_id=%s&time=%s",
+            client_id, post_data_hex, request_id, time)
+
+        local signature = util.hmac_sha256_hex(message, app_secret)
+
+        local body_tbl = {
+            sign = signature,
+            post_data = post_data_hex,
+            client_id = client_id,
+            request_id = request_id,
+            time = time
+        }
+
+        local body_json = json.encode(body_tbl)
+        
+        C4:UpdateProperty("Status", "Logging in...")
+
+        local base_url = "https://api.arpha-tech.com"
+        local url = base_url .. "/api/v3/openapi/auth/login-or-register"
+
+        local headers = {
+            ["Content-Type"] = "application/json",
+            ["Accept-Language"] = "en",
+            ["App-Name"] = "cldbus"
+        }
+
+        local req = {
+            url = url,
+            method = "POST",
+            headers = headers,
+            body = body_json
+        }
+
+        print("Sending request to: " .. url)
+
+        transport.execute(req, function(code, resp, resp_headers, err)
+            print("Response code: " .. tostring(code))
+
+            if code == 200 then
+                print("Login/Register succeeded")
+
+                local ok, parsed = pcall(json.decode, resp)
+                if ok and parsed then
+                    if parsed.data and parsed.data.token then
+                        bearer_token = parsed.data.token
+                        C4:UpdateProperty("Bearer Token", bearer_token)
+                        print("Bearer token stored")
+                    end
+
+                    C4:UpdateProperty("Status", "Login successful")
+                end
+            else
+                print("Login/Register failed with code: " .. tostring(code))
+                C4:UpdateProperty("Status", "Login failed: " .. tostring(code))
+            end
+        end)
+    end)
+
+    print("================================================================")
 end
 
 --[[=============================================================================
@@ -291,6 +526,12 @@ end
 ===============================================================================]]
 
 function ExecuteCommand(strCommand, tParams)
+    -- Handle LUA_ACTION wrapper first - unwrap it
+    if strCommand == "LUA_ACTION" and tParams and tParams.ACTION then
+        print("LUA_ACTION wrapper detected - unwrapping to: " .. tParams.ACTION)
+        strCommand = tParams.ACTION
+    end
+    
     print("================================================================")
     print("ExecuteCommand: " .. strCommand)
     
@@ -306,5 +547,18 @@ function ExecuteCommand(strCommand, tParams)
         WakeCamera(1)
     elseif strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(5001, tParams)
+    elseif strCommand == "InitializeCamera" or strCommand == "INITIALIZE_CAMERA" then
+        InitializeCamera()
+    elseif strCommand == "LoginOrRegister" or strCommand == "LOGIN_OR_REGISTER" then
+        local country_code = (tParams and tParams.country_code) or "N"
+        local account = Properties["Account"] or ""
+        
+        if account == "" then
+            print("ERROR: Account is required for login")
+            C4:UpdateProperty("Status", "Login failed: No account specified")
+            return
+        end
+        
+        LoginOrRegister(country_code, account)
     end
 end
