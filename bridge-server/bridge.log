@@ -1,0 +1,25 @@
+2026-02-23 18:49:45,794 - __main__ - INFO - ======================================================================
+2026-02-23 18:49:45,794 - __main__ - INFO - Universal Camera Bridge Server for Control4
+2026-02-23 18:49:45,794 - __main__ - INFO - ======================================================================
+2026-02-23 18:49:45,794 - __main__ - INFO - HTTP API: http://0.0.0.0:5001
+2026-02-23 18:49:45,794 - __main__ - INFO - RTSP Base Port: 8554
+2026-02-23 18:49:45,794 - __main__ - INFO - 
+2026-02-23 18:49:45,794 - __main__ - INFO - Supported Cameras: K26-SL, VD05, P160-SL, and all Tuya cameras
+2026-02-23 18:49:45,794 - __main__ - INFO - ======================================================================
+2026-02-23 18:49:45,794 - __main__ - INFO - Starting HTTP API server on port 5001
+ * Serving Flask app 'camera_bridge'
+ * Debug mode: off
+2026-02-23 18:49:45,802 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://172.20.10.11:5001
+2026-02-23 18:49:45,802 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-02-23 18:49:47,625 - __main__ - INFO - Stream request for VID: d4t9tj6btn8c73cn6lm0, quality: high
+2026-02-23 18:49:47,625 - __main__ - INFO - Waking camera VID: d4t9tj6btn8c73cn6lm0
+2026-02-23 18:49:48,831 - __main__ - INFO - Camera d4t9tj6btn8c73cn6lm0 wake command sent successfully
+2026-02-23 18:49:48,832 - __main__ - INFO - Response: {"code":20000,"message":"success","data":{"action_id":"ac_wakelocal","output_params":"{\"msg\":\"\",\"result\":1}","is_action_shadow":0}}
+2026-02-23 18:49:48,834 - __main__ - INFO - Waiting for camera d4t9tj6btn8c73cn6lm0 to be ready...
+2026-02-23 18:49:55,835 - __main__ - INFO - Camera d4t9tj6btn8c73cn6lm0 should be ready now!
+2026-02-23 18:49:56,764 - __main__ - INFO - Starting RTSP relay from rtsp://192.168.1.66:8554/stream0 to port 8554
+2026-02-23 18:49:56,773 - __main__ - INFO - RTSP relay started for VID d4t9tj6btn8c73cn6lm0
+2026-02-23 18:49:56,774 - werkzeug - INFO - 127.0.0.1 - - [23/Feb/2026 18:49:56] "GET /stream/d4t9tj6btn8c73cn6lm0?quality=high&auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI0NDc3NDcsImlhdCI6MTc3MTg0Mjk0NywibWlkIjo4NzMzLCJub25jZSI6ImQ2ZTJyMHBwaHVzYzczYWoxZWYwIiwic2Vzc2lvbklkIjoiN0ZDRjBBRTYwNzMyMDZFRTM1RkJFREUxNDEyOTRFQTMifQ.Zg5PZur_Nj65VU3Nl4PSs9RbcgifFdlRH01x7Zs5hLA HTTP/1.1" 200 -

@@ -145,8 +145,9 @@
             <property>
                 <name>Stream Path</name>
                 <type>STRING</type>
-                <default>stream1</default>
+                <default>stream0</default>
                 <readonly>false</readonly>
+                <tooltip>RTSP stream path. Use 'stream0' for high quality (main) or 'stream0' for low quality (sub). Leave as default to auto-select based on resolution.</tooltip>
             </property>
             <property>
                 <name>Username</name>
@@ -164,7 +165,7 @@
             <property>
                 <name>Snapshot URL Path</name>
                 <type>STRING</type>
-                <default>/GetSnapshot</default>
+                <default>/tmp/snap.jpeg</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -186,7 +187,7 @@
                     <item>DIGEST</item>
                     <item>NONE</item>
                 </items>
-                <default>BASIC</default>
+                <default>NONE</default>
                 <readonly>false</readonly>
             </property>
             <property>

@@ -1,0 +1,4 @@
+Flask==3.0.0
+requests==2.31.0
+opencv-python==4.8.1.78
+aiohttp==3.9.1

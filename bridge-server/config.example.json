@@ -1,0 +1,28 @@
+{
+  "api_base_url": "https://api.arpha-tech.com",
+  "bridge_port": 8554,
+  "http_api_port": 5001,
+  "camera_wake_timeout": 10,
+  "log_level": "INFO",
+  "cameras": {
+    "k26_solar_camera": {
+      "vid": "d50gu5mbtn8c73cnacvg",
+      "ip": "192.168.60.71",
+      "name": "K26-SL Solar Outdoor Camera",
+      "type": "K26-SL",
+      "rtsp_port": 8554,
+      "http_port": 8080,
+      "sleeps": true,
+      "wake_time_seconds": 7
+    },
+    "vd05_doorbell": {
+      "vid": "d4n44no1k1vs73fqjjo0",
+      "name": "VD05 Video Doorbell",
+      "type": "VD05",
+      "rtsp_port": 8554,
+      "http_port": 8080,
+      "sleeps": false,
+      "wake_time_seconds": 0
+    }
+  }
+}
