@@ -35,15 +35,30 @@
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>180</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
+           <hasHistory>true</hasHistory>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
+    <attachment>
+      <id>1001</id>
+      <type>IMAGE_JPEG</type>
+      <description>Current Snapshot</description>
+      <source>MEMORY</source>
+    </attachment>
+    <attachment>
+      <id>1002</id>
+      <type>IMAGE_JPEG</type>
+      <description>Snapshot (File)</description>
+      <source>FILE</source>
+    </attachment>
         <attachment>
             <id>1003</id>
             <type>IMAGE_JPEG</type>
@@ -86,7 +101,7 @@
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.148</default>
+                <default>192.168.60.139</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -106,24 +121,18 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Stream Path</name>
+                <name>Main Stream Path</name>
                 <type>STRING</type>
                 <default>streamtype=1</default>
                 <readonly>false</readonly>
-                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality (main) or 'streamtype=0' for low quality (sub). Leave as default to auto-select based on resolution.</tooltip>
+                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
             </property>
             <property>
-                <name>Username</name>
+                <name>Sub Stream Path</name>
                 <type>STRING</type>
-                <default>SystemConnect</default>
+                <default>streamtype=0</default>
                 <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Password</name>
-                <type>STRING</type>
-                <default>123456</default>
-                <password>true</password>
-                <readonly>false</readonly>
+                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
             </property>
             <property>
                 <name>Snapshot URL Path</name>
@@ -132,37 +141,9 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Default Resolution</name>
-                <type>LIST</type>
-                <items>
-                    <item>640x480</item>
-                    <item>1280x720</item>
-                    <item>1920x1080</item>
-                </items>
-                <default>1280x720</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Authentication Type</name>
-                <type>LIST</type>
-                <items>
-                    <item>BASIC</item>
-                    <item>DIGEST</item>
-                    <item>NONE</item>
-                </items>
-                <default>NONE</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
                 <name>VID</name>
                 <type>STRING</type>
                 <default>d4n44no1k1vs73fqjjo0</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Product ID</name>
-                <type>STRING</type>
-                <default>P160-SL</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -184,7 +165,7 @@
             <property>
                 <name>Status</name>
                 <type>STRING</type>
-                <default>Initializing...</default>
+                <default></default>
                 <readonly>true</readonly>
             </property>
             <property>
@@ -200,7 +181,7 @@
                     <item>False</item>
                     <item>True</item>
                 </items>
-                <default>False</default>
+                <default>True</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -265,7 +246,7 @@
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>false</readonly>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>AppId</name>
@@ -293,72 +274,9 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>IP Scan Range End</name>
-                <type>RANGED_INTEGER</type>
-                <default>50</default>
-                <minimum>1</minimum>
-                <maximum>999</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>MQTT Host</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Port</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Client ID</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Secret</name>
-                <type>STRING</type>
-                <password>true</password>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Motion</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Snapshot URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Face</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Clip URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
                 <name>Online</name>
                 <type>STRING</type>
                 <default>false</default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Doorbell</name>
-                <type>STRING</type>
-                <default></default>
                 <readonly>true</readonly>
             </property>
         </properties>
@@ -420,10 +338,6 @@
                 </params>
             </action>
             <action>
-                <name>Test Snapshot</name>
-                <command>TEST_SNAPSHOT</command>
-            </action>
-            <action>
                 <name>Bind Device</name>
                 <command>BIND_DEVICE</command>
             </action>
@@ -436,24 +350,8 @@
                 <command>LOGIN_OR_REGISTER</command>
             </action>
             <action>
-                <name>Get Temp Token</name>
-                <command>GET_TEMP_TOKEN</command>
-            </action>
-            <action>
-                <name>Get Exchange Token</name>
-                <command>GET_EXCHANGE_TOKEN</command>
-            </action>
-            <action>
                 <name>Get Devices</name>
                 <command>GET_DEVICES</command>
-            </action>
-            <action>
-                <name>Test Main Stream</name>
-                <command>TEST_MAIN_STREAM</command>
-            </action>
-            <action>
-                <name>Test Sub Stream</name>
-                <command>TEST_SUB_STREAM</command>
             </action>
             <action>
                 <name>Discover Cameras (HTTP Scan)</name>
@@ -466,18 +364,6 @@
             <action>
                 <name>Set Device active (SDDP)</name>
                 <command>SET_DEVICE_PROPERTY</command>
-            </action>
-             <action>
-                <name>Test Wake Local</name>
-                <command>TEST_WAKE_LOCAL</command>
-            </action>
-            <action>
-                <name>Test Push Notification</name>
-                <command>TEST_PUSH_NOTIFICATION</command>
-            </action>
-              <action>
-                <name>Test Push Notification (Human)</name>
-                <command>SEND_TEST_NOTIFICATION_HUMAN</command>
             </action>
         </actions>
         <commands>

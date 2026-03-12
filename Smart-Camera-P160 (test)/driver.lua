@@ -1931,14 +1931,15 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
         return
     end
     
-    -- Build snapshot URL
+    -- Build snapshot URL with timestamp to prevent caching
+    local timestamp = os.time()
     local snapshot_url
     if auth_required and username ~= "" and password ~= "" then
-        snapshot_url = string.format("http://%s:%s@%s:3333/wps-cgi/image.cgi?resolution=%dx%d",
-            username, password, ip, width, height)
+        snapshot_url = string.format("http://%s:%s@%s:3333/wps-cgi/image.cgi?resolution=%dx%d&t=%d",
+            username, password, ip, width, height, timestamp)
     else
-        snapshot_url = string.format("http://%s:3333/wps-cgi/image.cgi?resolution=%dx%d",
-            ip, width, height)
+        snapshot_url = string.format("http://%s:3333/wps-cgi/image.cgi?resolution=%dx%d&t=%d",
+            ip, width, height, timestamp)
     end
     
     print("Fetching snapshot from: " .. snapshot_url)
@@ -2828,7 +2829,8 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     end
     
     -- Camera Proxy will build: http://username:password@ip:port/path
-    local snapshot_path = string.format("wps-cgi/image.cgi?resolution=%dx%d", width, height)
+    -- Using static snapshot mode (requires_dynamic_snapshot_urls=false)
+    local snapshot_path = "wps-cgi/image.cgi?resolution=3840x2160"
     
     print("Snapshot Path: " .. snapshot_path)
     print("Camera Proxy will build full URL with IP: " .. ip .. " and port: " .. http_port)

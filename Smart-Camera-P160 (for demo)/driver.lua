@@ -183,33 +183,26 @@ function OnDriverLateInit()
         
         -- Send camera address and ports to Camera Proxy
         if C4 and C4.SendToProxy then
-            -- Step 1: Send authentication type FIRST
+
             C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", {TYPE = "BASIC"})
             print("  Sent AUTHENTICATION_TYPE_CHANGED: BASIC to Camera Proxy")
             
-            -- Step 2: Send authentication required
             C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", {REQUIRED = "True"})
             print("  Sent AUTHENTICATION_REQUIRED: True to Camera Proxy")
             
-            -- Step 3: Send username
             C4:SendToProxy(5001, "USERNAME_CHANGED", {USERNAME = username})
             print("  Sent USERNAME_CHANGED to Camera Proxy")
             
-            -- Step 4: Send password
             C4:SendToProxy(5001, "PASSWORD_CHANGED", {PASSWORD = password})
             print("  Sent PASSWORD_CHANGED to Camera Proxy")
             
-            -- Step 5: Small delay to ensure auth is processed before address/ports
             C4:SetTimer(100, function()
-                -- Step 6: NOW send camera address and ports
                 C4:SendToProxy(5001, "ADDRESS_CHANGED", {ADDRESS = ip})
                 print("  Sent ADDRESS_CHANGED to Camera Proxy")
                 
-            -- Send HTTP port
                 C4:SendToProxy(5001, "HTTP_PORT_CHANGED", {PORT = http_port})
                 print("  Sent HTTP_PORT_CHANGED to Camera Proxy")
                 
-            -- Send RTSP port
                 C4:SendToProxy(5001, "RTSP_PORT_CHANGED", {PORT = rtsp_port})
                 print("  Sent RTSP_PORT_CHANGED to Camera Proxy")
                 
@@ -218,8 +211,10 @@ function OnDriverLateInit()
         end
         
         -- Get stream path from property
-        local stream_path = Properties["Stream Path"] or "streamtype=1"
-        local main_path = stream_path:match("streamtype") and "streamtype=1" or stream_path
+        local main_stream_path = Properties["Main Stream Path"] or "streamtype=1"
+        local sub_stream_path = Properties["Sub Stream Path"] or "streamtype=0"
+        local main_path = main_stream_path:match("streamtype") and "streamtype=1" or main_stream_path
+        local sub_path = sub_stream_path:match("streamtype") and "streamtype=0" or sub_stream_path
         
         -- Generate and push initial URLs to Control4 app
         local rtsp_url = string.format("rtsp://%s:%s/%s", ip, rtsp_port, main_path)
@@ -228,8 +223,6 @@ function OnDriverLateInit()
         local snapshot_path = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
         local snapshot_url = string.format("http://%s:%s%s", ip, http_port, snapshot_path)
 
-        -- Get sub stream path
-        local sub_path = stream_path:match("streamtype") and "streamtype=0" or stream_path
 
         C4:UpdateProperty("Main Stream URL", rtsp_url)
         C4:UpdateProperty("Sub Stream URL", string.format("rtsp://%s:%s/%s", ip, rtsp_port, sub_path))
@@ -308,14 +301,18 @@ function OnPropertyChanged(strProperty)
         local password = Properties["Password"] or "123456"
         
         -- Get stream path from property
-        local stream_path = Properties["Stream Path"] or "streamtype=1"
+        local main_stream_path = Properties["Main Stream Path"] or "streamtype=1"
+        local sub_stream_path = Properties["Sub Stream Path"] or "streamtype=0" 
         local main_path, sub_path
-        if stream_path:match("streamtype") then
+        if main_stream_path:match("streamtype") then
             main_path = "streamtype=1"
+        else
+            main_path = main_stream_path
+        end
+        if sub_stream_path:match("streamtype") then
             sub_path = "streamtype=0"
         else
-            main_path = stream_path
-            sub_path = stream_path
+            sub_path = sub_stream_path
         end
         
         local rtsp_main, rtsp_sub
@@ -784,7 +781,7 @@ function SendUpdateCameraProp(extractedData)
         publicly_accessible = cameraData.publicly_accessible or false,
         vid = cameraData.vid or Properties["VID"] or "",
         product_id = cameraData.product_id or Properties["Product ID"] or "P160-SL",
-        device_name = cameraData.device_name or Properties["Device Name"] or "LNDU Camera",
+        device_name = cameraData.device_name or Properties["Device Name"] or "P160-SL Camera",
         main_stream_url = cameraData.main_stream_url or Properties["Main Stream URL"] or "",
         sub_stream_url = cameraData.sub_stream_url or Properties["Sub Stream URL"] or "",
         status = cameraData.status or Properties["Status"] or "Unknown"
@@ -1279,6 +1276,11 @@ function ReceivedFromNetwork(id, port, data)
 
     local payload = decoded.message or decoded
 
+    if payload.C4UniqueMac ~= C4:GetUniqueMAC() then
+        print("[TCP] Unique MAC mismatch. Ignoring message.", tostring(payload.C4UniqueMac))
+        return
+    end
+    
     if payload.EventName ~= "LnduUpdate" then
         print("[TCP] Ignoring Event:", tostring(payload.EventName))
         return  
@@ -1418,6 +1420,30 @@ function GetImageForEvent(extp, done)
 end
 
 
+local function record_history(severity, event_type, subcategory)
+
+    local description = tostring(event_type or "Camera Event")
+
+    if severity ~= "Info" and severity ~= "Warning" and severity ~= "Critical" then
+        severity = "Info"
+    end
+
+    local uuid = C4:RecordHistory(
+        severity,
+        description,
+        "Cameras",
+        subcategory or "IP Camera"
+    )
+
+    if uuid then
+        print("[HISTORY] Recorded OK:", description)
+    else
+        print("[HISTORY] FAILED")
+    end
+
+    return uuid
+end
+
 local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
@@ -1444,7 +1470,11 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             else
                 print("[NOTIFY] no image after retry")
             end
-
+            record_history(
+                category == NOTIFY.ALERT and "Critical" or "Info",
+                event_name,
+                "IP Camera"
+            )
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
             end)
@@ -1722,93 +1752,6 @@ function HANDLE_JSON_EVENT(payload)
 end
 
 
-function OP07_PROCESS_NOTIFICATION(n)
-    print("[OP07] Event:", n.message_type, "VID:", n.vid)
-
-    -- motion
-    if n.message_type == "move_detect"
-        or n.message_type == "human_shape_detect"
-        or n.message_type == "package_detect" then
-        C4:FireEvent(1)
-
-        -- doorbell
-    elseif n.message_type == "door_bell" then
-        C4:FireEvent(2)
-
-        -- face
-    elseif n.message_type == "face_open" then
-        C4:FireEvent(3)
-
-        -- clip available
-    elseif n.has_video == 1 then
-        C4:FireEvent(4)
-    end
-
-    if n.image_url then
-        update_prop("Last Image URL", n.image_url)
-    end
-    if n.video_url then
-        update_prop("Last Video URL", n.video_url)
-    end
-end
-
-function FETCH_NOTIFICATIONS(minutes)
-    print("================================================")
-    print("           OP07 FETCH_NOTIFICATIONS              ")
-    print("================================================")
-
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    local vid = _props["Device ID"] or Properties["Device ID"]
-
-    if not auth_token or not vid then
-        print("[OP07] Missing auth token or VID")
-        return
-    end
-
-    minutes = minutes or 10
-    local now = os.time()
-    local start_ts = now - (minutes * 60)
-
-    local body = {
-        page = 1,
-        page_size = 20,
-        group_type = { "video", "bell_alert", "open" },
-        probe_type = { "face_probe" },
-        storage_type = { "cloud", "local" },
-        start_timestamp = start_ts,
-        end_timestamp = now,
-        vids = { vid },
-        isread = 0
-    }
-
-    local req = {
-        url = (Properties["Base API URL"] or "https://api.arpha-tech.com")
-            .. "/api/v3/openapi/notifications/query",
-        method = "POST",
-        headers = {
-            ["Content-Type"] = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["Accept-Language"] = "en"
-        },
-        body = json.encode(body)
-    }
-
-    transport.execute(req, function(code, resp)
-        print("[OP07] HTTP:", code)
-
-        if code ~= 200 then return end
-
-        local ok, parsed = pcall(json.decode, resp)
-        if not ok or not parsed.data then return end
-
-        local list = parsed.data.notifications or {}
-        print("[OP07] Notifications received:", #list)
-
-        for _, n in ipairs(list) do
-            OP07_PROCESS_NOTIFICATION(n)
-        end
-    end)
-end
 
 function TEST_WAKE_LOCAL()
     print("[OP04] TEST_WAKE_LOCAL called")
@@ -2114,8 +2057,8 @@ function GET_CAMERA_PROPERTIES()
         password = Properties["Password"] or "",  -- Full password for internal use
         publicly_accessible = false,
         vid = Properties["VID"] or "",
-        product_id = Properties["Product ID"] or "K26-SL",
-        device_name = Properties["Device Name"] or "LNDU Camera",
+        product_id = Properties["Product ID"] or "P160-SL",
+        device_name = Properties["Device Name"] or "P160-SL Camera",
         main_stream_url = Properties["Main Stream URL"] or "",
         sub_stream_url = Properties["Sub Stream URL"] or "",
         status = Properties["Status"] or "Unknown"
@@ -2125,72 +2068,6 @@ function GET_CAMERA_PROPERTIES()
     print("================================================================")
     
     return camera_props
-end
-
--- 4. Test Main Stream
-function TEST_MAIN_STREAM(tParams)
-    print("================================================================")
-    print("              TEST_MAIN_STREAM CALLED                           ")
-    print("================================================================")
-    
-    local ip = Properties["IP Address"]
-    local port = Properties["RTSP Port"] or "554"
-    
-    if not ip or ip == "" then
-        print("IP Address not set")
-        C4:UpdateProperty("Status", "Error: IP Address required")
-        return
-    end
-    
-    -- Get stream path from property
-    local stream_path = Properties["Stream Path"] or "streamtype=1"
-    local main_path = stream_path:match("streamtype") and "streamtype=1" or stream_path
-    
-    -- Build RTSP URL for main stream
-    local rtsp_url = string.format("rtsp://%s:%s/%s", ip, port, main_path)
-    
-    print("Main Stream RTSP URL: " .. rtsp_url)
-    C4:UpdateProperty("Status", "Main stream URL generated")
-    
-    -- Store in properties if available
-    if Properties["Main Stream URL"] then
-        C4:UpdateProperty("Main Stream URL", rtsp_url)
-    end
-    
-    print("================================================================")
-end
-
--- 5. Test Sub Stream
-function TEST_SUB_STREAM(tParams)
-    print("================================================================")
-    print("              TEST_SUB_STREAM CALLED                            ")
-    print("================================================================")
-    
-    local ip = Properties["IP Address"]
-    local port = Properties["RTSP Port"] or "554"
-    
-    if not ip or ip == "" then
-        print("IP Address not set")
-        C4:UpdateProperty("Status", "Error: IP Address required")
-        return
-    end
-    
-    -- Get stream path from property
-    local stream_path = Properties["Stream Path"] or "streamtype=1"
-    local sub_path = stream_path:match("streamtype") and "streamtype=0" or stream_path
-    
-    -- Build RTSP URL for sub stream (streamtype=0)
-    local rtsp_url = string.format("rtsp://%s:%s/%s", ip, port, sub_path)
-    
-    print("Sub Stream RTSP URL: " .. rtsp_url)
-    C4:UpdateProperty("Status", "Sub stream URL generated")
-    
-    -- Store in properties if available
-    if Properties["Sub Stream URL"] then
-        C4:UpdateProperty("Sub Stream URL", rtsp_url)
-    end
-    
-    print("================================================================")
 end
 
 function GET_SNAPSHOT_URL(params)
@@ -2598,14 +2475,15 @@ function GET_STREAM_URLS(idBinding, tParams)
     local auth_required = Properties["Authentication Type"] ~= "NONE"
     
     -- Get stream path from property
-    local stream_path = Properties["Stream Path"] or "streamtype=1"
+    local main_stream_path = Properties["Main Stream Path"] or "streamtype=1"
+    local sub_stream_path = Properties["Sub Stream Path"] or "streamtype=0"
     local main_path, sub_path
-    if stream_path:match("streamtype") then
+    if main_stream_path:match("streamtype") then
         main_path = "streamtype=1"
         sub_path = "streamtype=0"
     else
-        main_path = stream_path
-        sub_path = stream_path
+        main_path = main_stream_path
+        sub_path = sub_stream_path
     end
     
     local rtsp_main, rtsp_sub
@@ -2671,16 +2549,17 @@ function URL_GET(idBinding, tParams)
     local snapshot_path = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
     
     -- Get stream path from property
-    local stream_path = Properties["Stream Path"] or "streamtype=1"
+    local main_stream_path = Properties["Main Stream Path"] or "streamtype=1"
+    local sub_stream_path = Properties["Sub Stream Path"] or "streamtype=0"
     
     -- Determine main and sub stream paths
     local main_path, sub_path
-    if stream_path:match("streamtype") then
+    if main_stream_path:match("streamtype") then
         main_path = "streamtype=1"  -- High quality
         sub_path = "streamtype=0"   -- Low quality
     else
-        main_path = stream_path
-        sub_path = stream_path
+        main_path = main_stream_path
+        sub_path = sub_stream_path
     end
     
     local rtsp_main_url, rtsp_sub_url, snapshot_url
@@ -2878,23 +2757,7 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     print("================================================================")
     
     -- Get default resolution from property
-    local default_resolution = Properties["Default Resolution"] or "1280x720"
-    local default_width, default_height = 1280, 720
-    
-    -- Parse default resolution
-    if default_resolution then
-        local w, h = default_resolution:match("(%d+)x(%d+)")
-        if w and h then
-            default_width = tonumber(w)
-            default_height = tonumber(h)
-        end
-    end
-    
-    -- Use default resolution from property if not specified in params
-    local width = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or default_width)
-    local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or default_height)
-    
-    print("Requested resolution: " .. width .. "x" .. height)
+    local default_resolution = "3840x2160"
     
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -2912,6 +2775,16 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     -- Remove leading slash if present (Camera Proxy will add it)
     if snapshot_path:sub(1,1) == "/" then
         snapshot_path = snapshot_path:sub(2)
+    end
+    
+    -- Add resolution parameter if not already present
+    if not snapshot_path:find("resolution=") then
+        -- Check if path already has query parameters
+        if snapshot_path:find("?") then
+            snapshot_path = snapshot_path .. "&resolution=" .. default_resolution
+        else
+            snapshot_path = snapshot_path .. "?resolution=" .. default_resolution
+        end
     end
     
     print("Snapshot Path: " .. snapshot_path)
@@ -3018,22 +2891,9 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("         GET_RTSP_H264_QUERY_STRING CALLED                      ")
     print("================================================================")
     
-    -- Get default resolution from property
-    local default_resolution = Properties["Default Resolution"] or "1280x720"
-    local default_width, default_height = 1280, 720
-    
-    -- Parse default resolution
-    if default_resolution then
-        local w, h = default_resolution:match("(%d+)x(%d+)")
-        if w and h then
-            default_width = tonumber(w)
-            default_height = tonumber(h)
-        end
-    end
-    
-    -- Use default resolution from property if not specified in params
-    local width = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or default_width)
-    local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or default_height)
+    -- Use resolution from params, fall back to defaults if not provided
+    local width = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or 1280)
+    local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 720)
     local rate = tonumber((tParams and tParams.RATE) or 15)
     
     print("Requested H264 stream:")

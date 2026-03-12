@@ -35,6 +35,8 @@
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
@@ -86,7 +88,7 @@
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.120</default>
+                <default>192.168.60.139</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -155,7 +157,7 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d4kg2q4dlcmc73d477hg</default>
+                <default>d4t9tjebtn8c73cn6lug</default>
                 <readonly>false</readonly>
             </property>
             <property>
