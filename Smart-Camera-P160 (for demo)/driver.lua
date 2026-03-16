@@ -94,8 +94,8 @@ local last_power_status = nil
 local LOW_BATTERY_THRESHOLD = 20 
 local last_battery_low = false
 
--- Snapshot caching - Use Control4's File API and driver's www directory
-local SNAPSHOT_CACHE_DIR = "/mnt/internal/c4z/Slomins-indoor-P160/www"
+-- Snapshot caching - Use Control4's www/snapshots directory (like DF511 icons folder)
+local SNAPSHOT_CACHE_DIR = "/mnt/internal/c4z/Slomins-indoor-P160/www/snapshots"
 local SNAPSHOT_CACHE_FILE = "cached_snapshot.jpg"
 local SNAPSHOT_CACHE_DURATION = 300  -- Cache for 5 minutes
 local last_snapshot_fetch_time = 0
@@ -2891,68 +2891,21 @@ end
 -- GET_SNAPSHOT_URLS - Return full snapshot URLs in XML format (for camera list thumbnails)
 function GET_SNAPSHOT_URLS(idBinding, tParams)
     print("================================================================")
-    print("           GET_SNAPSHOT_URLS CALLED                             ")
+    print("           GET_SNAPSHOT_URLS CALLED - TEST MODE                 ")
     print("================================================================")
     
-    if tParams then
-        print("Parameters:")
-        for k, v in pairs(tParams) do
-            print("  " .. tostring(k) .. " = " .. tostring(v))
-        end
-    end
+    -- TEST: Return static test.png file using controller:// URL (like DF511 icons)
+    local test_url = "controller://driver/Slomins-indoor-P160/www/snapshots/test.png"
     
-    -- Get camera properties
-    local ip = Properties["IP Address"]
-    local http_port = Properties["HTTP Port"] or "3333"
+    print("[TEST] Returning static test image")
+    print("[TEST] URL: " .. test_url)
     
-    if not ip or ip == "" then
-        print("ERROR: IP Address not configured")
-        C4:UpdateProperty("Status", "Get Snapshot URLs failed: No IP Address")
-        return "<snapshots></snapshots>"
-    end
-    
-    -- Check cache age
-    local now = os.time()
-    local cache_age = now - last_snapshot_fetch_time
-    
-    print("")
-    print("[CACHE] =============================================")
-    if last_snapshot_fetch_time == 0 then
-        print("[CACHE] STATUS: NO CACHE (waiting for first video stream access)")
-    else
-        print("[CACHE] STATUS: CACHED (" .. cache_age .. "s ago, " .. (SNAPSHOT_CACHE_DURATION - cache_age) .. "s until refresh)")
-        if snapshot_saved_successfully then
-            print("[CACHE] STORAGE: Saved to disk at " .. SNAPSHOT_CACHE_DIR .. "/" .. SNAPSHOT_CACHE_FILE)
-        else
-            print("[CACHE] STORAGE: Memory only (file write failed)")
-        end
-    end
-    
-    -- Build XML response
     local xml = '<snapshots>\n'
-    local resolution_str = "3840x2160"
-    local snapshot_url
-    
-    -- ONLY use cached snapshot - never fallback to live camera
-    if snapshot_saved_successfully and last_snapshot_fetch_time > 0 then
-        -- Use Control4's controller:// URL scheme to serve file from driver's www directory
-        snapshot_url = string.format("controller://driver/Slomins-indoor-P160/www/%s", SNAPSHOT_CACHE_FILE)
-        print("[CACHE] RETURN: ✓✓✓ CACHED SNAPSHOT (no camera hit)")
-        print("[CACHE] URL: " .. snapshot_url)
-        
-        xml = xml .. string.format(' <snapshot url="%s" resolution="%s"/>\n', 
-            C4:XmlEscapeString(snapshot_url), resolution_str)
-    else
-        -- No cache yet - return empty snapshots (wait for cache to build)
-        print("[CACHE] RETURN: ⏳⏳⏳ NO CACHE YET (access video stream to build cache)")
-        print("[CACHE] Returning empty snapshot list until cache is ready")
-    end
-    print("[CACHE] =============================================")
-    print("")
-    
+    xml = xml .. string.format(' <snapshot url="%s" resolution="640x480"/>\n', 
+        C4:XmlEscapeString(test_url))
     xml = xml .. '</snapshots>'
     
-    print("Returning XML with snapshot URL")
+    print("[TEST] XML: " .. xml)
     print("================================================================")
     
     return xml
@@ -3062,19 +3015,12 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("  Resolution: " .. width .. "x" .. height)
     print("  Frame rate: " .. rate .. " fps")
     
-    -- Update snapshot cache when video stream is accessed (only if stale)
-    -- This captures the "last frame" of the video for thumbnails
-    local now = os.time()
-    local cache_age = now - last_snapshot_fetch_time
-    
+    -- Fetch snapshot only if we don't have one yet
     if last_snapshot_fetch_time == 0 then
         print("[CACHE] No cache yet - fetching first snapshot...")
         UpdateSnapshotCache()
-    elseif cache_age >= SNAPSHOT_CACHE_DURATION then
-        print("[CACHE] Cache expired (" .. cache_age .. "s old) - refreshing...")
-        UpdateSnapshotCache()
     else
-        print("[CACHE] Cache still fresh (" .. cache_age .. "s old, expires in " .. (SNAPSHOT_CACHE_DURATION - cache_age) .. "s)")
+        print("[CACHE] Using existing cached snapshot")
     end
     
     -- Get camera properties

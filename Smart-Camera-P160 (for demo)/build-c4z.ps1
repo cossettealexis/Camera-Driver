@@ -11,6 +11,7 @@ $files = @(
     "driver.lua",
     "driver.xml",
     "README.md",
+    "www\snapshots\test.png",
     "CldBusApi\auth.lua",
     "CldBusApi\dkjson.lua",
     "CldBusApi\http.lua",
