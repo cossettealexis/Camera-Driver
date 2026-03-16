@@ -1,0 +1,603 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+    background-color: #0a0a0b;
+    font-family: "Poppins", sans-serif;
+    padding: 0;
+    overflow: hidden;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+img {
+    max-width: 100%;
+}
+
+.thermostat_outer {
+    display: flex;
+    justify-content: center;
+}
+
+.thermostat_wrap {
+    position: relative;
+    border-radius: 500px;
+    width: 100%;
+    max-width: 250px;
+    height: 250px;
+    padding: 8px;
+}
+
+.thermostat_wrap[data-tempmode="off_mode"] {
+    background: #21242d;
+}
+
+.thermostat_wrap[data-tempmode="heat_mode"] {
+    background: #f60;
+}
+
+.thermostat_wrap[data-tempmode="cool_mode"] {
+    background: #0af;
+}
+
+.thermostat_wrap[data-tempmode="auto_mode"] {
+    background: linear-gradient(to left, #0af 0%, #f60 100%);
+}
+
+.thermostat_wrap[data-tempmode="emergency_heat_mode"] {
+    background: #f60;
+}
+
+.thermostat_inner {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    background: #0a0a0b;
+    border-radius: 500px;
+    position: relative;
+}
+
+.thermostat {
+    width: 100%;
+    max-width: 180px;
+    height: 180px;
+    border-radius: 100%;
+    background: radial-gradient(ellipse at center, #161720 50%, #212056 70%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.thermostat_wrap[data-tempmode="off_mode"] .thermostat {
+    background: radial-gradient(ellipse at center, #181819 60%, #333334 80%);
+}
+
+.temperature {
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+}
+
+.temperature>span {
+    margin: 0 5px;
+}
+
+.temperature>span.cool_temp {
+    color: #00aaff;
+    font-size: 28px;
+}
+
+.temperature>span.heat_temp {
+    color: #ff6600;
+    font-size: 28px;
+}
+
+.thermostat_wrap[data-tempmode="off_mode"] .temperature>span.heat_temp {
+    color: #fff;
+    font-size: 56px;
+    margin: 0;
+}
+
+.thermostat_wrap[data-tempmode="off_mode"] .temperature>span.cool_temp {
+    display: none;
+}
+
+.thermostat_wrap[data-tempmode="heat_mode"] .temperature>span.heat_temp,
+.thermostat_wrap[data-tempmode="emergency_heat_mode"] .temperature>span.heat_temp {
+    font-size: 56px;
+}
+
+.thermostat_wrap[data-tempmode="heat_mode"] .temperature>span.cool_temp,
+.thermostat_wrap[data-tempmode="emergency_heat_mode"] .temperature>span.cool_temp {
+    display: none;
+}
+
+.thermostat_wrap[data-tempmode="cool_mode"] .temperature>span.cool_temp {
+    font-size: 56px;
+}
+
+.thermostat_wrap[data-tempmode="cool_mode"] .temperature>span.heat_temp {
+    display: none;
+}
+
+.thermostat_wrap[data-tempmode="auto_mode"] .temperature>span.cool_temp,
+.thermostat_wrap[data-tempmode="auto_mode"] .temperature>span.heat_temp {
+    font-size: 26px;
+    margin: 0 10px;
+}
+
+.buttons {
+    position: absolute;
+    bottom: -10px;
+    display: flex;
+    background: #0a0a0b;
+    width: 50%;
+    justify-content: center;
+    height: 30px;
+}
+
+.buttons button {
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    margin: 0 10px;
+}
+
+.buttons button svg {
+    width: 30px;
+    height: 20px;
+}
+
+.buttons button svg path {
+    fill: #fff;
+}
+
+.cooling .temperature,
+.temperature>span.cool_temp {
+    color: #00aaff;
+}
+
+.heating .temperature,
+.temperature>span.heat_temp {
+    color: #ff6600;
+}
+
+.cooling {
+    border-color: #00aaff;
+}
+
+.heating {
+    border-color: #ff6600;
+}
+
+.mode_wrap .all_btns {
+    width: 100%;
+    max-width: 250px;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+    z-index: 8;
+}
+
+.all_btns .mode_icon {
+    width: 60px;
+    height: 60px;
+    background: #1a2228;
+    border: 1px solid #1a2228;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 500px;
+    
+}
+
+.all_btns .mode_icon img {
+    max-width: 30px;
+}
+
+.mode_popup_btn {
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: calc(33.333%);
+}
+
+.all_btns .mode_label {
+    color: #9c9c9f;
+    margin-top: 20px;
+    max-width: 80px;
+    font-size: 12px;
+    text-transform: capitalize;
+}
+
+.mode_popup_wrap {
+    position: absolute;
+    width: calc(100% - 30px);
+    left: 50%;
+    padding: 0;
+    background: #161616;
+    transform: translateX(-50%);
+    z-index: 10;
+    border-radius: 20px 20px 0 0;
+}
+
+.open_popup {
+    bottom: 0;
+    -webkit-animation: allModeSlideUp .5s ease-in-out;
+    -moz-animation: allModeSlideUp .5s ease-in-out;
+    -ms-animation: allModeSlideUp .5s ease-in-out;
+    -o-animation: allModeSlideUp .5s ease-in-out;
+    animation: allModeSlideUp .5s ease-in-out;
+}
+
+@-webkit-keyframes allModeSlideUp {
+    from {
+        bottom: -100%;
+        opacity: 0;
+    }
+
+    to {
+        bottom: 0px;
+        opacity: 1;
+    }
+}
+
+@keyframes allModeSlideUp {
+    from {
+        bottom: -100%;
+        opacity: 0;
+    }
+
+    to {
+        bottom: 0px;
+        opacity: 1;
+    }
+}
+
+@-webkit-keyframes allModeSlideDown {
+    from {
+        bottom: 0;
+        opacity: 1;
+    }
+
+    to {
+        bottom: -100%;
+        opacity: 0;
+    }
+}
+
+@keyframes allModeSlideDown {
+    from {
+        bottom: 0;
+        opacity: 1;
+    }
+
+    to {
+        bottom: -100%;
+        opacity: 0;
+    }
+}
+
+.close_popup {
+    bottom: -100%;
+    -webkit-animation: allModeSlideDown .5s ease-in-out;
+    -moz-animation: allModeSlideDown .5s ease-in-out;
+    -ms-animation: allModeSlideDown .5s ease-in-out;
+    -o-animation: allModeSlideDown .5s ease-in-out;
+    animation: allModeSlideDown .5s ease-in-out;
+}
+
+.popup_title {
+    padding: 15px;
+    text-align: center;
+    color: #9c9c9f;
+}
+
+.mode_items ul {
+    margin: 0;
+    padding: 0;
+}
+
+.mode_items ul li {
+    border-bottom: 1px solid #161616;
+}
+
+.mode_items ul li button {
+    background: #2d3137;
+    border: none;
+    color: #9c9c9f;
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    padding: 10px 15px;
+    cursor: pointer;
+}
+
+.cancel_btn_wrap button {
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 15px;
+    text-align: center;
+    color: #9c9c9f;
+    width: 100%;
+    cursor: pointer;
+}
+
+.overlay {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    left: 0;
+    top: 0;
+    z-index: 5;
+    display: none;
+}
+
+.mode_items ul li button .btn_icon img {
+    max-width: 12px;
+    opacity: 0;
+}
+
+.mode_items ul li.active_mode button .btn_icon img {
+    opacity: 1;
+}
+
+.mode_popup_btn[data-activemode="off_mode"] .mode_icon {
+    background: #1a2228 url('../images/off-icon.png') no-repeat center;
+    background-size: 26px;
+}
+
+.mode_popup_btn[data-activemode="heat_mode"] .mode_icon,
+.mode_popup_btn[data-activemode="emergency_heat_mode"] .mode_icon {
+    background: #1a2228 url('../images/heat-icon.png') no-repeat center;
+    background-size: 26px;
+}
+
+.mode_popup_btn[data-activemode="cool_mode"] .mode_icon {
+    background: #1a2228 url('../images/cool-icon.png') no-repeat center;
+    background-size: 26px;
+}
+
+.mode_popup_btn[data-activemode="auto_mode"] .mode_icon {
+    background: #1a2228 url('../images/auto-icon.png') no-repeat center;
+    background-size: 40px;
+}
+
+.nav-tabs .nav-link {
+    margin-bottom: 0;
+    border-radius: 0;
+    border: none;
+}
+
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
+    color: #fff;
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.nav-link {
+    padding: 0;
+    font-size: 14px;
+    font-weight: normal;
+    color: #9c9c9f;
+}
+
+.nav-tabs {
+    border: none;
+    background: #161720;
+    display: flex;
+    justify-content: center;
+}
+
+.nav-tabs .nav-item {
+    padding: 10px 15px;
+}
+
+.current_temp_humidity_blk {
+    display: flex;
+    justify-content: center;
+    padding: 30px 10px;
+}
+
+.current_temp img,
+.humidity img {
+    max-height: 20px;
+}
+
+.current_temp span,
+.humidity span {
+    color: #fff;
+    margin-left: 5px;
+}
+
+.current_temp_humidity_blk .current_temp {
+    margin-right: 50px;
+}
+
+.knob {
+    width: 36px;
+    height: 36px;
+    position: absolute;
+    top: 0;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+}
+
+.heat_knob {
+    background: url('../images/heat-knob.png') no-repeat center;
+    left: 35px;
+    background-size: 30px;
+    transform: rotateZ(-30deg);
+}
+
+.cool_knob {
+    background: url('../images/blue-knob.png') no-repeat center;
+    right: 35px;
+    background-size: 30px;
+    transform: rotateZ(30deg);
+}
+
+.header {
+    padding: 10px 15px;
+    text-align: center;
+    background: #1a2228;
+    margin-bottom: 10px;
+}
+
+.header img {
+    max-height: 40px;
+}
+
+/*Extras tab css start*/
+.temp_scale_blk {
+    margin-top: 10px;
+}
+
+.temp_scale_btn_blk {
+    background: #2d3137;
+    padding: 10px 15px;
+}
+
+.temp_scale_btn_blk .temp_scale_btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    background: transparent;
+    border: none;
+    outline: none;
+    align-items: center;
+}
+
+.temp_scale_btn_blk .temp_scale_btn .btn_lbl .btn_title,
+.temp_scale_btn_blk .temp_scale_btn .btn_lbl .temp_unit {
+    font-size: 14px;
+    color: #9c9c9f;
+    display: block;
+    text-align: left;
+}
+
+.temp_scale_btn_blk .temp_scale_btn .btn_icon svg path {
+    fill: #fff;
+}
+
+.temp_scale_btn_blk .temp_scale_btn .btn_icon {
+    width: 12px;
+    color: #fff;
+}
+
+/*Extras tab css end*/
+
+/*Loading start*/
+.loading .loading_wrap {
+    display: block;
+}
+
+.loading_wrap {
+    display: none;
+    position: fixed;
+    z-index: 10000;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.1) 50% 50% no-repeat;
+}
+
+.loading_wrap .loading_spinner {
+    animation: animRotate 1s linear infinite;
+    background: transparent;
+    border: 4px solid #fff;
+    border-bottom-color: #d1113f;
+    border-radius: 50%;
+    height: 50px;
+    left: 50%;
+    margin: -25px 0 0 -25px;
+    opacity: 0.7;
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    width: 50px;
+    z-index: 10001;
+}
+
+@keyframes animRotate {
+    to {
+        transform: rotate(1turn);
+    }
+}
+
+.loading_wrap {
+    background: rgba(255, 255, 255, 0.1) 50% 50% no-repeat;
+}
+
+.loading_inner {
+    background: transparent;
+    box-shadow: none;
+    padding: 10px;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    position: absolute;
+    z-index: 10001;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.loading_wrap .loading_spinner {
+    animation: animRotate 3s linear infinite;
+    border: 4px dotted #fff;
+    border-bottom-color: #d1113f;
+    height: 60px;
+    margin: -30px 0 0 -30px;
+    width: 60px;
+    opacity: 0.8;
+}
+
+.loading_inner p {
+    font-size: 9px;
+    margin: 25px 0 0 9px;
+    color: #9c9c9f;
+}
+
+.current_temp_blk span {
+    font-size: 36px;
+    color: #bcbbf6;
+    line-height: 1;
+}
+
+.thermostat_wrap[data-tempmode="off_mode"] .current_temp_blk span {
+    color: #fff;
+}
+
+.current_temp_blk span.lbl {
+    font-size: 12px;
+}
+
+.current_temp_blk>span {
+    display: flex;
+    flex-direction: column;
+}

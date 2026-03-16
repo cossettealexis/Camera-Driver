@@ -94,6 +94,100 @@ local last_power_status = nil
 local LOW_BATTERY_THRESHOLD = 20 
 local last_battery_low = false
 
+-- Snapshot caching - Use Control4's File API and driver's www directory
+local SNAPSHOT_CACHE_DIR = "/mnt/internal/c4z/Slomins-indoor-P160/www"
+local SNAPSHOT_CACHE_FILE = "cached_snapshot.jpg"
+local SNAPSHOT_CACHE_DURATION = 300  -- Cache for 5 minutes
+local last_snapshot_fetch_time = 0
+local cached_snapshot_data = nil
+local snapshot_saved_successfully = false
+
+-- UpdateSnapshotCache - Fetch snapshot and save to cache using C4 File API
+function UpdateSnapshotCache()
+    print("[CACHE] UpdateSnapshotCache called")
+    
+    local ip = Properties["IP Address"]
+    local http_port = Properties["HTTP Port"] or "3333"
+    local username = Properties["Username"] or ""
+    local password = Properties["Password"] or ""
+    local snapshot_path = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
+    
+    if not ip or ip == "" then
+        print("[CACHE] ERROR: IP Address not configured")
+        return false
+    end
+    
+    -- Build snapshot URL
+    local auth_required = Properties["Authentication Type"] ~= "NONE"
+    local snapshot_url
+    
+    if auth_required and username ~= "" and password ~= "" then
+        snapshot_url = string.format("http://%s:%s@%s:%s%s?resolution=3840x2160",
+            username, password, ip, http_port, snapshot_path)
+    else
+        snapshot_url = string.format("http://%s:%s%s?resolution=3840x2160",
+            ip, http_port, snapshot_path)
+    end
+    
+    print("[CACHE] Fetching snapshot from: " .. snapshot_url)
+    
+    -- Fetch snapshot using transport.execute()
+    local req = {
+        url = snapshot_url,
+        method = "GET",
+        headers = {}
+    }
+    
+    transport.execute(req, function(code, data, headers, err)
+        if code == 200 and data and #data > 0 then
+            print("[CACHE] Snapshot fetched successfully: " .. #data .. " bytes")
+            
+            -- Save using standard Lua file I/O with full path
+            local full_path = SNAPSHOT_CACHE_DIR .. "/" .. SNAPSHOT_CACHE_FILE
+            print("[CACHE] Attempting to save to: " .. full_path)
+            print("[CACHE] Data size: " .. #data .. " bytes, type: " .. type(data))
+            
+            local file, err = io.open(full_path, "wb")
+            if file then
+                local success, write_err = pcall(function()
+                    file:write(data)
+                    file:close()
+                end)
+                
+                if success then
+                    print("[CACHE] ✓ Snapshot saved successfully!")
+                    print("[CACHE] ✓ File: " .. full_path)
+                    snapshot_saved_successfully = true
+                    C4:UpdateProperty("Status", "Snapshot cached")
+                else
+                    print("[CACHE] ✗ Write error: " .. tostring(write_err))
+                    snapshot_saved_successfully = false
+                end
+            else
+                print("[CACHE] ✗ Could not open file: " .. tostring(err))
+                snapshot_saved_successfully = false
+            end
+            
+            -- Update cache timestamp and store data in memory as fallback
+            last_snapshot_fetch_time = os.time()
+            cached_snapshot_data = data
+            
+            if not snapshot_saved_successfully then
+                print("[CACHE] Using memory cache only")
+                C4:UpdateProperty("Status", "Snapshot cached (memory)")
+            end
+            
+            return true
+        else
+            print("[CACHE] ERROR: Failed to fetch snapshot. Code: " .. tostring(code))
+            if err then
+                print("[CACHE] Error: " .. err)
+            end
+            return false
+        end
+    end)
+end
+
 
 --[[ 
     Establishes a TCP connection to the configured server.
@@ -2658,9 +2752,8 @@ function UIRequest(strCommand, tParams)
         local result = GET_SNAPSHOT_QUERY_STRING(5001, tParams)
         return "<snapshot_query_string>" .. C4:XmlEscapeString(result or "") .. "</snapshot_query_string>" 
     elseif strCommand == "GET_SNAPSHOT_URLS" then
-        -- Return snapshot path for Camera Proxy to build full URL
-        local result = GET_SNAPSHOT_QUERY_STRING(5001, tParams)
-        return "<snapshot_query_string>" .. C4:XmlEscapeString(result or "") .. "</snapshot_query_string>"
+        local result = GET_SNAPSHOT_URLS(5001, tParams)
+        return result
     elseif strCommand == "GET_RTSP_H264_QUERY_STRING" then
         local result = GET_RTSP_H264_QUERY_STRING(5001, tParams)
         return "<rtsp_h264_query_string>" .. C4:XmlEscapeString(result or "") .. "</rtsp_h264_query_string>"
@@ -2712,9 +2805,8 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         return "<snapshot_query_string>" .. C4:XmlEscapeString(result or "") .. "</snapshot_query_string>" 
         
     elseif strCommand == "GET_SNAPSHOT_URLS" then
-        -- Return snapshot path for Camera Proxy to build full URL
-        local result = GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
-        return "<snapshot_query_string>" .. C4:XmlEscapeString(result or "") .. "</snapshot_query_string>"
+        local result = GET_SNAPSHOT_URLS(idBinding, tParams)
+        return result
         
     elseif strCommand == "GET_STREAM_URLS" then
         GET_STREAM_URLS(idBinding, tParams)
@@ -2794,6 +2886,76 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
     print("================================================================")
     return snapshot_path
 
+end
+
+-- GET_SNAPSHOT_URLS - Return full snapshot URLs in XML format (for camera list thumbnails)
+function GET_SNAPSHOT_URLS(idBinding, tParams)
+    print("================================================================")
+    print("           GET_SNAPSHOT_URLS CALLED                             ")
+    print("================================================================")
+    
+    if tParams then
+        print("Parameters:")
+        for k, v in pairs(tParams) do
+            print("  " .. tostring(k) .. " = " .. tostring(v))
+        end
+    end
+    
+    -- Get camera properties
+    local ip = Properties["IP Address"]
+    local http_port = Properties["HTTP Port"] or "3333"
+    
+    if not ip or ip == "" then
+        print("ERROR: IP Address not configured")
+        C4:UpdateProperty("Status", "Get Snapshot URLs failed: No IP Address")
+        return "<snapshots></snapshots>"
+    end
+    
+    -- Check cache age
+    local now = os.time()
+    local cache_age = now - last_snapshot_fetch_time
+    
+    print("")
+    print("[CACHE] =============================================")
+    if last_snapshot_fetch_time == 0 then
+        print("[CACHE] STATUS: NO CACHE (waiting for first video stream access)")
+    else
+        print("[CACHE] STATUS: CACHED (" .. cache_age .. "s ago, " .. (SNAPSHOT_CACHE_DURATION - cache_age) .. "s until refresh)")
+        if snapshot_saved_successfully then
+            print("[CACHE] STORAGE: Saved to disk at " .. SNAPSHOT_CACHE_DIR .. "/" .. SNAPSHOT_CACHE_FILE)
+        else
+            print("[CACHE] STORAGE: Memory only (file write failed)")
+        end
+    end
+    
+    -- Build XML response
+    local xml = '<snapshots>\n'
+    local resolution_str = "3840x2160"
+    local snapshot_url
+    
+    -- ONLY use cached snapshot - never fallback to live camera
+    if snapshot_saved_successfully and last_snapshot_fetch_time > 0 then
+        -- Use Control4's controller:// URL scheme to serve file from driver's www directory
+        snapshot_url = string.format("controller://driver/Slomins-indoor-P160/www/%s", SNAPSHOT_CACHE_FILE)
+        print("[CACHE] RETURN: ✓✓✓ CACHED SNAPSHOT (no camera hit)")
+        print("[CACHE] URL: " .. snapshot_url)
+        
+        xml = xml .. string.format(' <snapshot url="%s" resolution="%s"/>\n', 
+            C4:XmlEscapeString(snapshot_url), resolution_str)
+    else
+        -- No cache yet - return empty snapshots (wait for cache to build)
+        print("[CACHE] RETURN: ⏳⏳⏳ NO CACHE YET (access video stream to build cache)")
+        print("[CACHE] Returning empty snapshot list until cache is ready")
+    end
+    print("[CACHE] =============================================")
+    print("")
+    
+    xml = xml .. '</snapshots>'
+    
+    print("Returning XML with snapshot URL")
+    print("================================================================")
+    
+    return xml
 end
 
 -- GET_STREAM_URLS - Return streaming URLs for various codecs
@@ -2899,6 +3061,21 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
     print("Requested H264 stream:")
     print("  Resolution: " .. width .. "x" .. height)
     print("  Frame rate: " .. rate .. " fps")
+    
+    -- Update snapshot cache when video stream is accessed (only if stale)
+    -- This captures the "last frame" of the video for thumbnails
+    local now = os.time()
+    local cache_age = now - last_snapshot_fetch_time
+    
+    if last_snapshot_fetch_time == 0 then
+        print("[CACHE] No cache yet - fetching first snapshot...")
+        UpdateSnapshotCache()
+    elseif cache_age >= SNAPSHOT_CACHE_DURATION then
+        print("[CACHE] Cache expired (" .. cache_age .. "s old) - refreshing...")
+        UpdateSnapshotCache()
+    else
+        print("[CACHE] Cache still fresh (" .. cache_age .. "s old, expires in " .. (SNAPSHOT_CACHE_DURATION - cache_age) .. "s)")
+    end
     
     -- Get camera properties
     local ip = Properties["IP Address"]
@@ -3177,7 +3354,8 @@ end
 
 function GetNotificationAttachmentFile()
     print("GetNotificationAttachmentFile()")
-    local fileName = "/mnt/internal/c4z/notification_driver/www/snap1vga.jpg"
+    -- Return path to cached snapshot file
+    local fileName = SNAPSHOT_CACHE_DIR .. "/" .. SNAPSHOT_CACHE_FILE
 
     return fileName
 end

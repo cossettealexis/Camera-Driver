@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
-    <name>Slomins P160-SL Indoor Camera</name>
+    <name>Slomins DF511 Door Video Lock</name>
     <version>1.0.0</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
-    <model>P160-SL</model>
+    <model>DF511</model>
     <created>2025-12-16</created>
-    <modified>2026-01-20</modified>
-    <minimum_os_version>3.3.2</minimum_os_version>
+    <modified>2026-1-21</modified>
+    <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
@@ -18,11 +18,11 @@
         <category>Cameras</category>
     </composer_categories>
     <proxies qty="1">
-        <proxy proxybindingid="5001" name="Slomins P160-SL Indoor Camera">camera</proxy>
+        <proxy proxybindingid="5001" name="Slomins DF511 Door Video Lock">camera</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H265, SNAPSHOT, MJPEG, H264</modes>
+        <modes>H264, SNAPSHOT, MJPEG</modes>
         <default_http_port>3333</default_http_port>
         <default_rtsp_port>554</default_rtsp_port>
         <default_authentication_required>True</default_authentication_required>
@@ -34,31 +34,29 @@
         <rtsp_port_readonly>False</rtsp_port_readonly>
         <has_extras>true</has_extras>
         <requires_dynamic_snapshot_urls>true</requires_dynamic_snapshot_urls>
-        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
-        <snapshot_cache_enabled>true</snapshot_cache_enabled>
-        <snapshot_cache_duration>180</snapshot_cache_duration>
+        <requires_dynamic_stream_urls>true</requires_dynamic_stream_urls>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
         <has_zoom>true</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
-           <hasHistory>true</hasHistory>
+         <hasHistory>true</hasHistory>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
-    <attachment>
-      <id>1001</id>
-      <type>IMAGE_JPEG</type>
-      <description>Current Snapshot</description>
-      <source>MEMORY</source>
-    </attachment>
-    <attachment>
-      <id>1002</id>
-      <type>IMAGE_JPEG</type>
-      <description>Snapshot (File)</description>
-      <source>FILE</source>
-    </attachment>
+        <attachment>
+            <id>1001</id>
+            <type>IMAGE_JPEG</type>
+            <description>Current Snapshot</description>
+            <source>MEMORY</source>
+        </attachment>
+        <attachment>
+            <id>1002</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (File)</description>
+            <source>FILE</source>
+        </attachment>
         <attachment>
             <id>1003</id>
             <type>IMAGE_JPEG</type>
@@ -66,42 +64,125 @@
             <source>URL</source>
         </attachment>
     </notification_attachments>
-  <events>
-    <event>
-        <id>1</id>
-        <name>Motion Detected</name>
-        <description>When NAME detects motion</description>
-    </event>
-    <event>
-        <id>2</id>
-        <name>Human Detected</name>
-        <description>When NAME detects a human</description>
-    </event>
-    <event>
-        <id>3</id>
-        <name>Camera Online</name>
-        <description>When NAME comes online</description>
-    </event>
-    <event>
-        <id>4</id>
-        <name>Camera Offline</name>
-        <description>When NAME goes offline</description>
-    </event>
-    <event>
-        <id>5</id>
-        <name>Camera Restarted</name>
-        <description>When NAME restarts</description>
-    </event>
-</events>
+    <events>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
+        <event>
+            <id>2</id>
+            <name>Face Detected</name>
+            <description>When NAME detects a face</description>
+        </event>
+        <event>
+            <id>3</id>
+            <name>Stranger Detected</name>
+            <description>When NAME detects a stranger</description>
+        </event>
+        <event>
+            <id>4</id>
+            <name>Low Battery</name>
+            <description>When NAME battery is low</description>
+        </event>
+        <event>
+            <id>5</id>
+            <name>Camera Online</name>
+            <description>When NAME comes online</description>
+        </event>
+        <event>
+            <id>6</id>
+            <name>Camera Offline</name>
+            <description>When NAME goes offline</description>
+        </event>
+        <event>
+            <id>7</id>
+            <name>Camera Restarted</name>
+            <description>When NAME restarts</description>
+        </event>
+        <event>
+            <id>8</id>
+            <name>Doorbell Ring</name>
+            <description>When NAME doorbell is pressed</description>
+        </event>
+
+        <!-- Lock & Unlock Events -->
+
+        <event>
+            <id>9</id>
+            <name>Unlock with Password</name>
+            <description>When NAME is unlocked using a password</description>
+        </event>
+        <event>
+            <id>10</id>
+            <name>Offline Password Unlock</name>
+            <description>When NAME is unlocked using an offline password</description>
+        </event>
+        <event>
+            <id>11</id>
+            <name>Duress Unlock</name>
+            <description>When NAME is unlocked using a duress password</description>
+        </event>
+        <event>
+            <id>12</id>
+            <name>Face Recognition Unlock</name>
+            <description>When NAME is unlocked using face recognition</description>
+        </event>
+        <event>
+            <id>13</id>
+            <name>NFC Unlock</name>
+            <description>When NAME is unlocked using an NFC card</description>
+        </event>
+        <event>
+            <id>14</id>
+            <name>App Unlock</name>
+            <description>When NAME is unlocked from the mobile app</description>
+        </event>
+        <event>
+            <id>15</id>
+            <name>One-Click Unlock</name>
+            <description>When NAME is unlocked using one-click unlock</description>
+        </event>
+        <event>
+            <id>16</id>
+            <name>Key Unlock</name>
+            <description>When NAME is unlocked using a physical key</description>
+        </event>
+        <event>
+            <id>17</id>
+            <name>One-Touch Lock</name>
+            <description>When NAME is locked using one-touch lock</description>
+        </event>
+        <event>
+            <id>18</id>
+            <name>Lock Event</name>
+            <description>When NAME is locked</description>
+        </event>
+        <event>
+            <id>19</id>
+            <name>Remote Lock</name>
+            <description>When NAME is locked remotely</description>
+        </event>
+        <event>
+            <id>20</id>
+            <name>Locking Started</name>
+            <description>When NAME starts locking</description>
+        </event>
+        <event>
+            <id>21</id>
+            <name>Locked Outside</name>
+            <description>When someone is locked outside NAME</description>
+        </event>
+    </events>
 
     <config>
-        <script file="driver.lua"/>
-        <documentation file="README.md">Slomins P160-SL Camera Documentation</documentation>
+        <script file="driver.lua" />
+        <documentation file="README.md">Slomins DF511 Camera Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.139</default>
+                <default>192.168.60.160</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -121,35 +202,68 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Main Stream Path</name>
+                <name>Stream Path</name>
                 <type>STRING</type>
-                <default>streamtype=1</default>
+                <default>stream1</default>
                 <readonly>false</readonly>
-                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
             </property>
             <property>
-                <name>Sub Stream Path</name>
+                <name>Username</name>
                 <type>STRING</type>
-                <default>streamtype=0</default>
+                <default></default>
                 <readonly>false</readonly>
-                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
+            </property>
+            <property>
+                <name>Password</name>
+                <type>STRING</type>
+                <default></default>
+                <password>true</password>
+                <readonly>false</readonly>
             </property>
             <property>
                 <name>Snapshot URL Path</name>
                 <type>STRING</type>
-                <default>/wps-cgi/image.cgi</default>
+                <default>/GetSnapshot</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Default Resolution</name>
+                <type>LIST</type>
+                <items>
+                    <item>640x480</item>
+                    <item>1280x720</item>
+                    <item>1920x1080</item>
+                </items>
+                <default>1280x720</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Authentication Type</name>
+                <type>LIST</type>
+                <items>
+                    <item>BASIC</item>
+                    <item>DIGEST</item>
+                    <item>NONE</item>
+                </items>
+                <default>NONE</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d4n44no1k1vs73fqjjo0</default>
+                <default>d50g376btn8c73cn7010</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Product ID</name>
+                <type>STRING</type>
+                <default>DF511</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>P160 C4</default>
+                <default>LNDU Camera</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -165,7 +279,7 @@
             <property>
                 <name>Status</name>
                 <type>STRING</type>
-                <default></default>
+                <default>Initializing...</default>
                 <readonly>true</readonly>
             </property>
             <property>
@@ -174,14 +288,38 @@
                 <default>pyabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
-              <property>
+            <property>
+                <name>Event Interval (ms)</name>
+                <type>RANGED_INTEGER</type>
+                <default>7000</default>
+                <minimum>0</minimum>
+                <maximum>30000</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Image Retry Count</name>
+                <type>RANGED_INTEGER</type>
+                <minimum>1</minimum>
+                <maximum>50</maximum>
+                <default>6</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Image Retry Interval (ms)</name>
+                <type>RANGED_INTEGER</type>
+                <minimum>100</minimum>
+                <maximum>5000</maximum>
+                <default>400</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
                 <name>Enable MQTT</name>
                 <type>LIST</type>
                 <items>
                     <item>False</item>
                     <item>True</item>
                 </items>
-                <default>True</default>
+                <default>False</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -246,7 +384,7 @@
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>true</readonly>
+                <readonly>false</readonly>
             </property>
             <property>
                 <name>AppId</name>
@@ -265,18 +403,87 @@
                 <name>Main Stream URL</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>false</readonly>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>Sub Stream URL</name>
                 <type>STRING</type>
                 <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>IP Scan Range End</name>
+                <type>RANGED_INTEGER</type>
+                <default>50</default>
+                <minimum>1</minimum>
+                <maximum>999</maximum>
                 <readonly>false</readonly>
+            </property>
+            <property>
+                <name>MQTT Host</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Port</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Client ID</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>MQTT Secret</name>
+                <type>STRING</type>
+                <password>true</password>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Motion</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Snapshot URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Face</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Clip URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>Online</name>
                 <type>STRING</type>
                 <default>false</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Last Doorbell</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Lock Status</name>
+                <type>STRING</type>
+                <default>Unknown</default>
                 <readonly>true</readonly>
             </property>
         </properties>
@@ -338,6 +545,10 @@
                 </params>
             </action>
             <action>
+                <name>Test Snapshot</name>
+                <command>TEST_SNAPSHOT</command>
+            </action>
+            <action>
                 <name>Bind Device</name>
                 <command>BIND_DEVICE</command>
             </action>
@@ -350,8 +561,24 @@
                 <command>LOGIN_OR_REGISTER</command>
             </action>
             <action>
+                <name>Get Temp Token</name>
+                <command>GET_TEMP_TOKEN</command>
+            </action>
+            <action>
+                <name>Get Exchange Token</name>
+                <command>GET_EXCHANGE_TOKEN</command>
+            </action>
+            <action>
                 <name>Get Devices</name>
                 <command>GET_DEVICES</command>
+            </action>
+            <action>
+                <name>Test Main Stream</name>
+                <command>TEST_MAIN_STREAM</command>
+            </action>
+            <action>
+                <name>Test Sub Stream</name>
+                <command>TEST_SUB_STREAM</command>
             </action>
             <action>
                 <name>Discover Cameras (HTTP Scan)</name>
@@ -364,6 +591,18 @@
             <action>
                 <name>Set Device active (SDDP)</name>
                 <command>SET_DEVICE_PROPERTY</command>
+            </action>
+            <action>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
+            </action>
+            <action>
+                <name>Lock Door</name>
+                <command>LOCK_DOOR</command>
+            </action>
+            <action>
+                <name>Unlock Door</name>
+                <command>UNLOCK_DOOR</command>
             </action>
         </actions>
         <commands>
@@ -472,6 +711,14 @@
             <command>
                 <name>SEND_NOTIFICATION</name>
                 <description>Send notification to control4 app</description>
+            </command>
+            <command>
+                <name>LOCK_DOOR</name>
+                <description>Lock door</description>
+            </command>
+            <command>
+                <name>UNLOCK_DOOR</name>
+                <description>Unlock door</description>
             </command>
         </commands>
         <interfaces>

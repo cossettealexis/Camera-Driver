@@ -1,11 +1,11 @@
-# Smart-Camera-K26-SL — Control4 Driver
+# Smart-Camera-P160-SL — Control4 Driver
 
 ## Overview
 
-Complete Control4 driver for Slomins K26-SL IP Camera with full API integration, authentication, streaming, and PTZ support.
+Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, and PTZ support.
 
 **Version:** 0.1.0  
-**Package:** Smart-Camera-K26-SL-v0.1.0.c4z (22.1 KB)  
+**Package:** Smart-Camera-P160-SL-v0.1.0.c4z (22.1 KB)  
 **Minimum Control4 OS:** 3.3.2+
 
 ---
@@ -50,7 +50,7 @@ Complete Control4 driver for Slomins K26-SL IP Camera with full API integration,
 
 1. Open **Control4 Composer Pro**
 2. Go to **Drivers** menu → **Add Driver** → **Install From File**
-3. Select `Smart-Camera-K26-SL-v0.1.0.c4z`
+3. Select `Smart-Camera-P160-SL-v0.1.0.c4z`
 4. Click **Install**
 5. Driver will appear in available drivers list
 
@@ -59,7 +59,7 @@ Complete Control4 driver for Slomins K26-SL IP Camera with full API integration,
 1. Go to **Project** view
 2. Select a room
 3. Click **Add Device**
-4. Search for "Slomins K26-SL"
+4. Search for "Slomins P160-SL"
 5. Add to room
 
 ### 3. Configure Properties
@@ -67,7 +67,7 @@ Complete Control4 driver for Slomins K26-SL IP Camera with full API integration,
 Set the following properties:
 
 **API Configuration:**
-- **Base API URL**: `https://dev-slomins-api.ithingspace.com`
+- **Base API URL**: `https://api.arpha-tech.com`
 - **Account**: Your email or phone number
 
 **Camera Configuration:**
@@ -372,7 +372,7 @@ Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| Base API URL | STRING | https://dev-slomins-api.ithingspace.com | API endpoint |
+| Base API URL | STRING | https://api.arpha-tech.com | API endpoint |
 | Account | STRING | - | User email or phone |
 | IP Address | STRING | 192.168.1.100 | Camera IP |
 | HTTP Port | INTEGER | 80 | HTTP port |
@@ -526,7 +526,7 @@ If C4:Crypto() is unavailable:
 ### Files Structure
 
 ```
-Smart-Camera-K26-SL/
+Smart-Camera-P160-SL/
 ├── driver.lua              # Main driver logic
 ├── driver.xml              # Configuration & metadata
 ├── README.md               # This documentation
@@ -547,7 +547,7 @@ Run in PowerShell:
 .\build-c4z.ps1
 ```
 
-This creates `Smart-Camera-K26-SL-v0.1.0.c4z` ready for installation.
+This creates `Smart-Camera-P160-SL-v0.1.0.c4z` ready for installation.
 
 ### Manual Build
 
@@ -561,7 +561,7 @@ $files = @(
 )
 
 Compress-Archive -Path $files -DestinationPath "temp.zip"
-Rename-Item "temp.zip" "Smart-Camera-K26-SL.c4z"
+Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"
 ```
 
 ---
@@ -589,7 +589,7 @@ local message = "client_id=<uuid>&request_id=<uuid>&time=<timestamp>&version=0.0
 local signature = util.hmac_sha256_hex(message, app_secret)
 
 -- App secret
-local app_secret = "df202b54b3a88cd86215d74d7ad95cf0"
+local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 ```
 
 ### UUID Generation
@@ -620,7 +620,7 @@ local client_id = util.uuid_v4()
 - **Driver Version:** 0.1.0
 - **Maintainer:** Slomins
 - **Manufacturer:** Slomins
-- **Model:** K26-SL
+- **Model:** P160-SL
 - **Control4 OS:** 3.3.2+
 
 For issues or questions, check Lua Output logs for detailed error information.

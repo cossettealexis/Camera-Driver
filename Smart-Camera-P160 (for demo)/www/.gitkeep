@@ -1,0 +1,2 @@
+# This directory is used for cached snapshots at runtime
+# Control4 will serve files from here via controller://driver/Slomins-indoor-P160/www/
