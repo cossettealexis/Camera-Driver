@@ -400,7 +400,8 @@ function SendTokenToNodeAPI(token)
                 ClientID = GlobalObject.ClientID, 
                 AppId       = "cldbus",       
                 AppSecret   = app_secret,   
-                AccountName = GlobalObject.AccountName
+                AccountName = GlobalObject.AccountName,
+                C4UniqueMac = C4:GetUniqueMAC()
             }
         }
 

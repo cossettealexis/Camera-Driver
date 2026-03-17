@@ -8,7 +8,7 @@
     <model>K26-SL</model>
     <created>2025-11-11</created>
     <modified>2026-1-20</modified>
-    <minimum_os_version>3.3.2</minimum_os_version>
+  <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
@@ -22,7 +22,7 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H264</modes>
+        <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
         <default_authentication_required>False</default_authentication_required>
@@ -44,6 +44,7 @@
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
         <supports_streaming>true</supports_streaming>
+        <hasHistory>true</hasHistory>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
@@ -109,96 +110,17 @@
             <name>Camera Restarted</name>
             <description>When NAME restarts</description>
         </event>
-        <event>
-            <id>9</id>
-            <name>Intruder Detected</name>
-            <description>When NAME detects an intruder</description>
-        </event>
+       
     </events>
 
     <config>
         <script file="driver.lua" />
         <documentation file="README.md">Slomins K26-SL Camera Documentation</documentation>
-        <properties>
-            <property>
-                <name>IP Address</name>
-                <type>STRING</type>
-                <default>192.168.60.18</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>HTTP Port</name>
-                <type>RANGED_INTEGER</type>
-                <default>8080</default>
-                <minimum>1</minimum>
-                <maximum>65535</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>RTSP Port</name>
-                <type>RANGED_INTEGER</type>
-                <default>8554</default>
-                <minimum>1</minimum>
-                <maximum>65535</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Stream Path</name>
-                <type>STRING</type>
-                <default>stream0</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Username</name>
-                <type>STRING</type>
-                <default>SystemConnect</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Password</name>
-                <type>STRING</type>
-                <default>123456</default>
-                <password>true</password>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Snapshot URL Path</name>
-                <type>STRING</type>
-                <default>/GetSnapshot</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Default Resolution</name>
-                <type>LIST</type>
-                <items>
-                    <item>640x480</item>
-                    <item>1280x720</item>
-                    <item>1920x1080</item>
-                </items>
-                <default>1280x720</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Authentication Type</name>
-                <type>LIST</type>
-                <items>
-                    <item>BASIC</item>
-                    <item>DIGEST</item>
-                    <item>NONE</item>
-                </items>
-                <default>BASIC</default>
-                <readonly>false</readonly>
-            </property>
+        <properties>       
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d4hs21qvkt0c73f2q5vg</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Product ID</name>
-                <type>STRING</type>
-                <default>K26-SL</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -208,33 +130,15 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>PTZ Enabled</name>
-                <type>LIST</type>
-                <items>
-                    <item>Yes</item>
-                    <item>No</item>
-                </items>
-                <default>Yes</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
                 <name>Status</name>
                 <type>STRING</type>
-                <default>Initializing...</default>
+                <default></default>
                 <readonly>true</readonly>
             </property>
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>pyabu@slomins.com</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Event Interval (ms)</name>
-                <type>RANGED_INTEGER</type>
-                <default>5000</default>
-                <minimum>0</minimum>
-                <maximum>30000</maximum>
+                <default>ajang@slomins.com</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -257,7 +161,6 @@
                 <default>True</default>
                 <readonly>false</readonly>
             </property>
-
             <property>
                 <name>Enable Info Notifications</name>
                 <type>LIST</type>
@@ -266,42 +169,6 @@
                     <item>False</item>
                 </items>
                 <default>True</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>ClientID</name>
-                <type>STRING</type>
-                <default>064d0d44-29dd-48bc-9ff7-3f69bd24c91f</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Public Key</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Base API URL</name>
-                <type>STRING</type>
-                <default>https://api.arpha-tech.com</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Pre-Encrypted Post Data</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Temp Token</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Exchange Token</name>
-                <type>STRING</type>
-                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -323,140 +190,9 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
-            <property>
-                <name>Main Stream URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Sub Stream URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>IP Scan Range End</name>
-                <type>RANGED_INTEGER</type>
-                <default>50</default>
-                <minimum>1</minimum>
-                <maximum>999</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>MQTT Host</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Port</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Client ID</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Secret</name>
-                <type>STRING</type>
-                <password>true</password>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Motion</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Snapshot URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Face</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Clip URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Online</name>
-                <type>STRING</type>
-                <default>false</default>
-                <readonly>true</readonly>
-            </property>
-           
+      
         </properties>
-        <actions>
-            <action>
-                <name>PTZ Up</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>up</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Down</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>down</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Left</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>left</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Right</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>right</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
+        <actions>            
             <action>
                 <name>Test Snapshot</name>
                 <command>TEST_SNAPSHOT</command>
@@ -468,19 +204,7 @@
             <action>
                 <name>Initialize</name>
                 <command>INITIALIZE_CAMERA</command>
-            </action>
-            <action>
-                <name>Login/Register</name>
-                <command>LOGIN_OR_REGISTER</command>
-            </action>
-            <action>
-                <name>Get Temp Token</name>
-                <command>GET_TEMP_TOKEN</command>
-            </action>
-            <action>
-                <name>Get Exchange Token</name>
-                <command>GET_EXCHANGE_TOKEN</command>
-            </action>
+            </action>            
             <action>
                 <name>Get Devices</name>
                 <command>GET_DEVICES</command>
@@ -502,8 +226,8 @@
                 <command>DISCOVER_CAMERAS_SDDP</command>
             </action>
             <action>
-                <name>Set Device active (SDDP)</name>
-                <command>SET_DEVICE_PROPERTY</command>
+                <name>Awake Camera</name>
+                <command>AWAKE_CAMERA</command>
             </action>
             <action>
                 <name>Test Push Notification</name>
@@ -519,41 +243,7 @@
             </action>
 
         </actions>
-        <commands>
-            <command>
-                <name>PTZ_MOVE</name>
-                <description>Move PTZ camera</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_START</name>
-                <description>Start continuous PTZ movement</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_STOP</name>
-                <description>Stop continuous PTZ movement</description>
-            </command>
+        <commands>            
             <command>
                 <name>TEST_SNAPSHOT</name>
                 <description>Test camera snapshot URL</description>
@@ -572,19 +262,7 @@
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize CldBus</description>
-            </command>
-            <command>
-                <name>LOGIN_OR_REGISTER</name>
-                <description>Login or register a user</description>
-            </command>
-            <command>
-                <name>GET_TEMP_TOKEN</name>
-                <description>Get temporary token for user</description>
-            </command>
-            <command>
-                <name>GET_EXCHANGE_TOKEN</name>
-                <description>Get exchange token for user</description>
+                <description>Initialize/LoginRegister</description>
             </command>
             <command>
                 <name>GET_DEVICES</name>
@@ -611,7 +289,6 @@
                 <name>UPDATE_UI_PROPERTIES</name>
                 <description>Update Control4 UI with current camera properties</description>
             </command>
-
             <command>
                 <name>PRESET_SAVE</name>
                 <description>Save current position as preset</description>

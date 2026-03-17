@@ -3,407 +3,50 @@
 ## Overview
 
 Complete Control4 driver for Slomins K26-SL Solar-Powered Outdoor Camera with CldBus API integration, MQTT event streaming, RTSP video streaming, battery management, and wake-on-demand support.
+# Smart-Camera-K26 — README (technical)
 
-**Model:** K26-SL (solar_box_cam)  
-**Version:** 1.1.0  
-**Minimum Control4 OS:** 3.3.2+  
-**Device Type:** Solar-Powered Outdoor Security Camera  
-**Encryption:** Level 2 (Driver source code encrypted)
+Purpose: Control4 driver for K26-based Tuya cameras with CldBus API integration, MQTT events, and notification handling.
 
----
+Key files
+- `driver.lua` — main driver: init, auth flows, MQTT, device events, notification flow, URL generation.
+- `mqtt_manager.lua` — MQTT helper for connections and message handling.
+- `driver.xml` — driver manifest and properties.
+- `CldBusApi/*` — helper libs: `dkjson.lua`, `http.lua`, `transport_c4.lua`, `util.lua`, `sha256.lua`, `auth.lua`.
 
-## Features
+Default camera settings (defined in `driver.lua` via `CameraDefaultProps`)
+- HTTP Port: 8080
+- RTSP Port: 8554
+- Main Stream path: stream0
+- Sub Stream path: stream1
+- Snapshot path: tmp/snap.jpeg
 
-### 🔋 **Battery & Solar Power Management**
-- Solar-powered with rechargeable battery
-- Battery status monitoring
-- Wake-on-demand (7-second wake delay for power conservation)
-- Auto wake on initialization
-- Wake before streaming to activate camera
-- SDDP wake command support
-- Sleep mode when inactive
+Initialization flow
+1. `OnDriverInit()` populates `_props` and initializes MQTT helper.
+2. `InitializeCamera()` calls the remote init endpoint to fetch the public key.
+3. `LoginOrRegister()` encrypts credentials (RSA-OAEP via external helper) and stores tokens.
+4. `OnDriverLateInit()` pushes camera IP/port/auth to Camera Proxy and generates `Main Stream URL` / `Sub Stream URL` for the Control4 UI.
 
-### 🎥 **Video Streaming**
-- RTSP streaming support (H.264/H.265)
-- Main stream (high quality) and sub stream (low quality)
-- Dynamic RTSP URL generation with authentication
-- Format: `rtsp://IP:8554/streamtype=0` (sub) / `streamtype=1` (main)
-- Snapshot capture via HTTP API
-- 7-second wake delay before streaming starts
+Notifications
+- Events are processed by `HANDLE_JSON_EVENT()`; images are located via `GetImageForEvent()` and normalized with `normalize_http_url()`.
+- Notification queue uses `NOTIFICATION_URLS` and `NOTIFICATION_QUEUE` to provide attachments to Control4.
 
-### 🚨 **Real-Time Event Detection**
-- MQTT-based event streaming over SSL (port 8884)
-- Motion detection with snapshot
-- Human detection
-- Face detection
-- Stranger detection (unknown face)
-- Intruder detection
-- Line crossing detection
-- Region intrusion detection
-- Camera online/offline status
-- Battery level alerts
+Auth & MQTT
+- `APPLY_MQTT_INFO()` requests broker details and credentials then calls `MQTT.connect()`.
+- Tokens may be received via TCP; `UpdateAuthToken()` stores them and updates properties.
 
-### 🔐 **Security & Authentication**
-- CldBus API integration with RSA-OAEP + SHA256 encryption
-- HMAC-SHA256 signatures for API requests
-- Secure token management (temp token, exchange token, auth token)
-- MQTT over SSL/TLS (port 8884)
-- OAuth-style authentication flow
-- Driver encryption level 2 (source code protected)
+Maintainer notes
+- Remove camera-specific properties from `driver.xml` if you want the driver to rely solely on `CameraDefaultProps`.
+- Keep `transport.execute(req, callback)` usage consistent when editing network calls.
+- Use `normalize_http_url()` when decoding signed/escaped URLs from API responses.
 
-### 🌐 **Network Discovery**
-- HTTP scan-based camera discovery (IP range scanning)
-- SDDP (Simple Device Discovery Protocol) multicast discovery
-- SDDP wake command for battery-powered cameras
-- Automatic device binding to CldBus API
-- Multi-device support via VID (Virtual ID)
-
-### 📊 **Advanced Features**
-- Multiple connection types (Camera, Network/MQTT, Keep-alive TCP)
-- Configurable event intervals (default: 5 seconds)
-- Alert and info notifications (enable/disable)
-- MQTT auto-connect and reconnection
-- HTTP polling mode (alternative to MQTT)
-- PTZ support (Pan/Tilt/Zoom with presets)
-- Preset management (8 presets)
-- Custom authentication types: BASIC, DIGEST, NONE
-
----
-
-## Requirements
-
-- **Control4 Composer Pro** (version compatible with OS 3.3.2+)
-- **Control4 OS** 3.3.2 or newer (required for C4:Crypto() RSA encryption)
-- **Network Access** to:
-  - Camera on local LAN:
-    - HTTP: 8080 (API, snapshots)
-    - RTSP: 8554 (video streaming)
-    - TCP: 3333 (device communication)
-    - TCP: 8081 (keep-alive connection)
-  - CldBus API: `https://api.arpha-tech.com`
-  - MQTT Broker: Port 8884 (SSL/TLS)
-- **Slomins K26-SL Solar Camera** with firmware supporting CldBus protocol
-- **Account credentials** for CldBus API (default: pyabu@slomins.com)
-- **Power:** Solar panel + rechargeable battery (no wiring required)
-
----
-
-## Device Specifications
-
-**K26-SL Solar Outdoor Camera**
-- **Type:** Solar-powered outdoor security camera
-- **Power:** Solar panel with rechargeable lithium battery
-- **Battery Life:** Up to 6 months on full charge (depending on usage)
-- **Solar Panel:** Built-in panel for continuous charging
-- **Resolution:** 1920x1080 (1080p), 1280x720 (720p), 640x480 (VGA)
-- **Video Codec:** H.264, H.265
-- **Field of View:** 110° diagonal
-- **Night Vision:** IR LEDs up to 30ft
-- **Audio:** One-way audio (microphone)
-- **Weatherproof:** IP65 rated
-- **Network:** Wi-Fi 2.4GHz
-- **Default IP:** DHCP assigned by router
-- **VID:** Unique per device (obtained from CldBus API)
-- **Wake Delay:** 7 seconds (battery conservation mode)
-- **Ports:**
-  - HTTP: 8080 (API, snapshots)
-  - RTSP: 8554 (video streaming)
-  - TCP: 3333 (device communication)
-  - TCP: 8081 (keep-alive connection with auto-reconnect)
-  - MQTT: 8884 (SSL/TLS events)
-
----
-
-## Installation
-
-### 1. Install Driver Package
-
-1. Download `Slomins-outdoor-K26.c4z`
-2. Open **Control4 Composer Pro**
-3. Navigate to **System Design** > **Agents & Drivers**
-4. Click **Add Driver** > **Browse** and select the `.c4z` file
-5. Driver will appear as "Slomins K26-SL Solar Camera"
-
-### 2. Add Camera to Project
-
-1. In Composer Pro, drag "Slomins K26-SL Solar Camera" to your room (typically Outdoor/Driveway/Backyard)
-2. The driver will auto-initialize and attempt connection
-3. Check the driver properties for configuration
-
-### 3. Configure Camera Settings
-
-Navigate to driver **Properties** tab:
-
-#### **Required Settings:**
-- **IP Address:** Camera's local IP (DHCP assigned by router)
-- **VID:** Camera's Virtual ID from CldBus API (unique per device)
-- **Account:** CldBus account email (default: pyabu@slomins.com)
-
-#### **Optional Settings:**
-- **HTTP Port:** Default 8080
-- **RTSP Port:** Default 8554
-- **Authentication Type:** BASIC (default), DIGEST, or NONE
-- **Username/Password:** If authentication required (default: SystemConnect/123456)
-- **PTZ Enabled:** Yes/No (default: Yes)
-- **Enable MQTT:** True/False (default: False, enable for real-time events)
-- **Enable Alert Notifications:** True/False (default: True)
-- **Enable Info Notifications:** True/False (default: True)
-- **Event Interval:** 5000ms (default, 0-30000ms range)
-
-#### **Advanced Settings:**
-- **Base API URL:** https://api.arpha-tech.com (default)
-- **ClientID:** OAuth client ID
-- **Public Key:** RSA public key (auto-populated)
-
-### 4. Initialize Camera
-
-Use the **Actions** tab to initialize:
-
-1. **Login/Register:** Authenticate with CldBus API
-2. **Get Temp Token:** Retrieve temporary token
-3. **Get Exchange Token:** Exchange for persistent token
-4. **Get Devices:** List all devices on account
-5. **Bind Device:** Bind camera to Control4 driver
-6. **Initialize:** Complete initialization sequence
-
-Or use the single action:
-- **Initialize:** Runs full initialization sequence automatically
-
-### 5. Test Streaming (Battery-Powered)
-
-**Important:** K26-SL is battery-powered and requires 7-second wake delay before streaming.
-
-Use **Actions** tab to test:
-
-1. **Wake Camera (SDDP):** Send wake command to camera
-2. Wait 7 seconds for camera to wake up
-3. **Test Snapshot:** Verify snapshot URL generation
-4. **Test Main Stream:** Test high-quality RTSP stream
-5. **Test Sub Stream:** Test low-quality RTSP stream
-
-Check the driver logs for RTSP URLs generated:
-- Main: `rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1`
-- Sub: `rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0`
-
-### 6. Enable MQTT Events (Recommended)
-
-For real-time motion, human, and intruder detection:
-
-1. Set **Enable MQTT** property to **True**
-2. Run action: **Get MQTT Info**
-3. Run action: **Connect MQTT**
-4. Verify connection in logs
-
-Alternative: Use **HTTP Polling** for periodic status updates
-- Action: **Start HTTP Polling**
-
-### 7. Configure Control4 Automation
-
-1. In Composer Pro, go to **Programming**
-2. Create automation for camera events:
-   - **When:** "Motion Detected" event
-   - **Then:** Send notification, turn on lights, start recording, etc.
-3. Use events for security automation
-
----
-
-## Usage
-
-### Wake-On-Demand (Battery Conservation)
-
-K26-SL enters sleep mode to conserve battery. Before accessing video:
-
-**Automatic Wake:**
-- Driver auto-wakes camera when streaming requested
-- Driver auto-wakes on initialization
-- 7-second delay before video available
-
-**Manual Wake:**
-- Action: **Wake Camera (SDDP)**
-- Wait 7 seconds before accessing stream
-
-### Live Video Streaming
-
-1. In Control4 app, navigate to camera
-2. Tap camera to view live stream
-3. Driver automatically wakes camera and generates RTSP URL
-4. Wait 7 seconds for camera to wake
-5. Video stream starts
-
-**Manual RTSP Access:**
-- Main Stream: `rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1`
-- Sub Stream: `rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0`
-
-### Event Notifications
-
-When MQTT is enabled, driver receives real-time events:
-- **Motion detected** → Alert with snapshot
-- **Human detected** → Person identified alert
-- **Face detected** → Face recognition alert
-- **Stranger detected** → Unknown person alert
-- **Intruder detected** → Security alert
-- **Line crossing** → Perimeter breach alert
-- **Region intrusion** → Zone violation alert
-- **Camera online/offline** → Status updates
-- **Battery low** → Battery alert
-
-**Configure in Properties:**
-- **Enable Alert Notifications:** Motion, human, intruder alerts
-- **Enable Info Notifications:** Online/offline, restart, battery events
-
-### Camera Discovery
-
-**HTTP Scan Discovery:**
-1. Action: **Discover Cameras (HTTP Scan)**
-2. Scans IP range (e.g., 192.168.1.1 to 192.168.1.50)
-3. Set **IP Scan Range End** property (default: 50)
-4. Finds cameras on local network
-
-**SDDP Discovery:**
-1. Action: **Discover Cameras (SDDP)**
-2. Sends multicast discovery packets
-3. Cameras respond with device info
-4. Faster than HTTP scan
-5. Also wakes sleeping cameras
-
-### Snapshot Capture
-
-**Snapshot URL format:**
-```
-http://[YOUR_CAMERA_IP]:8080/tmp/snap.jpeg
+Quick dev commands (PowerShell)
+```powershell
+git status
+git add Smart-Camera-K26/driver.lua Smart-Camera-K26/README.md
+git commit -m "Fix driver runtime errors; rely on CameraDefaultProps; update README"
 ```
 
-**Note:** Camera must be awake to capture snapshot. Driver auto-wakes if needed.
-
-Or use dynamic snapshot action:
-- Action: **Test Snapshot**
-- Checks **Last Snapshot URL** property for result
-
-### PTZ Control
-
-Use PTZ actions to control camera:
-- **Pan Left/Right:** Horizontal movement
-- **Tilt Up/Down:** Vertical movement
-- **Zoom In/Out:** Digital zoom
-- **Go to Preset:** Move to saved position (8 presets available)
-
-**Note:** PTZ requires camera to be awake (7-second delay).
-
-### Battery Status
-
-Monitor battery level:
-- Check **Battery Level** property (percentage)
-- MQTT events for low battery alerts
-- Solar panel continuously charges battery
-- Optimal placement: Direct sunlight for 4+ hours/day
-
----
-
-## Properties Reference
-
-### Network Settings
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| IP Address | STRING | (DHCP assigned) | Camera's local IP address |
-| HTTP Port | INTEGER | 8080 | Port for API and snapshots |
-| RTSP Port | INTEGER | 8554 | Port for RTSP streaming |
-| Authentication Type | LIST | BASIC | BASIC, DIGEST, or NONE |
-| Username | STRING | SystemConnect | HTTP authentication username |
-| Password | PASSWORD | 123456 | HTTP authentication password |
-
-### Device Identification
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| VID | STRING | (unique per device) | Virtual device ID from CldBus |
-| Product ID | STRING | solar_box_cam | Camera model identifier |
-| Device Name | STRING | K26-SL | Friendly device name |
-| Account | STRING | pyabu@slomins.com | CldBus account email |
-
-### Streaming Settings
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Stream Path | STRING | stream1 | Legacy RTSP stream path |
-| Snapshot URL Path | STRING | /GetSnapshot | Legacy snapshot path |
-| Default Resolution | LIST | 1280x720 | 640x480, 1280x720, 1920x1080 |
-| PTZ Enabled | LIST | Yes | Enable PTZ controls |
-
-### API & Authentication
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Base API URL | STRING | https://api.arpha-tech.com | CldBus API endpoint |
-| ClientID | STRING | (auto) | OAuth client ID |
-| Public Key | STRING | (auto) | RSA public key from API |
-| Temp Token | STRING | (auto) | Temporary authentication token |
-| Exchange Token | STRING | (auto) | Exchange authentication token |
-| Auth Token | STRING | (auto) | Persistent auth token |
-
-### MQTT Settings
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Enable MQTT | LIST | False | Enable real-time MQTT events |
-| MQTT Host | STRING | (auto) | MQTT broker hostname |
-| MQTT Port | STRING | (auto) | MQTT broker port (8884) |
-| MQTT Client ID | STRING | (auto) | Unique MQTT client ID |
-| MQTT Secret | PASSWORD | (auto) | MQTT authentication secret |
-
-### Event Configuration
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| Event Interval (ms) | INTEGER | 5000 | Event polling interval (0-30000ms) |
-| Enable Alert Notifications | LIST | True | Motion, human, intruder alerts |
-| Enable Info Notifications | LIST | True | Online/offline, battery events |
-
-### Status Properties (Read-Only)
-| Property | Type | Description |
-|----------|------|-------------|
-| Status | STRING | Driver initialization status |
-| Online | STRING | Camera online status (true/false) |
-| Battery Level | STRING | Battery percentage (0-100%) |
-| Main Stream URL | STRING | Generated main RTSP URL |
-| Sub Stream URL | STRING | Generated sub RTSP URL |
-| Last Motion | STRING | Last motion detection timestamp |
-| Last Snapshot URL | STRING | Last captured snapshot URL |
-| Last Clip URL | STRING | Last recorded video clip URL |
-
----
-
-## Actions Reference
-
-### Initialization Actions
-| Action | Description |
-|--------|-------------|
-| Initialize | Run full initialization sequence |
-| Login/Register | Authenticate with CldBus API |
-| Get Temp Token | Retrieve temporary token |
-| Get Exchange Token | Exchange for persistent token |
-| Get Devices | List all devices on account |
-| Bind Device | Bind camera to driver |
-
-### Streaming Actions
-| Action | Description |
-|--------|-------------|
-| Wake Camera (SDDP) | Send wake command (7-sec delay) |
-| Test Snapshot | Test snapshot URL generation |
-| Test Main Stream | Test high-quality RTSP stream |
-| Test Sub Stream | Test low-quality RTSP stream |
-
-### Discovery Actions
-| Action | Description |
-|--------|-------------|
-| Discover Cameras (HTTP Scan) | Scan IP range for cameras |
-| Discover Cameras (SDDP) | Multicast SDDP discovery + wake |
-
-### MQTT Actions
-| Action | Description |
-|--------|-------------|
-| Get MQTT Info | Retrieve MQTT broker info |
-| Connect MQTT | Connect to MQTT broker |
-| Disconnect MQTT | Disconnect from MQTT |
-
-### Polling Actions
-| Action | Description |
-|--------|-------------|
-| Start HTTP Polling | Start periodic status polling |
+If you want, I can run a further pass to tidy spacing, remove unused variables, or inline small helpers.
 | Stop HTTP Polling | Stop HTTP polling |
 
 ### Utility Actions
@@ -424,21 +67,16 @@ The driver triggers Control4 events for automation:
 | 1 | Motion Detected | Camera detected motion (alert, with snapshot) |
 | 2 | Human Detected | Person identified in frame |
 | 3 | Face Detected | Face detected (known or unknown) |
-| 4 | Clip Recorded | Video clip saved |
 | 5 | Stranger Detected | Unknown face detected |
 | 6 | Camera Online | Camera came online |
 | 7 | Camera Offline | Camera went offline |
 | 8 | Camera Restarted | Camera rebooted |
-| 9 | Line Crossing | Line crossing detection triggered |
-| 10 | Region Intrusion | Region intrusion detection triggered |
-| 11 | Intruder Detected | Security threat detected |
-| 12 | Battery Low | Battery below 20% |
+| 9| Battery Low | Battery below 20% |
 
 **Event Automation Examples:**
 Use Control4 programming to:
 - Turn on outdoor lights when motion detected
 - Send push notification on human detection
-- Start recording on intruder alert
 - Display snapshot on TVs when stranger detected
 - Alert when battery low
 - Trigger security system on line crossing
@@ -757,22 +395,9 @@ Then:
   - Send snapshot to mobile app
 ```
 
-### Example 3: Intruder Alert Integration
 
-**Scenario:** Trigger security system on intruder
 
-**Programming:**
-```
-When: Slomins K26-SL → Intruder Detected
-Then:
-  - Security System → Trigger Alarm
-  - Send notification "INTRUDER ALERT"
-  - Turn on: All House Lights
-  - Unlock: Panic Room Door
-  - Call: Emergency Contact
-```
-
-### Example 4: Battery Low Alert
+### Example 3: Battery Low Alert
 
 **Scenario:** Notify when battery needs attention
 
@@ -783,10 +408,6 @@ Then:
   - Send notification "K26 camera battery low - check solar panel"
   - Log: System event
 ```
-
-### Example 5: Perimeter Monitoring
-
-**Scenario:** Alert on line crossing (property boundary)
 
 **Programming:**
 ```
@@ -821,6 +442,53 @@ For driver support, camera issues, or feature requests:
 
 ---
 
+## Building the Driver
+
+### Files Structure
+
+```
+Slomins-outdoor-K26/
+├── driver.lua              # Main driver logic
+├── driver.xml              # Configuration & metadata
+├── mqtt_manager.lua        # MQTT event streaming & broker management
+├── README.md               # This documentation
+├── CldBusApi/              # API helper libraries
+│   ├── auth.lua
+│   ├── dkjson.lua
+│   ├── http.lua
+│   ├── sha256.lua
+│   ├── transport_c4.lua
+│   └── util.lua
+└── build-c4z.ps1           # Build script
+```
+
+### Build Package
+
+Run in PowerShell:
+```powershell
+.\build-c4z.ps1
+```
+
+This creates `Slomins-outdoor-K26-v1.1.0.c4z` ready for installation.
+
+### Manual Build
+
+```powershell
+# Zip driver files
+$files = @(
+    "driver.lua",
+    "driver.xml",
+    "mqtt_manager.lua",
+    "README.md",
+    "CldBusApi\*.lua"
+)
+
+Compress-Archive -Path $files -DestinationPath "temp.zip"
+Rename-Item "temp.zip" "Slomins-outdoor-K26.c4z"
+```
+
+---
+
 ## Version History
 
 **v1.1.0** (Current)
@@ -830,7 +498,7 @@ For driver support, camera issues, or feature requests:
 - Solar power support
 - Wake-on-demand (7-second delay)
 - MQTT event streaming over SSL (port 8884)
-- Real-time detection (motion, human, face, stranger, intruder)
+- Real-time detection (motion, human, face, stranger)
 - SDDP discovery and wake command
 - HTTP polling mode
 - Snapshot capture with wake support
@@ -874,10 +542,150 @@ This driver is proprietary software provided by Slomins for use with Slomins bra
 - **Human Detected** - Person identified
 - **Face Detected** - Face recognition
 - **Stranger Detected** - Unknown person
-- **Intruder Detected** - Security threat
 - **Battery Low** - Battery below 20%
 - **Camera Offline** - Connectivity lost
 
+## 🔔 Real-Time Event Detection
+ 
+The driver supports **MQTT-based real-time event streaming over SSL (port 8884)** and provides notifications for the following events:
+ 
+* Doorbell ring notifications with snapshot
+* Motion detection with snapshot attachment
+* Human detection
+* Face detection
+* Stranger detection
+* Camera online/offline status monitoring
+ 
+---
+ 
+## MQTT Configuration
+ 
+### Default Behavior
+ 
+MQTT is **enabled automatically by the driver after authentication**.
+ 
+The driver will automatically:
+ 
+1. Enable MQTT
+2. Fetch MQTT credentials
+3. Connect to the MQTT broker
+4. Subscribe to camera event topics
+ 
+You normally **do not need to enable MQTT manually**.
+ 
+---
+ 
+## CldBus App Motion Detection Settings
+ 
+To receive **Motion Detection** and **Human Detection** events, detection must be enabled in the **CldBus mobile app**.
+ 
+### Steps
+ 
+1. Open the **CldBus App**
+2. Select your **camera device**
+3. Tap **Settings**
+4. Navigate to:
+ 
+```
+Settings → Motion Detection
+```
+ 
+5. Under **Detection Type**, select one of the following:
+ 
+| Detection Type | Description |
+|----------------|-------------|
+| **All Detections** | All movement events will trigger notifications. This includes general motion detection. |
+| **Human Detection** | Only human movement will trigger events. Non-human motion will be ignored. |
+ 
+ 
+## Push Notification Configuration
+ 
+### 1. Create Push Notification
+ 
+1. Open **Composer Pro**
+2. Navigate to:
+ 
+```
+Agents → Push Notification
+```
+ 
+3. Click **Add Notification** then enter a name for the notification.
+ 
+Configure the following:
+ 
+| Setting  | Value           |
+| -------- | --------------- |
+| Category | Cameras         |
+| Severity | Info / Critical |
+| Subject  | Camera Event    |
+ 
+Click **Save**.
+ 
+---
+ 
+### 2. Enable Snapshot Attachment
+ 
+Edit the created notification and set:
+ 
+```
+Attachment Type = Snapshot URL
+```
+ 
+This allows push notifications to include the **camera snapshot image**.
+ 
+---
+ 
+### Mapping Push Notifications in Programming
+ 
+1. In **Composer Pro**, open **Programming**.
+
+2. Select the **Camera Driver** from the device list.
+
+3. In the **Events** section, choose the event you want to trigger the notification (for example **Motion Detected**).
+ 
+On the **right-side panel**:
+ 
+4. Click **Push Notifications**.
+
+5. From the dropdown list, select the **notification you created earlier**.
+
+6. Drag and drop the notification into the programming area **or double-click the green arrow** to add it.
+ 
+This maps the camera event to the push notification.
+ 
+Example:
+ 
+ 
+WHEN Motion Detected
+
+THEN Send Push Notification
+ 
+## Notification Flow
+ 
+```
+Camera Event (MQTT)
+        ↓
+Driver Receives Event
+        ↓
+Driver Processes Event
+        ↓
+Control4 Event Triggered
+        ↓
+Push Notification Agent
+        ↓
+Mobile Notification Sent
+        ↓
+Snapshot Image Attached
+```
+ 
+---
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 ### Battery Tips
 - Ensure 4+ hours direct sunlight daily
 - Keep solar panel clean

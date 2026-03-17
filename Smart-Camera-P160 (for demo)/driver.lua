@@ -2895,7 +2895,7 @@ function GET_SNAPSHOT_URLS(idBinding, tParams)
     print("================================================================")
     
     -- TEST: Return static test.png file using controller:// URL (like DF511 icons)
-    local test_url = "controller://driver/Slomins-indoor-P160/www/snapshots/test.png"
+    local test_url = "https://cpmr-islands.org/wp-content/uploads/sites/4/2019/07/Test-Logo-Small-Black-transparent-1.png"
     
     print("[TEST] Returning static test image")
     print("[TEST] URL: " .. test_url)
