@@ -747,6 +747,53 @@ For driver support, doorbell issues, or feature requests:
 
 ---
 
+## Building the Driver
+
+### Files Structure
+
+```
+Slomins-doorbell-VD05/
+├── driver.lua              # Main driver logic
+├── driver.xml              # Configuration & metadata
+├── mqtt_manager.lua        # MQTT event streaming & broker management
+├── README.md               # This documentation
+├── CldBusApi/              # API helper libraries
+│   ├── auth.lua
+│   ├── dkjson.lua
+│   ├── http.lua
+│   ├── sha256.lua
+│   ├── transport_c4.lua
+│   └── util.lua
+└── build-c4z.ps1           # Build script
+```
+
+### Build Package
+
+Run in PowerShell:
+```powershell
+.\build-c4z.ps1
+```
+
+This creates `Slomins-doorbell-VD05-v1.0.0.c4z` ready for installation.
+
+### Manual Build
+
+```powershell
+# Zip driver files
+$files = @(
+    "driver.lua",
+    "driver.xml",
+    "mqtt_manager.lua",
+    "README.md",
+    "CldBusApi\*.lua"
+)
+
+Compress-Archive -Path $files -DestinationPath "temp.zip"
+Rename-Item "temp.zip" "Slomins-doorbell-VD05.c4z"
+```
+
+---
+
 ## Version History
 
 **v1.0.0** (Current)
@@ -797,6 +844,7 @@ This driver is proprietary software provided by Slomins for use with Slomins bra
 - **Motion Detected** - Movement at door
 - **Human Detected** - Person identified
 - **Face Detected** - Face recognition
+- **Stranger Detected** - Unrecognized person identified
 - **Camera Offline** - Connectivity lost
 
 ---

@@ -104,6 +104,10 @@ function ExecuteCommand(strCommand, tParams)
         GET_DEVICES(tParams, true)
         return
     end
+    if strCommand == "DISCOVER_CAMERAS_SDDP" then
+        DISCOVER_CAMERAS_SDDP(tParams)
+        return
+    end
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -562,5 +566,216 @@ function MakeSSDPDiscoverable(deviceVid)
     }, function(code, resp)
         print("[OP04] HTTP:", code)
         print("[OP04] Response:", resp)
+    end)
+end
+function DISCOVER_CAMERAS_SDDP(tParams)
+    print("================================================================")
+    print("           DISCOVER CAMERAS VIA SDDP PROTOCOL                    ")
+    print("================================================================")
+
+    C4:UpdateProperty("Status", "Starting SDDP camera discovery...")
+
+    print("SDDP (Simple Device Discovery Protocol) Discovery")
+    print("This implementation scans the local network for SDDP-capable cameras")
+    print("")
+
+    local cameras_found = {}
+    local scan_count = 0
+    local responses_received = 0
+
+    -- Get controller's network to determine scan range
+    local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
+    print("Controller IP: " .. controller_ip)
+
+    -- Extract network prefix (e.g., "192.168.1")
+    local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
+    if not network_prefix then
+        print("ERROR: Could not determine network prefix from controller IP")
+        C4:UpdateProperty("Status", "Discovery failed: Invalid network")
+        return
+    end
+
+    print("Network prefix: " .. network_prefix .. ".x")
+    print("")
+
+    -- SDDP typically uses port 1902, but we'll also check ONVIF and HTTP ports
+    local sddp_ports = {
+        1902, -- Standard SDDP port
+        80,   -- HTTP
+        8080, -- Alternate HTTP
+        8000, -- Common camera port
+        554,  -- RTSP (some cameras respond here)
+    }
+
+    -- SDDP discovery endpoints and paths
+    local sddp_paths = {
+        "/sddp",
+        "/sddp/discover",
+        "/onvif/device_service",
+        "/cgi-bin/magicBox.cgi?action=getSystemInfo",
+        "/ISAPI/System/deviceInfo",
+        "/api/system/deviceinfo",
+        "/",
+    }
+
+    -- Scan range
+    local start_ip = 1
+    local end_ip = 50
+
+    print("Scanning " .. network_prefix .. "." .. start_ip .. " to " .. network_prefix .. "." .. end_ip)
+    print("Checking SDDP ports: 1902, 80, 8080, 8000, 554")
+    print("")
+
+    -- Function to check if response indicates a camera
+    local function is_camera_response(data, response_code, headers)
+        if not response_code then return false end
+
+        if response_code == 200 or response_code == 401 or response_code == 400 then
+            if data then
+                local data_lower = string.lower(data)
+                if data_lower:match("sddp") or
+                    data_lower:match("onvif") or
+                    data_lower:match("camera") or
+                    data_lower:match("ipcam") or
+                    data_lower:match("device") or
+                    data_lower:match("dahua") or
+                    data_lower:match("hikvision") or
+                    data_lower:match("rtsp") or
+                    data_lower:match("h264") or
+                    data_lower:match("h265") or
+                    data_lower:match("video") or
+                    data_lower:match("stream") then
+                    return true
+                end
+            end
+
+            if headers then
+                for k, v in pairs(headers) do
+                    local header_lower = string.lower(k .. " " .. tostring(v))
+                    if header_lower:match("camera") or
+                        header_lower:match("ipcam") or
+                        header_lower:match("onvif") then
+                        return true
+                    end
+                end
+            end
+
+            if response_code == 401 then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    -- Scan network range
+    for ip_suffix = start_ip, end_ip do
+        local ip = network_prefix .. "." .. ip_suffix
+
+        for _, port in ipairs(sddp_ports) do
+            for _, path in ipairs(sddp_paths) do
+                local test_url = "http://" .. ip .. ":" .. port .. path
+                scan_count = scan_count + 1
+
+                -- Probe the endpoint
+                C4:urlGet(test_url, {}, false,
+                    function(strError, responseCode, tHeaders, data, context, url)
+                        responses_received = responses_received + 1
+                        
+                        -- Print ALL responses for debugging
+                        print("[SDDP DEBUG] URL: " .. test_url)
+                        print("[SDDP DEBUG] Response Code: " .. tostring(responseCode))
+                        if strError then
+                            print("[SDDP DEBUG] Error: " .. tostring(strError))
+                        end
+                        if data then
+                            print("[SDDP DEBUG] Data (first 200 chars): " .. string.sub(tostring(data), 1, 200))
+                        else
+                            print("[SDDP DEBUG] Data: nil")
+                        end
+                        if tHeaders and type(tHeaders) == "table" then
+                            print("[SDDP DEBUG] Headers:")
+                            for k, v in pairs(tHeaders) do
+                                print("  " .. tostring(k) .. " = " .. tostring(v))
+                            end
+                        else
+                            print("[SDDP DEBUG] Headers: " .. tostring(tHeaders))
+                        end
+                        print("")
+
+                        if is_camera_response(data, responseCode, tHeaders) then
+                            -- Check if we already found this IP
+                            local already_found = false
+                            for _, cam in ipairs(cameras_found) do
+                                if cam.ip == ip then
+                                    already_found = true
+                                    break
+                                end
+                            end
+
+                            if not already_found then
+                                local camera_info = {
+                                    ip = ip,
+                                    port = port,
+                                    path = path,
+                                    response_code = responseCode,
+                                    requires_auth = (responseCode == 401),
+                                    method = "SDDP Discovery",
+                                    is_sddp_port = (port == 1902)
+                                }
+
+                                table.insert(cameras_found, camera_info)
+
+                                print("")
+                                print("*** CAMERA DISCOVERED VIA SDDP ***")
+                                print("  IP Address: " .. ip)
+                                print("  Port: " .. port .. (port == 1902 and " (SDDP)" or ""))
+                                print("  Endpoint: " .. path)
+                                print("  Response Code: " .. responseCode)
+                                print("  Auth Required: " .. (responseCode == 401 and "Yes" or "No"))
+                                print("")
+                            end
+                        end
+                    end
+                )
+            end
+        end
+    end
+
+    print("SDDP discovery scan initiated...")
+    print("Probing " .. scan_count .. " endpoints")
+    print("Waiting for responses...")
+    print("")
+
+    -- Wait for async responses (8 seconds for network probing)
+    C4:SetTimer(8000, function(timer)
+        print("")
+        print("================================================================")
+        print("          SDDP DISCOVERY SCAN COMPLETE                          ")
+        print("================================================================")
+        print("Probed: " .. scan_count .. " endpoints")
+        print("Responses received: " .. responses_received)
+        print("Cameras found: " .. #cameras_found)
+        print("")
+
+        if #cameras_found > 0 then
+            print("Discovered Cameras via SDDP:")
+            print("")
+            for idx, cam in ipairs(cameras_found) do
+                print(string.format("  [%d] %s:%d", idx, cam.ip, cam.port))
+                print(string.format("      Endpoint: %s", cam.path))
+                print(string.format("      Auth Required: %s", cam.requires_auth and "Yes" or "No"))
+                print(string.format("      SDDP Port: %s", cam.is_sddp_port and "Yes" or "No"))
+                print("")
+            end
+
+            local status_msg = string.format("SDDP: Found %d camera(s)", #cameras_found)
+            C4:UpdateProperty("Status", status_msg)
+        else
+            print("No cameras found via SDDP discovery.")
+            C4:UpdateProperty("Status", "SDDP: No cameras found")
+        end
+
+        print("================================================================")
     end)
 end

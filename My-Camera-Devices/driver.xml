@@ -143,6 +143,10 @@
                 <name>Discover Devices </name>
                 <command>DISCOVER_DEVICES</command>
             </action>
+            <action>
+                <name>Discover Cameras (SDDP)</name>
+                <command>DISCOVER_CAMERAS_SDDP</command>
+            </action>
             <!-- <action>
                 <name>Login/Register</name>
                 <command>LOGIN_OR_REGISTER</command>
@@ -164,6 +168,10 @@
             <command>
                 <name>DISCOVER_DEVICES</name>
                 <description>Discover Devices</description>
+            </command>
+            <command>
+                <name>DISCOVER_CAMERAS_SDDP</name>
+                <description>Discover IP cameras via SDDP protocol</description>
             </command>
         </commands>
         <interfaces>

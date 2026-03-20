@@ -1748,6 +1748,27 @@ function DISCOVER_CAMERAS_SDDP(tParams)
                 C4:urlGet(test_url, {}, false,
                     function(strError, responseCode, tHeaders, data, context, url)
                         responses_received = responses_received + 1
+                        
+                        -- Print ALL responses for debugging
+                        print("[SDDP DEBUG] URL: " .. test_url)
+                        print("[SDDP DEBUG] Response Code: " .. tostring(responseCode))
+                        if strError then
+                            print("[SDDP DEBUG] Error: " .. tostring(strError))
+                        end
+                        if data then
+                            print("[SDDP DEBUG] Data (first 200 chars): " .. string.sub(tostring(data), 1, 200))
+                        else
+                            print("[SDDP DEBUG] Data: nil")
+                        end
+                        if tHeaders and type(tHeaders) == "table" then
+                            print("[SDDP DEBUG] Headers:")
+                            for k, v in pairs(tHeaders) do
+                                print("  " .. tostring(k) .. " = " .. tostring(v))
+                            end
+                        else
+                            print("[SDDP DEBUG] Headers: " .. tostring(tHeaders))
+                        end
+                        print("")
 
                         if is_camera_response(data, responseCode, tHeaders) then
                             -- Check if we already found this IP
