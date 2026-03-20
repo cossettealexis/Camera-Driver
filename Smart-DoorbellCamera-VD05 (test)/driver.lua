@@ -694,6 +694,12 @@ function GET_DEVICES(p_vid)
 
     print("GET_DEVICES called with VID: " .. tostring(p_vid))
 
+    -- Get IP from Properties to filter devices
+    local filter_ip = _props["IP Address"] or Properties["IP Address"]
+    if filter_ip and filter_ip ~= "" then
+        print("[GET_DEVICES] Will filter by IP from Properties: " .. filter_ip)
+    end
+
     -- Get auth token from properties (bearer token)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
 
@@ -748,11 +754,19 @@ function GET_DEVICES(p_vid)
                 print("Parsed response:")
                 print(json.encode(parsed, { indent = true }))
 
-                -- Look for the VD05 camera device specifically by model name
+                -- Look for device by IP first, then by model/subtype
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    -- Look for VD05 or video_bell devices
-                    if (device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)))  then
+                    -- Priority 1: Filter by IP address if we have one from Properties
+                    if filter_ip and device.local_ip == filter_ip then
+                        target_device = device
+                        print("Found device matching IP " .. filter_ip .. " at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                        break
+                    -- Priority 2: Look for VD05 or video_bell devices by product_subtype
+                    elseif not filter_ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
                         target_device = device
                         print("Found VD05 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
                         break
