@@ -1019,44 +1019,44 @@ function APPLY_MQTT_INFO()
 end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
-    print("[BINDING] OnNetworkBindingChanged - ID:", idBinding, "Bound:", bIsBound)
-    
-    if idBinding == 6001 then
-        if bIsBound then
-            -- First, check if IP Address property was already set by SSDP discovery
-            local current_ip = Properties["IP Address"] or _props["IP Address"]
-            print("[BINDING] Current IP Address property:", tostring(current_ip))
-            
-            -- If property is already set to a valid local IP, use that (from SSDP discovery)
-            if current_ip and current_ip ~= "" and current_ip ~= "127.0.0.1" then
-                -- Check if it's a local network IP
-                if current_ip:match("^192%.168%.") or current_ip:match("^10%.") or current_ip:match("^172%.1[6-9]%.") or current_ip:match("^172%.2[0-9]%.") or current_ip:match("^172%.3[0-1]%.") then
-                    print("[BINDING] Using IP from SSDP discovery:", current_ip)
-                    SET_CAMERA_IP(current_ip)
-                    return
-                else
-                    print("[BINDING] WARNING: IP is not a local network address:", current_ip)
-                end
-            end
-            
-            -- Fallback: try to get IP from binding (but validate it's local)
-            local binding_ip = C4:GetBindingAddress(6001)
-            print("[BINDING] Binding address from C4:", tostring(binding_ip))
-            
-            if binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
-                -- Validate it's a local IP
-                if binding_ip:match("^192%.168%.") or binding_ip:match("^10%.") or binding_ip:match("^172%.1[6-9]%.") or binding_ip:match("^172%.2[0-9]%.") or binding_ip:match("^172%.3[0-1]%.") then
-                    print("[BINDING] Using validated binding IP:", binding_ip)
-                    SET_CAMERA_IP(binding_ip)
-                else
-                    print("[BINDING] ERROR: Binding IP is not local (got external IP):", binding_ip)
-                    print("[BINDING] Cannot auto-configure. Please set IP manually.")
-                end
+    if (idBinding == 6001 and bIsBound) then
+        -- SSDP populates Properties["IP Address"] via network_address="true" in XML
+        local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
+        local binding_ip = C4:GetBindingAddress(6001)
+        
+        print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
+        print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
+        
+        local ip_to_use = nil
+        
+        -- Priority 1: Check if SSDP populated property with local IP
+        if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
+            if ssdp_ip:match("^192%.") or ssdp_ip:match("^10%.") or ssdp_ip:match("^172%.") then
+                print("[BINDING] Using local IP from SSDP property: " .. ssdp_ip)
+                ip_to_use = ssdp_ip
             else
-                print("[BINDING] No valid IP available from binding")
+                print("[BINDING] WARNING: SSDP property has cloud IP: " .. ssdp_ip)
             end
+        end
+        
+        -- Priority 2: Check binding address if property wasn't local
+        if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
+            if binding_ip:match("^192%.") or binding_ip:match("^10%.") or binding_ip:match("^172%.") then
+                print("[BINDING] Using local IP from binding address: " .. binding_ip)
+                ip_to_use = binding_ip
+            else
+                print("[BINDING] WARNING: Binding address has cloud IP: " .. binding_ip)
+            end
+        end
+        
+        -- Apply the IP if we found a local one
+        if ip_to_use then
+            C4:UpdateProperty("IP Address", ip_to_use)
+            _props["IP Address"] = ip_to_use
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_to_use })
+            print("[BINDING] ✓ Camera IP auto-configured: " .. ip_to_use)
         else
-            print("[BINDING] Network binding 6001 disconnected")
+            print("[BINDING] ✗ No local IP found from SSDP. Manual configuration required.")
         end
     end
 end

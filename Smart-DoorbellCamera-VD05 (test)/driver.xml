@@ -16,20 +16,6 @@
     <composer_categories>
         <category>Cameras</category>
     </composer_categories>
-    <connections>
-        <connection>
-            <id>6001</id>
-            <type>6</type> <!-- Type 6 is IP Network -->
-            <connectionname>IP Network</connectionname>
-            <consumer>False</consumer>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>TCP</classname>
-                </class>
-            </classes>
-        </connection>
-    </connections>
     <proxies qty="1">
         <proxy proxybindingid="5001" name="Slomins VD05 Video Doorbell">camera</proxy>
     </proxies>
@@ -381,7 +367,8 @@
             <facing>1</facing>
             <connectionname>Network/MQTT</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
                     <classname>TCP</classname>
@@ -393,7 +380,13 @@
                             <number>554</number>
                         </port>
                         <port>
+                            <number>8883</number>
+                        </port>
+                        <port>
                             <number>8884</number>
+                        </port>
+                        <port>
+                            <number>8080</number>
                         </port>
                     </ports>
                 </class>
