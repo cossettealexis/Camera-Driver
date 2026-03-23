@@ -39,11 +39,12 @@ CameraDefaultProps.SubStream   = "stream1"
 CameraDefaultProps.SnapshotURL = "tmp/snap.jpeg"
 CameraDefaultProps.MJPEGURL    = "video.mjpg"
 
-local LOW_BATTERY_THRESHOLD    = 20
 local MQTT                     = require("mqtt_manager")
 local CAMERA_BINDING           = 5001
 local EVENT_DELAY_MS           = tonumber(Properties["Event Interval (ms)"]) or 5000
 
+local last_ip_refresh = 0
+local MIN_REFRESH_GAP = 5 -- seconds (small gap, not too strict)
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call          = true
 
@@ -189,7 +190,17 @@ function OnDriverInit()
             print("Property [" .. k .. "] = " .. tostring(v))
         end
         _props[k] = v
+    
+        
+        -- Sync IP Address property with Camera Proxy
+    local ip_address = Properties["IP Address"]
+    if ip_address and ip_address ~= "" and ip_address ~= "127.0.0.1" then
+        print("[INIT] Setting Camera Proxy IP to: " .. ip_address)
+        C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_address })
+    else
+        print("[INIT] No valid IP Address set, keeping default")
     end
+
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -225,13 +236,12 @@ function OnDriverLateInit()
         print("  HTTP Port: " .. http_port)
         print("  RTSP Port: " .. rtsp_port)
 
-        -- if C4 and C4.SendToProxy then
-        --     C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
-        --     C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
-        --     C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
-        --     C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
-        --     print("Camera Proxy configuration complete!")
-        -- end
+        if C4 and C4.SendToProxy then
+            C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
+            C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+            C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
+            print("Camera Proxy configuration complete!")
+        end
     end
     
 end
@@ -246,10 +256,15 @@ function OnPropertyChanged(strProperty)
     print("Property changed: " .. strProperty)
 
     if strProperty == "IP Address" then
-        print("[PROP] IP Address manually changed => " .. tostring(Properties[strProperty]))
-        _props["IP Address"] = Properties[strProperty]
-        return
+        local ip = Properties["IP Address"]
+        
+        if ip and ip ~= "" then
+            C4:SendToProxy(5001, "SET_ADDRESS", {
+                ADDRESS = ip
+            })
+        end
     end
+
     if strProperty == "Enable MQTT" then
         local requested = (Properties[strProperty] == "True")
 
@@ -666,7 +681,8 @@ function GET_DEVICES(p_vid)
     print("                GET_DEVICES CALLED                              ")
     print("================================================================")
 
-    -- Get auth token from properties (bearer token)
+    local ip = _props["IP Address"] or Properties["IP Address"]
+
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not auth_token or auth_token == "" then
@@ -720,38 +736,43 @@ function GET_DEVICES(p_vid)
                 print("Parsed response:")
                 print(json.encode(parsed, { indent = true }))
 
-                -- Look for the K26 camera device specifically by model name
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    -- Look for K26 or solar_box_cam devices
-                    if (device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)))  then
+                    if ip and device.local_ip == ip then
+                        target_device = device
+                        print("Found device matching IP " .. ip .. " at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                        break
+                    elseif not ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
                         target_device = device
                         print("Found K26 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
                         break
                     end
                 end
-                if p_vid and target_device and target_device.vid == p_vid then
-                    print("Device VID matches requested VID: " .. tostring(p_vid))
-                    CameraDefaultProps.IPAddress = target_device.local_ip
-                    SET_CAMERA_IP(target_device.local_ip)
-                elseif target_device and target_device.vid then
+                
+                if target_device and target_device.vid then
                     print("Storing device information for K26:")
                     print("  VID: " .. target_device.vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
 
-                    -- Store VID
                     _props["VID"] = target_device.vid
-
                     C4:UpdateProperty("VID", target_device.vid)
 
-                    -- Store IP address if available
+                    if target_device.device_name and target_device.device_name ~= "" then
+                        _props["Device Name"] = target_device.device_name
+                        C4:UpdateProperty("Device Name", target_device.device_name)
+                        print("  Device Name property updated to: " .. target_device.device_name)
+                    end
+
                     if target_device.local_ip and target_device.local_ip ~= "" then
                         SET_CAMERA_IP(target_device.local_ip)
                         print("  IP Address property updated to: " .. target_device.local_ip)
                     end
-                    -- Enable MQTT after VID is set
+                    
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
 
@@ -763,13 +784,7 @@ function GET_DEVICES(p_vid)
 
                         APPLY_MQTT_INFO()
                     end
-                    -- Store device name if available
-                    if target_device.device_name and target_device.device_name ~= "" then
-                        _props["Device Name"] = target_device.device_name
-                        C4:UpdateProperty("Device Name", target_device.device_name)
-                        print("  Device Name property updated to: " .. target_device.device_name)
-                    end
-
+                    
                     print("K26 properties updated successfully")
                 else
                     print("ERROR: No K26 camera device found or vid missing")
@@ -777,7 +792,6 @@ function GET_DEVICES(p_vid)
             end
         else
             print("Get devices failed with code: " .. tostring(code))
-            --C4:UpdateProperty("Status", "Get devices failed: " .. tostring(err or code))
         end
     end)
 
@@ -988,6 +1002,35 @@ function APPLY_MQTT_INFO()
             update_prop("Status", "MQTT info failed: " .. tostring(err or code))
         end
     end)
+end
+
+function OnNetworkBindingChanged(idBinding, bIsBound)
+    if (idBinding == 6001 and bIsBound) then
+        local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
+        local binding_ip = C4:GetBindingAddress(6001)
+        
+        print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
+        print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
+        
+        local ip_to_use = nil
+        
+        if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
+            ip_to_use = ssdp_ip
+        end
+        
+        if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
+            ip_to_use = binding_ip
+        end
+        
+        if ip_to_use then
+            C4:UpdateProperty("IP Address", ip_to_use)
+            _props["IP Address"] = ip_to_use
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_to_use })
+            print("[BINDING] Camera IP auto-configured: " .. ip_to_use)
+        else
+            print("[BINDING] No local IP found from SSDP. Manual configuration required.")
+        end
+    end
 end
 
 function OnConnectionStatusChanged(id, port, status)
@@ -1294,11 +1337,27 @@ local function handle_low_battery()
 end
 
 
+
 local function handle_online_status(new_online)
-    -- First state (baseline)
-    if last_confirmed_online == nil then
+    local now = os.time()
+
+    -- Always handle ONLINE event
+    if new_online then
+        print("[STATUS] ONLINE event received")
+
+        -- Prevent too frequent calls (very important)
+        if now - last_ip_refresh >= MIN_REFRESH_GAP then
+            print("[STATUS] Calling GET_DEVICES (allowed)")
+            GET_DEVICES(Properties["VID"] or _props["VID"])
+            last_ip_refresh = now
+        else
+            print("[STATUS] Skipped GET_DEVICES (too frequent)")
+        end
+    end
+
+    -- Detect real state change (for notifications)
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
         last_confirmed_online = new_online
-        print("[STATUS] Initial online state:", new_online)
 
         if new_online then
             send_notification(
@@ -1307,9 +1366,6 @@ local function handle_online_status(new_online)
                 "online",
                 COOLDOWN.online
             )
-
-            -- update IP on initial online
-            GET_DEVICES(Properties["VID"])
         else
             send_notification(
                 NOTIFY.ALERT,
@@ -1318,39 +1374,6 @@ local function handle_online_status(new_online)
                 COOLDOWN.offline
             )
         end
-
-        return
-    end
-
-    -- Ignore duplicate state
-    if new_online == last_confirmed_online then
-        return
-    end
-
-    -- State changed
-    last_confirmed_online = new_online
-
-    if new_online then
-        print("[STATUS] Camera ONLINE")
-
-        send_notification(
-            NOTIFY.INFO,
-            EVENT.CAMERA_ONLINE,
-            "online",
-            COOLDOWN.online
-        )
-
-        -- update IP when camera reconnects
-        GET_DEVICES(Properties["VID"])
-    else
-        print("[STATUS] Camera OFFLINE")
-
-        send_notification(
-            NOTIFY.ALERT,
-            EVENT.CAMERA_OFFLINE,
-            "offline",
-            COOLDOWN.offline
-        )
     end
 end
 
@@ -1748,27 +1771,6 @@ function DISCOVER_CAMERAS_SDDP(tParams)
                 C4:urlGet(test_url, {}, false,
                     function(strError, responseCode, tHeaders, data, context, url)
                         responses_received = responses_received + 1
-                        
-                        -- Print ALL responses for debugging
-                        print("[SDDP DEBUG] URL: " .. test_url)
-                        print("[SDDP DEBUG] Response Code: " .. tostring(responseCode))
-                        if strError then
-                            print("[SDDP DEBUG] Error: " .. tostring(strError))
-                        end
-                        if data then
-                            print("[SDDP DEBUG] Data (first 200 chars): " .. string.sub(tostring(data), 1, 200))
-                        else
-                            print("[SDDP DEBUG] Data: nil")
-                        end
-                        if tHeaders and type(tHeaders) == "table" then
-                            print("[SDDP DEBUG] Headers:")
-                            for k, v in pairs(tHeaders) do
-                                print("  " .. tostring(k) .. " = " .. tostring(v))
-                            end
-                        else
-                            print("[SDDP DEBUG] Headers: " .. tostring(tHeaders))
-                        end
-                        print("")
 
                         if is_camera_response(data, responseCode, tHeaders) then
                             -- Check if we already found this IP

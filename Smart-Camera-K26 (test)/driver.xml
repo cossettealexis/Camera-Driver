@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.1.0</version>
+    <version>1.0.1</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
@@ -22,7 +22,7 @@
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
-        <modes>H264, H265</modes>
+        <modes>H265, SNAPSHOT, MJPEG, H264</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
         <default_authentication_required>False</default_authentication_required>
@@ -45,6 +45,8 @@
         <show_test_url>true</show_test_url>
         <supports_streaming>true</supports_streaming>
         <hasHistory>true</hasHistory>
+        <network>true</network>
+        <address_required>true</address_required>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
@@ -109,14 +111,29 @@
             <id>8</id>
             <name>Camera Restarted</name>
             <description>When NAME restarts</description>
-        </event>
-       
+        </event>       
     </events>
+
+    <search>
+        <searchtype>slomins:camera</searchtype>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true"/>
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
 
     <config>
         <script file="driver.lua" />
         <documentation file="README.md">Slomins K26-SL Camera Documentation</documentation>
         <properties>       
+            <property>
+                <name>IP Address</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
@@ -130,15 +147,9 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Status</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>ajang@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -190,10 +201,15 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
-      
+            <property>
+                <name>Status</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>            
         </properties>
         <actions>            
-            <action>
+            <!-- <action>
                 <name>Test Snapshot</name>
                 <command>TEST_SNAPSHOT</command>
             </action>
@@ -224,11 +240,7 @@
             <action>
                 <name>Discover Cameras (SDDP)</name>
                 <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>
-            <action>
-                <name>Awake Camera</name>
-                <command>AWAKE_CAMERA</command>
-            </action>
+            </action>            
             <action>
                 <name>Test Push Notification</name>
                 <command>TEST_PUSH_NOTIFICATION</command>
@@ -240,8 +252,11 @@
             <action>
                 <name>Update UI Properties</name>
                 <command>UPDATE_UI_PROPERTIES</command>
+            </action> -->
+            <action>
+                <name>Awake Camera</name>
+                <command>AWAKE_CAMERA</command>
             </action>
-
         </actions>
         <commands>            
             <command>
@@ -340,7 +355,7 @@
             <facing>1</facing>
             <connectionname>Network/MQTT</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
             <classes>
                 <class>
                     <classname>TCP</classname>
@@ -352,7 +367,13 @@
                             <number>554</number>
                         </port>
                         <port>
+                            <number>8883</number>
+                        </port>
+                        <port>
                             <number>8884</number>
+                        </port>
+                        <port>
+                            <number>8080</number>
                         </port>
                     </ports>
                 </class>

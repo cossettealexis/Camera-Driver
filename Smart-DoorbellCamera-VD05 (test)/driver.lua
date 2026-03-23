@@ -264,14 +264,13 @@ function OnPropertyChanged(strProperty)
     if strProperty == "IP Address" then
         local ip = Properties["IP Address"]
 
-        print("[PropertyChanged] IP Address:", ip)
-
         if ip and ip ~= "" then
             C4:SendToProxy(5001, "SET_ADDRESS", {
                 ADDRESS = ip
             })
         end
     end
+
     if strProperty == "Enable MQTT" then
         local requested = (Properties[strProperty] == "True")
 
@@ -694,11 +693,7 @@ function GET_DEVICES(p_vid)
 
     print("GET_DEVICES called with VID: " .. tostring(p_vid))
 
-    -- Get IP from Properties to filter devices
-    local filter_ip = _props["IP Address"] or Properties["IP Address"]
-    if filter_ip and filter_ip ~= "" then
-        print("[GET_DEVICES] Will filter by IP from Properties: " .. filter_ip)
-    end
+    local ip = _props["IP Address"] or Properties["IP Address"]
 
     -- Get auth token from properties (bearer token)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
@@ -754,46 +749,42 @@ function GET_DEVICES(p_vid)
                 print("Parsed response:")
                 print(json.encode(parsed, { indent = true }))
 
-                -- Look for device by IP first, then by model/subtype
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    -- Priority 1: Filter by IP address if we have one from Properties
-                    if filter_ip and device.local_ip == filter_ip then
+                    if ip and device.local_ip == ip then
                         target_device = device
-                        print("Found device matching IP " .. filter_ip .. " at index " .. i)
+                        print("Found device matching IP " .. ip .. " at index " .. i)
                         print("  Device Name: " .. (device.device_name or "N/A"))
                         print("  Model: " .. (device.model or "N/A"))
                         print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
-                    -- Priority 2: Look for VD05 or video_bell devices by product_subtype
-                    elseif not filter_ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
+                    elseif not ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
                         target_device = device
                         print("Found VD05 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
                         break
                     end
                 end
-                if p_vid and target_device and target_device.vid == p_vid then
-                    print("Device VID matches requested VID: " .. tostring(p_vid))
-                    CameraDefaultProps.IPAddress = target_device.local_ip
-                    -- SET_CAMERA_IP(target_device.local_ip)
-                elseif target_device and target_device.vid then
+                
+                if target_device and target_device.vid then
                     print("Storing device information for VD05:")
                     print("  VID: " .. target_device.vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
 
-                    -- Store VID
                     _props["VID"] = target_device.vid
-
                     C4:UpdateProperty("VID", target_device.vid)
 
-                    -- Store IP address if available
+                    if target_device.device_name and target_device.device_name ~= "" then
+                        _props["Device Name"] = target_device.device_name
+                        C4:UpdateProperty("Device Name", target_device.device_name)
+                        print("  Device Name property updated to: " .. target_device.device_name)
+                    end
+
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        -- SET_CAMERA_IP(target_device.local_ip)
                         print("  IP Address property updated to: " .. target_device.local_ip)
                     end
-                    -- Enable MQTT after VID is set
+                    
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
 
@@ -805,13 +796,7 @@ function GET_DEVICES(p_vid)
 
                         APPLY_MQTT_INFO()
                     end
-                    -- Store device name if available
-                    if target_device.device_name and target_device.device_name ~= "" then
-                        _props["Device Name"] = target_device.device_name
-                        C4:UpdateProperty("Device Name", target_device.device_name)
-                        print("  Device Name property updated to: " .. target_device.device_name)
-                    end
-
+                    
                     print("VD05 properties updated successfully")
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
@@ -1034,7 +1019,6 @@ end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
-        -- SSDP populates Properties["IP Address"] via network_address="true" in XML
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
         
@@ -1043,34 +1027,21 @@ function OnNetworkBindingChanged(idBinding, bIsBound)
         
         local ip_to_use = nil
         
-        -- Priority 1: Check if SSDP populated property with local IP
         if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
-            if ssdp_ip:match("^192%.") or ssdp_ip:match("^10%.") or ssdp_ip:match("^172%.") then
-                print("[BINDING] Using local IP from SSDP property: " .. ssdp_ip)
-                ip_to_use = ssdp_ip
-            else
-                print("[BINDING] WARNING: SSDP property has cloud IP: " .. ssdp_ip)
-            end
+            ip_to_use = ssdp_ip                
         end
         
-        -- Priority 2: Check binding address if property wasn't local
         if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
-            if binding_ip:match("^192%.") or binding_ip:match("^10%.") or binding_ip:match("^172%.") then
-                print("[BINDING] Using local IP from binding address: " .. binding_ip)
-                ip_to_use = binding_ip
-            else
-                print("[BINDING] WARNING: Binding address has cloud IP: " .. binding_ip)
-            end
+            ip_to_use = binding_ip
         end
         
-        -- Apply the IP if we found a local one
         if ip_to_use then
             C4:UpdateProperty("IP Address", ip_to_use)
             _props["IP Address"] = ip_to_use
             C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_to_use })
-            print("[BINDING] ✓ Camera IP auto-configured: " .. ip_to_use)
+            print("[BINDING] Camera IP auto-configured: " .. ip_to_use)
         else
-            print("[BINDING] ✗ No local IP found from SSDP. Manual configuration required.")
+            print("[BINDING] No local IP found from SSDP. Manual configuration required.")
         end
     end
 end
