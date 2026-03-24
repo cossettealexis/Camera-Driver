@@ -203,139 +203,38 @@
             <description>When someone is locked outside NAME</description>
         </event>
     </events>
-
-    <search>
-        <searchtype>slomins:camera</searchtype>
-        <add_device_properties>
-            <property type="string" id="1" name="IP Address" network_address="true"/>
-        </add_device_properties>
-        <add_connection_binding_address>
-            <connection_id>6001</connection_id>
-        </add_connection_binding_address>
-    </search>
-
     <config>
         <script file="driver.lua"/>
         <documentation file="README.md">Slomins DF511 Door Video lock Documentation</documentation>
-        <properties>
+      <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.165</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>HTTP Port</name>
-                <type>RANGED_INTEGER</type>
-                <default>3333</default>
-                <minimum>1</minimum>
-                <maximum>65535</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>RTSP Port</name>
-                <type>RANGED_INTEGER</type>
-                <default>554</default>
-                <minimum>1</minimum>
-                <maximum>65535</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Stream Path</name>
-                <type>STRING</type>
-                <default>streamtype=0</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Snapshot URL Path</name>
-                <type>STRING</type>
-                <default>/wps-cgi/image.cgi</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Username</name>
-                <type>STRING</type>
-                <default>SystemConnect</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Password</name>
-                <type>STRING</type>
-                <default>123456</default>
-                <password>true</password>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Authentication Type</name>
-                <type>LIST</type>
-                <items>
-                    <item>BASIC</item>
-                    <item>DIGEST</item>
-                    <item>NONE</item>
-                </items>
-                <default>NONE</default>
-                <readonly>false</readonly>
+                <default></default>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d50g376btn8c73cn7010</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Product ID</name>
-                <type>STRING</type>
-                <default>DF511</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                 <default>Video Lock(Wi-Fi)</default>
+                <default>DF511</default>
                 <readonly>false</readonly>
             </property>
-            <property>
-                <name>Lock Seconds</name>
-                <type>RANGED_INTEGER</type>
-                <default>10</default>
-                <minimum>0</minimum>
-                <maximum>300</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
+              <property>
                 <name>Status</name>
                 <type>STRING</type>
-                <default>Initializing...</default>
+                <default></default>
                 <readonly>true</readonly>
             </property>
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>pyabu@slomins.com</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Image Retry Count</name>
-                <type>RANGED_INTEGER</type>
-                <minimum>1</minimum>
-                <maximum>50</maximum>
-                <default>6</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Image Retry Interval (ms)</name>
-                <type>RANGED_INTEGER</type>
-                <minimum>100</minimum>
-                <maximum>5000</maximum>
-                <default>400</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Wake Delay (ms)</name>
-                <type>RANGED_INTEGER</type>
-                <default>20000</default>
-                <minimum>0</minimum>
-                <maximum>30000</maximum>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -369,26 +268,6 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>ClientID</name>
-                <type>STRING</type>
-                <default>064d0d44-29dd-48bc-9ff7-3f69bd24c91f</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Public Key</name>
-                <type>STRING</type>
-                <default>
-                </default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Base API URL</name>
-                <type>STRING</type>
-                <default>https://api.arpha-tech.com</default>
-                <readonly>false</readonly>
-            </property>
-            
-            <property>
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
@@ -407,88 +286,13 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
+          
             <property>
-                <name>IP Scan Range End</name>
-                <type>RANGED_INTEGER</type>
-                <default>50</default>
-                <minimum>1</minimum>
-                <maximum>999</maximum>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>MQTT Host</name>
+                <name>Camera Status</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
             </property>
-            <property>
-                <name>MQTT Port</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Client ID</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>MQTT Secret</name>
-                <type>STRING</type>
-                <password>true</password>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Motion</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-
-            <property>
-                <name>Last Face</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Clip URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Online</name>
-                <type>STRING</type>
-                <default>false</default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Last Doorbell</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Lock Status</name>
-                <type>STRING</type>
-                <default>Unknown</default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Main Stream URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>
-            <property>
-                <name>Sub Stream URL</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>true</readonly>
-            </property>     
         </properties>
         <actions>
             <action>
@@ -703,30 +507,12 @@
         <connection>
             <id>6001</id>
             <facing>1</facing>
-            <connectionname>Network/MQTT</connectionname>
+            <connectionname>MQTT Proxy</connectionname>
             <type>4</type>
-            <consumer>True</consumer>
-            <linelevel>False</linelevel>
+            <consumer>true</consumer>
             <classes>
                 <class>
-                    <classname>TCP</classname>
-                    <ports>
-                        <port>
-                            <number>3333</number>
-                        </port>
-                        <port>
-                            <number>554</number>
-                        </port>
-                        <port>
-                            <number>8883</number>
-                        </port>
-                        <port>
-                            <number>8884</number>
-                        </port>
-                        <port>
-                            <number>8080</number>
-                        </port>
-                    </ports>
+                    <classname>GENERIC_PROXY</classname>
                 </class>
             </classes>
         </connection>
