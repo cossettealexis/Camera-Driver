@@ -441,12 +441,9 @@ function InitializeCamera()
                 local public_key = parsed.data.public_key
 
                 local country_code = "N"
-                local account = Properties["Account"] or "pyabu@slomins.com"
-
-                if account == "" then
-                    print("ERROR: Account is required for login")
-                    C4:UpdateProperty("Status", "Login failed: No account specified")
-                    return
+                local account = Properties["Account"]
+                if not account or account == "" then
+                    account = "pyabu@slomins.com"
                 end
 
                 LoginOrRegister(country_code, account, public_key)
@@ -760,9 +757,15 @@ function GET_DEVICES(p_vid)
                         break
                     elseif not ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
                         target_device = device
-                        print("Found VD05 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
+                        print("Found VD05 camera device (no IP filter) at index " .. i .. ": " .. (device.model or "unknown model"))
                         break
                     end
+                end
+                
+                if not target_device and ip then
+                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
+                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                    return
                 end
                 
                 if target_device and target_device.vid then

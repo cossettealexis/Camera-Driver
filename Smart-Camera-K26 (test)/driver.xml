@@ -13,7 +13,6 @@
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
     <driver>DriverWorks</driver>
-    <search_type>slomins:camera</search_type>
     <composer_categories>
         <category>Cameras</category>
     </composer_categories>
@@ -132,7 +131,7 @@
                 <name>IP Address</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>true</readonly>
+                <readonly>false</readonly>
             </property>
             <property>
                 <name>VID</name>
@@ -350,12 +349,13 @@
             </classes>
             <hidden>True</hidden>
         </connection>
-        <connection proxybindingid="5001">
+        <connection>
             <id>6001</id>
             <facing>1</facing>
             <connectionname>Network/MQTT</connectionname>
             <type>4</type>
             <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
                     <classname>TCP</classname>
