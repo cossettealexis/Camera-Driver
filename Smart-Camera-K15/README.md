@@ -1,11 +1,11 @@
-# Smart-Camera-P160-SL — Control4 Driver
+# Smart-Camera-K15-SL — Control4 Driver
 
 ## Overview
 
-Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, and PTZ support.
+Complete Control4 driver for Slomins K15-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.
 
 **Version:** 0.1.0  
-**Package:** Smart-Camera-P160-SL-v0.1.0.c4z (22.1 KB)  
+**Package:** Smart-Camera-K15-SL-v0.1.0.c4z (22.1 KB)  
 **Minimum Control4 OS:** 3.3.2+
 
 ---
@@ -33,6 +33,11 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 - HMAC-SHA256 signatures for API requests
 - Secure token storage
 
+✅ **Real-Time Event Detection (MQTT)**
+- Motion, human, face, and stranger detection
+- Doorbell ring notifications with snapshot
+- Camera online/offline monitoring
+
 ---
 
 ## Requirements
@@ -50,7 +55,7 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 
 1. Open **Control4 Composer Pro**
 2. Go to **Drivers** menu → **Add Driver** → **Install From File**
-3. Select `Smart-Camera-P160-SL-v0.1.0.c4z`
+3. Select `Smart-Camera-K15-SL-v0.1.0.c4z`
 4. Click **Install**
 5. Driver will appear in available drivers list
 
@@ -59,7 +64,7 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 1. Go to **Project** view
 2. Select a room
 3. Click **Add Device**
-4. Search for "Slomins P160-SL"
+4. Search for "Slomins K15-SL"
 5. Add to room
 
 ### 3. Configure Properties
@@ -102,6 +107,138 @@ Set the following properties:
 
 5. Execute "Get Snapshot URL"
    → Generates HTTP snapshot URL
+```
+
+---
+
+## 🔔 Real-Time Event Detection (MQTT)
+
+The driver supports **MQTT-based real-time event streaming over SSL (port 8884)** and provides notifications for the following events:
+
+- Doorbell ring notifications with snapshot
+- Motion detection with snapshot attachment
+- Human detection
+- Face detection
+- Stranger detection
+- Camera online/offline status monitoring
+
+---
+
+## MQTT Configuration
+
+### Default Behavior
+
+MQTT is **enabled automatically by the driver after authentication**.
+
+The driver will automatically:
+
+1. Enable MQTT
+2. Fetch MQTT credentials
+3. Connect to the MQTT broker
+4. Subscribe to camera event topics
+
+You normally **do not need to enable MQTT manually**.
+
+---
+
+## CldBus App Motion Detection Settings
+
+To receive **Motion Detection** and **Human Detection** events, detection must be enabled in the **CldBus mobile app**.
+
+### Steps
+
+1. Open the **CldBus App**
+2. Select your **camera device**
+3. Tap **Settings**
+4. Navigate to:
+
+```
+Settings → Motion Detection
+```
+
+5. Under **Detection Type**, select one of the following:
+
+| Detection Type | Description |
+|----------------|-------------|
+| **All Detections** | All movement events will trigger notifications. This includes general motion detection. |
+| **Human Detection** | Only human movement will trigger events. Non-human motion will be ignored. |
+
+---
+
+## Push Notification Configuration
+
+### 1. Create Push Notification
+
+1. Open **Composer Pro**
+2. Navigate to:
+
+```
+Agents → Push Notification
+```
+
+3. Click **Add Notification** then enter a name for the notification.
+
+Configure the following:
+
+| Setting  | Value           |
+| -------- | --------------- |
+| Category | Cameras         |
+| Severity | Info / Critical |
+| Subject  | Camera Event    |
+
+Click **Save**.
+
+---
+
+### 2. Enable Snapshot Attachment
+
+Edit the created notification and set:
+
+```
+Attachment Type = Snapshot URL
+```
+
+This allows push notifications to include the **camera snapshot image**.
+
+---
+
+### 3. Map Push Notifications in Programming
+
+1. In **Composer Pro**, open **Programming**
+2. Select the **Camera Driver** from the device list
+3. In the **Events** section, choose the event to trigger (e.g. **Motion Detected**)
+
+On the **right-side panel**:
+
+4. Click **Push Notifications**
+5. From the dropdown, select the **notification you created earlier**
+6. Drag and drop the notification into the programming area **or double-click the green arrow** to add it
+
+This maps the camera event to the push notification.
+
+Example:
+```
+WHEN Motion Detected → THEN Send Push Notification
+```
+
+---
+
+## Notification Flow
+
+```
+Camera Event (MQTT)
+        ↓
+Driver Receives Event
+        ↓
+Driver Processes Event
+        ↓
+Control4 Event Triggered
+        ↓
+Push Notification Agent
+        ↓
+Mobile Notification Sent
+        ↓
+Snapshot Image Attached
 ```
 
 ---
@@ -380,6 +517,7 @@ Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg
 | Username | STRING | - | Camera username |
 | Password | STRING | - | Camera password |
 | Snapshot Path | STRING | /snap.jpg | Snapshot path |
+| Enable MQTT | LIST | True | Enable/disable MQTT event streaming |
 
 ### Output Properties (Read-Only/Managed)
 
@@ -393,6 +531,7 @@ Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg
 | Exchange Token | Identity token |
 | Main Stream URL | High quality RTSP URL |
 | Sub Stream URL | Low quality RTSP URL |
+| Online | Camera online status |
 
 ---
 
@@ -407,6 +546,7 @@ Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg
 4. Execute "Login/Register"
    → Authenticates user
    → Stores Auth Token
+   → MQTT auto-connects after auth
 5. Execute "Get Devices"
    → Lists your devices
 ```
@@ -437,6 +577,15 @@ Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg
 2. Execute "Get Snapshot URL"
 3. URL sent to camera proxy
 4. Test URL in browser to verify
+```
+
+### Workflow 5: Push Notifications
+```
+1. Complete Workflow 1 (auth + MQTT connected)
+2. Create notification in Agents → Push Notification
+3. Set Attachment Type = Snapshot URL
+4. In Programming, map camera event → Send Push Notification
+5. Trigger event to receive mobile notification with snapshot
 ```
 
 ---
@@ -512,6 +661,12 @@ If C4:Crypto() is unavailable:
 - Run Login/Register first
 - Check authentication succeeded
 
+**MQTT not receiving events**
+- Verify "Enable MQTT" is set to True
+- Confirm Login/Register completed successfully
+- Check motion detection is enabled in CldBus App
+- Verify network allows outbound port 8884 (MQTT over SSL)
+
 ### API Response Codes
 
 - **200 / 20000** - Success
@@ -526,9 +681,10 @@ If C4:Crypto() is unavailable:
 ### Files Structure
 
 ```
-Smart-Camera-P160-SL/
+Smart-Camera-K15-SL/
 ├── driver.lua              # Main driver logic
 ├── driver.xml              # Configuration & metadata
+├── mqtt_manager.lua        # MQTT event streaming & broker management
 ├── README.md               # This documentation
 ├── CldBusApi/              # API helper libraries
 │   ├── auth.lua
@@ -547,7 +703,7 @@ Run in PowerShell:
 .\build-c4z.ps1
 ```
 
-This creates `Smart-Camera-P160-SL-v0.1.0.c4z` ready for installation.
+This creates `Smart-Camera-K15-SL-v0.1.0.c4z` ready for installation.
 
 ### Manual Build
 
@@ -556,12 +712,13 @@ This creates `Smart-Camera-P160-SL-v0.1.0.c4z` ready for installation.
 $files = @(
     "driver.lua",
     "driver.xml",
+    "mqtt_manager.lua",
     "README.md",
     "CldBusApi\*.lua"
 )
 
 Compress-Archive -Path $files -DestinationPath "temp.zip"
-Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"
+Rename-Item "temp.zip" "Smart-Camera-K15-SL.c4z"
 ```
 
 ---
@@ -612,6 +769,8 @@ local client_id = util.uuid_v4()
 - ✅ RTSP streaming URLs
 - ✅ Snapshot support
 - ✅ PTZ controls
+- ✅ MQTT real-time event detection (SSL, port 8884)
+- ✅ Push notification support with snapshot attachment
 
 ---
 
@@ -620,7 +779,7 @@ local client_id = util.uuid_v4()
 - **Driver Version:** 0.1.0
 - **Maintainer:** Slomins
 - **Manufacturer:** Slomins
-- **Model:** P160-SL
+- **Model:** K15-SL
 - **Control4 OS:** 3.3.2+
 
 For issues or questions, check Lua Output logs for detailed error information.
