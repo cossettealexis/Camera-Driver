@@ -6,7 +6,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>MyCameraDevice</model>
     <created>2025-01-08</created>
-    <modified>2026-01-22</modified>
+    <modified>2026-03-17</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <auto_update>true</auto_update>
@@ -20,6 +20,18 @@
                 <type>STRING</type>
                 <default>Initializing...</default>
                 <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Composer Pro Email</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+             <property>
+                <name>Validation API URL</name>
+                <type>STRING</type>
+                <default>https://qa2.slomins.com/QA/OnTechSvcs/1.2/Lndu/GetCustomerInfoByControl4Mac</default>
+                <readonly>false</readonly>
             </property>
             <property>
                 <name>Account</name>
@@ -143,10 +155,6 @@
                 <name>Discover Devices </name>
                 <command>DISCOVER_DEVICES</command>
             </action>
-            <action>
-                <name>Discover Cameras (SDDP)</name>
-                <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>
             <!-- <action>
                 <name>Login/Register</name>
                 <command>LOGIN_OR_REGISTER</command>
@@ -168,10 +176,6 @@
             <command>
                 <name>DISCOVER_DEVICES</name>
                 <description>Discover Devices</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol</description>
             </command>
         </commands>
         <interfaces>
