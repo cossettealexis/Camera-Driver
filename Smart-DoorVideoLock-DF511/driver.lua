@@ -33,13 +33,17 @@ GlobalObject                 = {}
 GlobalObject.LnduBaseUrl     = "https://api.arpha-tech.com"
 GlobalObject.ClientID        = ""
 GlobalObject.ClientSecret    = ""
-GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG" -- 32 bytes = AES-256
-GlobalObject.AES_IV          = "33rj6KNVN4kFvd0s"                --16 bytes
+GlobalObject.CldBusSecret    = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
+GlobalObject.AES_IV          = "33rj6KNVN4kFvd0s"
 GlobalObject.BaseUrl         = "https://openapi.tuyaus.com"
 GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT = 8081
-GlobalObject.DeviceModel     = "df511"  
+GlobalObject.DeviceModel     = "df511"
 GlobalObject.ProductSubType  = "video_wifi_lock"
+GlobalObject.AccessToken     = nil
+GlobalObject.AccountName     = nil
+GlobalObject.AppId           = "cldbus"
 
 local last_power_status      = nil
 
@@ -243,8 +247,10 @@ function OnDriverLateInit()
     print("=== DF511 Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
 
+    -- InitializeCamera()
+
     -- Define variables for use inside the timer
-  local ip = _props["IP Address"] or Properties["IP Address"]
+    local ip = _props["IP Address"] or Properties["IP Address"]
     local http_port = Properties["HTTP Port"] or "3333"
     local rtsp_port = Properties["RTSP Port"] or "554"
     local username = Properties["Username"] or "SystemConnect"
@@ -445,14 +451,11 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "LoginOrRegister" or strCommand == "LOGIN_OR_REGISTER" then
         local country_code = (tParams and tParams.country_code) or "N"
-        local account = Properties["Account"] or "masan@slomins.com"
-
-        if account == "" then
-            print("ERROR: Account is required for login")
-            C4:UpdateProperty("Status", "Login failed: No account specified")
-            return
+        local account = Properties["Account"]
+        if not account or account == "" then
+            account = "ajang@slomins.com"
         end
-
+        
         LoginOrRegister(country_code, account)
         return
     end
@@ -554,19 +557,19 @@ function InitializeCamera()
     print("                 INITIALIZE CAMERA CALLED                        ")
     print("================================================================")
 
-    -- Generate required values
     local client_id = util.uuid_v4()
+    GlobalObject.ClientID = client_id
+
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = GlobalObject.CldBusSecret
 
     print("Client ID: " .. client_id)
     print("Request ID: " .. request_id)
     print("Time: " .. time)
     print("Version: " .. version)
 
-    -- Build the message to sign (MUST match Postman format exactly)
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
         client_id, request_id, time, version)
 
@@ -633,13 +636,13 @@ function InitializeCamera()
                 if public_key then
                     print("Received public key: " .. public_key)
 
-                    -- Store public key
-                    C4:UpdateProperty("Public Key", public_key)
-                    C4:UpdateProperty("Status", "Camera initialized successfully")
-                    C4:UpdateProperty("ClientID", client_id)
+                    local country_code = "N"
+                    local account = Properties["Account"]
+                    if not account or account == "" then
+                        account = "ajang@slomins.com"
+                    end
 
-                    _props["Public Key"] = public_key
-                    print("Public key stored successfully")
+                    LoginOrRegister(country_code, account, public_key)
                 else
                     print("No public key in response")
                     C4:UpdateProperty("Status", "Initialization failed: No public key")
@@ -730,29 +733,34 @@ function BinaryToHex(binary)
     end))
 end
 
-function LoginOrRegister(country_code, account)
+function LoginOrRegister(country_code, account, public_key)
     print("================================================================")
     print("              LOGIN OR REGISTER CALLED                          ")
     print("================================================================")
 
-    -- Check if we have a public key from initialization
-    local public_key = _props["Public Key"] or Properties["Public Key"]
-
-    if not public_key or public_key == "" then
-        print("ERROR: No public key available. Please run InitializeCamera first.")
-        C4:UpdateProperty("Status", "Login failed: No public key")
-        return
-    end
-
-    print("Using public key: " .. public_key)
     print("Country Code: " .. country_code)
     print("Account: " .. account)
+    
+    GlobalObject.AccountName = account
 
-    -- Generate required values
-    local client_id = Properties["ClientID"] or util.uuid_v4()
+    if not public_key then
+        print("No public key provided, must initialize first")
+        C4:UpdateProperty("Status", "Initializing...")
+        InitializeCamera()
+        return
+    end
+    
+    print("Using public key: " .. public_key)
+
+    local client_id = GlobalObject.ClientID
+    if not client_id or client_id == "" then
+        print("ERROR: No ClientID available. Must run InitializeCamera first.")
+        C4:UpdateProperty("Status", "Login failed: No ClientID")
+        return
+    end
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = GlobalObject.CldBusSecret
 
     print("Client ID: " .. client_id)
     print("Request ID: " .. request_id)
@@ -840,36 +848,29 @@ function LoginOrRegister(country_code, account)
             print("----------------------------------------------------------------")
 
             if code == 200 then
-                print("Login/Register succeeded")
-
-                -- Parse response
                 local ok, parsed = pcall(json.decode, resp)
-                if ok and parsed then
-                    print("Response data: " .. json.encode(parsed))
+                if ok and parsed and parsed.data then
+                    local token = parsed.data.token or parsed.data.access_token or parsed.data.jwt
 
-                    -- Store any tokens or session data
-                    if parsed.data then
-                        if parsed.data.token then
-                            _props["Auth Token"] = parsed.data.token
-                            C4:UpdateProperty("Auth Token", parsed.data.token)
-                            print("Auth token stored")
-                        end
-                        if parsed.data.user_id then
-                            _props["User ID"] = parsed.data.user_id
-                            print("User ID: " .. parsed.data.user_id)
-                        end
+                    if token and token ~= "" then
+                        _props["Auth Token"] = token
+                        GlobalObject.AccessToken = token
+                        C4:UpdateProperty("Auth Token", token)
+                        print("[Login] Auth token stored:", token)
+
+                        SendTokenToNodeAPI(token)
+                    else
+                        print("ERROR: Login succeeded but no token found")
                     end
 
                     C4:UpdateProperty("Status", "Login successful")
-
-                    -- Update UI with camera properties after successful login
-                    SendUpdateCameraProp()
+                    GET_DEVICES()
                 else
-                    print("Failed to parse response: " .. tostring(resp))
+                    print("ERROR: Failed to parse login response")
                     C4:UpdateProperty("Status", "Login failed: Invalid response")
                 end
             else
-                print("Login/Register failed with code: " .. tostring(code))
+                print("Login failed with code:", code)
                 C4:UpdateProperty("Status", "Login failed: " .. tostring(err or code))
             end
         end)
@@ -878,11 +879,62 @@ function LoginOrRegister(country_code, account)
     print("================================================================")
 end
 
--- Get Devices
+function SendTokenToNodeAPI(token)
+    local attempt = 1
+    local max_attempts = 5
+
+    local app_secret = GlobalObject.CldBusSecret
+    local function SendTokenRetry()
+        local url = "http://54.90.205.243:3000/send-to-control4"
+
+        local body = {
+            message = {
+                EventName   = "LnduUpdate",
+                Token       = token,
+                ClientID    = GlobalObject.ClientID,
+                AppId       = "cldbus",
+                AppSecret   = app_secret,
+                AccountName = GlobalObject.AccountName,
+                C4UniqueMac = C4:GetUniqueMAC()
+            }
+        }
+
+        local req = {
+            url = url,
+            method = "POST",
+            headers = {
+                ["Content-Type"]    = "application/json",
+                ["Accept-Language"] = "en",
+                ["App-Name"]        = GlobalObject.AppId
+            },
+            body = json.encode(body),
+            timeout = 10
+        }
+
+        print("[NodeAPI] Sending token , App Id and App Secret to Node API...")
+
+        transport.execute(req, function(code, resp, headers, err)
+            if code == 200 then
+                print("[NodeAPI] SUCCESS: Token delivered!")
+            else
+                print(string.format("[NodeAPI] Response: %s | Error: %s", tostring(code), tostring(err)))
+                if attempt < max_attempts then
+                    attempt = attempt + 1
+                    C4:SetTimer(5000, SendTokenRetry)
+                end
+            end
+        end)
+    end
+
+    SendTokenRetry()
+end
+
 function GET_DEVICES(p_vid)
     print("================================================================")
     print("                GET_DEVICES CALLED                              ")
     print("================================================================")
+
+    local ip = _props["IP Address"] or Properties["IP Address"]
 
     -- Get auth token from properties (bearer token)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
@@ -938,16 +990,44 @@ function GET_DEVICES(p_vid)
                 print("Parsed response:")
                 print(json.encode(parsed, { indent = true }))
 
-                -- Look for the DF511 camera device specifically by model name
+                -- Look for the DF511 lock device
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    -- Look for DF511 or solar_box_cam devices
-                    if (device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))) then
+                    -- If IP is set, match by IP
+                    if ip and ip ~= "" and device.local_ip == ip then
                         target_device = device
-                        print("Found DF511 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
+                        print("Found device matching IP " .. ip .. " at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                        break
+                    -- If no IP, just grab first DF511 device
+                    elseif (not ip or ip == "") and device.product_subtype == "video_wifi_lock" then
+                        target_device = device
+                        print("Found first DF511 device (no IP filter) at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  IP: " .. (device.local_ip or "N/A"))
+                        
+                        -- Set the IP from device if we didn't have one
+                        if device.local_ip and device.local_ip ~= "" then
+                            SET_CAMERA_IP(device.local_ip)
+                        end
                         break
                     end
                 end
+                
+                if not target_device and ip and ip ~= "" then
+                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
+                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                    return
+                end
+                
+                if not target_device then
+                    print("ERROR: No DF511 device found in response")
+                    return
+                end
+                
                 if p_vid and target_device and target_device.vid == p_vid then
                     print("Device VID matches requested VID: " .. tostring(p_vid))
                     SET_CAMERA_IP(target_device.local_ip)
@@ -1234,6 +1314,35 @@ function APPLY_MQTT_INFO()
             update_prop("Status", "MQTT info failed: " .. tostring(err or code))
         end
     end)
+end
+
+function OnNetworkBindingChanged(idBinding, bIsBound)
+    if (idBinding == 6001 and bIsBound) then
+        local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
+        local binding_ip = C4:GetBindingAddress(6001)
+        
+        print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
+        print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
+        
+        local ip_to_use = nil
+        
+        if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
+            ip_to_use = ssdp_ip                
+        end
+        
+        if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
+            ip_to_use = binding_ip
+        end
+        
+        if ip_to_use then
+            C4:UpdateProperty("IP Address", ip_to_use)
+            _props["IP Address"] = ip_to_use
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_to_use })
+            print("[BINDING] Camera IP auto-configured: " .. ip_to_use)
+        else
+            print("[BINDING] No local IP found from SSDP. Manual configuration required.")
+        end
+    end
 end
 
 function OnConnectionStatusChanged(id, port, status)
@@ -2383,7 +2492,7 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
-   -- Handle IP change from Camera Proxy
+    -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
 

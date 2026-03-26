@@ -226,7 +226,7 @@ end
 function OnDriverLateInit()
     C4:UpdateProperty("Status", "OnDriverLateInit...")
     print("=== K26 Driver Late Init ===")
-    InitializeCamera()
+    -- InitializeCamera()
     
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
@@ -460,7 +460,9 @@ function LoginOrRegister(country_code, account, public_key)
 
     print("[Login] Using public key:", public_key)
     C4:UpdateProperty("Status", "LoginOrRegister ")
-    -- Use stored ClientID
+
+    GlobalObject.AccountName = account
+
     local client_id = GlobalObject.ClientID
     if not client_id or client_id == "" then
         print("ERROR: No ClientID available. Must run InitializeCamera first.")
@@ -738,23 +740,38 @@ function GET_DEVICES(p_vid)
 
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    if ip and device.local_ip == ip then
+                    -- If IP is set, match by IP
+                    if ip and ip ~= "" and device.local_ip == ip then
                         target_device = device
                         print("Found device matching IP " .. ip .. " at index " .. i)
                         print("  Device Name: " .. (device.device_name or "N/A"))
                         print("  Model: " .. (device.model or "N/A"))
                         print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
-                    elseif not ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
+                    -- If no IP, just grab first K26 device
+                    elseif (not ip or ip == "") and device.product_subtype == "solar_box_cam" then
                         target_device = device
-                        print("Found K26 camera device (no IP filter) at index " .. i .. ": " .. (device.model or "unknown model"))
+                        print("Found first K26 device (no IP filter) at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  IP: " .. (device.local_ip or "N/A"))
+                        
+                        -- Set the IP from device if we didn't have one
+                        if device.local_ip and device.local_ip ~= "" then
+                            SET_CAMERA_IP(device.local_ip)
+                        end
                         break
                     end
                 end
                 
-                if not target_device and ip then
+                if not target_device and ip and ip ~= "" then
                     print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
                     print("Keeping SDDP-discovered IP, waiting for correct device match")
+                    return
+                end
+                
+                if not target_device then
+                    print("ERROR: No K26 device found in response")
                     return
                 end
                 

@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
@@ -24,8 +24,8 @@
         <modes>H264, H265</modes>
         <default_http_port>8080</default_http_port>
         <default_rtsp_port>8554</default_rtsp_port>
-        <default_authentication_required>False</default_authentication_required>
-        <default_authentication_type>NONE</default_authentication_type>
+        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
         <address_readonly>False</address_readonly>
@@ -81,36 +81,31 @@
         </event>
         <event>
             <id>3</id>
-            <name>Face Detected</name>
-            <description>When NAME detects a face</description>
-        </event>
-        <event>
-            <id>4</id>
             <name>Stranger Detected</name>
             <description>When NAME detects a stranger</description>
         </event>
         <event>
-            <id>5</id>
+            <id>4</id>
             <name>Doorbell Ring</name>
             <description>When NAME doorbell is pressed</description>
         </event>
         <event>
-            <id>6</id>
+            <id>5</id>
             <name>Low Battery</name>
             <description>When NAME battery is low</description>
         </event>
         <event>
-            <id>7</id>
+            <id>6</id>
             <name>Camera Online</name>
             <description>When NAME comes online</description>
         </event>
         <event>
-            <id>8</id>
+            <id>7</id>
             <name>Camera Offline</name>
             <description>When NAME goes offline</description>
         </event>
         <event>
-            <id>9</id>
+            <id>8</id>
             <name>Camera Restarted</name>
             <description>When NAME restarts</description>
         </event>
@@ -128,14 +123,14 @@
 
     <config>
         <script file="driver.lua" />
-        <documentation file="README.md">Slomins VD05 Video Doorbell Documentation</documentation>
+        <documentation file="README.html">Slomins VD05 Video Doorbell Documentation</documentation>
         <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>false</readonly>
-            </property>       
+                <readonly>true</readonly>
+            </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
@@ -145,10 +140,10 @@
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>VD05</default>
+                <default>VD05-SL</default>
                 <readonly>false</readonly>
             </property>
-            <property>
+             <property>
                 <name>Status</name>
                 <type>STRING</type>
                 <default></default>
@@ -157,7 +152,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>pyabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -209,21 +204,34 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
-      
+            <property>
+                <name>Camera Status</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
         </properties>
-        <actions>            
-            <action>
-                <name>Test Snapshot</name>
-                <command>TEST_SNAPSHOT</command>
-            </action>
-            <action>
+        <actions>
+            <!-- <action>
                 <name>Bind Device</name>
                 <command>BIND_DEVICE</command>
             </action>
             <action>
                 <name>Initialize</name>
                 <command>INITIALIZE_CAMERA</command>
-            </action>            
+            </action>
+            <action>
+                <name>Login/Register</name>
+                <command>LOGIN_OR_REGISTER</command>
+            </action>
+            <action>
+                <name>Get Temp Token</name>
+                <command>GET_TEMP_TOKEN</command>
+            </action>
+            <action>
+                <name>Get Exchange Token</name>
+                <command>GET_EXCHANGE_TOKEN</command>
+            </action>
             <action>
                 <name>Get Devices</name>
                 <command>GET_DEVICES</command>
@@ -235,38 +243,17 @@
             <action>
                 <name>Test Sub Stream</name>
                 <command>TEST_SUB_STREAM</command>
-            </action>
+            </action>            
             <action>
-                <name>Discover Cameras (HTTP Scan)</name>
-                <command>DISCOVER_CAMERAS</command>
-            </action>
-            <action>
-                <name>Discover Cameras (SDDP)</name>
-                <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>
-            <action>
-                <name>Test VD05 Discovery</name>
-                <command>TEST_VD05_DISCOVERY</command>
-            </action>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
+            </action> -->
             <action>
                 <name>Awake Camera</name>
                 <command>AWAKE_CAMERA</command>
             </action>
-            <action>
-                <name>Test Push Notification</name>
-                <command>TEST_PUSH_NOTIFICATION</command>
-            </action>
-            <action>
-                <name>Get Camera Properties</name>
-                <command>GET_CAMERA_PROPERTIES</command>
-            </action>
-            <action>
-                <name>Update UI Properties</name>
-                <command>UPDATE_UI_PROPERTIES</command>
-            </action>
-
         </actions>
-        <commands>            
+        <commands>
             <command>
                 <name>TEST_SNAPSHOT</name>
                 <description>Test camera snapshot URL</description>
@@ -285,29 +272,40 @@
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize/LoginRegister</description>
+                <description>Initialize CldBus</description>
+            </command>
+            <command>
+                <name>LOGIN_OR_REGISTER</name>
+                <description>Login or register a user</description>
+            </command>
+            <command>
+                <name>GET_TEMP_TOKEN</name>
+                <description>Get temporary token for user</description>
+            </command>
+            <command>
+                <name>GET_EXCHANGE_TOKEN</name>
+                <description>Get exchange token for user</description>
             </command>
             <command>
                 <name>GET_DEVICES</name>
                 <description>Get list of devices for user</description>
             </command>
             <command>
-                <name>DISCOVER_CAMERAS</name>
-                <description>Discover IP cameras on local network via HTTP scan</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol (multicast)</description>
-            </command>
-            <command>
-                <name>TEST_VD05_DISCOVERY</name>
-                <description>Test SDDP discovery for specific VD05 camera</description>
-            </command>
-            <command>
-                <name>SET_DEVICE_PROPERTY</name>
+                <name>AWAKE_CAMERA</name>
                 <description>Set device active via API (e.g., sddp_swt)</description>
             </command>
-
+            <command>
+                <name>GET_MQTT_INFO</name>
+                <description>Get MQTT connection info from API</description>
+            </command>
+            <command>
+                <name>CONNECT_MQTT</name>
+                <description>Connect to MQTT broker and subscribe to device events</description>
+            </command>
+            <command>
+                <name>DISCONNECT_MQTT</name>
+                <description>Disconnect from MQTT broker</description>
+            </command>
             <command>
                 <name>GET_CAMERA_PROPERTIES</name>
                 <description>Get current camera properties and send to UI</description>
@@ -315,6 +313,14 @@
             <command>
                 <name>UPDATE_UI_PROPERTIES</name>
                 <description>Update Control4 UI with current camera properties</description>
+            </command>
+            <command>
+                <name>START_HTTP_POLLING</name>
+                <description>Start HTTP polling for device events (MQTT alternative)</description>
+            </command>
+            <command>
+                <name>STOP_HTTP_POLLING</name>
+                <description>Stop HTTP polling for device events</description>
             </command>
             <command>
                 <name>PRESET_SAVE</name>
@@ -337,16 +343,6 @@
                 </params>
             </command>
         </commands>
-        <interfaces>
-            <interface>
-                <id>6001</id>
-                <type>network</type>
-                <network>
-                    <protocol>TCP</protocol>
-                    <incoming>false</incoming>
-                </network>
-            </interface>
-        </interfaces>
     </config>
     <connections>
         <connection>
@@ -362,7 +358,7 @@
             </classes>
             <hidden>True</hidden>
         </connection>
-        <connection>
+        <connection proxybindingid="5001">
             <id>6001</id>
             <facing>1</facing>
             <connectionname>Network/MQTT</connectionname>
@@ -380,13 +376,7 @@
                             <number>554</number>
                         </port>
                         <port>
-                            <number>8883</number>
-                        </port>
-                        <port>
                             <number>8884</number>
-                        </port>
-                        <port>
-                            <number>8080</number>
                         </port>
                     </ports>
                 </class>

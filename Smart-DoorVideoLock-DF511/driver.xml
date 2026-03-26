@@ -13,7 +13,6 @@
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
     <driver>DriverWorks</driver>
-    <search_type>slomins:lock</search_type>
     <composer_categories>
         <category>Security</category>
         <category>Locks</category>
@@ -71,6 +70,8 @@
             controller://driver/Slomins-doorvideolock-DF511/contents/index.html
         </web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
+        <network>true</network>
+        <address_required>true</address_required>
     </capabilities>
      <notification_attachment_provider>True</notification_attachment_provider>
      <notification_attachments>
@@ -203,6 +204,17 @@
             <description>When someone is locked outside NAME</description>
         </event>
     </events>
+
+    <search>
+        <searchtype>slomins:lock</searchtype>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true"/>
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
+
     <config>
         <script file="driver.lua"/>
         <documentation file="README.md">Slomins DF511 Door Video lock Documentation</documentation>
@@ -509,7 +521,8 @@
             <facing>1</facing>
             <connectionname>MQTT Proxy</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
                     <classname>GENERIC_PROXY</classname>

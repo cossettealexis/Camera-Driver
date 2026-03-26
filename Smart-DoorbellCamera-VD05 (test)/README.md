@@ -27,16 +27,142 @@ Complete Control4 driver for Slomins VD05 Video Doorbell Camera with full CldBus
 - Format: `rtsp://IP:8554/streamtype=0` (sub) / `streamtype=1` (main)
 - Snapshot capture via HTTP API
 
+### 🌐 **Dynamic IP Auto-Update (Online Event Handling)**
+The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.
+
+#### 🔄 How It Works
+
+Whenever the camera comes online, the driver automatically:
+- Detects the **Camera Online** event  
+- Calls the **Get Devices API**  
+- Matches the device using **VID (Virtual ID)**  
+- Retrieves the latest **local IP address**  
+- Updates the **IP Address** property in the driver  
+- Pushes the updated address to the **Control4 Camera Proxy**
+
 ### 🔔 **Real-Time Event Detection**
-- MQTT-based real-time event streaming over SSL (port 8884)
-- Doorbell ring notifications with snapshot
-- Motion detection with notification attachments
-- Human detection
-- Face detection
-- Stranger detection
-- Line crossing detection
-- Region intrusion detection
-- Camera online/offline status monitoring
+
+The driver supports **MQTT-based real-time event streaming over SSL (port 8884)** and provides notifications for the following events:
+
+* Doorbell ring notifications with snapshot
+* Motion detection with snapshot attachment
+* Human detection
+* Stranger detection
+* Camera online/offline status monitoring
+
+---
+
+## MQTT Configuration
+
+### Default Behavior
+
+MQTT is **enabled automatically by the driver after authentication**.
+
+The driver will automatically:
+
+1. Enable MQTT
+2. Fetch MQTT credentials
+3. Connect to the MQTT broker
+4. Subscribe to camera event topics
+
+You normally **do not need to enable MQTT manually**.
+
+---
+
+## CldBus App Motion Detection Settings
+
+To receive **Motion Detection** and **Human Detection** events, detection must be enabled in the **CldBus mobile app**.
+
+### Steps
+
+1. Open the **CldBus App**
+2. Select your **camera device**
+3. Tap **Settings**
+4. Navigate to:
+
+```
+Settings → Motion Detection
+```
+
+5. Under **Detection Type**, select one of the following:
+
+| Detection Type | Description |
+|----------------|-------------|
+| **All Detections** | All movement events will trigger notifications. This includes general motion detection. |
+| **Human Detection** | Only human movement will trigger events. Non-human motion will be ignored. |
+
+
+## Push Notification Configuration
+
+### 1. Create Push Notification
+
+1. Open **Composer Pro**
+2. Navigate to:
+
+```
+Agents → Push Notification
+```
+
+3. Click **Add Notification** then enter a name for the notification.
+
+Configure the following:
+
+| Setting  | Value           |
+| -------- | --------------- |
+| Category | Cameras         |
+| Severity | Info / Critical |
+| Subject  | Camera Event    |
+
+Click **Save**.
+
+---
+
+### 2. Enable Snapshot Attachment
+
+Edit the created notification and set:
+
+```
+Attachment Type = Snapshot URL
+```
+
+This allows push notifications to include the **camera snapshot image**.
+
+---
+
+### Mapping Push Notifications in Programming
+
+1. In **Composer Pro**, open **Programming**. 2. Select the **Camera Driver** from the device list. 3. In the **Events** section, choose the event you want to trigger the notification (for example **Motion Detected**).
+
+On the **right-side panel**:
+
+4. Click **Push Notifications**. 5. From the dropdown list, select the **notification you created earlier**. 6. Drag and drop the notification into the programming area **or double-click the green arrow** to add it.
+
+This maps the camera event to the push notification.
+
+Example:
+
+
+WHEN Motion Detected THEN Send Push Notification
+
+## Notification Flow
+
+```
+Camera Event (MQTT)
+        ↓
+Driver Receives Event
+        ↓
+Driver Processes Event
+        ↓
+Control4 Event Triggered
+        ↓
+Push Notification Agent
+        ↓
+Mobile Notification Sent
+        ↓
+Snapshot Image Attached
+```
+
+---
 
 ### 🔐 **Security & Authentication**
 - CldBus API integration with RSA-OAEP + SHA256 encryption
@@ -237,8 +363,7 @@ When someone presses the doorbell:
 When MQTT is enabled, driver receives real-time events:
 - **Doorbell Ring** → Notification with snapshot attachment
 - Motion detected → Alert
-- Human/Face/Stranger detected → Alerts
-- Line crossing → Intrusion alert
+- Human/Stranger detected → Alerts
 - Camera online/offline → Status updates
 
 **Configure in Properties:**
@@ -401,13 +526,11 @@ The driver triggers Control4 events for automation:
 |----------|------------|-------------|
 | 1 | Motion Detected | Doorbell detected motion (alert, with snapshot) |
 | 2 | Doorbell Ring | Button pressed - primary doorbell event |
-| 3 | Face Detected | Face detected at door |
-| 4 | Clip Recorded | Video clip saved |
-| 6 | Camera Online | Doorbell came online |
-| 7 | Camera Offline | Doorbell went offline |
-| 8 | Camera Restarted | Doorbell rebooted |
-| 9 | Line Crossing | Line crossing detection |
-| 10 | Region Intrusion | Region intrusion detection |
+| 3 | Human Detected | Person identified in frame |
+| 4 | Camera Online | Doorbell came online |
+| 5 | Camera Offline | Doorbell went offline |
+| 6 | Camera Restarted | Doorbell rebooted |
+
 
 **Event Automation Examples:**
 Use Control4 programming to:
@@ -843,7 +966,6 @@ This driver is proprietary software provided by Slomins for use with Slomins bra
 - **Doorbell Ring** - Button pressed
 - **Motion Detected** - Movement at door
 - **Human Detected** - Person identified
-- **Face Detected** - Face recognition
 - **Stranger Detected** - Unrecognized person identified
 - **Camera Offline** - Connectivity lost
 
