@@ -68,12 +68,12 @@ GlobalObject.AES_IV           = "33rj6KNVN4kFvd0s"                 --16 bytes
 GlobalObject.BaseUrl          = ""
 GlobalObject.TCP_SERVER_IP    = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT  = 8081
-GlobalObject.DeviceModel      = "vd05" --K26
-GlobalObject.CldBusAppId      = ""  -- From MAC validation API
-GlobalObject.CldBusSecret     = ""  -- From MAC validation API
-GlobalObject.CustomerEmail    = ""  -- From MAC validation API
-GlobalObject.ProductSubType   = "video_bell"
+GlobalObject.DeviceModel      = "vd05"
+GlobalObject.CldBusAppId      = ""
+GlobalObject.CldBusSecret     = ""
+GlobalObject.CustomerEmail    = ""
 GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -278,7 +278,6 @@ function ValidateMacAddress(mac)
                  
                   local data = C4:JsonDecode(decrypted_data)
                   extractedData = {}
-                  --deviceId = Properties["DeviceId"]
                 
                   if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
                      data.message.MacAddress == C4:GetUniqueMAC() then
@@ -288,6 +287,7 @@ function ValidateMacAddress(mac)
                         GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
                         C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
                         C4:UpdateProperty("AppSecret", data.message.SecretId or "")
+                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
                         print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
                    end
                 end
@@ -311,8 +311,16 @@ function OnDriverLateInit()
     C4:UpdateProperty("Status", "Ready")
     
     ValidateMacAddress(C4:GetUniqueMAC())
-    InitializeCamera()
-
+    
+    -- Wait for MAC validation to complete before initializing camera
+    C4:SetTimer(5000, function(timer)
+        if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
+            InitializeCamera()
+        else
+            print("ERROR: MAC validation did not complete - credentials not loaded")
+            C4:UpdateProperty("Status", "MAC validation failed - no credentials")
+        end
+    end)
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "8080"
@@ -467,13 +475,7 @@ function ExecuteCommand(strCommand, tParams)
         local country_code = (tParams and tParams.country_code) or "N"
         local account = Properties["Account"]
         if not account or account == "" then
-            account = GlobalObject.CustomerEmail
-        end
-        
-        if not account or account == "" then
-            print("ERROR: No customer email available")
-            C4:UpdateProperty("Status", "Login failed: No email")
-            return
+            account = "pyabu@slomins.com"
         end
 
         LoginOrRegister(country_code, account)
@@ -574,7 +576,7 @@ function InitializeCamera()
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = GlobalObject.CldBusAppId or "cldbus"
     }
     local req = {
         url = url,
@@ -597,7 +599,7 @@ function InitializeCamera()
                 local country_code = "N"
                 local account = Properties["Account"]
                 if not account or account == "" then
-                    account = GlobalObject.CustomerEmail  -- From MAC validation API
+                    account = GlobalObject.CustomerEmail
                 end
                 
                 if not account or account == "" then
@@ -680,7 +682,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] = GlobalObject.CldBusAppId
+            ["App-Name"] =  GlobalObject.CldBusAppId or "cldbus"
         }
 
         local req = {
@@ -810,7 +812,7 @@ function SendTokenToNodeAPI(token)
                 EventName   = "LnduUpdate",
                 Token       = token,
                 ClientID    = GlobalObject.ClientID,
-                AppId       = GlobalObject.CldBusAppId,
+                AppId       = GlobalObject.CldBusAppId or "cldbus",
                 AppSecret   = app_secret,
                 AccountName = GlobalObject.AccountName,
                 C4UniqueMac = C4:GetUniqueMAC()
@@ -823,7 +825,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.CldBusAppId
+                ["App-Name"]        = GlobalObject.CldBusAppId or "cldbus"
             },
             body = json.encode(body),
             timeout = 10
@@ -877,7 +879,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = GlobalObject.CldBusAppId or "cldbus"
     }
 
     local req = {
@@ -1115,7 +1117,7 @@ function APPLY_MQTT_INFO()
     local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"]      = GlobalObject.CldBusAppId
+        ["App-Name"]      = "cldbus"
     }
 
     local req = { url = url, method = "POST", headers = headers, body = body_json }
@@ -1399,7 +1401,7 @@ function GetImageForEvent(extp, done)
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
-            ["App-Name"]      = GlobalObject.CldBusAppId
+            ["App-Name"]      = "cldbus"
         },
         body = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
