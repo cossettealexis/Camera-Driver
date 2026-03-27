@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>2025-12-16</created>
-    <modified>2026-03-18</modified>
+    <modified>2026-03-27</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -109,6 +109,12 @@
         <script file="driver.lua" />
         <documentation file="README.md">Slomins P160-SL Camera Documentation</documentation>
         <properties>
+         <property>
+                <name>IP Address</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>

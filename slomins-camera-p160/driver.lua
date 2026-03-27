@@ -275,45 +275,39 @@ function OnDriverLateInit()
 
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local http_port = Properties["HTTP Port"] or "3333"   -- Uses XML default_http_port
-    local rtsp_port = Properties["RTSP Port"] or "554"    -- Uses XML default_rtsp_port
-    local username = Properties["Username"] or "SystemConnect"  -- Uses XML default_username
-    local password = Properties["Password"] or "123456"   -- Uses XML default_password
+    local http_port = "3333"
+    local rtsp_port = "554"
+    local username = "SystemConnect"
+    local password = "123456"
 
-    if ip and ip ~= "" then
-        print("Sending camera configuration to Camera Proxy:")
-        print("  IP Address: " .. ip)
-        print("  HTTP Port: " .. http_port)
-        print("  RTSP Port: " .. rtsp_port)
-        print("  Username: " .. username)
 
-        -- Send camera address and ports to Camera Proxy
-        if C4 and C4.SendToProxy then
-            C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
-            print("  Sent AUTHENTICATION_TYPE_CHANGED: BASIC to Camera Proxy")
 
-            C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "True" })
-            print("  Sent AUTHENTICATION_REQUIRED: True to Camera Proxy")
+    -- Send camera address and ports to Camera Proxy
+    if C4 and C4.SendToProxy then
+        C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
+        print("  Sent AUTHENTICATION_TYPE_CHANGED: BASIC to Camera Proxy")
 
-            C4:SendToProxy(5001, "USERNAME_CHANGED", { USERNAME = username })
-            print("  Sent USERNAME_CHANGED to Camera Proxy")
+        C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "True" })
+        print("  Sent AUTHENTICATION_REQUIRED: True to Camera Proxy")
 
-            C4:SendToProxy(5001, "PASSWORD_CHANGED", { PASSWORD = password })
-            print("  Sent PASSWORD_CHANGED to Camera Proxy")
+        C4:SendToProxy(5001, "USERNAME_CHANGED", { USERNAME = username })
+        print("  Sent USERNAME_CHANGED to Camera Proxy")
 
-            C4:SetTimer(100, function()
-                C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
-                print("  Sent ADDRESS_CHANGED to Camera Proxy")
+        C4:SendToProxy(5001, "PASSWORD_CHANGED", { PASSWORD = password })
+        print("  Sent PASSWORD_CHANGED to Camera Proxy")
 
-                C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
-                print("  Sent HTTP_PORT_CHANGED to Camera Proxy")
+        C4:SetTimer(100, function()
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
+            print("  Sent ADDRESS_CHANGED to Camera Proxy")
 
-                C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
-                print("  Sent RTSP_PORT_CHANGED to Camera Proxy")
+            C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
+            print("  Sent HTTP_PORT_CHANGED to Camera Proxy")
 
-                print("Camera Proxy configuration complete!")
-            end)
-        end
+            C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+            print("  Sent RTSP_PORT_CHANGED to Camera Proxy")
+
+            print("Camera Proxy configuration complete!")
+        end)
 
         -- Get stream path from property
         local main_stream_path = Properties["Main Stream Path"] or "streamtype=1"
@@ -808,7 +802,7 @@ function SendUpdateCameraProp(extractedData)
     -- Get current camera properties
     local camera_props = {
         address = cameraData.address or Properties["IP Address"] or "",
-        http_port = "3333",
+        http_port = cameraData.http_port or Properties["HTTP Port"] or "3333",
         rtsp_port = cameraData.rtsp_port or Properties["RTSP Port"] or "554",
         authentication_required = cameraData.authentication_required or (Properties["Authentication Type"] ~= "NONE"),
         authentication_type = cameraData.authentication_type or Properties["Authentication Type"] or "NONE",
@@ -2048,7 +2042,7 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
 
     -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "3333"
     local username = Properties["Username"] or ""
     local password = Properties["Password"] or ""
     local auth_required = Properties["Authentication Type"] ~= "NONE"
@@ -2213,7 +2207,7 @@ function GET_CAMERA_PROPERTIES()
 
     local camera_props = {
         address = Properties["IP Address"] or "",
-        http_port = "3333",
+        http_port = Properties["HTTP Port"] or "80",
         rtsp_port = Properties["RTSP Port"] or "554",
         authentication_required = (Properties["Authentication Type"] ~= "NONE"),
         authentication_type = Properties["Authentication Type"] or "NONE",
@@ -2239,7 +2233,7 @@ function GET_SNAPSHOT_URL(params)
     params = params or {}
 
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "3333"
     local username = Properties["Username"] or "SystemConnect"
     local password = Properties["Password"] or "123456"
 
@@ -2698,7 +2692,7 @@ function URL_GET(idBinding, tParams)
 
     local ip = _props["IP Address"] or Properties["IP Address"]
     local rtsp_port = Properties["RTSP Port"] or "554"
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "3333"
     local username = Properties["Username"] or ""
     local password = Properties["Password"] or ""
 
@@ -2928,7 +2922,7 @@ function GET_SNAPSHOT_QUERY_STRING(idBinding, tParams)
 
     -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "3333"
 
     if not ip or ip == "" then
         print("ERROR: IP Address not configured")
@@ -3124,7 +3118,7 @@ function GET_MJPEG_QUERY_STRING(idBinding, tParams)
 
     -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "80"
     local username = Properties["Username"] or "SystemConnect"
     local password = Properties["Password"] or "123456"
 
@@ -3173,7 +3167,7 @@ function URL_GET(idBinding, tParams)
     -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
     local rtsp_port = Properties["RTSP Port"] or "554"
-    local http_port = "3333"
+    local http_port = Properties["HTTP Port"] or "3333"
     local username = Properties["Username"] or "SystemConnect"
     local password = Properties["Password"] or "123456"
 

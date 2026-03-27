@@ -247,18 +247,16 @@ function OnDriverLateInit()
     local http_port = CameraDefaultProps.HTTPPort or "8080"
     local rtsp_port = CameraDefaultProps.RTSPPort or "8554"
 
-    if ip and ip ~= "" then
-        print("Sending camera configuration to Camera Proxy:")
-        print("  IP Address: " .. ip)
-        print("  HTTP Port: " .. http_port)
-        print("  RTSP Port: " .. rtsp_port)
+    print("Sending camera configuration to Camera Proxy:")
+    print("  IP Address: " .. ip)
+    print("  HTTP Port: " .. http_port)
+    print("  RTSP Port: " .. rtsp_port)
 
-        if C4 and C4.SendToProxy then
-            C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
-            C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
-            C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
-            print("Camera Proxy configuration complete!")
-        end
+    if C4 and C4.SendToProxy then
+        C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
+        C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+        C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
+        print("Camera Proxy configuration complete!")
     end
     
 end
