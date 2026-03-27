@@ -36,12 +36,14 @@
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
         <snapshot_cache_enabled>true</snapshot_cache_enabled>
         <snapshot_cache_duration>180</snapshot_cache_duration>
-        <has_pan>true</has_pan>
-        <has_tilt>true</has_tilt>
-        <has_zoom>true</has_zoom>
-        <number_presets>8</number_presets>
+        <has_pan>false</has_pan>
+        <has_tilt>false</has_tilt>
+        <has_zoom>false</has_zoom>
+        <number_presets>0</number_presets>
+        <has_audio_output>true</has_audio_output>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
+        <supports_streaming>true</supports_streaming>
         <hasHistory>true</hasHistory>
         <network>true</network>
         <address_required>true</address_required>
@@ -227,40 +229,6 @@
         </actions>
         <commands>
             <command>
-                <name>PTZ_MOVE</name>
-                <description>Move PTZ camera</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_START</name>
-                <description>Start continuous PTZ movement</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_STOP</name>
-                <description>Stop continuous PTZ movement</description>
-            </command>
-            <command>
                 <name>TEST_SNAPSHOT</name>
                 <description>Test camera snapshot URL</description>
             </command>
@@ -307,26 +275,6 @@
             <command>
                 <name>SET_DEVICE_PROPERTY</name>
                 <description>Set device active via API (e.g., sddp_swt)</description>
-            </command>
-            <command>
-                <name>PRESET_SAVE</name>
-                <description>Save current position as preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PRESET_RECALL</name>
-                <description>Recall a saved preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
             </command>
             <command>
                 <name>SEND_NOTIFICATION</name>
