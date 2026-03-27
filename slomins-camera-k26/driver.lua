@@ -230,8 +230,16 @@ function OnDriverLateInit()
     print("=== K26 Driver Late Init ===")
     C4:UpdateProperty("Camera Status", "Unknown")
     
-    ValidateMacAddress(C4:GetUniqueMAC(), function()
-        InitializeCamera()
+    ValidateMacAddress(C4:GetUniqueMAC())
+    
+    -- Wait for MAC validation to complete before initializing camera
+    C4:SetTimer(5000, function(timer)
+        if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
+            InitializeCamera()
+        else
+            print("ERROR: MAC validation did not complete - credentials not loaded")
+            C4:UpdateProperty("Status", "MAC validation failed - no credentials")
+        end
     end)
     
     -- Send camera configuration to Camera Proxy
@@ -255,7 +263,7 @@ function OnDriverLateInit()
     
 end
 
-function ValidateMacAddress(mac, callback)
+function ValidateMacAddress(mac)
     local requestBody = '{"MacAddress":"' .. mac .. '"}'
     local headers = {
         ["Content-Type"] = "application/json"
@@ -267,14 +275,12 @@ function ValidateMacAddress(mac, callback)
         if strError ~= nil and strError ~= "" then
             print("Error calling API: " .. strError)
             C4:UpdateProperty("Status","Error calling API: " .. strError)
-            if callback then callback() end
             return
         end
 
         if responseCode ~= 200 then
             print("HTTP Error: " .. tostring(responseCode))
             C4:UpdateProperty("Status","HTTP Error: " .. tostring(responseCode))
-            if callback then callback() end
             return
         end
 
@@ -304,37 +310,35 @@ function ValidateMacAddress(mac, callback)
                  
                   local data = C4:JsonDecode(decrypted_data)
                   extractedData = {}
-                  --deviceId = Properties["DeviceId"]
                 
                   if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
                      data.message.MacAddress == C4:GetUniqueMAC() then
                         print("ValidateMacAddress() " , data.message.EventName)
+                        
                         GlobalObject.CldBusAppId = data.message.CldBusAppId
                         GlobalObject.CldBusSecret = data.message.CldBusSecret
                         GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
+                        
                         C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
                         C4:UpdateProperty("AppSecret", data.message.SecretId or "")
+                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
                         print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
-                        if callback then callback() end
-                   else
-                        if callback then callback() end
                    end
-                else
-                    if callback then callback() end
                 end
             else
                 print("MAC Address is invalid")
                 C4:UpdateProperty("Device Response","MAC Address is invalid")
                 GlobalObject.CldBusAppId = ""
                 GlobalObject.CldBusSecret = ""
+                GlobalObject.CustomerEmail = ""
+
                 C4:UpdateProperty("AppId",  "")
                 C4:UpdateProperty("AppSecret", "")
-                if callback then callback() end
+                C4:UpdateProperty("Account", "")
             end
         else
             print("Failed to parse JSON response")
             C4:UpdateProperty("Device Response","Failed to parse JSON response")
-            if callback then callback() end
         end
     end)
 end
@@ -526,7 +530,7 @@ function InitializeCamera()
                 local country_code = "N"
                 local account = Properties["Account"]
                 if not account or account == "" then
-                    account = GlobalObject.CustomerEmail  -- From MAC validation API
+                    account = GlobalObject.CustomerEmail
                 end
                 
                 if not account or account == "" then
@@ -577,7 +581,6 @@ function LoginOrRegister(country_code, account, public_key)
     RsaOaepEncrypt(post_data_json, public_key, function(success, encrypted_data, error_msg)
         if not success or not encrypted_data then
             print("ERROR: Encryption failed:", error_msg)
-            --C4:UpdateProperty("Status", "Login failed: Encryption error")
             return
         end
 
@@ -595,7 +598,6 @@ function LoginOrRegister(country_code, account, public_key)
         }
         local body_json = json.encode(body_tbl)
 
-        --C4:UpdateProperty("Status", "Logging in...")
 
         local base_url = GlobalObject.LnduBaseUrl
         local url = base_url .. "/api/v3/openapi/auth/login-or-register"
@@ -603,7 +605,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] = GlobalObject.CldBusAppId
+            ["App-Name"] =  GlobalObject.CldBusAppId
         }
 
         local req = {
@@ -746,7 +748,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.AppId -- <<< cldbus
+                ["App-Name"]        = GlobalObject.CldBusAppId
             },
             body = json.encode(body),
             timeout = 10

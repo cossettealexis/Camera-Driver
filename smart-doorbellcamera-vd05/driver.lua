@@ -69,6 +69,7 @@ GlobalObject.BaseUrl          = ""
 GlobalObject.TCP_SERVER_IP    = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT  = 8081
 GlobalObject.DeviceModel      = "vd05"
+GlobalObject.ProductSubType   = "video_bell"
 GlobalObject.CldBusAppId      = ""
 GlobalObject.CldBusSecret     = ""
 GlobalObject.CustomerEmail    = ""
@@ -282,9 +283,11 @@ function ValidateMacAddress(mac)
                   if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
                      data.message.MacAddress == C4:GetUniqueMAC() then
                         print("ValidateMacAddress() " , data.message.EventName)
+                        
                         GlobalObject.CldBusAppId = data.message.CldBusAppId
                         GlobalObject.CldBusSecret = data.message.CldBusSecret
                         GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
+                        
                         C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
                         C4:UpdateProperty("AppSecret", data.message.SecretId or "")
                         C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
@@ -296,8 +299,11 @@ function ValidateMacAddress(mac)
                 C4:UpdateProperty("Device Response","MAC Address is invalid")
                 GlobalObject.CldBusAppId = ""
                 GlobalObject.CldBusSecret = ""
+                GlobalObject.CustomerEmail = ""
+
                 C4:UpdateProperty("AppId",  "")
                 C4:UpdateProperty("AppSecret", "")
+                C4:UpdateProperty("Account", "")
             end
         else
             print("Failed to parse JSON response")
@@ -321,6 +327,7 @@ function OnDriverLateInit()
             C4:UpdateProperty("Status", "MAC validation failed - no credentials")
         end
     end)
+
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "8080"
@@ -475,7 +482,7 @@ function ExecuteCommand(strCommand, tParams)
         local country_code = (tParams and tParams.country_code) or "N"
         local account = Properties["Account"]
         if not account or account == "" then
-            account = "pyabu@slomins.com"
+            account = GlobalObject.CustomerEmail
         end
 
         LoginOrRegister(country_code, account)
@@ -576,7 +583,7 @@ function InitializeCamera()
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId or "cldbus"
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
     local req = {
         url = url,
@@ -682,7 +689,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] =  GlobalObject.CldBusAppId or "cldbus"
+            ["App-Name"] =  GlobalObject.CldBusAppId
         }
 
         local req = {
@@ -812,7 +819,7 @@ function SendTokenToNodeAPI(token)
                 EventName   = "LnduUpdate",
                 Token       = token,
                 ClientID    = GlobalObject.ClientID,
-                AppId       = GlobalObject.CldBusAppId or "cldbus",
+                AppId       = GlobalObject.CldBusAppId,
                 AppSecret   = app_secret,
                 AccountName = GlobalObject.AccountName,
                 C4UniqueMac = C4:GetUniqueMAC()
@@ -825,7 +832,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.CldBusAppId or "cldbus"
+                ["App-Name"]        = GlobalObject.CldBusAppId
             },
             body = json.encode(body),
             timeout = 10
@@ -879,7 +886,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId or "cldbus"
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
 
     local req = {

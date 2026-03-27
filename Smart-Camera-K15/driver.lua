@@ -132,6 +132,80 @@ function TcpConnection()
     
 end
 
+function ValidateLocal(email, mac, callback)
+   
+    -- Build URL
+    local url = Properties["Validation API URL"] or "https://qa2.slomins.com/QA/OnTechSvcs/1.2/Lndu/GetCustomerInfoByControl4Mac"
+
+    -- Format MAC for API
+    local apiMac = (mac or ""):gsub("[:%-]", ""):upper()
+
+    -- Safety check
+    if #apiMac ~= 12 then
+        print("[ValidateLocal] ERROR: Invalid MAC format:", apiMac)
+        callback(false)
+        return
+    end
+
+   
+    -- Debug Logs
+    print("[ValidateLocal] Email:", email)
+    print("[ValidateLocal] Raw MAC:", mac)
+    print("[ValidateLocal] API MAC:", apiMac)
+    print("[ValidateLocal] URL:", url)
+
+   
+    -- Payload
+    
+    local payload = {
+        AppNamespace = "",
+        AppSid       = "2A326E58-39F6-4CE9-9C12-6C0A56AE1D28",
+        AppVersion   = "-1",
+        CheckVersion = "false",
+        IpAddress    = "",
+        Latitude     = nil,
+        Longitude    = nil,
+        Control4Mac  = apiMac        
+    }
+
+    print("[ValidateLocal] Payload:", json.encode(payload))
+
+    
+    -- API Call
+    
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = { ["Content-Type"] = "application/json" },
+        body    = json.encode(payload)
+    }, function(code, resp, headers, err)
+
+        print("[ValidateLocal] Response Code:", code)
+        print("[ValidateLocal] Response Body:", resp)
+
+        if code == 200 then
+            local ok, data = pcall(json.decode, resp)
+            if ok and data then
+                local isValid = (data.Acknowledge == 1) and (data.CustomerEmail == email)
+
+                if isValid then
+                    print("[ValidateLocal] ✅ VALIDATION PASSED")
+                else
+                    print("[ValidateLocal] ❌ VALIDATION FAILED")
+                end
+
+                callback(isValid)
+            else
+                print("[ValidateLocal] ERROR: Failed to decode response")
+                callback(false)
+            end
+        else
+            print("[ValidateLocal] ERROR: API request failed with code", code)
+            callback(false)
+        end
+    end)
+end
+
 --[[
     Logs property changes for debugging purposes.
     Displays the property name and its new value, or indicates
@@ -679,6 +753,24 @@ function GET_DEVICES(p_vid)
     print("                GET_DEVICES CALLED                              ")
     print("================================================================")
 
+    -- Validate user first
+    local compEmail = Properties["Composer Pro Email"] or ""
+    local controllerMac = C4:GetUniqueMAC()
+    local apiMac = controllerMac:gsub("[:%-]", ""):upper()
+
+    if compEmail == "" or controllerMac == "" then
+        print("[GET_DEVICES] ERROR: Missing Composer Pro Email or MAC address")
+        return
+    end
+
+    ValidateLocal(compEmail, apiMac, function(isValid)
+        if not isValid then
+            print("[GET_DEVICES] ❌ Validation failed - Unauthorized Access")
+            return
+        end
+
+        print("[GET_DEVICES] ✅ Validation passed - proceeding with device fetch")
+
     -- Get auth token from properties (bearer token)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
 
@@ -801,6 +893,7 @@ function GET_DEVICES(p_vid)
             --C4:UpdateProperty("Status", "Get devices failed: " .. tostring(err or code))
         end
     end)
+    end) -- End ValidateLocal callback
 
     print("================================================================")
 end
