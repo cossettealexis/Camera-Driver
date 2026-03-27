@@ -40,6 +40,10 @@ GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT = 8081
 GlobalObject.DeviceModel     = "df511"  
 GlobalObject.ProductSubType  = "video_wifi_lock"
+GlobalObject.CldBusAppId      = ""
+GlobalObject.CldBusSecret     = ""
+GlobalObject.CustomerEmail    = ""
+GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
 local last_power_status      = nil
 
@@ -239,9 +243,101 @@ end
 
 
 
+function ValidateMacAddress(mac)
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'  
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+
+     C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers,true,
+        function(ticketId, strData, responseCode, tHeaders, strError)
+
+        if strError ~= nil and strError ~= "" then
+            print("Error calling API: " .. strError)
+            C4:UpdateProperty("Status","Error calling API: " .. strError)
+            return
+        end
+
+        if responseCode ~= 200 then
+            print("HTTP Error: " .. tostring(responseCode))
+            C4:UpdateProperty("Status","HTTP Error: " .. tostring(responseCode))
+            return
+        end
+
+        local response = C4:JsonDecode(strData)
+        if response then
+            if response.IsValidMacAddress == true then
+                print("MAC Address is valid")
+                C4:UpdateProperty("Status","MAC Address is valid")
+                
+                local strData = response.EncryptMsg
+                if string.sub(strData, -2) == "\r\n" then
+                  strData = string.sub(strData, 1, -3)
+                end
+          
+                local cipher = 'AES-256-CBC'
+                local options = {
+                    return_encoding = 'NONE',
+                    key_encoding = 'NONE',
+                    iv_encoding = 'NONE',
+                    data_encoding = 'BASE64',
+                    padding = true,
+                }
+
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
+                
+                if (decrypted_data ~= nil) then
+                 
+                  local data = C4:JsonDecode(decrypted_data)
+                  extractedData = {}
+                
+                  if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
+                     data.message.MacAddress == C4:GetUniqueMAC() then
+                        print("ValidateMacAddress() " , data.message.EventName)
+                        
+                        GlobalObject.CldBusAppId = data.message.CldBusAppId
+                        GlobalObject.CldBusSecret = data.message.CldBusSecret
+                        GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
+                        
+                        C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
+                        C4:UpdateProperty("AppSecret", data.message.SecretId or "")
+                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
+                        print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
+                   end
+                end
+            else
+                print("MAC Address is invalid")
+                C4:UpdateProperty("Device Response","MAC Address is invalid")
+                GlobalObject.CldBusAppId = ""
+                GlobalObject.CldBusSecret = ""
+                GlobalObject.CustomerEmail = ""
+
+                C4:UpdateProperty("AppId",  "")
+                C4:UpdateProperty("AppSecret", "")
+                C4:UpdateProperty("Account", "")
+            end
+        else
+            print("Failed to parse JSON response")
+            C4:UpdateProperty("Device Response","Failed to parse JSON response")
+        end
+    end)
+end
+
 function OnDriverLateInit()
     print("=== DF511 Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
+    
+    ValidateMacAddress(C4:GetUniqueMAC())
+    
+    -- Wait for MAC validation to complete before initializing camera
+    C4:SetTimer(5000, function(timer)
+        if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
+            InitializeCamera()
+        else
+            print("ERROR: MAC validation did not complete - credentials not loaded")
+            C4:UpdateProperty("Status", "MAC validation failed - no credentials")
+        end
+    end)
 
     -- Define variables for use inside the timer
   local ip = _props["IP Address"] or Properties["IP Address"]
@@ -431,6 +527,157 @@ function OnPropertyChanged(strProperty)
     end
 end
 
+function ReceivedFromNetwork(id, port, data)
+    MQTT.onData(id, port, data)
+
+    if id ~= TCP_BINDING_ID or not data or data == "" then return end
+
+    print("[TCP RX] Encrypted:", data)
+
+    -- Strip CRLF delimiter if present
+    if string.sub(data, -2) == "\r\n" then
+        data = string.sub(data, 1, -3)
+    end
+
+    local cipher = "AES-256-CBC"
+    local options = {
+        return_encoding = "NONE",
+        key_encoding    = "NONE",
+        iv_encoding     = "NONE",
+        data_encoding   = "BASE64",
+        padding         = true,
+    }
+
+    local decrypted, err = C4:Decrypt(
+        cipher,
+        GlobalObject.AES_KEY,
+        GlobalObject.AES_IV,
+        data,
+        options
+    )
+
+    if not decrypted then
+        print("[TCP] Decryption failed:", tostring(err))
+        return
+    end
+
+    print("[TCP RX] Decrypted:", decrypted)
+
+    local ok, decoded = pcall(json.decode, decrypted)
+    if not ok or type(decoded) ~= "table" then
+        print("[TCP] JSON decode failed (dkjson)")
+        return
+    end
+    local payload = decoded.message or decoded
+
+    if payload.C4UniqueMac and payload.C4UniqueMac ~= C4:GetUniqueMAC() then
+        print("[TCP] Unique MAC mismatch. Ignoring message.", tostring(payload.C4UniqueMac))
+        return
+    end
+
+    -- Handle UpdateClientSecretId event FIRST (before filtering for LnduUpdate)
+    if payload.EventName == "UpdateClientSecretId" and payload.MacAddress == C4:GetUniqueMAC() then
+        print("ReceivedFromNetwork() UpdateClientSecretId")
+        GlobalObject.CldBusAppId = payload.CldBusAppId
+        GlobalObject.CldBusSecret = payload.CldBusSecret
+        C4:UpdateProperty("AppId", payload.CldBusAppId or "")
+        C4:UpdateProperty("AppSecret", payload.CldBusSecret or "")
+        print("[TCP] Credentials updated via TCP")
+        return
+    end
+
+    -- Filter for LnduUpdate events only
+    if payload.EventName ~= "LnduUpdate" then
+        print("[TCP] Ignoring Event:", tostring(payload.EventName))
+        return
+    end
+
+    print("[TCP] Processing LnduUpdate payload")
+
+    -- Token
+    if payload.Token and payload.Token ~= "" then
+        print("[TCP] Auth Token received")
+        UpdateAuthToken(payload.Token)
+    else
+        print("[TCP] Token missing in payload")
+    end
+
+    -- AppId
+    if payload.AppId and payload.AppId ~= "" then
+        GlobalObject.CldBusAppId = payload.AppId
+        _props["AppId"] = payload.AppId
+        C4:UpdateProperty("AppId", payload.AppId)
+        print(string.format("[PROP] AppId updated => %s", payload.AppId))
+    end
+
+    -- AppSecret
+    if payload.AppSecret and payload.AppSecret ~= "" then
+        GlobalObject.CldBusSecret = payload.AppSecret
+        _props["AppSecret"] = payload.AppSecret
+        C4:UpdateProperty("AppSecret", payload.AppSecret)
+        print("[PROP] AppSecret updated (hidden)")
+    end
+
+    print("[TCP] LnduUpdate processing complete")
+end
+
+function OnNetworkBindingChanged(idBinding, bIsBound)
+    if (idBinding == 6001 and bIsBound) then
+        local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
+        local binding_ip = C4:GetBindingAddress(6001)
+        
+        print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
+        print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
+        
+        local ip_to_use = nil
+        
+        if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
+            ip_to_use = ssdp_ip
+        end
+        
+        if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
+            ip_to_use = binding_ip
+        end
+        
+        if ip_to_use then
+            C4:UpdateProperty("IP Address", ip_to_use)
+            _props["IP Address"] = ip_to_use
+            C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_to_use })
+            print("[BINDING] Camera IP auto-configured: " .. ip_to_use)
+        else
+            print("[BINDING] No local IP found from SSDP. Manual configuration required.")
+        end
+    end
+end
+
+function OnConnectionStatusChanged(id, status, connected)
+    if id ~= TCP_BINDING_ID then return end
+
+    _tcpConnected = (connected == "ONLINE")
+
+    print(string.format("[TCP] Status: %s | Connected: %s", status, tostring(_tcpConnected)))
+
+    if _tcpConnected and _pendingAuthToken then
+        print("[AUTH] TCP online, sending queued token")
+        UpdateAuthToken(_pendingAuthToken)
+        _pendingAuthToken = nil
+    end
+end
+
+function UpdateAuthToken(token)
+    if not token or token == "" then return end
+
+    if not _tcpConnected then
+        print("[AUTH] TCP offline, queueing token")
+        _pendingAuthToken = token
+        return
+    end
+
+    _props["Auth Token"] = token
+    C4:UpdateProperty("Auth Token", token)
+    print("[AUTH] Auth Token updated:", token)
+end
+
 function ExecuteCommand(strCommand, tParams)
     print("ExecuteCommand called: " .. strCommand)
 
@@ -445,7 +692,7 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "LoginOrRegister" or strCommand == "LOGIN_OR_REGISTER" then
         local country_code = (tParams and tParams.country_code) or "N"
-        local account = Properties["Account"] or "masan@slomins.com"
+        local account = Properties["Account"] or GlobalObject.CustomerEmail or ""
 
         if account == "" then
             print("ERROR: Account is required for login")
@@ -598,7 +845,7 @@ function InitializeCamera()
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = "cldbus"
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
 
     local req = {
@@ -815,7 +1062,7 @@ function LoginOrRegister(country_code, account)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] = "cldbus"
+            ["App-Name"] = GlobalObject.CldBusAppId
         }
 
         local req = {
@@ -905,7 +1152,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = "cldbus"
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
 
     local req = {
@@ -938,14 +1185,31 @@ function GET_DEVICES(p_vid)
                 print("Parsed response:")
                 print(json.encode(parsed, { indent = true }))
 
-                -- Look for the DF511 camera device specifically by model name
+                local ip = _props["IP Address"] or Properties["IP Address"]
+                
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    -- Look for DF511 or solar_box_cam devices
-                    if (device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))) then
+                    -- If IP is set, match by IP address
+                    if ip and ip ~= "" and device.local_ip == ip then
                         target_device = device
-                        print("Found DF511 camera device at index " .. i .. ": " .. (device.model or "unknown model"))
+                        print("Found device matching IP " .. ip .. " at index " .. i)
+                        print("  Device Name: " .. (device.device_name or "N/A"))
+                        print("  Model: " .. (device.model or "N/A"))
+                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
+                    -- If no IP set, filter by model or product subtype
+                    elseif (not ip or ip == "") then
+                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                        
+                        if model_match or subtype_match then
+                            target_device = device
+                            print("Found DF511 device (no IP filter) at index " .. i)
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
                     end
                 end
                 if p_vid and target_device and target_device.vid == p_vid then
@@ -963,10 +1227,14 @@ function GET_DEVICES(p_vid)
 
                     C4:UpdateProperty("VID", target_device.vid)
 
-                    -- Store IP address if available
+                    -- Set IP Address if found and not already set
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        SET_CAMERA_IP(target_device.local_ip)
-                        print("  IP Address property updated to: " .. target_device.local_ip)
+                        if not ip or ip == "" then
+                            SET_CAMERA_IP(target_device.local_ip)
+                            print("  IP Address property updated to: " .. target_device.local_ip)
+                        else
+                            print("  IP Address already set to: " .. ip)
+                        end
                     end
                     -- Enable MQTT after VID is set
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
@@ -1055,7 +1323,7 @@ function SET_DEVICE_PROPERTY(tParams)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Accept-Language"] = "en",
-        ["App-Name"] = "cldbus",
+        ["App-Name"] = GlobalObject.CldBusAppId,
         ["Authorization"] = "Bearer " .. auth_token
     }
 
@@ -1155,7 +1423,7 @@ function APPLY_MQTT_INFO()
     local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"]      = "cldbus"
+        ["App-Name"]      = GlobalObject.CldBusAppId
     }
 
     local req = { url = url, method = "POST", headers = headers, body = body_json }
@@ -1409,7 +1677,7 @@ function GetImageForEvent(extp, done)
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
-            ["App-Name"]      = "cldbus"
+            ["App-Name"]      = GlobalObject.CldBusAppId
         },
         body = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
@@ -2874,7 +3142,7 @@ function QUERY_NOTIFICATIONS(tParams)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = "cldbus"
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
 
     local req = {

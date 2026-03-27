@@ -872,14 +872,9 @@ function GET_DEVICES(p_vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
--- Set IP Address if found and not already set
-                    if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
-                            SET_CAMERA_IP(target_device.local_ip)
-                            print("  IP Address property updated to: " .. target_device.local_ip)
-                        else
-                            print("  IP Address already set to: " .. ip)
-                        end
+
+                    _props["VID"] = target_device.vid
+                    C4:UpdateProperty("VID", target_device.vid)
 
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
@@ -887,9 +882,14 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
+                    -- Set IP Address if found and not already set
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        SET_CAMERA_IP(target_device.local_ip)
-                        print("  IP Address property updated to: " .. target_device.local_ip)
+                        if not ip or ip == "" then
+                            SET_CAMERA_IP(target_device.local_ip)
+                            print("  IP Address property updated to: " .. target_device.local_ip)
+                        else
+                            print("  IP Address already set to: " .. ip)
+                        end
                     end
                     
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
@@ -1218,21 +1218,23 @@ function ReceivedFromNetwork(id, port, data)
         return
     end
 
+    -- Handle UpdateClientSecretId event FIRST (before filtering for LnduUpdate)
+    if payload.EventName == "UpdateClientSecretId" and payload.MacAddress == C4:GetUniqueMAC() then
+        print("ReceivedFromNetwork() UpdateClientSecretId")
+        GlobalObject.CldBusAppId = payload.CldBusAppId
+        GlobalObject.CldBusSecret = payload.CldBusSecret
+        C4:UpdateProperty("AppId", payload.CldBusAppId or "")
+        C4:UpdateProperty("AppSecret", payload.CldBusSecret or "")
+        print("[TCP] Credentials updated via TCP")
+        return
+    end
+
+    -- Filter for LnduUpdate events only
     if payload.EventName ~= "LnduUpdate" then
         print("[TCP] Ignoring Event:", tostring(payload.EventName))
         return
     end
-    if payload and payload.EventName == "UpdateClientSecretId" and payload.MacAddress == C4:GetUniqueMAC() then
-                print("ReceivedFromNetwork() UpdateClientSecretId", id, port, data)
-                GlobalObject.CldBusAppId = payload.CldBusAppId
-                GlobalObject.CldBusAppSecret = payload.CldBusSecret
-                C4:UpdateProperty("AppId", payload.CldBusAppId or "")
-                C4:UpdateProperty("AppSecret", payload.CldBusSecret or "")
-            end
-    if payload.EventName ~= "LnduUpdate" then
-        print("[TCP] Ignoring Event:", tostring(payload.EventName))
-        return
-    end
+
     print("[TCP] Processing LnduUpdate payload")
 
     -- Token

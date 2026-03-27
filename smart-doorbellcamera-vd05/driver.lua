@@ -1140,7 +1140,7 @@ function APPLY_MQTT_INFO()
     local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"]      = "cldbus"
+        ["App-Name"]      = GlobalObject.CldBusAppId
     }
 
     local req = { url = url, method = "POST", headers = headers, body = body_json }
@@ -1424,7 +1424,7 @@ function GetImageForEvent(extp, done)
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
-            ["App-Name"]      = "cldbus"
+            ["App-Name"]      = GlobalObject.CldBusAppId
         },
         body = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
