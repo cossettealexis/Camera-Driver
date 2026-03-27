@@ -1,0 +1,9 @@
+﻿<Driver type="c4z" name="Slomins_MyDevice">
+ <Items>
+  <Item type="dir" c4zDir="www" name="www" recurse="true" exclude="false" />
+  <Item type="file" name="dkjson.lua" />
+  <Item type="file" name="driver.xml" />
+  <Item type="file" name="mydevice.lua" />
+  <Item type="file" name="sha256.lua" />
+ </Items>
+</Driver>
