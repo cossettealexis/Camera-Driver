@@ -921,17 +921,27 @@ function GET_DEVICES(p_vid)
 
                 local target_device = nil
                 for i, device in ipairs(devices) do
-                    if ip and device.local_ip == ip then
+                    -- If IP is set, match by IP address
+                    if ip and ip ~= "" and device.local_ip == ip then
                         target_device = device
                         print("Found device matching IP " .. ip .. " at index " .. i)
                         print("  Device Name: " .. (device.device_name or "N/A"))
                         print("  Model: " .. (device.model or "N/A"))
                         print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
-                    elseif not ip and device.model and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType)) then
-                        target_device = device
-                        print("Found VD05 camera device (no IP filter) at index " .. i .. ": " .. (device.model or "unknown model"))
-                        break
+                    -- If no IP set, filter by model or product subtype
+                    elseif (not ip or ip == "") then
+                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                        
+                        if model_match or subtype_match then
+                            target_device = device
+                            print("Found VD05 device (no IP filter) at index " .. i)
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
                     end
                 end
                 
@@ -957,8 +967,14 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
+                    -- Set IP Address if found and not already set
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        print("  IP Address property updated to: " .. target_device.local_ip)
+                        if not ip or ip == "" then
+                            SET_CAMERA_IP(target_device.local_ip)
+                            print("  IP Address property updated to: " .. target_device.local_ip)
+                        else
+                            print("  IP Address already set to: " .. ip)
+                        end
                     end
                     
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
