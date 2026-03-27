@@ -13,7 +13,6 @@
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
     <driver>DriverWorks</driver>
-    <search_type>slomins:camera</search_type>
     <composer_categories>
         <category>Cameras</category>
     </composer_categories>
@@ -44,6 +43,8 @@
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
         <hasHistory>true</hasHistory>
+        <network>true</network>
+        <address_required>true</address_required>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
@@ -93,6 +94,16 @@
             <description>When NAME restarts</description>
         </event>
     </events>
+
+    <search>
+        <searchtype>slomins:camera</searchtype>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true"/>
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
 
     <config>
         <script file="driver.lua" />
@@ -345,7 +356,8 @@
             <facing>1</facing>
             <connectionname>MQTT Proxy</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
                     <classname>GENERIC_PROXY</classname>
