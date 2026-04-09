@@ -1136,7 +1136,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = "cldbus"  -- Use hardcoded value like My-Camera-Devices
+        ["App-Name"] = GlobalObject.CldBusAppId
     }
 
     local req = {
