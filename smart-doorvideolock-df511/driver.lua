@@ -676,7 +676,7 @@ function UpdateAuthToken(token)
 end
 
 function ExecuteCommand(strCommand, tParams)
-    print("ExecuteCommand called: " .. strCommand)
+    print("ExecuteCommand called: " .. tostring(strCommand))
 
     if strCommand == "GET_STREAM" then
         return ""
@@ -690,13 +690,11 @@ function ExecuteCommand(strCommand, tParams)
     if strCommand == "LoginOrRegister" or strCommand == "LOGIN_OR_REGISTER" then
         local country_code = (tParams and tParams.country_code) or "N"
         local account = Properties["Account"] or GlobalObject.CustomerEmail or ""
-
         if account == "" then
             print("ERROR: Account is required for login")
             C4:UpdateProperty("Status", "Login failed: No account specified")
             return
         end
-
         LoginOrRegister(country_code, account)
         return
     end
@@ -710,29 +708,32 @@ function ExecuteCommand(strCommand, tParams)
         TEST_MAIN_STREAM(tParams)
         return
     end
+
     if strCommand == "TEST_SUB_STREAM" then
         TEST_SUB_STREAM(tParams)
         return
     end
 
-
-
     if strCommand == "DISCOVER_CAMERAS" then
         DISCOVER_CAMERAS(tParams)
         return
     end
+
     if strCommand == "DISCOVER_CAMERAS_SDDP" then
         DISCOVER_CAMERAS_SDDP(tParams)
         return
     end
+
     if strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(tParams)
         return
     end
+
     if strCommand == "TEST_WAKE_LOCAL" then
         TEST_WAKE_LOCAL()
         return
     end
+
     if strCommand == "TEST_PUSH_NOTIFICATION" then
         SEND_TEST_NOTIFICATION()
         return
@@ -740,15 +741,6 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "UPDATE_UI_PROPERTIES" then
         SendUpdateCameraProp()
-        return
-    end
-
-    if strCommand == "Lock" then
-        SEND_LOCK_COMMAND(true, tParams)
-        return
-    end
-    if strCommand == "Unlock" then
-        SEND_LOCK_COMMAND(false, tParams)
         return
     end
 
@@ -761,37 +753,50 @@ function ExecuteCommand(strCommand, tParams)
         return ""
     end
 
-    local cmd = strCommand:match("^%s*(.-)%s*$")
-    local cmdLower = cmd:lower()
+    -- ====================== LOCK COMMANDS ======================
+    if strCommand == "LOCK_DOOR" or strCommand == "Lock" then
+        print("🔐 LOCK_DOOR / Lock command received")
+        LockDoorHardware()
+        return
+    end
 
-    print("ExecuteCommand called:", cmd, "params:", tParams.command)
+    if strCommand == "UNLOCK_DOOR" or strCommand == "Unlock" then
+        print("🔐 UNLOCK_DOOR / Unlock command received")
+        UnlockDoorHardware()
+        return
+    end
 
-    -- =========================
-    -- Handle SetLockUnlock (PADLOCK SOURCE)
-    -- =========================
+    -- Handle SetLockUnlock (from padlock / UI)
+    local cmdLower = string.lower(strCommand:match("^%s*(.-)%s*$") or "")
     if cmdLower == "setlockunlock" then
-        local action = (tParams.command or ""):lower()
-
+        local action = ""
+        if tParams then
+            action = string.lower(tParams.command or tParams.ACTION or "")
+        end
         print("ExecuteCommand → SetLockUnlock action:", action)
 
         if action == "lock" then
-            SEND_LOCK_COMMAND(true)
+            LockDoorHardware()
         elseif action == "unlock" then
-            SEND_LOCK_COMMAND(false)
+            UnlockDoorHardware()
         else
             print("Unknown SetLockUnlock action:", action)
         end
         return
     end
 
-    -- Handle LUA_ACTION wrapper
+    -- Safe LUA_ACTION wrapper (prevent infinite recursion)
     if strCommand == "LUA_ACTION" and tParams then
-        if tParams.ACTION then
-            ExecuteCommand(tParams.ACTION, tParams)
+        local action = tParams.ACTION or tParams.action
+        if action and action ~= "LUA_ACTION" then
+            print("LUA_ACTION forwarded to:", action)
+            ExecuteCommand(action, tParams)
         end
+        return
     end
-end
 
+    print("WARNING: Unknown ExecuteCommand:", strCommand)
+end
 
 function InitializeCamera()
     print("================================================================")
@@ -1131,7 +1136,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = "cldbus"  -- Use hardcoded value like My-Camera-Devices
     }
 
     local req = {
@@ -2647,22 +2652,43 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     end
 
     -- Handle camera proxy commands
-    if idBinding == 5003 or idBinding == 8001 then
-        if strCommand == "SELECT" then
-            -- Send current lock state to UI
-            local currentLockState = _props["Lock Status"] or "UNKNOWN"
-            local iconState = (currentLockState == "LOCKED" and "locked") or
-                (currentLockState == "UNLOCKED" and "unlocked") or "unknown"
-            local jsonString = "{ \"state\": \"" .. iconState .. "\" }"
-            C4:SendToProxy(8001, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
-            C4:SendToProxy(8001, "UPDATE_UI", {})
-            return
-        end
+   if idBinding == 5003 or idBinding == 8001 then
+    if strCommand == "SELECT" then
+        local saved = Properties["Lock Status"] or _props["Lock Status"] or "UNKNOWN"
+        CURRENT_LOCK_STATE = saved
+        local iconState = (saved == "LOCKED" and "locked") or
+                          (saved == "UNLOCKED" and "unlocked") or "unknown"
+        print("[SELECT] Restoring state:", saved, "->", iconState)
 
-        if strCommand == "CAMERA_LIVE_PREVIEW" then
-            return ""
-        end
+        local jsonString = '{"icon":"' .. iconState .. '","state":"' .. iconState .. '"}'
+        C4:SendToProxy(5003, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
+        C4:SendToProxy(5003, "UPDATE_UI", {})
+        C4:SendToProxy(8001, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
+        C4:SendToProxy(8001, "UPDATE_UI", {})
+
+        -- Push at 500ms and 1500ms to catch WebView load
+        C4:SetTimer(500, function() PushLockStateToUI(iconState) end)
+        C4:SetTimer(1500, function() PushLockStateToUI(iconState) end)
+        return
     end
+
+    if strCommand == "sendCameraPreviewCommand" or strCommand == "REQUEST_SETTINGS" then
+        print("[WEBVIEW] Page loaded, pushing state")
+        local saved = Properties["Lock Status"] or _props["Lock Status"] or "UNKNOWN"
+        CURRENT_LOCK_STATE = saved
+        local iconState = (saved == "LOCKED" and "locked") or
+                          (saved == "UNLOCKED" and "unlocked") or "unknown"
+
+        C4:SetTimer(300, function() PushLockStateToUI(iconState) end)
+        C4:SetTimer(1000, function() PushLockStateToUI(iconState) end)
+        C4:SetTimer(2500, function() PushLockStateToUI(iconState) end)
+        return
+    end
+
+    if strCommand == "CAMERA_LIVE_PREVIEW" then
+        return ""
+    end
+end
 
     if idBinding == 5001 then
         -- Camera properties
@@ -2969,32 +2995,78 @@ function sendCloudbusRequest(url, token, body, callback)
 end
 
 -- =====================================
--- Update Lock State & Animate
+-- LOCK STATE PERSISTENCE & UI SYNC
 -- =====================================
+CURRENT_LOCK_STATE = CURRENT_LOCK_STATE or "UNKNOWN"
+
+function SaveLockStateToFile(iconState)
+    local jsonContent = '{"state":"' .. iconState .. '","icon":"' .. iconState .. '"}'
+    -- ✅ Also write a JS file that sets the state before page loads
+    local jsContent = 'window._initialLockState="' .. iconState .. '";'
+    
+    local basePaths = {
+        "/mnt/internal/c4z/Slomins-doorvideolock-DF511/www/contents/",
+        "/mnt/internal/c4z/smart-doorvideolock-df511/www/contents/",
+    }
+    
+    for _, path in ipairs(basePaths) do
+        local f1 = io.open(path .. "lockstate.json", "w")
+        if f1 then
+            f1:write(jsonContent)
+            f1:close()
+            
+            -- ✅ Write the JS file too
+            local f2 = io.open(path .. "lockstate.js", "w")
+            if f2 then
+                f2:write(jsContent)
+                f2:close()
+            end
+            
+            print("[FILE] Lock state saved:", jsonContent)
+            return
+        end
+    end
+end
+
+function PushLockStateToUI(iconState)
+    local jsonString = '{"icon":"' .. iconState .. '","state":"' .. iconState .. '"}'
+    print("[UI] Pushing lock state to WebView:", jsonString)
+    C4:SendDataToUI(jsonString)
+end
+
 function updateLockState(state)
-    -- Normalize state
-    local normalized = (state == "LOCKED" and "LOCKED") or (state == "UNLOCKED" and "UNLOCKED") or "UNKNOWN"
+    local normalized = (state == "LOCKED" and "LOCKED") or
+                       (state == "UNLOCKED" and "UNLOCKED") or "UNKNOWN"
+    CURRENT_LOCK_STATE = normalized
     print("Updating lock state:", normalized)
 
-    --  Update Lock Status property (for automation)
+    -- Persist to property
     C4:UpdateProperty("Lock Status", normalized)
+    _props["Lock Status"] = normalized
 
-    -- Force padlock update
-    local iconState = (normalized == "LOCKED" and "locked") or (normalized == "UNLOCKED" and "unlocked") or "unknown"
-    local jsonString = "{ \"status\": \"" .. normalized .. "\" }"
+    local iconState = (normalized == "LOCKED" and "locked") or
+                      (normalized == "UNLOCKED" and "unlocked") or "unknown"
 
-    if C4 and C4.SendToProxy then
-        C4:SetTimer(100, function()
-            -- Lock proxy (automation)
-            C4:SendToProxy(5002, "LOCK_STATUS_CHANGED", { LOCK_STATUS = iconState })
+    -- Persist to file (for WebView to read on next open)
+    SaveLockStateToFile(iconState)
 
-            -- UI proxy (padlock icon)
-            C4:SendToProxy(5003, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
-            C4:SendToProxy(5003, "UPDATE_UI", {})
-        end)
-    end
+    -- Update lock proxy
+    C4:SendToProxy(5002, "LOCK_STATUS_CHANGED", { LOCK_STATUS = iconState })
 
-    -- Fire events for automation
+    -- Update navigator tile icons
+    local jsonString = '{"icon":"' .. iconState .. '","state":"' .. iconState .. '"}'
+    C4:SendToProxy(5003, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
+    C4:SendToProxy(5003, "UPDATE_UI", {})
+    C4:SendToProxy(8001, "ICON_CHANGED", { icon = iconState, icon_description = jsonString })
+    C4:SendToProxy(8001, "UPDATE_UI", {})
+
+    -- Push to WebView (triggers onDataToUi in JS)
+    PushLockStateToUI(iconState)
+    C4:SetTimer(600, function()
+        PushLockStateToUI(iconState)
+    end)
+
+    -- Fire events
     if normalized == "LOCKED" then
         C4:FireEvent("Lock")
     elseif normalized == "UNLOCKED" then
@@ -3391,7 +3463,6 @@ function RTSP_URL_PUSH(idBinding, tParams)
     end
 
     -- Check if authentication is required
-    --changed here
     local auth_required = Properties["Authentication Type"] ~= "NONE"
 
     -- Build RTSP URL for main stream (high quality for Control4 app)
@@ -3437,4 +3508,18 @@ function GetRtspUrl()
     else
         return string.format("rtsp://%s:%s/streamtype=0", ip, port)
     end
+end
+
+
+-- ================================================
+-- CONTROL4 LOCK PROXY COMMANDS (required)
+-- ================================================
+function LOCK_DOOR(idBinding, tParams)
+    print("🔐 LOCK_DOOR command received from Control4")
+    LockDoorHardware()
+end
+
+function UNLOCK_DOOR(idBinding, tParams)
+    print("🔐 UNLOCK_DOOR command received from Control4")
+    UnlockDoorHardware()
 end

@@ -1,10 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart-Camera-DF511-SL — Control4 Driver</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #24292e;
+    background: #fff;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  h1 { font-size: 32px; border-bottom: 1px solid #e1e4e8; padding-bottom: 10px; margin: 0 0 16px; }
+  h2 { font-size: 24px; border-bottom: 1px solid #e1e4e8; padding-bottom: 6px; margin: 40px 0 14px; }
+  h3 { font-size: 18px; margin: 28px 0 10px; }
+  h4 { font-size: 15px; margin: 20px 0 8px; color: #444; }
+
+  p  { margin: 0 0 14px; color: #444; }
+  a  { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  ul, ol { padding-left: 24px; margin: 0 0 14px; color: #444; }
+  li { margin-bottom: 4px; }
+
+  strong { color: #24292e; }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 3px;
+    padding: 2px 5px;
+    color: #e36209;
+  }
+
+  pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 12px 0 20px;
+  }
+
+  pre code { background: none; border: none; padding: 0; color: #24292e; font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0 20px; }
+  th { background: #f6f8fa; border: 1px solid #e1e4e8; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { border: 1px solid #e1e4e8; padding: 8px 12px; color: #444; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  blockquote { border-left: 4px solid #dfe2e5; margin: 0 0 14px; padding: 4px 16px; color: #6a737d; }
+  hr { border: none; border-top: 1px solid #e1e4e8; margin: 36px 0; }
+  img { max-width: 100%; }
+</style>
+</head>
+<body>
+
+
+
+<!-- Markdown source embedded below; rendered client-side using marked.js -->
+<div id="content"></div>
+
+<script id="readme-md" type="text/plain">
 # Smart-Camera-DF511-SL — Control4 Driver
 
 ## Overview
 
 Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, PTZ support, lock control, and real-time MQTT event detection.
 
-**Version:** 0.1.0
+**Version:** 1.0.2
 **Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)
 **Minimum Control4 OS:** 3.3.2+
 
@@ -666,7 +740,7 @@ local client_id = util.uuid_v4()
 
 # Version History
 
-### v0.1.0
+### v1.0.0
 
 * Complete API integration
 * RSA-OAEP encryption
@@ -678,6 +752,10 @@ local client_id = util.uuid_v4()
 * Lock proxy integration
 * MQTT real-time event detection
 * Push notification support
+
+### v1.0.1
+* HTML Readme File
+* Dynamic credentials retrieval
 
 ---
 
@@ -695,3 +773,21 @@ For issues check **Lua Output logs** in Composer Pro.
 # License
 
 Copyright © 2025 Slomins. All Rights Reserved.
+</script>
+
+<!-- Marked.js from CDN (renders markdown to HTML) -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  (function(){
+    try {
+      const md = document.getElementById('readme-md').textContent || '';
+      const html = marked.parse(md);
+      document.getElementById('content').innerHTML = html;
+    } catch (e) {
+      document.getElementById('content').textContent = 'Failed to render README: ' + e;
+    }
+  })();
+</script>
+
+</body>
+</html>

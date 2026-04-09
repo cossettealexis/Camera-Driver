@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins DF511 Door Video Lock</name>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>DF511</model>
     <created>2025-1-27</created>
-    <modified>2026-3-19</modified>
+    <modified>2026-4-2</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -217,7 +217,7 @@
 
     <config>
         <script file="driver.lua"/>
-        <documentation file="README.md">Slomins DF511 Door Video lock Documentation</documentation>
+        <documentation file="README.html">Slomins DF511 Door Video lock Documentation</documentation>
       <properties>
             <property>
                 <name>IP Address</name>

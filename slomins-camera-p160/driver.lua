@@ -501,6 +501,10 @@ function ExecuteCommand(strCommand, tParams)
         DISCOVER_CAMERAS_SDDP(tParams)
         return
     end
+    if strCommand == "MSEARCH_DISCOVERY" then
+        MSEARCH_DISCOVERY(tParams)
+        return
+    end
     if strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(tParams)
         return
@@ -2606,6 +2610,119 @@ function DISCOVER_CAMERAS(tParams)
     end)
 end
 
+-- MSEARCH_DISCOVERY - Test SSDP discovery by scanning network for cameras
+function MSEARCH_DISCOVERY(tParams)
+    print("================================================================")
+    print("         M-SEARCH (SSDP DISCOVERY) - P160 CAMERA TEST           ")
+    print("================================================================")
+
+    C4:UpdateProperty("Status", "Testing SSDP M-SEARCH discovery...")
+
+    print("This test scans for P160 cameras (port 3333) to see if they respond")
+    print("to network discovery attempts.")
+    print("")
+
+    local cameras_found = {}
+    local scan_count = 0
+
+    -- Get controller's network
+    local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
+    print("Controller IP: " .. controller_ip)
+
+    -- Extract network prefix
+    local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
+    if not network_prefix then
+        print("ERROR: Could not determine network range")
+        C4:UpdateProperty("Status", "M-SEARCH failed: Invalid network")
+        return
+    end
+
+    print("Scanning network: " .. network_prefix .. ".1-254 on port 3333 (P160)")
+    print("")
+
+    -- Scan for P160 cameras on port 3333
+    for i = 1, 254 do
+        local test_ip = network_prefix .. "." .. i
+        scan_count = scan_count + 1
+
+        C4:urlGet("http://" .. test_ip .. ":3333/", {}, false,
+            function(strError, responseCode, tHeaders, data)
+                if responseCode and (responseCode == 200 or responseCode == 401) then
+                    -- Check if already found
+                    local already_found = false
+                    for _, cam in ipairs(cameras_found) do
+                        if cam.ip == test_ip then
+                            already_found = true
+                            break
+                        end
+                    end
+
+                    if not already_found then
+                        table.insert(cameras_found, {
+                            ip = test_ip,
+                            port = 3333,
+                            response_code = responseCode
+                        })
+
+                        print("")
+                        print("*** P160 CAMERA FOUND ***")
+                        print("  IP: " .. test_ip)
+                        print("  Port: 3333")
+                        print("  Response Code: " .. responseCode)
+                        print("")
+                    end
+                end
+            end
+        )
+    end
+
+    print("M-SEARCH scan initiated for " .. scan_count .. " IP addresses")
+    print("Waiting 8 seconds for responses...")
+    print("")
+
+    -- Wait for responses
+    C4:SetTimer(8000, function(timer)
+        print("")
+        print("================================================================")
+        print("              M-SEARCH (SSDP) SCAN COMPLETE                     ")
+        print("================================================================")
+        print("Scanned: " .. scan_count .. " IP addresses")
+        print("Found: " .. #cameras_found .. " P160 camera(s)")
+        print("")
+
+        if #cameras_found > 0 then
+            print("Discovered P160 Cameras:")
+            for idx, cam in ipairs(cameras_found) do
+                print(string.format("  [%d] %s:%d (Response: %d)",
+                    idx, cam.ip, cam.port, cam.response_code))
+            end
+            print("")
+
+            -- Auto-map first camera
+            local first_camera = cameras_found[1]
+            print("Auto-mapping first camera...")
+            print("  IP Address: " .. first_camera.ip)
+            print("  HTTP Port: 3333")
+            print("")
+
+            C4:UpdateProperty("IP Address", first_camera.ip)
+            C4:UpdateProperty("HTTP Port", "3333")
+
+            C4:UpdateProperty("Status", string.format("M-SEARCH: Found %d camera(s)", #cameras_found))
+        else
+            print("No P160 cameras found via M-SEARCH")
+            print("")
+            print("NOTE: P160 cameras may not respond to SSDP broadcast.")
+            print("This is normal for cloud-based cameras.")
+            print("Use 'Discover Cameras (HTTP Scan)' instead.")
+            print("")
+            C4:UpdateProperty("Status", "M-SEARCH: No cameras found")
+        end
+
+        print("================================================================")
+    end)
+end
+
 -- GET_STREAM_URLS - Return streaming URLs for various codecs
 function GET_STREAM_URLS(idBinding, tParams)
     print("================================================================")
@@ -2855,6 +2972,39 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
+    
+    -- Handle Control4 automatic discovery scan
+    if strCommand == "SEARCH" then
+        print("SEARCH command received - scanning for P160 cameras on port 3333")
+        
+        local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
+        local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
+        
+        if network_prefix then
+            print("Scanning network: " .. network_prefix .. ".1-254 on port 3333")
+            
+            -- Quick scan for P160 cameras (port 3333)
+            for i = 1, 254 do
+                local test_ip = network_prefix .. "." .. i
+                
+                C4:urlGet("http://" .. test_ip .. ":3333/", {}, false,
+                    function(strError, responseCode, tHeaders, data)
+                        if responseCode and (responseCode == 200 or responseCode == 401) then
+                            print("P160 Camera found at: " .. test_ip)
+                            
+                            -- Announce to Control4 discovery system
+                            C4:SendToProxy(5001, "MATCH_FOUND", {
+                                ["1"] = test_ip  -- Property ID 1 = IP Address
+                            })
+                        end
+                    end
+                )
+            end
+        end
+        
+        return
+    end
+    
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]

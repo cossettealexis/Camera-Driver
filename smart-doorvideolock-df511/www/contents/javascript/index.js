@@ -3,93 +3,166 @@ const lockStatus = smartLockBtn.querySelector('.lock_status');
 const cameraBtn = document.querySelector('.camera-panel');
 let unlocking = false;
 let timeoutId = 0;
-let snapshotTimer = null;
 var player = null;
 var video_quality = 'SD';
 let totalBytes = 0;
 let lastReportTime = Date.now();
+window._initialLockState="unknown";
+// ======================
+// Debug Panel
+// ======================
+function dbg(msg) {
+    var panel = document.getElementById('debugPanel');
+    if (!panel) return;
+    var line = document.createElement('div');
+    line.textContent = new Date().toLocaleTimeString() + ' → ' + msg;
+    panel.appendChild(line);
+    panel.scrollTop = panel.scrollHeight;
+}
 
+// lockstate.js already set window._initialLockState
+(function() {
+    if (window._initialLockState && window._initialLockState !== 'unknown') {
+        // Can't use querySelector yet, so use a CSS class on body
+        document.write('<style>' +
+            (window._initialLockState === 'locked' 
+                ? '.smart_lock_btn{background:radial-gradient(ellipse at center,#e4efe9 0%,#93a5cf 100%)!important;border-color:#00aaff!important}.unlock_icon{display:none!important}.lock_icon{display:block!important}'
+                : '.lock_icon{display:none!important}.unlock_icon{display:block!important}') +
+            '</style>');
+    }
+})();
+// ======================
+// Apply Lock State to UI
+// ======================
+function applyLockState(state) {
+    dbg("applyLockState: " + state);
+    if (state === "locked") {
+        smartLockBtn.classList.add('lock');
+        lockStatus.textContent = 'Hold to unlock';
+    } else if (state === "unlocked") {
+        smartLockBtn.classList.remove('lock');
+        lockStatus.textContent = 'Hold to lock';
+    }
+}
 
+// ======================
+// Init
+// ======================
+// ✅ Add this - poll file for state changes while screen is open
+var statePoller = null;
+
+function startStatePolling() {
+    if (statePoller) return; // already running
+    dbg("polling started");
+    statePoller = setInterval(function() {
+        fetch('lockstate.json?t=' + Date.now())
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.state && data.state !== "unknown") {
+                    if (window._lastKnownState !== data.state) {
+                        dbg("✅ poll change: " + data.state);
+                        window._lastKnownState = data.state;
+                        applyLockState(data.state);
+                    }
+                }
+            })
+            .catch(function() {});
+    }, 2000); // check every 2 seconds
+}
+
+function stopStatePolling() {
+    if (statePoller) {
+        clearInterval(statePoller);
+        statePoller = null;
+        dbg("polling stopped");
+    }
+}
 
 document.addEventListener("DOMContentLoaded", function () {
     try {
-        // Initial request to Control4
-        C4.sendCommand("sendCameraPreviewCommand", "", false, false);
+        dbg("DOM ready");
+
+        // ✅ Apply from JS variable INSTANTLY - no fetch needed
+        if (window._initialLockState && window._initialLockState !== 'unknown') {
+            dbg("✅ instant state: " + window._initialLockState);
+            applyLockState(window._initialLockState);
+            window._lastKnownState = window._initialLockState;
+        }
+
+        // Fetch file as backup and start polling
+        fetch('lockstate.json?t=' + Date.now())
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.state && data.state !== 'unknown' && 
+                    data.state !== window._lastKnownState) {
+                    dbg("file update: " + data.state);
+                    applyLockState(data.state);
+                    window._lastKnownState = data.state;
+                }
+            })
+            .catch(function(e) { dbg("no file: " + e.message); });
+
+        startStatePolling();
+
         C4.subscribeToDataToUi(true);
         C4.subscribeToVariable("LAST_ROOM_SELECTED");
         C4.subscribeToVariable("LAST_MENU_SELECTED");
+        C4.sendCommand("sendCameraPreviewCommand", "", false, false);
+
+        setTimeout(function() {
+            C4.sendCommand("REQUEST_SETTINGS", "", false, false);
+        }, 300);
+
     } catch (error) {
-        console.error("Error initializing Control4:", error);
+        dbg("INIT ERROR: " + error.message);
     }
 });
 
 // ======================
-// Handle updates from Control4
+// Receive live updates from Lua (C4:SendDataToUI)
 // ======================
 function onDataToUi(value) {
+    // ✅ Always re-show UI and apply state immediately
     try {
-        console.log('onDataToUi', value);
+        const obj = JSON.parse(value);
 
-        const root = JSON.parse(value);
+        // Skip C4 system messages
+        if (!obj.icon && !obj.state && !obj.C4Message) {
+            return;
+        }
 
-        // ---------- CAMERA STREAM ----------
-        if (root.C4Message && root.C4Message.Data) {
-            const data = JSON.parse(root.C4Message.Data);
-
-            if (data.stream_url) {
-                console.log("Camera stream received:", data.stream_url);
-
-                if (data.video_quality) {
-                    video_quality = data.video_quality;
+        // Handle camera stream
+        if (obj.C4Message && obj.C4Message.Data) {
+            try {
+                const data = JSON.parse(obj.C4Message.Data);
+                if (data.stream_url) {
+                    if (data.video_quality) video_quality = data.video_quality;
+                    startTuyaStream(data.stream_url);
                 }
-
-                startTuyaStream(data.stream_url);
-            }
+            } catch(e) {}
+            return;
         }
 
-        var elements = document.getElementsByClassName('smartlockui');
-        if (elements.length > 0 && elements[0].style.display === 'none') {
-            elements[0].style.display = 'block';
+        // ✅ Handle lock state update
+        const state = obj.icon || obj.state;
+        if (state && state !== "unknown") {
+            dbg("✅ live: " + state);
+            applyLockState(state);
+
+            // ✅ Also update the lockstate.json cache in memory
+            window._lastKnownState = state;
         }
 
-        let jsonObject = JSON.parse(value);
-
-        // Prefer icon field from Lua
-        if (jsonObject.hasOwnProperty("icon")) {
-            if (jsonObject.icon === "locked") {
-                smartLockBtn.classList.add('lock');
-                lockStatus.textContent = 'Hold to unlock';
-            } else if (jsonObject.icon === "unlocked") {
-                smartLockBtn.classList.remove('lock');
-                lockStatus.textContent = 'Hold to lock';
-            }
-        }
-
-        // Optional: show message from API
-        if (jsonObject.hasOwnProperty("icon_description")) {
-            let iconDataObject = JSON.parse(jsonObject.icon_description);
-            if (iconDataObject.apiresponse) {
-                $(".sucess_popup").text(iconDataObject.apiresponse)
-                setTimeout(function () {
-                    $(".sucess_popup").fadeIn(500).delay(500).fadeOut(2000);
-                }, 500);
-            }
-        }
-
-       
-
-    } catch (error) {
-        console.error("Error parsing JSON:", error);
+    } catch (e) {
+        dbg("ERR: " + e.message);
     }
 }
 
-
 // ======================
-// Lock button events
+// Lock button hold events
 // ======================
 smartLockBtn.addEventListener('mousedown', beginUnlocking);
 smartLockBtn.addEventListener('touchstart', beginUnlocking);
-
 window.addEventListener('mouseup', resetUnlocking);
 window.addEventListener('touchend', resetUnlocking);
 
@@ -111,19 +184,17 @@ function beginUnlocking() {
         if (!elements.hasClass('lock')) {
             smartLockBtn.classList.add('lock');
             lockStatus.textContent = 'Hold to unlock';
-            sendHandleSelect('lock'); // Control4 UI
-            onLockUnlockSelected('lock'); // Composer Pro
+            sendLockCommand('lock');
         } else {
             smartLockBtn.classList.remove('lock');
             lockStatus.textContent = 'Hold to lock';
-            sendHandleSelect('unlock'); // Control4 UI
-            onLockUnlockSelected('unlock'); // Composer Pro
+            sendLockCommand('unlock');
         }
 
         $('.circle-shade').hide();
         $('.circle-shade circle').addClass('lock').removeClass('unlock');
         unlocking = false;
-    }, 2000); // hold duration
+    }, 2000);
 }
 
 function resetUnlocking() {
@@ -134,55 +205,22 @@ function resetUnlocking() {
     unlocking = false;
 }
 
-// ======================
-// Send command to Control4 HandleSelect
-// ======================
-function sendHandleSelect(action) {
-    console.log('sendHandleSelect:', action);
-
-    // Only use SetLockUnlock — do NOT send Menu
+function sendLockCommand(action) {
+    dbg("sendLockCommand: " + action);
     try {
-        const params = JSON.stringify({ command: action }); // "lock" or "unlock"
-        C4.sendCommand("SetLockUnlock", params, false, true);
-    } catch (error) {
-        console.error("Error sending SetLockUnlock:", error);
-    }
-}
-
-
-// ======================
-// Send command to Composer Pro SetLockUnlock
-// ======================
-function onLockUnlockSelected(command) {
-    console.log('onLockUnlockSelected:', command);
-
-    const params = JSON.stringify({ command: command });
-
-    try {
-        C4.sendCommand("SetLockUnlock", params, false, true);
-    } catch (error) {
-        console.error("Error sending SetLockUnlock:", error);
+        C4.sendCommand("SetLockUnlock", JSON.stringify({ command: action }), false, true);
+    } catch (e) {
+        dbg("cmd error: " + e.message);
     }
 }
 
 // ======================
-// Errors & Variables
+// C4 callbacks
 // ======================
-function onVariable(value) {
-    console.log("Received variable:", value);
-}
-
-function onSendCommandError(message) {
-    console.log("Error sending command:", message);
-}
-
-function onSubscribeToDataToUi(message) {
-    console.log("Error subscribing to data to UI:", message);
-}
-
-function onSubscribeToVariableError(variable, message) {
-    console.log("Error subscribing to variable:", variable, message);
-}
+function onVariable(value) { console.log("onVariable:", value); }
+function onSendCommandError(msg) { dbg("cmd error: " + msg); }
+function onSubscribeToDataToUi(msg) { dbg("sub error: " + msg); }
+function onSubscribeToVariableError(v, msg) { dbg("var error: " + v + " " + msg); }
 
 // ======================
 // Disable text selection
@@ -190,7 +228,6 @@ function onSubscribeToVariableError(variable, message) {
 $(document).ready(function () {
     $('body').disableSelection();
 });
-
 $.fn.extend({
     disableSelection: function () {
         this.each(function () {
@@ -203,161 +240,65 @@ $.fn.extend({
 });
 
 // ======================
-// Live Preview Button
+// Camera Preview
 // ======================
-cameraBtn.addEventListener('click', () => {
-    startCameraPreview();
-});
+cameraBtn.addEventListener('click', () => startCameraPreview());
 
 function startCameraPreview() {
     try {
-        flashCameraIcon();
+         stopStatePolling();
+        const icon = cameraBtn.querySelector('.camera-icon');
+        icon.style.color = '#01ff70';
+        setTimeout(() => icon.style.color = '#01a6fe', 300);
 
-        const videoContainer = document.getElementById('videoContainer');
-        const loader = document.getElementById('streamLoader');
-      //  const img = document.getElementById('mjpegStream');
+        document.getElementById('videoContainer').style.display = 'block';
+        document.getElementById('streamLoader').style.display = 'block';
 
-        videoContainer.style.display = 'block';
-        loader.style.display = 'block';
-      //  img.style.display = 'none';
-
-        C4.sendCommand(
-            "CAMERA_LIVE_PREVIEW",
-            JSON.stringify({}),
-            false,
-            true
-        );
+        C4.sendCommand("CAMERA_LIVE_PREVIEW", JSON.stringify({}), false, true);
     } catch (e) {
-        console.error("Camera preview error:", e);
+        dbg("preview error: " + e.message);
     }
 }
 
-
-function flashCameraIcon() {
-    const icon = cameraBtn.querySelector('.camera-icon');
-    icon.style.color = '#01ff70';
-    setTimeout(() => icon.style.color = '#01a6fe', 300);
-}
-
-// ======================
-// Snapshot Streaming (Control4-Safe)
-// ======================
-function startSnapshot(url) {
-   
-   // const img = document.getElementById('mjpegStream');
-    const loader = document.getElementById('streamLoader');
-
-    loader.style.display = 'none';
-    img.style.display = 'block';
-
-    clearInterval(snapshotTimer);
-  //  snapshotTimer = setInterval(() => {
-  //      img.src = url + '?t=' + Date.now();
-  //  }, 500);
-}
+document.getElementById('btnCloseVideo').addEventListener('click', () => {
+    document.getElementById('videoContainer').style.display = 'none';
+    if (player) { player.destroy(); player = null; }
+       startStatePolling();
+});
 
 function startVideoStream(url) {
     const canvas = document.getElementById('videoCanvas');
-    canvas.style.display = 'block'; // show canvas
-
-    // Destroy previous player if exists
-    if (window.player) {
-        window.player.destroy();
-    }
-
-    // Initialize JSMpeg player
+    canvas.style.display = 'block';
+    if (window.player) { window.player.destroy(); }
     window.player = new JSMpeg.Player(url, {
-        canvas: canvas,
-        autoplay: true,
-        audio: false,
-        loop: true,
+        canvas: canvas, autoplay: true, audio: false, loop: true,
     });
-
-    // Hide loader once started
     document.getElementById('streamLoader').style.display = 'none';
 }
 
-
-
-// ======================
-// Receive WebView Messages from Lua
-// ======================
-
-function onMessage(message) {
-    console.log("Raw Message from Lua:", message);
-
-    try {
-        const data = (typeof message === 'string')
-            ? JSON.parse(message)
-            : message;
-
-        // Use stream_url from Lua
-        const rtspUrl = data.stream_url || data.url; 
-        if (rtspUrl && rtspUrl.startsWith("rtsp://")) {
-            console.log("Starting Tuya RTSP stream:", rtspUrl);
-            startTuyaStream(rtspUrl); // <-- route through Tuya WS
-        } else if (rtspUrl) {
-            // Fallback for already converted WebSocket URL
-            startVideoStream(rtspUrl);
-        }
-    } catch (e) {
-        console.error("onMessage error:", e);
-    }
-}
-
-
-
-
-document.getElementById('btnCloseVideo').addEventListener('click', () => {
-    const vc = document.getElementById('videoContainer');
-  //  const img = document.getElementById('mjpegStream');
-
-    vc.style.display = 'none';
-  //  img.src = ''; // stop stream
-});
-
 function startTuyaStream(rtspUrl) {
-
     const encodedUrl = btoa(rtspUrl);
-    const wsUrl =
-        'wss://tuya.slomins.com/api/ffmpeg'
-        + '?url=' + encodedUrl
-        + '&quality=' + video_quality.toLowerCase();
+    const wsUrl = 'wss://tuya.slomins.com/api/ffmpeg?url=' + encodedUrl + '&quality=' + video_quality.toLowerCase();
+    dbg("stream: " + wsUrl.substring(0, 50));
 
-    console.log("WS STREAM:", wsUrl);
-
-    const videoContainer = document.getElementById('videoContainer');
-    const loader = document.getElementById('streamLoader');
     const canvas = document.getElementById('videoCanvas');
-
-    videoContainer.style.display = 'block';
-    loader.style.display = 'block';
+    document.getElementById('videoContainer').style.display = 'block';
+    document.getElementById('streamLoader').style.display = 'block';
     canvas.style.display = 'none';
 
-    if (player) {
-        player.destroy();
-        player = null;
-    }
+    if (player) { player.destroy(); player = null; }
 
     player = new JSMpeg.Player(wsUrl, {
-        canvas: canvas,
-        autoplay: true,
-        audio: true,
-        loop: false,
-
+        canvas: canvas, autoplay: true, audio: true, loop: false,
         onSourceEstablished: (source) => {
             source.socket.binaryType = 'arraybuffer';
-            source.socket.addEventListener('message', e => {
-                totalBytes += e.data.byteLength;
-            });
+            source.socket.addEventListener('message', e => { totalBytes += e.data.byteLength; });
         },
-
         onVideoDecode: () => {
             const now = Date.now();
             if (now - lastReportTime >= 1000) {
-                totalBytes = 0;
-                lastReportTime = now;
-                loader.style.display = 'none';
+                totalBytes = 0; lastReportTime = now;
+                document.getElementById('streamLoader').style.display = 'none';
                 canvas.style.display = 'block';
             }
         }

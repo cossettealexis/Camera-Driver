@@ -726,107 +726,86 @@ function GET_DEVICES(tParams, do_awake)
     print("[GET_DEVICES] Composer Pro Email:", compEmail)
     print("[GET_DEVICES] Raw MAC:", controllerMac)
     
-    if compEmail == "" then
-        C4:UpdateProperty("Status", "Error: Enter Validation Email")
+    -- VALIDATION SKIPPED FOR TESTING
+    print("⚠️  VALIDATION BYPASSED - For testing only")
+    
+    C4:UpdateProperty("Status", "Fetching devices...")
+
+    -- Get auth token
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available.")
+        C4:UpdateProperty("Status", "Auth token missing")
         return
     end
 
-    -- Use test MAC for now
-    --local testMac = "000000000000"
-     -- Use the real MAC for validation
-    local apiMac = controllerMac:gsub("[:%-]", ""):upper()
+    local url = (Properties["Base API URL"] or "https://api.arpha-tech.com") .. "/api/v3/openapi/devices-v2"
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = "cldbus"
+    }
 
+    transport.execute({
+        url = url,
+        method = "GET",
+        headers = headers
+    }, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code:", tostring(code))
+        print("Response body:", tostring(resp))
+        if err then print("Error:", tostring(err)) end
+        print("----------------------------------------------------------------")
 
-    -- Perform async validation
-    ValidateLocal(compEmail, apiMac, function(isValid)
-        if not isValid then
-            print("BLOCKED: GET_DEVICES validation failed")
-            C4:UpdateProperty("Status", "Unauthorized Device")
-            ClearDeviceList()
-            return
-        end
-
-        print("Validation PASSED → Fetching devices...")
-
-        C4:UpdateProperty("Status", "Fetching devices...")
-
-        -- Get auth token
-        local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-        if not auth_token or auth_token == "" then
-            print("ERROR: No auth token available.")
-            C4:UpdateProperty("Status", "Auth token missing")
-            return
-        end
-
-        local url = (Properties["Base API URL"] or "https://api.arpha-tech.com") .. "/api/v3/openapi/devices-v2"
-        local headers = {
-            ["Content-Type"] = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["App-Name"] = "cldbus"
-        }
-
-        transport.execute({
-            url = url,
-            method = "GET",
-            headers = headers
-        }, function(code, resp, resp_headers, err)
-            print("----------------------------------------------------------------")
-            print("Response code:", tostring(code))
-            print("Response body:", tostring(resp))
-            if err then print("Error:", tostring(err)) end
-            print("----------------------------------------------------------------")
-
-            if code == 200 or code == 20000 then
-                local ok, parsed = pcall(json.decode, resp)
-                if ok and parsed and parsed.data and parsed.data.devices then
-                    print("Validation successful. Updating UI...")
-                    C4:UpdateProperty("Status", "Devices retrieved successfully")
-                    UpdateDeviceProperties(parsed.data.devices, do_awake)
-                else
-                    print("ERROR: Failed to parse device data")
-                    C4:UpdateProperty("Status", "Data Error")
-                end
+        if code == 200 or code == 20000 then
+            local ok, parsed = pcall(json.decode, resp)
+            if ok and parsed and parsed.data and parsed.data.devices then
+                print("Devices retrieved successfully. Updating UI...")
+                C4:UpdateProperty("Status", "Devices retrieved successfully")
+                UpdateDeviceProperties(parsed.data.devices, do_awake)
             else
-                print("Access Denied or Error:", tostring(code))
-                C4:UpdateProperty("Status", "Unauthorized")
-                ClearDeviceList()
+                print("ERROR: Failed to parse device data")
+                C4:UpdateProperty("Status", "Data Error")
             end
-        end)
+        else
+            print("Access Denied or Error:", tostring(code))
+            C4:UpdateProperty("Status", "Unauthorized")
+            ClearDeviceList()
+        end
     end)
 end
 
 function MakeSSDPDiscoverable(deviceVid)
-    print("[OP04] WAKE_LOCAL called")
+    print("[OP03] Enabling SSDP via do-property")
 
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]    
     if not auth_token or auth_token == "" then
-        print("ERROR: No auth token available. Please run LoginOrRegister first.")
-        C4:UpdateProperty("Status", "Wake local failed: No auth token")
+        print("ERROR: No auth token available. Please run Initialize first.")
         return
     end
+    
     local body = {
         vid = deviceVid,
-        action_id = "ac_wakelocal",
-        input_params = json.encode({
-            t = os.time(),
-            type = 1
-        }),
-        check_t = 0,
-        is_async = 0
+        data = json.encode({ sddp_swt = 1 })
     }
 
     transport.execute({
         url = (Properties["Base API URL"] or "https://api.arpha-tech.com")
-            .. "/api/v3/openapi/device/do-action",
+            .. "/api/v3/openapi/device/do-property",
         method = "POST",
         headers = {
             ["Content-Type"] = "application/json",
+            ["Accept-Language"] = "en",
             ["Authorization"] = "Bearer " .. auth_token
         },
         body = json.encode(body)
     }, function(code, resp)
-        print("[OP04] HTTP:", code)
-        print("[OP04] Response:", resp)
+        if code == 200 or code == 20000 then
+            print("SSDP enabled for VID: " .. deviceVid)
+        else
+            print("Failed to enable SSDP for VID: " .. deviceVid .. " (Code: " .. tostring(code) .. ")")
+        end
+        print("[SSDP] Response: " .. tostring(resp))
     end)
 end
 

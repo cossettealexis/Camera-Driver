@@ -269,6 +269,10 @@
                 <name>Awake Camera</name>
                 <command>AWAKE_CAMERA</command>
             </action>
+            <action>
+                <name>M-SEARCH (SSDP Discovery)</name>
+                <command>MSEARCH_DISCOVERY</command>
+            </action>
         </actions>
         <commands>
             <command>

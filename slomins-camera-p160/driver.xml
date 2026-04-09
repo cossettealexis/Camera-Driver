@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>2025-12-16</created>
-    <modified>2026-03-27</modified>
+    <modified>2026-04-07</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -99,6 +99,12 @@
 
     <search>
         <searchtype>slomins:camera</searchtype>
+        <identify>
+            <protocol>sddp</protocol>
+            <discovery_name>Slomins P160-SL</discovery_name>
+            <manufacturer>Slomins</manufacturer>
+            <model>P160-SL</model>
+        </identify>
         <add_device_properties>
             <property type="string" id="1" name="IP Address" network_address="true"/>
         </add_device_properties>
