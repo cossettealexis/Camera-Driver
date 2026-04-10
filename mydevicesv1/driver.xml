@@ -6,7 +6,7 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>12/14/2025 3:20 PM</modified>
+  <modified>3/24/2026 3:20 PM</modified>
   <version>5</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
@@ -16,7 +16,7 @@
   <description>All Devices for the user!</description>
   <config>
     <documentation file="www/documentation/index.html">My Devices</documentation>
-    <script file="mydevice.lua" encryption="2"></script>
+    <script file="mydevice.lua"></script>
     <properties>
       <property>
         <name>Tcp Port</name>
@@ -31,14 +31,14 @@
         <default></default>
       </property>
       <property>
-        <name>ClientId</name>
+        <name>Tuya ClientId</name>
         <type>STRING</type>
         <readonly>true</readonly>
         <default></default>
         <password>true</password>
       </property>
       <property>
-        <name>ClientSecret</name>
+        <name>Tuya ClientSecret</name>
         <type>STRING</type>
         <readonly>true</readonly>
         <default></default>
@@ -55,7 +55,63 @@
         <name>UserId</name>
         <type>STRING</type>
         <readonly>false</readonly>
+        <default>az1761647452663A2Gjh</default>
+      </property>
+      <!-- === NEW LNDU PROPERTIES === -->
+      <property>
+        <name>Status</name>
+        <type>STRING</type>
+        <default>Initializing...</default>
+        <readonly>true</readonly>
+      </property>
+      <property>
+        <name>Composer Pro Email</name>
+        <type>STRING</type>
         <default></default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>Validation API URL</name>
+        <type>STRING</type>
+        <default>https://qa2.slomins.com/QA/OnTechSvcs/1.2/Lndu/GetCustomerInfoByControl4Mac</default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>Account</name>
+        <type>STRING</type>
+        <default>pyabu@slomins.com</default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>LNDU_ClientID</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>LNDU_ClientSecret</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>Public Key</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>Base API URL</name>
+        <type>STRING</type>
+        <default>https://api.arpha-tech.com</default>
+        <readonly>false</readonly>
+      </property>
+      <property>
+        <name>Auth Token</name>
+        <password>true</password>
+        <type>STRING</type>
+        <default></default>
+        <readonly>true</readonly>
       </property>
       <property>
         <persist>true</persist>
@@ -204,13 +260,13 @@
         <default></default>
       </property>
     </properties>
-    <actions>
+    <!--<actions>
       <action>
         <name>My Device</name>
         <command>SHOW_DEVICES</command>
         <description>It fetch all devices for the user</description>
       </action>
-    </actions>
+    </actions>-->
   </config>
   <combo>true</combo>
   <proxies>
