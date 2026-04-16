@@ -66,9 +66,7 @@
             </state>
             </display_icons>
         </navigator_display_option>
-        <web_view_url proxybindingid="5003">
-            controller://driver/Slomins-doorvideolock-DF511/contents/index.html
-        </web_view_url>
+        <web_view_url proxybindingid="5003">controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
         <network>true</network>
         <address_required>true</address_required>

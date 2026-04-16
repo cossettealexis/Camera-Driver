@@ -145,12 +145,6 @@
                 <default>K26-SL</default>
                 <readonly>false</readonly>
             </property>
-            <property>
-                <name>Device Name</name>
-                <type>STRING</type>
-                <default>K26-SL</default>
-                <readonly>false</readonly>
-            </property>
              <property>
                 <name>Status</name>
                 <type>STRING</type>
@@ -268,10 +262,6 @@
             <action>
                 <name>Awake Camera</name>
                 <command>AWAKE_CAMERA</command>
-            </action>
-            <action>
-                <name>M-SEARCH (SSDP Discovery)</name>
-                <command>MSEARCH_DISCOVERY</command>
             </action>
         </actions>
         <commands>

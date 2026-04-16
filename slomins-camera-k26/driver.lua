@@ -453,10 +453,6 @@ function ExecuteCommand(strCommand, tParams)
         DISCOVER_CAMERAS_SDDP(tParams)
         return
     end
-    if strCommand == "MSEARCH_DISCOVERY" then
-        MSEARCH_DISCOVERY(tParams)
-        return
-    end
     if strCommand == "AWAKE_CAMERA" then
         --AWAKE_CAMERA(tParams)
         return
@@ -1220,7 +1216,6 @@ function ReceivedFromNetwork(id, port, data)
         return
     end
 
-    -- Handle UpdateClientSecretId event FIRST (before filtering for LnduUpdate)
     if payload.EventName == "UpdateClientSecretId" and payload.MacAddress == C4:GetUniqueMAC() then
         print("ReceivedFromNetwork() UpdateClientSecretId")
         GlobalObject.CldBusAppId = payload.CldBusAppId
@@ -1231,7 +1226,6 @@ function ReceivedFromNetwork(id, port, data)
         return
     end
 
-    -- Filter for LnduUpdate events only
     if payload.EventName ~= "LnduUpdate" then
         print("[TCP] Ignoring Event:", tostring(payload.EventName))
         return
@@ -2109,108 +2103,6 @@ function DISCOVER_CAMERAS(tParams)
             print("  - Check cameras are on same network as Control4")
             print("  - Try manually setting IP Address if camera is known")
             --C4:UpdateProperty("Status", "No cameras found")
-        end
-
-        print("================================================================")
-    end)
-end
-
--- MSEARCH_DISCOVERY - Test SSDP discovery by scanning network for cameras
-function MSEARCH_DISCOVERY(tParams)
-    print("================================================================")
-    print("         M-SEARCH (SSDP DISCOVERY) - K26 CAMERA TEST            ")
-    print("================================================================")
-
-    print("Testing SSDP M-SEARCH discovery for K26 cameras...")
-
-    print("This test scans for K26 cameras (port 8554) to see if they respond")
-    print("to network discovery attempts.")
-    print("")
-
-    local cameras_found = {}
-    local scan_count = 0
-
-    -- Get controller's network
-    local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
-    print("Controller IP: " .. controller_ip)
-
-    -- Extract network prefix
-    local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
-    if not network_prefix then
-        print("ERROR: Could not determine network range")
-        return
-    end
-
-    print("Scanning network: " .. network_prefix .. ".1-254 on port 8554 (K26 RTSP)")
-    print("")
-
-    -- Scan for K26 cameras on port 8554 (RTSP)
-    for i = 1, 254 do
-        local test_ip = network_prefix .. "." .. i
-        scan_count = scan_count + 1
-
-        -- Try RTSP port for K26
-        C4:urlGet("http://" .. test_ip .. ":8554/", {}, false,
-            function(strError, responseCode, tHeaders, data)
-                if responseCode and (responseCode == 200 or responseCode == 401 or responseCode == 404) then
-                    -- Check if already found
-                    local already_found = false
-                    for _, cam in ipairs(cameras_found) do
-                        if cam.ip == test_ip then
-                            already_found = true
-                            break
-                        end
-                    end
-
-                    if not already_found then
-                        table.insert(cameras_found, {
-                            ip = test_ip,
-                            port = 8554,
-                            response_code = responseCode
-                        })
-
-                        print("")
-                        print("*** K26 CAMERA FOUND ***")
-                        print("  IP: " .. test_ip)
-                        print("  Port: 8554 (RTSP)")
-                        print("  Response Code: " .. responseCode)
-                        print("")
-                    end
-                end
-            end
-        )
-    end
-
-    print("M-SEARCH scan initiated for " .. scan_count .. " IP addresses")
-    print("Waiting 8 seconds for responses...")
-    print("")
-
-    -- Wait for responses
-    C4:SetTimer(8000, function(timer)
-        print("")
-        print("================================================================")
-        print("              M-SEARCH (SSDP) SCAN COMPLETE                     ")
-        print("================================================================")
-        print("Scanned: " .. scan_count .. " IP addresses")
-        print("Found: " .. #cameras_found .. " K26 camera(s)")
-        print("")
-
-        if #cameras_found > 0 then
-            print("Discovered K26 Cameras:")
-            for idx, cam in ipairs(cameras_found) do
-                print(string.format("  [%d] %s:%d (Response: %d)",
-                    idx, cam.ip, cam.port, cam.response_code))
-            end
-            print("")
-            print("NOTE: K26 cameras found via port scanning.")
-            print("Battery-powered cameras may not always respond due to sleep mode.")
-        else
-            print("No K26 cameras found via M-SEARCH")
-            print("")
-            print("NOTE: K26 cameras are battery-powered with aggressive sleep mode.")
-            print("They may not respond to network discovery when sleeping.")
-            print("Use 'Get Devices' after cloud authentication instead.")
-            print("")
         end
 
         print("================================================================")
