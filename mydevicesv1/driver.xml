@@ -260,18 +260,13 @@
         <default></default>
       </property>
     </properties>
-    <actions>
+    <!--<actions>
       <action>
-        <name>Discover Devices</name>
-        <command>DISCOVER_DEVICES</command>
+        <name>My Device</name>
+        <command>SHOW_DEVICES</command>
+        <description>It fetch all devices for the user</description>
       </action>
-    </actions>
-    <commands>
-      <command>
-        <name>DISCOVER_DEVICES</name>
-        <description>Discover Devices</description>
-      </command>
-    </commands>
+    </actions>-->
   </config>
   <combo>true</combo>
   <proxies>

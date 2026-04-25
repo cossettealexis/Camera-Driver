@@ -98,7 +98,7 @@ function OnPropertyChanged(strName)
         end
 
         ValidateLocal(email, mac, function(isValid)
-            if true then
+            if isValid then
                 C4:UpdateProperty("Status", "Validation Passed")
                 InitializeCamera()
             else
@@ -219,25 +219,29 @@ end
 function ExecuteCommand(command, tParams)
     print("ExecuteCommand command: " .. command) -- Debugging
 
-    if tParams and tParams.ACTION == "DISCOVER_DEVICES" then
-        DISCOVER_DEVICES()
-        return
-    end
-
     if Properties["Contract"] == "Enable" then
         if command == "LUA_ACTION" then
-            -- if tParams and tParams.ACTION == "DISCOVER_DEVICES" then
-            --     DISCOVER_DEVICES()
-            --     return
-            -- end
-            
-            --- Extract action from tParams
+            -- Extract action from tParams
             local action = tParams["ACTION"] or ""        
+            --local uid = tParams["UID"]
             local uid = Properties["UserId"]
+        
         
             local body = ""
 
+            local props = Properties        
+            for name, value in pairs(props) do
+                if name ~= "UserId" and name ~= "Tuya ClientId" and name ~= "Tuya ClientSecret" and  name ~= "Contract" and name ~= "MacAddress" 
+                  and name ~= "Tcp Port"   
+                  and name ~= "Device Response" then 
+                    C4:UpdateProperty(name, "")
+                end
+            end
+
+            --print("LUA_ACTION triggered with action: " .. action) -- Debugging
+
             -- Fetch the access token before executing the action
+        
             GenerateToken(GlobalObject, function(accessToken)
                 if not accessToken then
                     print("Failed to retrieve access token.")
@@ -458,31 +462,15 @@ function ValidateLocal(email, mac, callback)
         Control4Mac  = apiMac
     }
 
-    print("[ValidateLocal] Calling API:", url)
-    print("[ValidateLocal] MAC:", apiMac)
-    print("[ValidateLocal] Email:", email)
-
     transport.execute({
         url     = url,
         method  = "POST",
         headers = { ["Content-Type"] = "application/json" },
         body    = json.encode(payload)
     }, function(code, resp)
-        print("[ValidateLocal] Response Code:", code)
-        print("[ValidateLocal] Full Response Body:")
-        print(resp or "nil")
-        print("========================")
-        
         if code == 200 then
             local ok, data = pcall(json.decode, resp)
-            if ok and data then
-                print("[ValidateLocal] Parsed Data:")
-                for k, v in pairs(data) do
-                    print("  " .. k .. " = " .. tostring(v))
-                end
-            end
             local isValid = ok and data and (data.Acknowledge == 1) and (data.CustomerEmail == email)
-            print("[ValidateLocal] isValid:", isValid)
             callback(isValid)
         else
             callback(false)
@@ -697,43 +685,6 @@ function SendTokenToNodeAPI(token)
     SendTokenRetry()
 end
 
-function MakeSSDPDiscoverable(deviceVid)
-    print("[SSDP] Enabling SSDP for VID:", deviceVid)
-
-    local auth_token = GlobalObject.LNDU.AccessToken
-    if not auth_token or auth_token == "" then
-        print("[SSDP] ERROR: No auth token")
-        return
-    end
-
-    local body = {
-        vid = deviceVid,
-        data = json.encode({ sddp_swt = 1 })
-    }
-
-    transport.execute({
-        url = (Properties["Base API URL"] or "https://api.arpha-tech.com") .. "/api/v3/openapi/device/do-property",
-        method = "POST",
-        headers = {
-            ["Content-Type"] = "application/json",
-            ["Accept-Language"] = "en",
-            ["Authorization"] = "Bearer " .. auth_token
-        },
-        body = json.encode(body)
-    }, function(code, resp)
-        if code == 200 or code == 20000 then
-            print("[SSDP] Enabled for VID:", deviceVid)
-        else
-            print("[SSDP] Failed for VID:", deviceVid, "Code:", code)
-        end
-    end)
-end
-
-function DISCOVER_DEVICES()
-    print("[DISCOVER] Enabling SSDP discovery on LNDU cameras...")
-    GET_DEVICES({}, true)
-end
-
 -- ==========================
 -- Combined Device Fetch
 -- ==========================
@@ -741,7 +692,7 @@ function ClearDeviceList()
     for i = 1, 20 do C4:UpdateProperty(tostring(i), "") end
 end
 
-function UpdateDeviceProperties(devices, do_awake)
+function UpdateDeviceProperties(devices)
     --ClearDeviceList()
     for i, device in ipairs(devices) do
         if i <= 20 then
@@ -751,16 +702,6 @@ function UpdateDeviceProperties(devices, do_awake)
                 device.local_ip or "N/A",
                 device.vid or device.id or "N/A")
             C4:UpdateProperty(tostring(i), info)
-        end
-        
-        -- Enable SSDP discovery if requested (LNDU cameras only)
-        if do_awake == true then
-            if device.prefix == "[LNDU]" then
-                local vid = device.vid
-                if vid and vid ~= "" then
-                    MakeSSDPDiscoverable(vid)
-                end
-            end
         end
     end
 end
@@ -842,7 +783,7 @@ function GET_DEVICES(tParams, do_awake)
     local apiMac = controllerMac:gsub("[:%-]", ""):upper()
 
     ValidateLocal(compEmail, apiMac, function(isValid)
-        if false then
+        if not isValid then
             print("ValidateLocal failed - Unauthorized")
             C4:UpdateProperty("Status", "Unauthorized")
             return
@@ -907,7 +848,7 @@ function GET_DEVICES(tParams, do_awake)
                 end
 
                 -- Final update
-                UpdateDeviceProperties(combined, do_awake)
+                UpdateDeviceProperties(combined)
 
                 C4:UpdateProperty("Status", "Updated: " .. tostring(#combined) .. " total devices (LNDU + TUYA)")
                 print("[COMBINED] Total devices processed:", #combined)

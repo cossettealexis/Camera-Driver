@@ -154,7 +154,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default></default>
+                <default>cgabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
             <property>

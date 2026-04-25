@@ -24,9 +24,9 @@ GlobalObject.TCP_SERVER_PORT = 8081
 GlobalObject.DeviceModel     = "k26" --K26
 GlobalObject.LnduTempToken   = nil
 GlobalObject.LnduExchangeToken = nil
-GlobalObject.CldBusAppId = ""
-GlobalObject.CldBusSecret = ""
-GlobalObject.CustomerEmail = ""
+GlobalObject.CldBusAppId = "cldbus"
+GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.CustomerEmail = "cgabu@slomins.com"
 GlobalObject.ClientID = nil
 GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
 GlobalObject.AES_IV          = "33rj6KNVN4kFvd0s"
@@ -206,6 +206,7 @@ function OnDriverInit()
         print("[INIT] No valid IP Address set, keeping default")
     end
 
+    print("=== K26 Driver Init Complete ===")
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -230,7 +231,7 @@ function OnDriverLateInit()
     print("=== K26 Driver Late Init ===")
     C4:UpdateProperty("Camera Status", "Unknown")
     
-    ValidateMacAddress(C4:GetUniqueMAC())
+    -- ValidateMacAddress(C4:GetUniqueMAC())
     
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
@@ -1493,20 +1494,29 @@ local function handle_online_status(new_online)
 end
 
 local function handle_device_status(msg)
-    if not msg.status then return end
+    print("[STATUS] updateDeviceStatus received")
+    print("[STATUS] Full message:", json.encode(msg))
+    -- if not msg.status then return end
 
     for _, s in ipairs(msg.status) do
-        if s.status_key == "is_online" then
-            local is_online = (s.status_val == 1)
-            handle_online_status(is_online)
-            return
-        end
+        print("[STATUS] Status key:", s.status_key, "Value:", s.status_val)
+        print("[STATUS] Status details:", json.encode(s))
+        -- if s.status_key == "is_online" then
+        --     local is_online = (s.status_val == 1)
+        --     handle_online_status(is_online)
+        --     return
+        -- end
     end
 end
 
 
 function HANDLE_JSON_EVENT(payload)
+    print("[EVENT] Received payload:", payload)
+    print("[EVENT] Attempting to decode JSON...")
+
     local ok, msg = pcall(json.decode, payload)
+    print("[EVENT] JSON decode successful:", ok)
+    print("[EVENT] Decoded message type:", type(msg))
     if not ok or type(msg) ~= "table" then
         return false
     end
@@ -1520,73 +1530,85 @@ function HANDLE_JSON_EVENT(payload)
         local id     = msg.event.identifier or ""
         local params = msg.event.params or {}
 
+        -- 🔍 DEBUG: Log ALL incoming event IDs
+        print("[DEBUG-EVENT] Received event ID:", id)
+        if params.type then
+            print("[DEBUG-EVENT] Event type:", params.type)
+        end
+
+        print("[DEBUG-EVENT] Full event data:", json.encode(msg.event))
+        print("[DEBUG-EVENT] Params:", json.encode(params))
+
         ------------------------------------------------
         -- 🎥 log_rec (Continuous Motion / Human)
         ------------------------------------------------
-        if id == "log_rec" then
-            local filename = nil
-            local extp = params.ext_p
+        -- if id == "log_rec" then
+        --     local filename = nil
+        --     local extp = params.ext_p
 
-            if extp then
-                filename = extp:match("([^/]+%.jpg)")
-            end
+        --     if extp then
+        --         filename = extp:match("([^/]+%.jpg)")
+        --     end
 
 
-            print("[EVENT] filename =", filename)
-            if params.type == 10021 then
-                handle_motion(filename, extp)
-                return true
-            end
+        --     print("[EVENT] filename =", filename)
+        --     if params.type == 10021 then
+        --         handle_motion(filename, extp)
+        --         return true
+        --     end
 
-            if params.type == 10022 then
-                handle_human(filename, extp)
-                return true
-            end
+        --     if params.type == 10022 then
+        --         handle_human(filename, extp)
+        --         return true
+        --     end
 
-            return true
-        end
+        --     return true
+        -- end
 
         ------------------------------------------------
         -- 🚨 alarm_rec_v2 (Critical Alerts)
         ------------------------------------------------
-        if id == "alarm_rec_v2" then
-            local filename = nil
-            local extp = params.ext_p
+        -- if id == "alarm_rec_v2" then
+        --     local filename = nil
+        --     local extp = params.ext_p
 
-            if extp then
-                filename = extp:match("([^/]+%.jpg)")
-            end
+        --     if extp then
+        --         filename = extp:match("([^/]+%.jpg)")
+        --     end
 
-            if params.type == 21 then
-                handle_stranger(filename, extp)
-                return true
-            end
+        --     if params.type == 21 then
+        --         handle_stranger(filename, extp)
+        --         return true
+        --     end
 
-            if params.type == 1 then
-                handle_low_battery()
-                return true
-            end
+        --     if params.type == 1 then
+        --         handle_low_battery()
+        --         return true
+        --     end
 
-            if params.type == 3 then
-                -- Offline alert comes here but still
-                -- needs stability confirmation
-                pending_online = false
-                pending_since  = now
-                return true
-            end
+        --     if params.type == 3 then
+        --         -- Offline alert comes here but still
+        --         -- needs stability confirmation
+        --         pending_online = false
+        --         pending_since  = now
+        --         return true
+        --     end
 
-            return true
-        end
+        --     return true
+        -- end
 
         ------------------------------------------------
         -- 🔄 Camera Restart
         ------------------------------------------------
-        if id == "stored_reset" then
-            handle_restart()
-            return true
-        end
+        -- if id == "stored_reset" then
+        --     handle_restart()
+        --     return true
+        -- end
 
         return true
+    else
+        print("[EVENT] Not a deviceEvent or missing event field")
+        print("[EVENT] Full message:", json.encode(msg))
     end
 
     ------------------------------------------------
@@ -1595,12 +1617,15 @@ function HANDLE_JSON_EVENT(payload)
     if msg.method == "updateDeviceStatus" then
         handle_device_status(msg, now)
         return true
+    else
+        print("[EVENT] Unhandled message method:", tostring(msg.method))
+        print("[EVENT] Full message:", json.encode(msg))
     end
 
 
 
 
-    return false
+    -- return false
 end
 
 function SEND_TEST_NOTIFICATION()
