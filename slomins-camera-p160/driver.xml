@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>2025-12-16</created>
-    <modified>2026-04-07</modified>
+    <modified>2026-04-17</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -99,12 +99,6 @@
 
     <search>
         <searchtype>slomins:camera</searchtype>
-        <identify>
-            <protocol>sddp</protocol>
-            <discovery_name>Slomins P160-SL</discovery_name>
-            <manufacturer>Slomins</manufacturer>
-            <model>P160-SL</model>
-        </identify>
         <add_device_properties>
             <property type="string" id="1" name="IP Address" network_address="true"/>
         </add_device_properties>
@@ -115,7 +109,7 @@
 
     <config>
         <script file="driver.lua" />
-        <documentation file="README.md">Slomins P160-SL Camera Documentation</documentation>
+        <documentation file="README.html">Slomins P160-SL Camera Documentation</documentation>
         <properties>
          <property>
                 <name>IP Address</name>
@@ -133,6 +127,12 @@
                 <name>Device Name</name>
                 <type>STRING</type>
                 <default>P160-SL</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>MAC Address</name>
+                <type>STRING</type>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>

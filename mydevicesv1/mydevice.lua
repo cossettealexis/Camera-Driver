@@ -69,15 +69,36 @@ end
 
 function OnDriverLateInit()
     C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
-    ValidateMacAddress(Properties["MacAddress"])
+    
+     ValidateMacAddress(Properties["MacAddress"], function(isValid)
+        if not isValid then
+            ClearDeviceList()
+        end
+    end)    
 end
 
 function OnPropertyChanged(strName)
     print("OnPropertyChange():", strName, Properties[strName])
     if (strName == "MacAddress") then
         C4:UpdateProperty("MacAddress", Properties[strName])
-        ValidateMacAddress(Properties[strName])    
+
+        ClearDeviceList()
+        ValidateMacAddress(Properties["MacAddress"], function(isValid)
+             if isValid then
+                InitializeCamera()
+            end
+        end)
     end
+
+    if (strName == "UserId") then
+        ClearDeviceList()
+        ValidateMacAddress(Properties["MacAddress"], function(isValid)
+             if isValid then
+                InitializeCamera()
+            end
+        end)
+    end
+
     if (strName == "Tcp Port") then
         DisconnectTcp()
         print("========================================")
@@ -86,23 +107,26 @@ function OnPropertyChanged(strName)
         C4:UpdateProperty("Tcp Port", Properties[strName])
         GlobalObject.TCP_SERVER_PORT = Properties[strName]
         TcpConnection()
-        ValidateMacAddress(Properties["MacAddress"])
+        
+         ValidateMacAddress(Properties["MacAddress"], function(isValid)
+            if not isValid then
+                ClearDeviceList()
+            end
+        end)    
     end
 
-    if strName == "Composer Pro Email" then
-        local email = Properties["Composer Pro Email"]
-        local mac = C4:GetUniqueMAC()
+    if strName == "Shieldlink Account Email" then
+        local email = Properties["Shieldlink Account Email"]
+
+        ClearDeviceList()
         if email == "" then
             C4:UpdateProperty("Status", "Enter email")
             return
         end
-
-        ValidateLocal(email, mac, function(isValid)
+        
+        ValidateMacAddress(Properties["MacAddress"], function(isValid)
             if isValid then
-                C4:UpdateProperty("Status", "Validation Passed")
                 InitializeCamera()
-            else
-                C4:UpdateProperty("Status", "Validation Failed")
             end
         end)
     end
@@ -217,7 +241,25 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
 end
 
 function ExecuteCommand(command, tParams)
-    print("ExecuteCommand command: " .. command) -- Debugging
+    print("ExecuteCommand command: " .. command .. " tParams: " .. tostring(tParams)) -- Debugging
+
+    if command == "DISCOVER_DEVICES" or tParams["ACTION"] == "DISCOVER_DEVICES" then
+        print("[DISCOVER_DEVICES] Button pressed - Validating credentials first...")
+        C4:UpdateProperty("Status", "Validating credentials...")
+        
+        local mac = Properties["MacAddress"] or C4:GetUniqueMAC()
+        ValidateMacAddress(mac, function(isValid)
+            if isValid then
+                print("[DISCOVER_DEVICES] Credentials refreshed - Waking and fetching devices...")
+                GET_DEVICES({}, true)
+            else
+                ClearDeviceList()
+                print("[DISCOVER_DEVICES] Validation failed - credentials not updated")
+                C4:UpdateProperty("Status", "Discovery failed: Invalid credentials")
+            end
+        end)
+        return
+    end
 
     if Properties["Contract"] == "Enable" then
         if command == "LUA_ACTION" then
@@ -402,43 +444,149 @@ function GenerateToken(GlobalObject, callback)
 
 end
 
-function ValidateMacAddress(mac)
+function ValidateMacAddress(mac, callback)
+    local apiUrl = Properties["Validation API URL"] or "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress"
     local requestBody = '{"MacAddress":"' .. mac .. '"}'
     local headers = {
         ["Content-Type"] = "application/json"
     }
 
-     C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers,true,
+    C4:UpdateProperty("Status", "Validating MAC address...")
+
+     C4:urlPost(apiUrl, requestBody, headers,true,
         function(ticketId, strData, responseCode, tHeaders, strError)
 
         if strError ~= nil and strError ~= "" then
-            print("Error calling API: " .. strError)
+            print("[ValidateMacAddress] Error calling API: " .. strError)
             C4:UpdateProperty("Device Response","Error calling API: " .. strError)
+            C4:UpdateProperty("Status", "")
+            if callback then callback(false) end
             return
         end
 
         if responseCode ~= 200 then
-            print("HTTP Error: " .. tostring(responseCode))
+            print("[ValidateMacAddress] HTTP Error: " .. tostring(responseCode))
             C4:UpdateProperty("Device Response","HTTP Error: " .. tostring(responseCode))
+            if callback then callback(false) end
             return
         end
 
         local response = C4:JsonDecode(strData)
         if response then
+            print("[ValidateMacAddress] IsValidMacAddress: " .. tostring(response.IsValidMacAddress))
+            
             if response.IsValidMacAddress == true then
-                print("MAC Address is valid")
-                C4:UpdateProperty("Device Response","MAC Address is valid")
+                -- Get encrypted message from response
+                local encryptedMsg = response.EncryptMsg
+                if not encryptedMsg or encryptedMsg == "" then
+                    print("[ValidateMacAddress] No EncryptMsg in response")
+                    C4:UpdateProperty("Device Response", "No encrypted message")
+                    if callback then callback(false) end
+                    return
+                end
+                
+                -- Remove trailing \r\n if present
+                if string.sub(encryptedMsg, -2) == "\r\n" then
+                    encryptedMsg = string.sub(encryptedMsg, 1, -3)
+                end
+                
+                -- Decrypt the message
+                local cipher = 'AES-256-CBC'
+                local options = {
+                    return_encoding = 'NONE',
+                    key_encoding = 'NONE',
+                    iv_encoding = 'NONE',
+                    data_encoding = 'BASE64',
+                    padding = true,
+                }
+                
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg, options)
+                
+                if not decrypted_data then
+                    print("[ValidateMacAddress] Decryption failed: " .. tostring(err))
+                    C4:UpdateProperty("Device Response", "Decryption failed")
+                    if callback then callback(false) end
+                    return
+                end
+                
+                print("[ValidateMacAddress] Decrypted data: " .. decrypted_data)
+                
+                -- Parse decrypted JSON
+                local data = C4:JsonDecode(decrypted_data)
+                if not data or not data.message then
+                    print("[ValidateMacAddress] Failed to parse decrypted data")
+                    C4:UpdateProperty("Device Response", "Invalid decrypted data")
+                    if callback then callback(false) end
+                    return
+                end
+                
+                -- Normalize MAC addresses for comparison (remove colons/dashes, uppercase)
+                local normalizedMac = (mac or ""):gsub("[:%-]", ""):upper()
+                local responseMac = (data.message.MacAddress or ""):gsub("[:%-]", ""):upper()
+                
+                print("[ValidateMacAddress] MAC from Properties (normalized): " .. normalizedMac)
+                print("[ValidateMacAddress] MAC from API response (normalized): " .. responseMac)
+                
+                -- Check if it's the right event and MAC matches
+                if data.message.EventName == "UpdateClientSecretId" and responseMac == normalizedMac then
+                    local customerEmail = data.message.CustomerEmail or ""
+                    print("[ValidateMacAddress] CustomerEmail from decrypted message: " .. customerEmail)
+                    
+                    -- Check if email from Properties matches
+                    local email = Properties["Shieldlink Account Email"] or ""
+                    print("[ValidateMacAddress] Email from Properties: " .. email)
+                    
+                    if email == "" then
+                        print("[ValidateMacAddress] No email set in properties")
+                        C4:UpdateProperty("Device Response", "No email set")
+                        C4:UpdateProperty("Status", "")
+                        if callback then callback(false) end
+                        return
+                    end
+                    
+                    if customerEmail == email then
+                        print("[ValidateMacAddress] ✓ MAC Address and Email match")
+                        C4:UpdateProperty("Device Response", "MAC and Email valid")
+                        
+                        -- Store the Tuya credentials (for Tuya API)
+                        GlobalObject.ClientID = data.message.ClientId or ""
+                        GlobalObject.ClientSecret = data.message.SecretId or ""
+                        C4:UpdateProperty("Tuya ClientId", GlobalObject.ClientID)
+                        C4:UpdateProperty("Tuya ClientSecret", "***")
+                        
+                        -- Store LNDU credentials separately
+                        GlobalObject.LNDU.app_id = data.message.CldBusAppId or ""
+                        GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""
+                        C4:UpdateProperty("LNDU_ClientSecret", "***")
+                        
+                        if callback then callback(true) end
+                    else
+                        print("[ValidateMacAddress] Email mismatch")
+                        print("[ValidateMacAddress] Expected: " .. email)
+                        print("[ValidateMacAddress] Got: " .. customerEmail)
+                        C4:UpdateProperty("Device Response", "Email not mapped to MAC")
+                        C4:UpdateProperty("Status", "Email not mapped to MAC")
+                        if callback then callback(false) end
+                    end
+                else
+                    print("[ValidateMacAddress] Invalid event or MAC mismatch")
+                    C4:UpdateProperty("Device Response", "Invalid response data")
+                    if callback then callback(false) end
+                end
             else
-                print("MAC Address is invalid")
+                print("[ValidateMacAddress] MAC Address is invalid")
                 C4:UpdateProperty("Device Response","MAC Address is invalid")
+                C4:UpdateProperty("Status","MAC Address is invalid")
                 GlobalObject.ClientID = ""
                 GlobalObject.ClientSecret = ""
                 C4:UpdateProperty("Tuya ClientId",  "")
                 C4:UpdateProperty("Tuya ClientSecret", "")
+                if callback then callback(false) end
             end
         else
-            print("Failed to parse JSON response")
+            print("[ValidateMacAddress] Failed to parse JSON response")
             C4:UpdateProperty("Device Response","Failed to parse JSON response")
+            if callback then callback(false) end
         end
     end)
 end
@@ -487,7 +635,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s", client_id, request_id, time, version)
     local signature = util.hmac_sha256_hex(message, app_secret)
@@ -513,7 +661,6 @@ function InitializeCamera()
             if ok and parsed and parsed.data and parsed.data.public_key then
                 local public_key = parsed.data.public_key
 
-                -- ✅ IMPORTANT: store in GlobalObject too
                 GlobalObject.LNDU.PublicKey = public_key
 
                 C4:UpdateProperty("Public Key", public_key)
@@ -554,7 +701,7 @@ function RsaOaepEncrypt(data, publicKey, callback)
 end
 
 function LoginOrRegister(country_code)
-    local account = Properties["Account"] or ""
+    local account = Properties["Shieldlink Account Email"] or ""
 
     local public_key = GlobalObject.LNDU.PublicKey or ""
 
@@ -577,7 +724,7 @@ function LoginOrRegister(country_code)
 
         local request_id = util.uuid_v4()
         local time = tostring(os.time())
-        local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+        local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
         local message = string.format(
             "client_id=%s&post_data=%s&request_id=%s&time=%s",
@@ -639,7 +786,7 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-     local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+     local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
         
@@ -651,7 +798,7 @@ function SendTokenToNodeAPI(token)
                 AppId       = "cldbus",       
                 AppSecret   = app_secret,   
                 AccountName = GlobalObject.AccountName,
-                C4UniqueMac = C4:GetUniqueMAC()
+                C4UniqueMac = Properties["MacAddress"] or ""
             }
         }
 
@@ -707,6 +854,39 @@ function UpdateDeviceProperties(devices)
 end
 
 
+
+function MakeSSDPDiscoverable(deviceVid)
+    print("[SSDP] Waking LNDU device via do-property for VID:", deviceVid)
+
+    local auth_token = GlobalObject.LNDU.AccessToken
+    if not auth_token or auth_token == "" then
+        print("[SSDP] ERROR: No LNDU auth token available")
+        return
+    end
+    
+    local body = {
+        vid = deviceVid,
+        data = json.encode({ sddp_swt = 1 })
+    }
+
+    transport.execute({
+        url = (Properties["Base API URL"] or "https://api.arpha-tech.com")
+            .. "/api/v3/openapi/device/do-property",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Accept-Language"] = "en",
+            ["Authorization"] = "Bearer " .. auth_token
+        },
+        body = json.encode(body)
+    }, function(code, resp)
+        if code == 200 or code == 20000 then
+            print("[SSDP] Successfully enabled SSDP for VID:", deviceVid)
+        else
+            print("[SSDP] Failed to enable SSDP for VID:", deviceVid, "Code:", tostring(code))
+        end
+    end)
+end
 
 function GetTuyaDevices(callback)
     print("[TUYA] Starting device fetch...")
@@ -778,38 +958,34 @@ end
 function GET_DEVICES(tParams, do_awake)
     print("=== GET_DEVICES called - Fetching LNDU + TUYA ===")
 
-    local compEmail = Properties["Composer Pro Email"] or ""
-    local controllerMac = C4:GetUniqueMAC()
+    local compEmail = Properties["Shieldlink Account Email"] or ""
+    local controllerMac = Properties["MacAddress"] or ""
     local apiMac = controllerMac:gsub("[:%-]", ""):upper()
 
-    ValidateLocal(compEmail, apiMac, function(isValid)
-        if not isValid then
-            print("ValidateLocal failed - Unauthorized")
-            C4:UpdateProperty("Status", "Unauthorized")
-            return
-        end
+    local auth_token = GlobalObject.LNDU.AccessToken
+    if not auth_token or auth_token == "" then
+        print("Missing LNDU AccessToken")
+        C4:UpdateProperty("Status", "Missing LNDU Token")
+        return
+    end
 
-        local auth_token = GlobalObject.LNDU.AccessToken
-        if not auth_token or auth_token == "" then
-            print("Missing LNDU AccessToken")
-            C4:UpdateProperty("Status", "Missing LNDU Token")
-            return
-        end
+    ClearDeviceList()
+    C4:UpdateProperty("Status", "Device list loading...")
 
-        print("LNDU token OK - Fetching LNDU cameras...")
+    print("LNDU token OK - Fetching LNDU cameras...")
 
-        local baseUrl = Properties["Base API URL"] or "https://api.arpha-tech.com"
-        local camUrl = baseUrl .. "/api/v3/openapi/devices-v2"
+    local baseUrl = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local camUrl = baseUrl .. "/api/v3/openapi/devices-v2"
 
-        transport.execute({
-            url = camUrl,
-            method = "GET",
-            headers = { 
-                ["Authorization"] = "Bearer " .. auth_token 
-            }
-        },
-        function(code, resp)
-            local combined = {}
+    transport.execute({
+        url = camUrl,
+        method = "GET",
+        headers = { 
+            ["Authorization"] = "Bearer " .. auth_token 
+        }
+    },
+    function(code, resp)
+        local combined = {}
 
             -- ====================== LNDU DEVICES ======================
             if code == 200 then
@@ -826,6 +1002,11 @@ function GET_DEVICES(tParams, do_awake)
                             vid         = d.vid or ""
                             
                         })
+                        
+                        -- Wake LNDU device if requested
+                        if do_awake == true and d.vid and d.vid ~= "" then
+                            MakeSSDPDiscoverable(d.vid)
+                        end
                     end
                 else
                     print("[LNDU] Invalid response format")
@@ -853,13 +1034,5 @@ function GET_DEVICES(tParams, do_awake)
                 C4:UpdateProperty("Status", "Updated: " .. tostring(#combined) .. " total devices (LNDU + TUYA)")
                 print("[COMBINED] Total devices processed:", #combined)
             end)
-
-            -- Optional: keep your old commented block if you want it for reference
-            --[[
-            if type(GetTuyaDevices) ~= "function" then
-                ...
-            end
-            --]]
         end)
-    end)
 end

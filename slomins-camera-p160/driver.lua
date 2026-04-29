@@ -62,8 +62,6 @@ GlobalObject.TCP_SERVER_IP    = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT  = 8081
 GlobalObject.DeviceModel      = "p160"
 GlobalObject.ProductSubType   = "plugged_camera"
-GlobalObject.CldBusAppId      = ""
-GlobalObject.CldBusSecret     = ""
 GlobalObject.CustomerEmail    = ""
 GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 _props.MQTT                   = {
@@ -97,12 +95,8 @@ local GET_DEVICES_CALLED = false
 
 local last_ip_refresh    = 0
 local MIN_REFRESH_GAP    = 5
---[[
-    Establishes a TCP connection to the configured server.
-    Creates the network connection, applies TCP port options
-    (auto-connect, keep-alive, monitoring, etc.), and initiates
-    the connection using the global server IP and port.
-]]
+
+--Establishes a TCP connection to the configured server.
 
 function TcpConnection()
     print("TcpConnection established")
@@ -119,11 +113,9 @@ function TcpConnection()
     C4:NetConnect(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT)
 end
 
---[[
-    Logs property changes for debugging purposes.
-    Displays the property name and its new value, or indicates
-    when the property is hidden and its value should not be shown.
-]]
+--Logs property changes for debugging purposes.Displays the property name and its new value, 
+--or indicates when the property is hidden and its value should not be shown.
+
 
 function SET_CAMERA_IP(ip)
     if not ip or ip == "" then
@@ -178,83 +170,132 @@ function OnDriverDestroyed()
 end
 
 function ValidateMacAddress(mac)
-    local requestBody = '{"MacAddress":"' .. mac .. '"}'
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
+    if not mac or mac == "" then
+        print("[MAC] Error: No MAC address provided")
+        C4:UpdateProperty("Status", "MAC validation failed: No MAC provided")
+        return
+    end
 
-     C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers,true,
+    print("[MAC] Validating MAC address: " .. mac .. " ...")
+
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'
+    local headers = { ["Content-Type"] = "application/json" }
+
+    local url = GlobalObject.BaseApi .. "/IsValidControl4MacAddress"
+
+    C4:urlPost(url, requestBody, headers, true,
         function(ticketId, strData, responseCode, tHeaders, strError)
 
-        if strError ~= nil and strError ~= "" then
-            print("Error calling API: " .. strError)
-            C4:UpdateProperty("Status","Error calling API: " .. strError)
-            return
-        end
+            if strError and strError ~= "" then
+                print("[MAC] API Error: " .. strError)
+                C4:UpdateProperty("Status", "MAC validation error: " .. strError)
+                return
+            end
 
-        if responseCode ~= 200 then
-            print("HTTP Error: " .. tostring(responseCode))
-            C4:UpdateProperty("Status","HTTP Error: " .. tostring(responseCode))
-            return
-        end
+            if responseCode ~= 200 then
+                print("[MAC] HTTP Error: " .. tostring(responseCode))
+                C4:UpdateProperty("Status", "MAC validation failed (HTTP " .. tostring(responseCode) .. ")")
+                return
+            end
 
-        local response = C4:JsonDecode(strData)
-        if response then
+            local response = C4:JsonDecode(strData)
+            if not response then
+                print("[MAC] Failed to parse JSON response")
+                C4:UpdateProperty("Status", "MAC validation failed: Invalid JSON")
+                return
+            end
+
             if response.IsValidMacAddress == true then
-                print("MAC Address is valid")
-                C4:UpdateProperty("Status","MAC Address is valid")
-                
-                local strData = response.EncryptMsg
-                if string.sub(strData, -2) == "\r\n" then
-                  strData = string.sub(strData, 1, -3)
+                print("[MAC] MAC is valid - processing credentials...")
+
+                local encryptedMsg = response.EncryptMsg
+                if not encryptedMsg or encryptedMsg == "" then
+                    print("[MAC] No EncryptMsg in response")
+                    C4:UpdateProperty("Status", "MAC valid but no credentials received")
+                    return
                 end
-          
+
+                if string.sub(encryptedMsg, -2) == "\r\n" then
+                    encryptedMsg = string.sub(encryptedMsg, 1, -3)
+                end
+
                 local cipher = 'AES-256-CBC'
                 local options = {
                     return_encoding = 'NONE',
-                    key_encoding = 'NONE',
-                    iv_encoding = 'NONE',
-                    data_encoding = 'BASE64',
-                    padding = true,
+                    key_encoding    = 'NONE',
+                    iv_encoding     = 'NONE',
+                    data_encoding   = 'BASE64',
+                    padding         = true,
                 }
 
-                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
-                
-                if (decrypted_data ~= nil) then
-                 
-                  local data = C4:JsonDecode(decrypted_data)
-                  extractedData = {}
-                
-                  if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
-                     data.message.MacAddress == C4:GetUniqueMAC() then
-                        print("ValidateMacAddress() " , data.message.EventName)
-                        
-                        GlobalObject.CldBusAppId = data.message.CldBusAppId
-                        GlobalObject.CldBusSecret = data.message.CldBusSecret
-                        GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
-                        
-                        C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
-                        C4:UpdateProperty("AppSecret", data.message.SecretId or "")
-                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
-                        print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
-                   end
-                end
-            else
-                print("MAC Address is invalid")
-                C4:UpdateProperty("Device Response","MAC Address is invalid")
-                GlobalObject.CldBusAppId = ""
-                GlobalObject.CldBusSecret = ""
-                GlobalObject.CustomerEmail = ""
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg, options)
 
-                C4:UpdateProperty("AppId",  "")
+                if not decrypted_data then
+                    print("[MAC] Decryption failed:", tostring(err))
+                    C4:UpdateProperty("Status", "MAC validation failed: Decryption error")
+                    return
+                end
+
+                local data = C4:JsonDecode(decrypted_data)
+                if not data or not data.message then
+                    print("[MAC] Failed to parse decrypted data")
+                    C4:UpdateProperty("Status", "MAC validation failed: Invalid decrypted payload")
+                    return
+                end
+
+                if data.message.EventName == "UpdateClientSecretId" and 
+                   data.message.MacAddress == C4:GetUniqueMAC() then
+
+                    local appId     = data.message.CldBusAppId or ""
+                    local appSecret = data.message.CldBusSecret or data.message.SecretId or ""
+                    local email     = data.message.CustomerEmail or ""
+
+                    GlobalObject.CldBusAppId   = appId
+                    GlobalObject.CldBusSecret  = appSecret
+                    GlobalObject.CustomerEmail = email
+
+                    _props["AppId"]     = appId
+                    _props["AppSecret"] = appSecret
+                    _props["Account"]   = email
+
+                    -- Force update multiple times with delay
+                    C4:UpdateProperty("AppId", appId)
+                    C4:UpdateProperty("AppSecret", appSecret)
+                    C4:UpdateProperty("Account", email)
+
+                    C4:SetTimer(300, function()
+                        C4:UpdateProperty("AppId", appId)
+                        C4:UpdateProperty("AppSecret", appSecret)
+                    end)
+
+                    C4:SetTimer(800, function()
+                        C4:UpdateProperty("AppId", appId)
+                        C4:UpdateProperty("AppSecret", appSecret)
+                        C4:UpdateProperty("Status", "CldBus credentials loaded: " .. appId)
+                        InitializeCamera()
+                    end)
+
+                    print("[MAC] ✅ SUCCESS: Credentials loaded")
+                    print("[MAC] AppId     : " .. appId)
+                    print("[MAC] Account   : " .. email)
+
+                else
+                    print("[MAC] Unexpected decrypted message format")
+                    C4:UpdateProperty("Status", "MAC valid but bad credential format")
+                end
+
+            else
+                print("[MAC] ❌ MAC Address is invalid according to server")
+                GlobalObject.CldBusAppId   = ""
+                GlobalObject.CldBusSecret  = ""
+                _props["AppId"] = ""
+                _props["AppSecret"] = ""
+                C4:UpdateProperty("AppId", "")
                 C4:UpdateProperty("AppSecret", "")
-                C4:UpdateProperty("Account", "")
+                C4:UpdateProperty("Status", "MAC validation failed - Invalid MAC")
             end
-        else
-            print("Failed to parse JSON response")
-            C4:UpdateProperty("Device Response","Failed to parse JSON response")
         end
-    end)
+    )
 end
 
 function OnDriverLateInit()
@@ -332,6 +373,7 @@ function OnDriverLateInit()
 
         -- Send initial camera properties to UI
         SendUpdateCameraProp()
+         C4:UpdateProperty("Status", "Driver ready - waiting for credentials")
     end
 end
 
@@ -341,12 +383,35 @@ local function update_prop(name, value)
     _props[name] = tostring(value)
 end
 
+-- Helper to safely get current CldBus credentials from Properties
+local function GetCldBusCredentials()
+    local appId     = Properties["AppId"]     or _props["AppId"]     or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    return appId, appSecret
+end
+
 function OnPropertyChanged(strProperty)
     print("Property changed: " .. strProperty)
 
     if strProperty == "Password" then
         print("Password property updated (value hidden)")
         _props[strProperty] = Properties[strProperty]
+        return
+    end
+
+     if strProperty == "MAC Address" then
+        print("[MAC] MAC Address changed → Refreshing CldBus credentials")
+        local macValue = Properties["MAC Address"] or C4:GetUniqueMAC()
+        _props["MAC Address"] = macValue
+        ValidateMacAddress(macValue)
+        return
+    end
+
+    -- Also keep triggering on IP Address change for convenience (optional but useful)
+    if strProperty == "IP Address" then
+        print("[MAC] IP Address changed → Refreshing CldBus credentials")
+        _props[strProperty] = Properties[strProperty]
+        ValidateMacAddress(C4:GetUniqueMAC())
         return
     end
 
@@ -434,15 +499,19 @@ function OnPropertyChanged(strProperty)
         C4:UpdateProperty("Status", "Authenticated")
     end
 
-    if strProperty == "AppId" then
-        print("[PROP] AppId manually changed => " .. tostring(Properties[strProperty]))
-        _props["AppId"] = Properties[strProperty]
+     if strProperty == "AppId" then
+        local newValue = Properties[strProperty] or ""
+        print("[PROP] AppId manually changed => " .. newValue)
+        _props["AppId"] = newValue
+        GlobalObject.CldBusAppId = newValue
         return
     end
 
     if strProperty == "AppSecret" then
+        local newValue = Properties[strProperty] or ""
         print("[PROP] AppSecret manually changed (hidden)")
-        _props["AppSecret"] = Properties[strProperty]
+        _props["AppSecret"] = newValue
+        GlobalObject.CldBusSecret = newValue
         return
     end
 end
@@ -501,10 +570,6 @@ function ExecuteCommand(strCommand, tParams)
         DISCOVER_CAMERAS_SDDP(tParams)
         return
     end
-    if strCommand == "MSEARCH_DISCOVERY" then
-        MSEARCH_DISCOVERY(tParams)
-        return
-    end
     if strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(tParams)
         return
@@ -549,12 +614,18 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     -- Prepare message and signature
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
         client_id, request_id, time, version)
-    local signature = util.hmac_sha256_hex(message, app_secret)
+    local signature = util.hmac_sha256_hex(message, appSecret)
 
     -- Build request body
     local body_tbl = {
@@ -572,7 +643,7 @@ function InitializeCamera()
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = appId
     }
     local req = {
         url = url,
@@ -709,7 +780,13 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     local post_data_obj = { country_code = country_code, account = account }
     local post_data_json = json.encode(post_data_obj)
@@ -725,7 +802,7 @@ function LoginOrRegister(country_code, account, public_key)
         local post_data_hex = encrypted_data
         local message = string.format("client_id=%s&post_data=%s&request_id=%s&time=%s",
             client_id, post_data_hex, request_id, time)
-        local signature = util.hmac_sha256_hex(message, app_secret)
+        local signature = util.hmac_sha256_hex(message, appSecret)
 
         local body_tbl = {
             sign       = signature,
@@ -743,7 +820,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] =  GlobalObject.CldBusAppId
+            ["App-Name"] =  appId
         }
 
         local req = {
@@ -880,10 +957,17 @@ function GET_TEMP_TOKEN(tParams)
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/temperate-token"
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+    print("ERROR: CldBus credentials not loaded yet")
+    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+    return
+    end
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId,
+        ["App-Name"] = appId,
         ["Authorization"] = "Bearer " .. auth_token
     }
 
@@ -974,9 +1058,17 @@ function GET_EXCHANGE_TOKEN(tParams)
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/auth/exchange-identity"
 
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+    print("ERROR: CldBus credentials not loaded yet")
+    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+    return
+    end
+
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = appId
     }
 
     local req = {
@@ -1105,7 +1197,16 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
+    print("[NodeAPI] Preparing to send token with AppId:", appId)
+    
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
 
@@ -1114,8 +1215,8 @@ function SendTokenToNodeAPI(token)
                 EventName   = "LnduUpdate",
                 Token       = token,
                 ClientID    = GlobalObject.ClientID,
-                AppId       = GlobalObject.CldBusAppId,
-                AppSecret   = app_secret,
+                AppId       = appId,
+                AppSecret   = appSecret,
                 AccountName = GlobalObject.AccountName,
                 C4UniqueMac = C4:GetUniqueMAC()
             }
@@ -1127,7 +1228,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.CldBusAppId
+                ["App-Name"]        = appId
             },
             body = json.encode(body),
             timeout = 10
@@ -1172,8 +1273,13 @@ function GET_DEVICES(p_vid)
 
     print("Using bearer token: " .. auth_token)
 
-    -- Update status
-    --C4:UpdateProperty("Status", "Getting devices...")
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     -- Build request
     local base_url = GlobalObject.LnduBaseUrl
@@ -1182,7 +1288,7 @@ function GET_DEVICES(p_vid)
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = appId
     }
 
     local req = {
@@ -1347,6 +1453,21 @@ function APPLY_MQTT_INFO()
         return
     end
 
+     local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
+        update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
+        
+        C4:SetTimer(2000, function()
+            if Properties["Enable MQTT"] == "True" then
+                APPLY_MQTT_INFO()
+            end
+        end)
+        return
+    end
+
+     print("[MQTT] Using AppId:", appId)
     update_prop("Status", "Fetching MQTT info...")
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/apply-mqtt-info"
@@ -1357,7 +1478,7 @@ function APPLY_MQTT_INFO()
     local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"]      = GlobalObject.CldBusAppId
+        ["App-Name"]      = appId
     }
 
     local req = { url = url, method = "POST", headers = headers, body = body_json }
@@ -1647,6 +1768,14 @@ function GetImageForEvent(extp, done)
         return done(nil)
     end
 
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+    print("ERROR: CldBus credentials not loaded yet")
+    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+    return
+    end
+
     local wanted_file = extp:match("([^/]+%.jpg)")
     if not wanted_file then
         return done(nil)
@@ -1660,7 +1789,7 @@ function GetImageForEvent(extp, done)
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
-            ["App-Name"]      = GlobalObject.CldBusAppId
+            ["App-Name"]      = appId
         },
         body = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
@@ -2610,119 +2739,6 @@ function DISCOVER_CAMERAS(tParams)
     end)
 end
 
--- MSEARCH_DISCOVERY - Test SSDP discovery by scanning network for cameras
-function MSEARCH_DISCOVERY(tParams)
-    print("================================================================")
-    print("         M-SEARCH (SSDP DISCOVERY) - P160 CAMERA TEST           ")
-    print("================================================================")
-
-    C4:UpdateProperty("Status", "Testing SSDP M-SEARCH discovery...")
-
-    print("This test scans for P160 cameras (port 3333) to see if they respond")
-    print("to network discovery attempts.")
-    print("")
-
-    local cameras_found = {}
-    local scan_count = 0
-
-    -- Get controller's network
-    local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
-    print("Controller IP: " .. controller_ip)
-
-    -- Extract network prefix
-    local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
-    if not network_prefix then
-        print("ERROR: Could not determine network range")
-        C4:UpdateProperty("Status", "M-SEARCH failed: Invalid network")
-        return
-    end
-
-    print("Scanning network: " .. network_prefix .. ".1-254 on port 3333 (P160)")
-    print("")
-
-    -- Scan for P160 cameras on port 3333
-    for i = 1, 254 do
-        local test_ip = network_prefix .. "." .. i
-        scan_count = scan_count + 1
-
-        C4:urlGet("http://" .. test_ip .. ":3333/", {}, false,
-            function(strError, responseCode, tHeaders, data)
-                if responseCode and (responseCode == 200 or responseCode == 401) then
-                    -- Check if already found
-                    local already_found = false
-                    for _, cam in ipairs(cameras_found) do
-                        if cam.ip == test_ip then
-                            already_found = true
-                            break
-                        end
-                    end
-
-                    if not already_found then
-                        table.insert(cameras_found, {
-                            ip = test_ip,
-                            port = 3333,
-                            response_code = responseCode
-                        })
-
-                        print("")
-                        print("*** P160 CAMERA FOUND ***")
-                        print("  IP: " .. test_ip)
-                        print("  Port: 3333")
-                        print("  Response Code: " .. responseCode)
-                        print("")
-                    end
-                end
-            end
-        )
-    end
-
-    print("M-SEARCH scan initiated for " .. scan_count .. " IP addresses")
-    print("Waiting 8 seconds for responses...")
-    print("")
-
-    -- Wait for responses
-    C4:SetTimer(8000, function(timer)
-        print("")
-        print("================================================================")
-        print("              M-SEARCH (SSDP) SCAN COMPLETE                     ")
-        print("================================================================")
-        print("Scanned: " .. scan_count .. " IP addresses")
-        print("Found: " .. #cameras_found .. " P160 camera(s)")
-        print("")
-
-        if #cameras_found > 0 then
-            print("Discovered P160 Cameras:")
-            for idx, cam in ipairs(cameras_found) do
-                print(string.format("  [%d] %s:%d (Response: %d)",
-                    idx, cam.ip, cam.port, cam.response_code))
-            end
-            print("")
-
-            -- Auto-map first camera
-            local first_camera = cameras_found[1]
-            print("Auto-mapping first camera...")
-            print("  IP Address: " .. first_camera.ip)
-            print("  HTTP Port: 3333")
-            print("")
-
-            C4:UpdateProperty("IP Address", first_camera.ip)
-            C4:UpdateProperty("HTTP Port", "3333")
-
-            C4:UpdateProperty("Status", string.format("M-SEARCH: Found %d camera(s)", #cameras_found))
-        else
-            print("No P160 cameras found via M-SEARCH")
-            print("")
-            print("NOTE: P160 cameras may not respond to SSDP broadcast.")
-            print("This is normal for cloud-based cameras.")
-            print("Use 'Discover Cameras (HTTP Scan)' instead.")
-            print("")
-            C4:UpdateProperty("Status", "M-SEARCH: No cameras found")
-        end
-
-        print("================================================================")
-    end)
-end
-
 -- GET_STREAM_URLS - Return streaming URLs for various codecs
 function GET_STREAM_URLS(idBinding, tParams)
     print("================================================================")
@@ -2972,39 +2988,6 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
-    
-    -- Handle Control4 automatic discovery scan
-    if strCommand == "SEARCH" then
-        print("SEARCH command received - scanning for P160 cameras on port 3333")
-        
-        local controller_ip = C4:GetControllerNetworkAddress() or "192.168.1.1"
-        local network_prefix = controller_ip:match("^(%d+%.%d+%.%d+)%.")
-        
-        if network_prefix then
-            print("Scanning network: " .. network_prefix .. ".1-254 on port 3333")
-            
-            -- Quick scan for P160 cameras (port 3333)
-            for i = 1, 254 do
-                local test_ip = network_prefix .. "." .. i
-                
-                C4:urlGet("http://" .. test_ip .. ":3333/", {}, false,
-                    function(strError, responseCode, tHeaders, data)
-                        if responseCode and (responseCode == 200 or responseCode == 401) then
-                            print("P160 Camera found at: " .. test_ip)
-                            
-                            -- Announce to Control4 discovery system
-                            C4:SendToProxy(5001, "MATCH_FOUND", {
-                                ["1"] = test_ip  -- Property ID 1 = IP Address
-                            })
-                        end
-                    end
-                )
-            end
-        end
-        
-        return
-    end
-    
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]

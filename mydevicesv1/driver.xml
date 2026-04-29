@@ -6,7 +6,7 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>3/24/2026 3:20 PM</modified>
+  <modified>4/25/2026 3:20 PM</modified>
   <version>5</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
@@ -65,21 +65,15 @@
         <readonly>true</readonly>
       </property>
       <property>
-        <name>Composer Pro Email</name>
-        <type>STRING</type>
-        <default></default>
-        <readonly>false</readonly>
-      </property>
-      <property>
         <name>Validation API URL</name>
         <type>STRING</type>
-        <default>https://qa2.slomins.com/QA/OnTechSvcs/1.2/Lndu/GetCustomerInfoByControl4Mac</default>
+        <default>https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress</default>
         <readonly>false</readonly>
       </property>
       <property>
-        <name>Account</name>
+        <name>Shieldlink Account Email</name>
         <type>STRING</type>
-        <default>pyabu@slomins.com</default>
+        <default></default>
         <readonly>false</readonly>
       </property>
       <property>
@@ -260,13 +254,19 @@
         <default></default>
       </property>
     </properties>
-    <!--<actions>
+    <actions>
       <action>
-        <name>My Device</name>
-        <command>SHOW_DEVICES</command>
-        <description>It fetch all devices for the user</description>
+        <name>Discover Devices</name>
+        <command>DISCOVER_DEVICES</command>
+        <description>Make LNDU devices discoverable</description>
       </action>
-    </actions>-->
+    </actions>
+    <commands>
+      <command>
+        <name>DISCOVER_DEVICES</name>
+        <description>Discover Devices</description>
+      </command>
+    </commands>
   </config>
   <combo>true</combo>
   <proxies>
