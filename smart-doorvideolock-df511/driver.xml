@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8"?>
+<devicedata>
+    <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
+    <name>Slomins DF511 Door Video Lock</name>
+    <version>1.0.6</version>
+    <creator>Slomins</creator>
+    <manufacturer>Slomins</manufacturer>
+    <model>DF511</model>
+    <created>2025-1-27</created>
+    <modified>2026-4-15</modified>
+    <minimum_os_version>3.3.2</minimum_os_version>
+    <control>lua_gen</control>
+    <controlmethod>ip</controlmethod>
+    <auto_update>true</auto_update>
+    <driver>DriverWorks</driver>
+    <composer_categories>
+        <category>Security</category>
+        <category>Locks</category>
+    </composer_categories>
+    <proxies>
+        <proxy proxybindingid="8001" name="DF511 Door Lock">uibutton</proxy>
+        <proxy proxybindingid="5002" name="Door Lock">lock</proxy>
+        <proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>
+    </proxies>
+    <OnlineCategory>Security</OnlineCategory>
+    <capabilities>
+          <modes>H264,H265, SNAPSHOT, MJPEG</modes>
+        <default_http_port>3333</default_http_port>
+        <default_rtsp_port>554</default_rtsp_port>
+        <default_authentication_required>False</default_authentication_required>
+        <default_authentication_type>BASIC</default_authentication_type>
+        <default_username>SystemConnect</default_username>
+        <default_password>123456</default_password>
+        <address_readonly>False</address_readonly>
+        <http_port_readonly>False</http_port_readonly>
+        <rtsp_port_readonly>False</rtsp_port_readonly>
+        <has_extras>true</has_extras>
+        <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
+        <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
+        <snapshot_cache_enabled>true</snapshot_cache_enabled>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
+        <has_pan>false</has_pan>
+        <has_tilt>false</has_tilt>
+        <has_zoom>false</has_zoom>
+        <number_presets>0</number_presets>
+        <can_view>true</can_view>
+        <show_test_url>true</show_test_url>
+        <has_h264>True</has_h264>
+        <can_view_vlc>True</can_view_vlc>
+        <supports_rtsp_auth>True</supports_rtsp_auth>
+        <navigator_display_option proxybindingid="5003">
+            <display_icons>
+            <!-- Default icon (used when no state yet) -->
+            <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
+            <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
+            <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
+            <state id="locked">
+                <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
+                <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
+                <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
+            </state>
+            <state id="unlocked">
+                <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_70.png</Icon>
+                <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_90.png</Icon>
+                <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_300.png</Icon>
+            </state>
+            </display_icons>
+        </navigator_display_option>
+        <web_view_url proxybindingid="5003">controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
+        <mobile_web_view_enabled>true</mobile_web_view_enabled>
+        <network>true</network>
+        <address_required>true</address_required>
+    </capabilities>
+     <notification_attachment_provider>True</notification_attachment_provider>
+     <notification_attachments>
+        <attachment>
+            <id>1001</id>
+            <type>IMAGE_JPEG</type>
+            <description>Current Snapshot</description>
+            <source>MEMORY</source>
+        </attachment>
+        <attachment>
+            <id>1002</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (File)</description>
+            <source>FILE</source>
+        </attachment>
+        <attachment>
+            <id>1003</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (URL)</description>
+            <source>URL</source>
+        </attachment>
+    </notification_attachments>
+    <events>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
+        <event>
+            <id>2</id>
+            <name>Face Detected</name>
+            <description>When NAME detects a face</description>
+        </event>
+        <event>
+            <id>3</id>
+            <name>Stranger Detected</name>
+            <description>When NAME detects a stranger</description>
+        </event>
+        <event>
+            <id>4</id>
+            <name>Low Battery</name>
+            <description>When NAME battery is low</description>
+        </event>
+        <event>
+            <id>5</id>
+            <name>Camera Online</name>
+            <description>When NAME comes online</description>
+        </event>
+        <event>
+            <id>6</id>
+            <name>Camera Offline</name>
+            <description>When NAME goes offline</description>
+        </event>
+        <event>
+            <id>7</id>
+            <name>Camera Restarted</name>
+            <description>When NAME restarts</description>
+        </event>
+        <event>
+            <id>8</id>
+            <name>Doorbell Ring</name>
+            <description>When NAME doorbell is pressed</description>
+        </event>
+
+        <!-- Lock & Unlock Events -->
+
+        <event>
+            <id>9</id>
+            <name>Unlock with Password</name>
+            <description>When NAME is unlocked using a password</description>
+        </event>
+        <event>
+            <id>10</id>
+            <name>Offline Password Unlock</name>
+            <description>When NAME is unlocked using an offline password</description>
+        </event>
+        <event>
+            <id>11</id>
+            <name>Duress Unlock</name>
+            <description>When NAME is unlocked using a duress password</description>
+        </event>
+        <event>
+            <id>12</id>
+            <name>Face Recognition Unlock</name>
+            <description>When NAME is unlocked using face recognition</description>
+        </event>
+        <event>
+            <id>13</id>
+            <name>NFC Unlock</name>
+            <description>When NAME is unlocked using an NFC card</description>
+        </event>
+        <event>
+            <id>14</id>
+            <name>App Unlock</name>
+            <description>When NAME is unlocked from the mobile app</description>
+        </event>
+        <event>
+            <id>15</id>
+            <name>One-Click Unlock</name>
+            <description>When NAME is unlocked using one-click unlock</description>
+        </event>
+        <event>
+            <id>16</id>
+            <name>Key Unlock</name>
+            <description>When NAME is unlocked using a physical key</description>
+        </event>
+        <event>
+            <id>17</id>
+            <name>One-Touch Lock</name>
+            <description>When NAME is locked using one-touch lock</description>
+        </event>
+        <event>
+            <id>18</id>
+            <name>Lock Event</name>
+            <description>When NAME is locked</description>
+        </event>
+        <event>
+            <id>19</id>
+            <name>Remote Lock</name>
+            <description>When NAME is locked remotely</description>
+        </event>
+        <event>
+            <id>20</id>
+            <name>Locking Started</name>
+            <description>When NAME starts locking</description>
+        </event>
+        <event>
+            <id>21</id>
+            <name>Locked Outside</name>
+            <description>When someone is locked outside NAME</description>
+        </event>
+    </events>
+    <conditionals>
+        <conditional>
+            <name>STRANGER</name>
+            <type>LIST</type>
+             <description>Stranger Detected</description>
+             <label>Stranger Detected</label>
+             <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+    </conditionals>
+    <search>
+        <search_type>slomins:lock</search_type>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true"/>
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
+
+    <config>
+        <script file="driver.lua"/>
+        <documentation file="README.html">Slomins DF511 Door Video lock Documentation</documentation>
+      <properties>
+            <property>
+                <name>IP Address</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>VID</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Device Name</name>
+                <type>STRING</type>
+                <default>Video Lock(Wi-Fi)</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>MAC Address</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+              <property>
+                <name>Status</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Account</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable MQTT</name>
+                <type>LIST</type>
+                <items>
+                    <item>False</item>
+                    <item>True</item>
+                </items>
+                <default>False</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Alert Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Info Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Auth Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>AppId</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>AppSecret</name>
+                <type>STRING</type>
+                <password>false</password>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+          
+            <property>
+                <name>Camera Status</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+        </properties>
+        <actions>
+            <action>
+                <name>Test Snapshot</name>
+                <command>TEST_SNAPSHOT</command>
+            </action>
+            <action>
+                <name>Bind Device</name>
+                <command>BIND_DEVICE</command>
+            </action>
+            <action>
+                <name>Initialize</name>
+                <command>INITIALIZE_CAMERA</command>
+            </action>
+            <action>
+                <name>Login/Register</name>
+                <command>LOGIN_OR_REGISTER</command>
+            </action>
+            <action>
+                <name>Set Device active (SDDP)</name>
+                <command>SET_DEVICE_PROPERTY</command>
+            </action>
+            <action>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
+            </action>
+            <action>
+                <name>Lock</name>
+                <description>Lock the device</description>
+                <command>Lock</command>
+            </action>
+            <action>
+                <name>Unlock</name>
+                <description>Unlock the device</description>
+                <command>Unlock</command>
+            </action>
+        </actions>
+        <commands>
+            <command>
+                <name>CAMERA_LIVE_PREVIEW</name>
+                <description>Open live camera preview from WebView UI</description>
+            </command>
+            <command>
+                <name>SetLockUnlock</name>
+                <description>Send lock and unlock from control4</description>
+            </command>
+            <command>
+                <name>HandleSelect</name>
+                <description>Called when UI padlock is loaded to initialize state</description>
+            </command>
+            <command>
+                <name>SET_STATE</name>
+                <description>Update the lock state for UI</description>
+                <params>
+                    <param>
+                        <name>state</name>
+                        <type>STRING</type>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>REQUEST_SETTINGS</name>
+            </command>
+            <command>
+                <name>REQUEST_CUSTOM_SETTINGS</name>
+            </command>
+             <command>
+                <name>SELECT</name>
+            </command>
+            <command>
+                <name>PTZ_MOVE</name>
+                <description>Move PTZ camera</description>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <type>STRING</type>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <type>INTEGER</type>
+                        <default>1</default>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PTZ_CONT_START</name>
+                <description>Start continuous PTZ movement</description>
+                <params>
+                    <param>
+                        <name>direction</name>
+                        <type>STRING</type>
+                    </param>
+                    <param>
+                        <name>speed</name>
+                        <type>INTEGER</type>
+                        <default>1</default>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PTZ_CONT_STOP</name>
+                <description>Stop continuous PTZ movement</description>
+            </command>
+            <command>
+                <name>BIND_DEVICE</name>
+                <description>Bind device to CldBus API</description>
+            </command>
+            <command>
+                <name>INITIALIZE_CAMERA</name>
+                <description>Initialize CldBus</description>
+            </command>
+            <command>
+                <name>LOGIN_OR_REGISTER</name>
+                <description>Login or register a user</description>
+            </command>
+            <command>
+                <name>DISCOVER_CAMERAS_SDDP</name>
+                <description>Discover IP cameras via SDDP protocol (multicast)</description>
+            </command>
+            <command>
+                <name>SET_DEVICE_PROPERTY</name>
+                <description>Set device active via API (e.g., sddp_swt)</description>
+            </command>
+            <command>
+                <name>PRESET_SAVE</name>
+                <description>Save current position as preset</description>
+                <params>
+                    <param>
+                        <name>preset_id</name>
+                        <type>INTEGER</type>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>PRESET_RECALL</name>
+                <description>Recall a saved preset</description>
+                <params>
+                    <param>
+                        <name>preset_id</name>
+                        <type>INTEGER</type>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>SEND_NOTIFICATION</name>
+                <description>Send notification to control4 app</description>
+            </command>
+            <command>
+                <name>LOCK_DOOR</name>
+                <description>Lock door</description>
+            </command>
+            <command>
+                <name>UNLOCK_DOOR</name>
+                <description>Unlock door</description>
+            </command>
+        </commands>
+        <interfaces>
+            <interface>
+                <id>6001</id>
+                <type>network</type>
+                <network>
+                    <protocol>TCP</protocol>
+                    <incoming>false</incoming>
+                </network>
+            </interface>
+        </interfaces>
+    </config>
+    <connections>
+        <connection>
+            <id>5001</id>
+            <facing>6</facing>
+            <connectionname>Camera</connectionname>
+            <type>2</type>
+            <consumer>false</consumer>
+            <classes>
+                <class>
+                    <classname>CAMERA</classname>
+                </class>
+            </classes>
+            <hidden>True</hidden>
+        </connection>
+        <connection>
+            <id>5003</id>
+            <facing>6</facing>
+            <connectionname>UIBUTTON</connectionname>
+            <type>2</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>True</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>UIBUTTON</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>5002</id>
+            <facing>6</facing>
+            <connectionname>LOCK</connectionname>
+            <type>2</type>
+            <consumer>false</consumer>
+            <audiosource>false</audiosource>
+            <videosource>false</videosource>
+            <linelevel>false</linelevel>
+            <classes>
+                <class>
+                    <classname>LOCK</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>6001</id>
+            <facing>1</facing>
+            <connectionname>MQTT Proxy</connectionname>
+            <type>4</type>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>GENERIC_PROXY</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>7001</id>
+            <connectionname>TCP</connectionname>
+            <type>4</type>
+            <hidden>True</hidden>
+            <consumer>True</consumer>
+            <classes>
+                <class>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>8081</number>
+                            <suppress_connection_events>True</suppress_connection_events>
+                            <auto_connect>True</auto_connect>
+                            <monitor_connection>True</monitor_connection>
+                            <keep_connection>True</keep_connection>
+                            <keep_alive>True</keep_alive>
+                            <delimiter>0d0a</delimiter>
+                        </port>
+                    </ports>
+                </class>
+            </classes>
+        </connection>
+    </connections>
+</devicedata>
