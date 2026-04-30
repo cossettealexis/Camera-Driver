@@ -95,7 +95,52 @@
             <name>Camera Restarted</name>
             <description>When NAME restarts</description>
         </event>
+        <event>
+            <id>6</id>
+            <name>Memory Card Not Detected</name>
+            <description>When NAME detects memory card is missing</description>
+        </event>
     </events>
+
+    <conditionals>
+        <conditional>
+            <id>1</id>
+            <name>Sensing Motion</name>
+            <type>BOOL</type>
+        </conditional>
+        <conditional>
+            <id>2</id>
+            <name>Not Sensing Motion</name>
+            <type>BOOL</type>
+        </conditional>
+        <conditional>
+            <id>3</id>
+            <name>Mic is Muted</name>
+            <type>BOOL</type>
+        </conditional>
+        <conditional>
+            <id>4</id>
+            <name>Mic is Unmuted</name>
+            <type>BOOL</type>
+        </conditional>
+        <conditional>
+            <id>5</id>
+            <name>Speaker Volume Level</name>
+            <type>LIST</type>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+    </conditionals>
 
     <search>
         <searchtype>slomins:camera</searchtype>
@@ -205,86 +250,54 @@
         </properties>
         <actions>
             <action>
-                <name>Bind Device</name>
-                <command>BIND_DEVICE</command>
+                <name>Take Snapshot</name>
+                <command>TAKE_SNAPSHOT</command>
             </action>
             <action>
-                <name>Initialize</name>
+                <name>Initialize Camera</name>
                 <command>INITIALIZE_CAMERA</command>
             </action>
             <action>
-                <name>Login/Register</name>
-                <command>LOGIN_OR_REGISTER</command>
+                <name>Unmute Mic</name>
+                <command>UNMUTE_MIC</command>
             </action>
             <action>
-                <name>Get Devices</name>
-                <command>GET_DEVICES</command>
+                <name>Mute Mic</name>
+                <command>MUTE_MIC</command>
             </action>
             <action>
-                <name>Discover Cameras (HTTP Scan)</name>
-                <command>DISCOVER_CAMERAS</command>
+                <name>Turn up speaker volume</name>
+                <command>SPEAKER_VOLUME_UP</command>
             </action>
             <action>
-                <name>Discover Cameras (SDDP)</name>
-                <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>
-            <action>
-                <name>Set Device active (SDDP)</name>
-                <command>SET_DEVICE_PROPERTY</command>
+                <name>Turn down speaker volume</name>
+                <command>SPEAKER_VOLUME_DOWN</command>
             </action>
         </actions>
         <commands>
             <command>
-                <name>TEST_SNAPSHOT</name>
-                <description>Test camera snapshot URL</description>
-            </command>
-            <command>
-                <name>TEST_MAIN_STREAM</name>
-                <description>Dynamic stream API - Main Stream</description>
-            </command>
-            <command>
-                <name>TEST_SUB_STREAM</name>
-                <description>Dynamic stream API - Sub Stream</description>
-            </command>
-            <command>
-                <name>BIND_DEVICE</name>
-                <description>Bind device to CldBus API</description>
+                <name>TAKE_SNAPSHOT</name>
+                <description>Take a snapshot from the camera</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize CldBus</description>
+                <description>Initialize the camera</description>
             </command>
             <command>
-                <name>LOGIN_OR_REGISTER</name>
-                <description>Login or register a user</description>
+                <name>UNMUTE_MIC</name>
+                <description>Unmute the camera microphone</description>
             </command>
             <command>
-                <name>GET_TEMP_TOKEN</name>
-                <description>Get temporary token for user</description>
+                <name>MUTE_MIC</name>
+                <description>Mute the camera microphone</description>
             </command>
             <command>
-                <name>GET_EXCHANGE_TOKEN</name>
-                <description>Get exchange token for user</description>
+                <name>SPEAKER_VOLUME_UP</name>
+                <description>Increase speaker volume</description>
             </command>
             <command>
-                <name>GET_DEVICES</name>
-                <description>Get list of devices for user</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS</name>
-                <description>Discover IP cameras on local network via HTTP scan</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol (multicast)</description>
-            </command>
-            <command>
-                <name>SET_DEVICE_PROPERTY</name>
-                <description>Set device active via API (e.g., sddp_swt)</description>
-            </command>
-            <command>
-                <name>SEND_NOTIFICATION</name>
-                <description>Send notification to control4 app</description>
+                <name>SPEAKER_VOLUME_DOWN</name>
+                <description>Decrease speaker volume</description>
             </command>
         </commands>
         <interfaces>
