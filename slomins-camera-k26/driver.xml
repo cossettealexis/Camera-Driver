@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.0.1</version>
+    <version>1.0.4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
     <created>2025-11-11</created>
-    <modified>2026-1-20</modified>
+    <modified>2026-05-01</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -111,12 +111,102 @@
             <name>Camera Restarted</name>
             <description>When NAME restarts</description>
         </event>
+        <event>
+            <id>9</id>
+            <name>Registered User Detected</name>
+            <description>When NAME detects a registered user</description>
+        </event>
     </events>
+
+    <conditionals>
+        <conditional>
+            <name>MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Sensing motion</description>
+            <label>sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>NOT_MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Not sensing motion</description>
+            <label>not sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_MUTED</name>
+            <type>LIST</type>
+            <description>Mic is muted</description>
+            <label>Mic is muted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_UNMUTED</name>
+            <type>LIST</type>
+            <description>Mic is unmuted</description>
+            <label>Mic is unmuted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>SPEAKER_VOLUME</name>
+            <type>LIST</type>
+            <description>Speaker volume is 1-10</description>
+            <label>Speaker volume is 1-10</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>BATTERY_LEVEL</name>
+            <type>NUMBER</type>
+            <description>Battery level</description>
+            <label>battery is</label>
+        </conditional>
+        <conditional>
+            <name>SENSITIVITY</name>
+            <type>LIST</type>
+            <description>Sensitivity level</description>
+            <label>Sensitivity is</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+    </conditionals>
 
     <search>
         <searchtype>slomins:camera</searchtype>
         <add_device_properties>
-            <property type="string" id="1" name="IP Address" network_address="true"/>
+            <property type="string" id="1" name="IP Address" network_address="true" />
         </add_device_properties>
         <add_connection_binding_address>
             <connection_id>6001</connection_id>
@@ -145,6 +235,12 @@
                 <default>K26-SL</default>
                 <readonly>false</readonly>
             </property>
+              <property>
+                <name>MAC Address</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
              <property>
                 <name>Status</name>
                 <type>STRING</type>
@@ -154,7 +250,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>cgabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -206,129 +302,106 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
-           
+
             <property>
                 <name>Camera Status</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
             </property>
+            <property>
+                <name>Battery Level</name>
+                <type>STRING</type>
+                <default>0</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Battery Recovery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>80</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>15</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Alert Interval (Hours)</name>
+                <type>RANGED_INTEGER</type>
+                <default>6</default>
+                <minimum>1</minimum>
+                <maximum>24</maximum>
+                <readonly>false</readonly>
+            </property>
+
         </properties>
         <actions>
-            <!-- <action>
-                <name>Test Snapshot</name>
-                <command>TEST_SNAPSHOT</command>
+            <action>
+                <name>Take Snapshot</name>
+                <command>TAKE_SNAPSHOT</command>
             </action>
             <action>
-                <name>Bind Device</name>
-                <command>BIND_DEVICE</command>
-            </action>
-            <action>
-                <name>Initialize</name>
+                <name>Initialize Camera</name>
                 <command>INITIALIZE_CAMERA</command>
-            </action>            
-            <action>
-                <name>Get Devices</name>
-                <command>GET_DEVICES</command>
             </action>
             <action>
-                <name>Test Main Stream</name>
-                <command>TEST_MAIN_STREAM</command>
+                <name>Unmute Mic</name>
+                <command>UNMUTE_MIC</command>
             </action>
             <action>
-                <name>Test Sub Stream</name>
-                <command>TEST_SUB_STREAM</command>
+                <name>Mute Mic</name>
+                <command>MUTE_MIC</command>
             </action>
             <action>
-                <name>Discover Cameras (HTTP Scan)</name>
-                <command>DISCOVER_CAMERAS</command>
+                <name>Turn up speaker volume</name>
+                <command>SPEAKER_VOLUME_UP</command>
             </action>
             <action>
-                <name>Discover Cameras (SDDP)</name>
-                <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>            
-            <action>
-                <name>Test Push Notification</name>
-                <command>TEST_PUSH_NOTIFICATION</command>
+                <name>Turn down speaker volume</name>
+                <command>SPEAKER_VOLUME_DOWN</command>
             </action>
-            <action>
-                <name>Get Camera Properties</name>
-                <command>GET_CAMERA_PROPERTIES</command>
-            </action>
-            <action>
-                <name>Update UI Properties</name>
-                <command>UPDATE_UI_PROPERTIES</command>
-            </action> -->
             <action>
                 <name>Awake Camera</name>
                 <command>AWAKE_CAMERA</command>
             </action>
         </actions>
+        <variables>
+        </variables>
+
         <commands>
             <command>
-                <name>TEST_SNAPSHOT</name>
-                <description>Test camera snapshot URL</description>
-            </command>
-            <command>
-                <name>TEST_MAIN_STREAM</name>
-                <description>Dynamic stream API - Main Stream</description>
-            </command>
-            <command>
-                <name>TEST_SUB_STREAM</name>
-                <description>Dynamic stream API - Sub Stream</description>
-            </command>
-            <command>
-                <name>BIND_DEVICE</name>
-                <description>Bind device to CldBus API</description>
+                <name>TAKE_SNAPSHOT</name>
+                <description>Take a snapshot from the camera</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize/LoginRegister</description>
+                <description>Initialize the camera</description>
             </command>
             <command>
-                <name>GET_DEVICES</name>
-                <description>Get list of devices for user</description>
+                <name>UNMUTE_MIC</name>
+                <description>Unmute the camera microphone</description>
             </command>
             <command>
-                <name>DISCOVER_CAMERAS</name>
-                <description>Discover IP cameras on local network via HTTP scan</description>
+                <name>MUTE_MIC</name>
+                <description>Mute the camera microphone</description>
             </command>
             <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol (multicast)</description>
+                <name>SPEAKER_VOLUME_UP</name>
+                <description>Increase speaker volume</description>
             </command>
             <command>
-                <name>SET_DEVICE_PROPERTY</name>
-                <description>Set device active via API (e.g., sddp_swt)</description>
-            </command>
-
-            <command>
-                <name>GET_CAMERA_PROPERTIES</name>
-                <description>Get current camera properties and send to UI</description>
+                <name>SPEAKER_VOLUME_DOWN</name>
+                <description>Decrease speaker volume</description>
             </command>
             <command>
-                <name>UPDATE_UI_PROPERTIES</name>
-                <description>Update Control4 UI with current camera properties</description>
-            </command>
-            <command>
-                <name>PRESET_SAVE</name>
-                <description>Save current position as preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PRESET_RECALL</name>
-                <description>Recall a saved preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
+                <name>AWAKE_CAMERA</name>
+                <description>Wake up the camera</description>
             </command>
         </commands>
         <interfaces>

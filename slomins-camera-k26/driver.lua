@@ -17,21 +17,19 @@ local _pendingAuthToken        = nil
 local _tcpConnected            = false
 local TCP_BINDING_ID           = 7001
 
-GlobalObject                 = {}
-GlobalObject.LnduBaseUrl         = "https://api.arpha-tech.com"
-GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
-GlobalObject.TCP_SERVER_PORT = 8081
-GlobalObject.DeviceModel     = "k26" --K26
-GlobalObject.LnduTempToken   = nil
+GlobalObject                   = {}
+GlobalObject.LnduBaseUrl       = "https://api.arpha-tech.com"
+GlobalObject.TCP_SERVER_IP     = 'tuyadev.slomins.net'
+GlobalObject.TCP_SERVER_PORT   = 8081
+GlobalObject.DeviceModel       = "k26" --K26
+GlobalObject.LnduTempToken     = nil
 GlobalObject.LnduExchangeToken = nil
-GlobalObject.CldBusAppId = "cldbus"
-GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-GlobalObject.CustomerEmail = "cgabu@slomins.com"
-GlobalObject.ClientID = nil
-GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
-GlobalObject.AES_IV          = "33rj6KNVN4kFvd0s"
-GlobalObject.ProductSubType = "solar_box_cam" -- solar_box_cam K26
-GlobalObject.BaseApi = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject.CustomerEmail     = ""
+GlobalObject.ClientID          = nil
+GlobalObject.AES_KEY           = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
+GlobalObject.AES_IV            = "33rj6KNVN4kFvd0s"
+GlobalObject.ProductSubType    = "solar_box_cam" -- solar_box_cam K26
+GlobalObject.BaseApi           = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -46,8 +44,8 @@ local MQTT                     = require("mqtt_manager")
 local CAMERA_BINDING           = 5001
 local EVENT_DELAY_MS           = 5000
 
-local last_ip_refresh = 0
-local MIN_REFRESH_GAP = 5 -- seconds (small gap, not too strict)
+local last_ip_refresh          = 0
+local MIN_REFRESH_GAP          = 5 -- seconds (small gap, not too strict)
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call          = true
 
@@ -106,13 +104,29 @@ local EVENT = {
     STRANGER         = "Stranger Detected",
 }
 
+-- Conditional state storage
+local conditional_state = {
+    MOTION_DETECTED = false,
+    NOT_MOTION_DETECTED = true,
+    MIC_MUTED = false,
+    MIC_UNMUTED = true,
+    SPEAKER_VOLUME = 5,
+    BATTERY_LEVEL = 100,
+    SENSITIVITY = 5
+}
 
 local mqtt_enabled       = false
-local WAKE_DURATION      = 7 -- K26 camera stays awake for 7 seconds
+local WAKE_DURATION      = 7  -- K26 camera stays awake for 7 seconds
 local WAKE_INTERVAL      = 13 -- Wake every 13 seconds
 local _initializing      = false
 local MQTT_AUTO_ENABLED  = false
 local GET_DEVICES_CALLED = false
+
+
+local _lastLowBatteryAlert = 0
+local _batteryPollTimer    = nil
+local _batteryPollVid      = nil
+local _batteryAlertTimer   = nil
 function TcpConnection()
     print("TcpConnection established")
     local tPortParams = {
@@ -126,14 +140,6 @@ function TcpConnection()
     C4:CreateNetworkConnection(TCP_BINDING_ID, GlobalObject.TCP_SERVER_IP, "TCP")
     C4:NetPortOptions(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT, "TCP", tPortParams)
     C4:NetConnect(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT)
-end
-
-local function log_prop_change(name, value, hidden)
-    if hidden then
-        print(string.format("[PROP] %s updated (hidden)", name))
-    else
-        print(string.format("[PROP] %s updated => %s", name, tostring(value)))
-    end
 end
 
 -- Wake Camera with Retry and stop retry after retry attempts
@@ -182,6 +188,8 @@ function SET_CAMERA_IP(ip)
 end
 
 function OnDriverInit()
+    C4:AddVariable("DeviceName", "", "STRING", true, false)
+    C4:AddVariable("BatteryPercent", "", "STRING", true, false)
     C4:UpdateProperty("Status", "OnDriverInit...")
     TcpConnection()
     print("=== K26 Driver Initialized ===")
@@ -193,10 +201,10 @@ function OnDriverInit()
         end
         _props[k] = v
     end
-    
+
     -- Initialize EVENT_DELAY_MS from properties
     EVENT_DELAY_MS = tonumber(Properties["Event Interval (ms)"]) or 5000
-        
+
     -- Sync IP Address property with Camera Proxy
     local ip_address = Properties["IP Address"]
     if ip_address and ip_address ~= "" and ip_address ~= "127.0.0.1" then
@@ -206,7 +214,6 @@ function OnDriverInit()
         print("[INIT] No valid IP Address set, keeping default")
     end
 
-    print("=== K26 Driver Init Complete ===")
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -217,8 +224,6 @@ function OnDriverInit()
             HANDLE_JSON_EVENT(payload)
         end
     })
-    
-    
 end
 
 function OnDriverDestroyed()
@@ -226,13 +231,139 @@ function OnDriverDestroyed()
     MQTT.disconnect()
 end
 
+function ValidateMacAddress(mac)
+    if not mac or mac == "" then
+        print("[MAC] Error: No MAC address provided")
+        C4:UpdateProperty("Status", "MAC validation failed: No MAC provided")
+        return
+    end
+
+    print("[MAC] Validating MAC address: " .. mac .. " ...")
+
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'
+    local headers = { ["Content-Type"] = "application/json" }
+
+    local url = GlobalObject.BaseApi .. "/IsValidControl4MacAddress"
+
+    C4:urlPost(url, requestBody, headers, true,
+        function(ticketId, strData, responseCode, tHeaders, strError)
+            if strError and strError ~= "" then
+                print("[MAC] API Error: " .. strError)
+                C4:UpdateProperty("Status", "MAC validation error: " .. strError)
+                return
+            end
+
+            if responseCode ~= 200 then
+                print("[MAC] HTTP Error: " .. tostring(responseCode))
+                C4:UpdateProperty("Status", "MAC validation failed (HTTP " .. tostring(responseCode) .. ")")
+                return
+            end
+
+            local response = C4:JsonDecode(strData)
+            if not response then
+                print("[MAC] Failed to parse JSON response")
+                C4:UpdateProperty("Status", "MAC validation failed: Invalid JSON")
+                return
+            end
+
+            if response.IsValidMacAddress == true then
+                print("[MAC] MAC is valid - processing credentials...")
+
+                local encryptedMsg = response.EncryptMsg
+                if not encryptedMsg or encryptedMsg == "" then
+                    print("[MAC] No EncryptMsg in response")
+                    C4:UpdateProperty("Status", "MAC valid but no credentials received")
+                    return
+                end
+
+                if string.sub(encryptedMsg, -2) == "\r\n" then
+                    encryptedMsg = string.sub(encryptedMsg, 1, -3)
+                end
+
+                local cipher = 'AES-256-CBC'
+                local options = {
+                    return_encoding = 'NONE',
+                    key_encoding    = 'NONE',
+                    iv_encoding     = 'NONE',
+                    data_encoding   = 'BASE64',
+                    padding         = true,
+                }
+
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg,
+                    options)
+
+                if not decrypted_data then
+                    print("[MAC] Decryption failed:", tostring(err))
+                    C4:UpdateProperty("Status", "MAC validation failed: Decryption error")
+                    return
+                end
+
+                local data = C4:JsonDecode(decrypted_data)
+                if not data or not data.message then
+                    print("[MAC] Failed to parse decrypted data")
+                    C4:UpdateProperty("Status", "MAC validation failed: Invalid decrypted payload")
+                    return
+                end
+
+                if data.message.EventName == "UpdateClientSecretId" and
+                    data.message.MacAddress == C4:GetUniqueMAC() then
+                    local appId                = data.message.CldBusAppId or ""
+                    local appSecret            = data.message.CldBusSecret or data.message.SecretId or ""
+                    local email                = data.message.CustomerEmail or ""
+
+                    GlobalObject.CldBusAppId   = appId
+                    GlobalObject.CldBusSecret  = appSecret
+                    GlobalObject.CustomerEmail = email
+
+                    _props["AppId"]            = appId
+                    _props["AppSecret"]        = appSecret
+                    _props["Account"]          = email
+
+                    -- Force update multiple times with delay
+                    C4:UpdateProperty("AppId", appId)
+                    C4:UpdateProperty("AppSecret", appSecret)
+                    C4:UpdateProperty("Account", email)
+
+                    C4:SetTimer(300, function()
+                        C4:UpdateProperty("AppId", appId)
+                        C4:UpdateProperty("AppSecret", appSecret)
+                    end)
+
+                    C4:SetTimer(800, function()
+                        C4:UpdateProperty("AppId", appId)
+                        C4:UpdateProperty("AppSecret", appSecret)
+                        C4:UpdateProperty("Status", "CldBus credentials loaded: " .. appId)
+                        InitializeCamera()
+                    end)
+
+                    print("[MAC] ✅ SUCCESS: Credentials loaded")
+                    print("[MAC] AppId     : " .. appId)
+                    print("[MAC] Account   : " .. email)
+                else
+                    print("[MAC] Unexpected decrypted message format")
+                    C4:UpdateProperty("Status", "MAC valid but bad credential format")
+                end
+            else
+                print("[MAC] ❌ MAC Address is invalid according to server")
+                GlobalObject.CldBusAppId  = ""
+                GlobalObject.CldBusSecret = ""
+                _props["AppId"]           = ""
+                _props["AppSecret"]       = ""
+                C4:UpdateProperty("AppId", "")
+                C4:UpdateProperty("AppSecret", "")
+                C4:UpdateProperty("Status", "MAC validation failed - Invalid MAC")
+            end
+        end
+    )
+end
+
 function OnDriverLateInit()
     C4:UpdateProperty("Status", "OnDriverLateInit...")
     print("=== K26 Driver Late Init ===")
-    C4:UpdateProperty("Camera Status", "Unknown")
-    
-    -- ValidateMacAddress(C4:GetUniqueMAC())
-    
+    C4:UpdateProperty("Camera Status", "false")
+
+    ValidateMacAddress(C4:GetUniqueMAC())
+
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
         if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
@@ -242,7 +373,7 @@ function OnDriverLateInit()
             C4:UpdateProperty("Status", "MAC validation failed - no credentials")
         end
     end)
-    
+
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "8080"
@@ -259,77 +390,75 @@ function OnDriverLateInit()
         C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
         print("Camera Proxy configuration complete!")
     end
-    
 end
 
-function ValidateMacAddress(mac)
+--[[function ValidateMacAddress(mac)
     local requestBody = '{"MacAddress":"' .. mac .. '"}'
     local headers = {
         ["Content-Type"] = "application/json"
     }
 
-     C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers,true,
+    C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers, true,
         function(ticketId, strData, responseCode, tHeaders, strError)
+            if strError ~= nil and strError ~= "" then
+                print("Error calling API: " .. strError)
+                C4:UpdateProperty("Status", "Error calling API: " .. strError)
+                return
+            end
 
-        if strError ~= nil and strError ~= "" then
-            print("Error calling API: " .. strError)
-            C4:UpdateProperty("Status","Error calling API: " .. strError)
-            return
-        end
+            if responseCode ~= 200 then
+                print("HTTP Error: " .. tostring(responseCode))
+                C4:UpdateProperty("Status", "HTTP Error: " .. tostring(responseCode))
+                return
+            end
 
-        if responseCode ~= 200 then
-            print("HTTP Error: " .. tostring(responseCode))
-            C4:UpdateProperty("Status","HTTP Error: " .. tostring(responseCode))
-            return
-        end
+            local response = C4:JsonDecode(strData)
+            if response then
+                if response.IsValidMacAddress == true then
+                    print("MAC Address is valid")
+                    C4:UpdateProperty("Status", "MAC Address is valid")
 
-        local response = C4:JsonDecode(strData)
-        if response then
-            if response.IsValidMacAddress == true then
-                print("MAC Address is valid")
-                C4:UpdateProperty("Status","MAC Address is valid")
-                
-                local strData = response.EncryptMsg
-                if string.sub(strData, -2) == "\r\n" then
-                  strData = string.sub(strData, 1, -3)
-                end
-          
-                local cipher = 'AES-256-CBC'
-                local options = {
-                    return_encoding = 'NONE',
-                    key_encoding = 'NONE',
-                    iv_encoding = 'NONE',
-                    data_encoding = 'BASE64',
-                    padding = true,
-                }
+                    local strData = response.EncryptMsg
+                    if string.sub(strData, -2) == "\r\n" then
+                        strData = string.sub(strData, 1, -3)
+                    end
 
-                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
-                
-                if (decrypted_data ~= nil) then
-                 
-                  local data = C4:JsonDecode(decrypted_data)
-                  extractedData = {}
-                
-                  if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
-                     data.message.MacAddress == C4:GetUniqueMAC() then
-                        print("ValidateMacAddress() " , data.message.EventName)
-                        
-                        GlobalObject.CldBusAppId = data.message.CldBusAppId
-                        GlobalObject.CldBusSecret = data.message.CldBusSecret
-                        GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
-                        
-                        C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
-                        C4:UpdateProperty("AppSecret", data.message.SecretId or "")
-                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
-                        print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
-                   end
-                end
-            else
-                print("MAC Address is invalid")
-                C4:UpdateProperty("Device Response","MAC Address is invalid")
-                GlobalObject.CldBusAppId = ""
-                GlobalObject.CldBusSecret = ""
-                GlobalObject.CustomerEmail = ""
+                    local cipher = 'AES-256-CBC'
+                    local options = {
+                        return_encoding = 'NONE',
+                        key_encoding = 'NONE',
+                        iv_encoding = 'NONE',
+                        data_encoding = 'BASE64',
+                        padding = true,
+                    }
+
+                    local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData,
+                        options)
+
+                    if (decrypted_data ~= nil) then
+                        local data = C4:JsonDecode(decrypted_data)
+                        extractedData = {}
+
+                        if data and data.message and data.message.EventName == "UpdateClientSecretId" and
+                            data.message.MacAddress == C4:GetUniqueMAC() then
+                            print("ValidateMacAddress() ", data.message.EventName)
+
+                            GlobalObject.CldBusAppId = data.message.CldBusAppId
+                            GlobalObject.CldBusSecret = data.message.CldBusSecret
+                            GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
+
+                            C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
+                            C4:UpdateProperty("AppSecret", data.message.SecretId or "")
+                            C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
+                            print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
+                        end
+                    end
+                else
+                    print("MAC Address is invalid")
+                    C4:UpdateProperty("Device Response", "MAC Address is invalid")
+                    GlobalObject.CldBusAppId = ""
+                    GlobalObject.CldBusSecret = ""
+                    GlobalObject.CustomerEmail = ""
 
                 C4:UpdateProperty("AppId",  "")
                 C4:UpdateProperty("AppSecret", "")
@@ -340,7 +469,7 @@ function ValidateMacAddress(mac)
             C4:UpdateProperty("Device Response","Failed to parse JSON response")
         end
     end)
-end
+end--]]
 
 local function update_prop(name, value)
     if not value then value = "" end
@@ -348,17 +477,34 @@ local function update_prop(name, value)
     _props[name] = tostring(value)
 end
 
+-- Helper to safely get current CldBus credentials from Properties
+local function GetCldBusCredentials()
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    return appId, appSecret
+end
+
 function OnPropertyChanged(strProperty)
     print("Property changed: " .. strProperty)
 
     if strProperty == "IP Address" then
         local ip = Properties["IP Address"]
-        
+
         if ip and ip ~= "" then
             C4:SendToProxy(5001, "SET_ADDRESS", {
                 ADDRESS = ip
             })
         end
+        _props[strProperty] = Properties[strProperty]
+        ValidateMacAddress(C4:GetUniqueMAC())
+    end
+
+    if strProperty == "MAC Address" then
+        print("[MAC] MAC Address changed → Refreshing CldBus credentials")
+        local macValue = Properties["MAC Address"] or C4:GetUniqueMAC()
+        _props["MAC Address"] = macValue
+        ValidateMacAddress(macValue)
+        return
     end
 
     if strProperty == "Enable MQTT" then
@@ -384,6 +530,16 @@ function OnPropertyChanged(strProperty)
         end
         return
     end
+    if strProperty == "Low Battery Alert Interval (Hours)" then
+        print("[ALERT ENGINE] Interval changed — restarting")
+        START_BATTERY_ALERT_ENGINE()
+        return
+    end
+
+    if strProperty == "VID" then
+        RESET_MQTT_AND_BATTERY(_batteryPollVid, Properties["VID"])
+        return
+    end
     if strProperty == "Enable Alert Notifications" then
         user_settings.enable_alerts =
             (Properties[strProperty] == "True")
@@ -405,9 +561,26 @@ function OnPropertyChanged(strProperty)
         return
     end
 
+    if strProperty == "Account" then
+        local newAccount = Properties["Account"] or ""
+        print("[ACCOUNT] Account changed to: " .. newAccount)
+
+        _props["Account"] = newAccount
+        GlobalObject.CustomerEmail = newAccount
+
+        if newAccount and newAccount ~= "" then
+            print("[ACCOUNT] Account changed → Re-initializing login...")
+            C4:UpdateProperty("Status", "Account changed - Re-logging in...")
+
+            -- Re-run full initialization with new email
+            C4:SetTimer(1500, InitializeCamera)
+        end
+        return
+    end
     local value = Properties[strProperty]
     print("Property [" .. strProperty .. "] changed to: " .. tostring(value))
     _props[strProperty] = value
+
 
     if strProperty == "Auth Token" then
         UpdateAuthToken(value)
@@ -415,14 +588,18 @@ function OnPropertyChanged(strProperty)
     end
 
     if strProperty == "AppId" then
-        print("[PROP] AppId manually changed => " .. tostring(Properties[strProperty]))
-        _props["AppId"] = Properties[strProperty]
+        local newValue = Properties[strProperty] or ""
+        print("[PROP] AppId manually changed => " .. newValue)
+        _props["AppId"] = newValue
+        GlobalObject.CldBusAppId = newValue
         return
     end
 
     if strProperty == "AppSecret" then
+        local newValue = Properties[strProperty] or ""
         print("[PROP] AppSecret manually changed (hidden)")
-        _props["AppSecret"] = Properties[strProperty]
+        _props["AppSecret"] = newValue
+        GlobalObject.CldBusSecret = newValue
         return
     end
 end
@@ -462,6 +639,7 @@ function ExecuteCommand(strCommand, tParams)
         SEND_TEST_NOTIFICATION()
         return
     end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -483,12 +661,18 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     -- Prepare message and signature
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
         client_id, request_id, time, version)
-    local signature = util.hmac_sha256_hex(message, app_secret)
+    local signature = util.hmac_sha256_hex(message, appSecret)
 
     -- Build request body
     local body_tbl = {
@@ -506,7 +690,7 @@ function InitializeCamera()
 
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = appId
     }
     local req = {
         url = url,
@@ -531,7 +715,7 @@ function InitializeCamera()
                 if not account or account == "" then
                     account = GlobalObject.CustomerEmail
                 end
-                
+
                 if not account or account == "" then
                     print("ERROR: No customer email available")
                     C4:UpdateProperty("Status", "Login failed: No email")
@@ -570,7 +754,13 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     local post_data_obj = { country_code = country_code, account = account }
     local post_data_json = json.encode(post_data_obj)
@@ -586,7 +776,7 @@ function LoginOrRegister(country_code, account, public_key)
         local post_data_hex = encrypted_data
         local message = string.format("client_id=%s&post_data=%s&request_id=%s&time=%s",
             client_id, post_data_hex, request_id, time)
-        local signature = util.hmac_sha256_hex(message, app_secret)
+        local signature = util.hmac_sha256_hex(message, appSecret)
 
         local body_tbl = {
             sign       = signature,
@@ -604,7 +794,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] =  GlobalObject.CldBusAppId
+            ["App-Name"] = appId
         }
 
         local req = {
@@ -725,7 +915,16 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    local app_secret = GlobalObject.CldBusSecret
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
+    print("[NodeAPI] Preparing to send token with AppId:", appId)
+
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
 
@@ -734,8 +933,8 @@ function SendTokenToNodeAPI(token)
                 EventName   = "LnduUpdate",
                 Token       = token,
                 ClientID    = GlobalObject.ClientID,
-                AppId       = GlobalObject.CldBusAppId,
-                AppSecret   = app_secret,
+                AppId       = appId,
+                AppSecret   = appSecret,
                 AccountName = GlobalObject.AccountName,
                 C4UniqueMac = C4:GetUniqueMAC()
             }
@@ -747,7 +946,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.CldBusAppId
+                ["App-Name"]        = appId
             },
             body = json.encode(body),
             timeout = 10
@@ -797,10 +996,18 @@ function GET_DEVICES(p_vid)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices-v2"
 
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId
+        ["App-Name"] = appId
     }
 
     local req = {
@@ -843,11 +1050,13 @@ function GET_DEVICES(p_vid)
                         print("  Model: " .. (device.model or "N/A"))
                         print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
-                    -- If no IP set, filter by model or product subtype
+                        -- If no IP set, filter by model or product subtype
                     elseif (not ip or ip == "") then
-                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
-                        
+                        local model_match = device.model and
+                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and
+                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+
                         if model_match or subtype_match then
                             target_device = device
                             print("Found K26 device (no IP filter) at index " .. i)
@@ -858,22 +1067,22 @@ function GET_DEVICES(p_vid)
                         end
                     end
                 end
-                
+
                 if not target_device and ip then
                     print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
                     print("Keeping SDDP-discovered IP, waiting for correct device match")
                     return
                 end
-                
+
                 if target_device and target_device.vid then
+                    local newVid = target_device.vid
+
+                    RESET_MQTT_AND_BATTERY(_batteryPollVid, newVid)
                     print("Storing device information for K26:")
-                    print("  VID: " .. target_device.vid)
+                    print("  VID: " .. newVid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
-
-                    _props["VID"] = target_device.vid
-                    C4:UpdateProperty("VID", target_device.vid)
 
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
@@ -881,7 +1090,7 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
-                    -- Set IP Address if found and not already set
+                    -- Set IP if needed
                     if target_device.local_ip and target_device.local_ip ~= "" then
                         if not ip or ip == "" then
                             SET_CAMERA_IP(target_device.local_ip)
@@ -890,19 +1099,17 @@ function GET_DEVICES(p_vid)
                             print("  IP Address already set to: " .. ip)
                         end
                     end
-                    
+
+
+
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
-
                         mqtt_enabled = true
                         MQTT_AUTO_ENABLED = true
-
                         C4:UpdateProperty("Enable MQTT", "True")
                         _props["Enable MQTT"] = "True"
-
-                        APPLY_MQTT_INFO()
                     end
-                    
+
                     print("K26 properties updated successfully")
                 else
                     print("ERROR: No K26 camera device found or vid missing")
@@ -914,6 +1121,183 @@ function GET_DEVICES(p_vid)
     end)
 
     print("================================================================")
+end
+
+local function HANDLE_BATTERY_LEVEL(pct)
+    if type(pct) ~= "number" then return end
+
+    -- Update battery conditional
+    UpdateConditional("BATTERY_LEVEL", pct)
+
+    local high_recovery  = tonumber(Properties["Battery Recovery Threshold (%)"]) or 80
+    local low_threshold  = tonumber(Properties["Low Battery Threshold (%)"]) or 15
+    local interval_hours = tonumber(Properties["Low Battery Alert Interval (Hours)"]) or 6
+    local interval_sec   = interval_hours * 3600
+    local now            = os.time()
+
+    -- Recovery resets alert timer
+    if pct > high_recovery then
+        _lastLowBatteryAlert = 0
+        print("[BATTERY] Battery recovered — alert reset")
+        return
+    end
+
+    -- Battery not low enough
+    if pct > low_threshold then return end
+
+    -- Rate limiting
+    local elapsed = now - _lastLowBatteryAlert
+    if elapsed < interval_sec then
+        print("[BATTERY] Alert suppressed, next in "
+            .. math.floor((interval_sec - elapsed) / 60) .. " min")
+        return
+    end
+
+    -- Fire alert
+    _lastLowBatteryAlert = now
+    C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
+    C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
+
+    print("[BATTERY] ✅ Low battery alert fired")
+end
+
+
+
+function START_BATTERY_ALERT_ENGINE()
+    STOP_BATTERY_ALERT_ENGINE()
+
+    local interval_hours =
+        tonumber(Properties["Low Battery Alert Interval (Hours)"]) or 6
+    local interval_ms = interval_hours * 60 * 60 * 1000
+
+    print("[ALERT ENGINE] Starting (interval =", interval_hours, "hours)")
+
+    _batteryAlertTimer = C4:SetTimer(interval_ms, function()
+        local pct = tonumber(Properties["Battery Level"])
+        if pct then
+            print("[ALERT ENGINE] Checking battery:", pct)
+            HANDLE_BATTERY_LEVEL(pct)
+        else
+            print("[ALERT ENGINE] No cached battery value")
+        end
+    end, true) 
+end
+
+function STOP_BATTERY_ALERT_ENGINE()
+    if type(_batteryAlertTimer) == "number" then
+        print("[ALERT ENGINE] Stopping timer:", _batteryAlertTimer)
+        C4:KillTimer(_batteryAlertTimer)
+    end
+    _batteryAlertTimer = nil
+end
+
+function RESET_MQTT_AND_BATTERY(oldVid, newVid)
+    print("[RESET] VID:", tostring(oldVid), "→", tostring(newVid))
+
+    if not newVid or newVid == "" then return end
+    if _batteryPollVid == newVid then
+        print("[RESET] Same VID, skipping")
+        return
+    end
+
+    _batteryPollVid = newVid
+    _props["VID"] = newVid
+    C4:UpdateProperty("VID", newVid)
+
+    APPLY_MQTT_INFO()
+
+    STOP_BATTERY_POLL()
+    STOP_BATTERY_ALERT_ENGINE()
+
+    START_BATTERY_POLL()
+    START_BATTERY_ALERT_ENGINE()
+end
+
+function GET_BATTERY_LEVEL()
+    print("===== GET BATTERY =====")
+
+    local token   = Properties["Auth Token"] or _props["Auth Token"]
+    local vid     = Properties["VID"] or _props["VID"]
+    local baseUrl = GlobalObject.LnduBaseUrl
+
+    if not token or token == "" then
+        print("Missing Token")
+        return
+    end
+    if not vid or vid == "" then
+        print("Missing VID")
+        return
+    end
+
+    transport.execute({
+        url     = baseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = { ["Authorization"] = "Bearer " .. token }
+    }, function(code, resp)
+        print("[BATTERY] Response code:", code)
+        if code ~= 200 then return end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or type(data) ~= "table" or type(data.data) ~= "table" then
+            print("[BATTERY] Parse error")
+            return
+        end
+
+        local function find(list)
+            if type(list) ~= "table" then return nil end
+            for _, d in ipairs(list) do
+                if tostring(d.vid) == tostring(vid) then return d end
+            end
+            return list[1]
+        end
+
+        local device = find(data.data.devices) or find(data.data.share_devices)
+        if not device then
+            print("[BATTERY] No device found")
+            return
+        end
+
+        -- Online status
+        local status = (device.is_online == 1 or device.is_online == true) and "Online" or "Offline"
+        if _props["Camera Status"] ~= status then
+            C4:UpdateProperty("Camera Status", status)
+            _props["Camera Status"] = status
+        end
+
+        -- Battery level
+        local pct = tonumber(device.power)
+        if not pct then
+            print("[BATTERY] Battery field missing")
+            return
+        end
+
+        print("[BATTERY] Level:", pct, "%")
+        C4:SetVariable("BatteryPercent", tostring(pct))
+        C4:UpdateProperty("Battery Level", tostring(pct))
+    end)
+end
+
+function START_BATTERY_POLL()
+    STOP_BATTERY_POLL()
+
+    local POLL_INTERVAL_MS = 60 * 60 * 1000 -- 1 hour
+
+    print("[BATTERY POLL] Starting poll timer")
+
+    GET_BATTERY_LEVEL() -- immediate fetch
+
+    _batteryPollTimer = C4:SetTimer(POLL_INTERVAL_MS, function()
+        print("[BATTERY POLL] Polling API...")
+        GET_BATTERY_LEVEL()
+    end, true)
+end
+
+function STOP_BATTERY_POLL()
+    if type(_batteryPollTimer) == "number" then
+        print("[BATTERY POLL] Stopping poll timer:", _batteryPollTimer)
+        C4:KillTimer(_batteryPollTimer)
+    end
+    _batteryPollTimer = nil
 end
 
 -- Set Device Property
@@ -1044,9 +1428,25 @@ function APPLY_MQTT_INFO()
         return
     end
 
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
+        update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
+
+        C4:SetTimer(2000, function()
+            if Properties["Enable MQTT"] == "True" then
+                APPLY_MQTT_INFO()
+            end
+        end)
+        return
+    end
+
     update_prop("Status", "Fetching MQTT info...")
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/apply-mqtt-info"
+
+
 
     local body_tbl = { vid = vid }
     local body_json = json.encode(body_tbl)
@@ -1054,7 +1454,7 @@ function APPLY_MQTT_INFO()
     local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"]      = GlobalObject.CldBusAppId
+        ["App-Name"]      = appId
     }
 
     local req = { url = url, method = "POST", headers = headers, body = body_json }
@@ -1110,6 +1510,9 @@ function APPLY_MQTT_INFO()
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
 
+                    print("[MQTT] ✅ Username:", username)
+                    print("[MQTT] ✅ Password received (len =", #pwd, ")")
+
                     MQTT.connect()
                 end)
 
@@ -1126,20 +1529,20 @@ function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
-        
+
         print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
         print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
-        
+
         local ip_to_use = nil
-        
+
         if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
             ip_to_use = ssdp_ip
         end
-        
+
         if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
             ip_to_use = binding_ip
         end
-        
+
         if ip_to_use then
             C4:UpdateProperty("IP Address", ip_to_use)
             _props["IP Address"] = ip_to_use
@@ -1313,9 +1716,17 @@ local function normalize_http_url(url)
     return url
 end
 function GetImageForEvent(extp, done)
-    local vid   = Properties["VID"]
-    local token = Properties["Auth Token"]
-    local base  = GlobalObject.LnduBaseUrl
+    local vid              = Properties["VID"]
+    local token            = Properties["Auth Token"]
+    local base             = GlobalObject.LnduBaseUrl
+
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     if not extp then
         return done(nil)
@@ -1334,7 +1745,7 @@ function GetImageForEvent(extp, done)
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
-            ["App-Name"]      = GlobalObject.CldBusAppId
+            ["App-Name"]      = appId
         },
         body = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
@@ -1420,7 +1831,10 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
                 "IP Camera"
             )
             C4:SetTimer(EVENT_DELAY_MS, function()
-                C4:FireEvent(event_name, CAMERA_BINDING)
+                C4:FireEvent(event_name, {
+                    DeviceName = Properties["Device Name"],
+                    EventType  = event_name
+                }, CAMERA_BINDING)
             end)
         end)
     end
@@ -1434,6 +1848,10 @@ end
 
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
+    
+    -- Update motion conditional states
+    UpdateConditional("MOTION_DETECTED", true)
+    UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
 local function handle_human(filename, extp)
@@ -1442,10 +1860,6 @@ end
 
 local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
-end
-
-local function handle_low_battery()
-    send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
 end
 
 
@@ -1494,29 +1908,31 @@ local function handle_online_status(new_online)
 end
 
 local function handle_device_status(msg)
-    print("[STATUS] updateDeviceStatus received")
-    print("[STATUS] Full message:", json.encode(msg))
-    -- if not msg.status then return end
+    if not msg.status then return end
+
+    local battery_pct = nil
+    local is_charging = false
+    local power_status = nil
 
     for _, s in ipairs(msg.status) do
-        print("[STATUS] Status key:", s.status_key, "Value:", s.status_val)
-        print("[STATUS] Status details:", json.encode(s))
-        -- if s.status_key == "is_online" then
-        --     local is_online = (s.status_val == 1)
-        --     handle_online_status(is_online)
-        --     return
-        -- end
+        if s.status_key == "is_online" then
+            handle_online_status(s.status_val == 1)
+        end
+
+        if s.status_key == "e" then
+            battery_pct = tonumber(s.status_val)
+        end
+    end
+
+    if battery_pct then
+        print("[BATTERY] Level:", battery_pct, "% | Charging:", is_charging)
+
+        HANDLE_BATTERY_LEVEL(battery_pct)
     end
 end
 
-
 function HANDLE_JSON_EVENT(payload)
-    print("[EVENT] Received payload:", payload)
-    print("[EVENT] Attempting to decode JSON...")
-
     local ok, msg = pcall(json.decode, payload)
-    print("[EVENT] JSON decode successful:", ok)
-    print("[EVENT] Decoded message type:", type(msg))
     if not ok or type(msg) ~= "table" then
         return false
     end
@@ -1530,85 +1946,76 @@ function HANDLE_JSON_EVENT(payload)
         local id     = msg.event.identifier or ""
         local params = msg.event.params or {}
 
-        -- 🔍 DEBUG: Log ALL incoming event IDs
-        print("[DEBUG-EVENT] Received event ID:", id)
-        if params.type then
-            print("[DEBUG-EVENT] Event type:", params.type)
-        end
-
-        print("[DEBUG-EVENT] Full event data:", json.encode(msg.event))
-        print("[DEBUG-EVENT] Params:", json.encode(params))
-
         ------------------------------------------------
         -- 🎥 log_rec (Continuous Motion / Human)
         ------------------------------------------------
-        -- if id == "log_rec" then
-        --     local filename = nil
-        --     local extp = params.ext_p
+        if id == "log_rec" then
+            local filename = nil
+            local extp = params.ext_p
 
-        --     if extp then
-        --         filename = extp:match("([^/]+%.jpg)")
-        --     end
+            if extp then
+                filename = extp:match("([^/]+%.jpg)")
+            end
 
 
-        --     print("[EVENT] filename =", filename)
-        --     if params.type == 10021 then
-        --         handle_motion(filename, extp)
-        --         return true
-        --     end
+            print("[EVENT] filename =", filename)
+            if params.type == 10021 then
+                handle_motion(filename, extp)
+                return true
+            end
 
-        --     if params.type == 10022 then
-        --         handle_human(filename, extp)
-        --         return true
-        --     end
+            if params.type == 10022 then
+                handle_human(filename, extp)
+                return true
+            end
 
-        --     return true
-        -- end
+            return true
+        end
 
         ------------------------------------------------
         -- 🚨 alarm_rec_v2 (Critical Alerts)
         ------------------------------------------------
-        -- if id == "alarm_rec_v2" then
-        --     local filename = nil
-        --     local extp = params.ext_p
+        if id == "alarm_rec_v2" then
+            local filename = nil
+            local extp = params.ext_p
 
-        --     if extp then
-        --         filename = extp:match("([^/]+%.jpg)")
-        --     end
+            if extp then
+                filename = extp:match("([^/]+%.jpg)")
+            end
 
-        --     if params.type == 21 then
-        --         handle_stranger(filename, extp)
-        --         return true
-        --     end
+            if params.type == 21 then
+                handle_stranger(filename, extp)
+                return true
+            end
 
-        --     if params.type == 1 then
-        --         handle_low_battery()
-        --         return true
-        --     end
+            if params.type == 1 then
+                local pct = tonumber(params.status_val) or tonumber(params.status_val) or
+                    (tonumber(Properties["Low Battery Threshold (%)"]) - 1)
+                HANDLE_BATTERY_LEVEL(pct)
+                return true
+            end
 
-        --     if params.type == 3 then
-        --         -- Offline alert comes here but still
-        --         -- needs stability confirmation
-        --         pending_online = false
-        --         pending_since  = now
-        --         return true
-        --     end
 
-        --     return true
-        -- end
+            if params.type == 3 then
+                -- Offline alert comes here but still
+                -- needs stability confirmation
+                pending_online = false
+                pending_since  = now
+                return true
+            end
+
+            return true
+        end
 
         ------------------------------------------------
         -- 🔄 Camera Restart
         ------------------------------------------------
-        -- if id == "stored_reset" then
-        --     handle_restart()
-        --     return true
-        -- end
+        if id == "stored_reset" then
+            handle_restart()
+            return true
+        end
 
         return true
-    else
-        print("[EVENT] Not a deviceEvent or missing event field")
-        print("[EVENT] Full message:", json.encode(msg))
     end
 
     ------------------------------------------------
@@ -1617,15 +2024,12 @@ function HANDLE_JSON_EVENT(payload)
     if msg.method == "updateDeviceStatus" then
         handle_device_status(msg, now)
         return true
-    else
-        print("[EVENT] Unhandled message method:", tostring(msg.method))
-        print("[EVENT] Full message:", json.encode(msg))
     end
 
 
 
 
-    -- return false
+    return false
 end
 
 function SEND_TEST_NOTIFICATION()
@@ -2541,4 +2945,56 @@ function FinishedWithNotificationAttachment(id)
     else
         print("invalid id")
     end
+end
+
+-- Conditional Management Functions
+function UpdateConditional(cond_name, value)
+    if not cond_name then return end
+
+    -- Convert string booleans to actual booleans
+    if type(value) == "string" then
+        if value == "True" or value == "true" then
+            value = true
+        elseif value == "False" or value == "false" then
+            value = false
+        else
+            value = tonumber(value) or value
+        end
+    end
+
+    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
+    
+    conditional_state[cond_name] = value
+end
+
+function TestCondition(condition_name, test_value)
+    print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
+
+    if not condition_name then 
+        print("[TESTCONDITION] No condition_name provided")
+        return false 
+    end
+
+    -- Convert test_value to proper type
+    local desired = true
+    if type(test_value) == "string" then
+        desired = (test_value == "True" or test_value == "true")
+    elseif type(test_value) == "boolean" then
+        desired = test_value
+    elseif type(test_value) == "number" then
+        desired = test_value
+    end
+
+    -- Check conditional state
+    local current_value = conditional_state[condition_name]
+    
+    if current_value == nil then
+        print("[TESTCONDITION] Condition not found: " .. condition_name)
+        return false
+    end
+
+    local result = (current_value == desired)
+    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+    
+    return result
 end

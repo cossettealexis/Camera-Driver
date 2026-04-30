@@ -106,7 +106,7 @@
         <conditional>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
-            <description>Motion detection status</description>
+            <description>Sensing motion</description>
             <label>sensing motion</label>
             <items>
                 <item>True</item>
@@ -114,9 +114,9 @@
             </items>
         </conditional>
         <conditional>
-            <name>MOTION_NOT_DETECTED</name>
+            <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
-            <description>Motion not detected status</description>
+            <description>Not sensing motion</description>
             <label>not sensing motion</label>
             <items>
                 <item>True</item>
@@ -126,7 +126,7 @@
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
-            <description>Microphone muted status</description>
+            <description>Mic is muted</description>
             <label>Mic is muted</label>
             <items>
                 <item>True</item>
@@ -136,7 +136,7 @@
         <conditional>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
-            <description>Microphone unmuted status</description>
+            <description>Mic is unmuted</description>
             <label>Mic is unmuted</label>
             <items>
                 <item>True</item>
@@ -146,7 +146,7 @@
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
-            <description>Speaker volume level</description>
+            <description>Speaker volume is 1-10</description>
             <label>Speaker volume is 1-10</label>
             <items>
                 <item>1</item>

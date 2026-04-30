@@ -37,7 +37,8 @@ local COOLDOWN = {
     online  = 0,
     offline = 0,
     restart = 0,
-
+    battery = 300,
+    memory_card = 300
 }
 
 -- Track last notification times
@@ -85,7 +86,8 @@ local EVENT = {
     CAMERA_OFFLINE   = "Camera Offline",
     CAMERA_RESTARTED = "Camera Restarted",
     HUMAN            = "Human Detected",
-
+    LOW_BATTERY      = "Low Battery",
+    MEMORY_CARD_MISSING = "Memory Card Not Detected"
 }
 
 
@@ -95,6 +97,15 @@ local GET_DEVICES_CALLED = false
 
 local last_ip_refresh    = 0
 local MIN_REFRESH_GAP    = 5
+
+-- Conditional state storage
+local conditional_state = {
+    MOTION_DETECTED = false,
+    NOT_MOTION_DETECTED = true,
+    MIC_MUTED = false,
+    MIC_UNMUTED = true,
+    SPEAKER_VOLUME = 5
+}
 
 --Establishes a TCP connection to the configured server.
 
@@ -1887,6 +1898,10 @@ end
 
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
+    
+    -- Update motion conditional states
+    UpdateConditional("MOTION_DETECTED", true)
+    UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
 local function handle_human(filename, extp)
@@ -1900,6 +1915,10 @@ end
 
 local function handle_low_battery()
     send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
+end
+
+local function handle_memory_card_missing()
+    send_notification(NOTIFY.ALERT, EVENT.MEMORY_CARD_MISSING, "memory_card", COOLDOWN.memory_card)
 end
 
 
@@ -2013,6 +2032,11 @@ function HANDLE_JSON_EVENT(payload)
                 -- needs stability confirmation
                 pending_online = false
                 pending_since  = now
+                return true
+            end
+
+            if params.type == 4 or params.type == 5 then
+                handle_memory_card_missing()
                 return true
             end
 
@@ -3493,4 +3517,58 @@ function FinishedWithNotificationAttachment(id)
     else
         print("invalid id")
     end
+end
+
+-- ================================================
+-- CONDITIONAL FUNCTIONS
+-- ================================================
+function UpdateConditional(cond_name, value)
+    if not cond_name then return end
+
+    -- Convert value to boolean or number
+    if type(value) == "string" then
+        if value == "True" or value == "true" then
+            value = true
+        elseif value == "False" or value == "false" then
+            value = false
+        else
+            value = tonumber(value) or value
+        end
+    end
+
+    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
+    
+    conditional_state[cond_name] = value
+end
+
+function TestCondition(condition_name, test_value)
+    print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
+
+    if not condition_name then 
+        print("[TESTCONDITION] No condition_name provided")
+        return false 
+    end
+
+    -- Convert test_value to proper type
+    local desired = true
+    if type(test_value) == "string" then
+        desired = (test_value == "True" or test_value == "true")
+    elseif type(test_value) == "boolean" then
+        desired = test_value
+    elseif type(test_value) == "number" then
+        desired = test_value
+    end
+
+    -- Check conditional state
+    local current_value = conditional_state[condition_name]
+    
+    if current_value == nil then
+        print("[TESTCONDITION] Condition not found: " .. condition_name)
+        return false
+    end
+
+    local result = (current_value == desired)
+    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+    
+    return result
 end
