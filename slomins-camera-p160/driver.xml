@@ -107,38 +107,58 @@
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
             <description>Motion detection status</description>
-            <label>Motion Detection</label>
+            <label>sensing motion</label>
             <items>
-                <item>If sensing motion</item>
-                <item>If not sensing motion</item>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MOTION_NOT_DETECTED</name>
+            <type>LIST</type>
+            <description>Motion not detected status</description>
+            <label>not sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
             </items>
         </conditional>
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
-            <description>Microphone status</description>
-            <label>Microphone Status</label>
+            <description>Microphone muted status</description>
+            <label>Mic is muted</label>
             <items>
-                <item>If Mic is muted</item>
-                <item>If Mic is unmuted</item>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_UNMUTED</name>
+            <type>LIST</type>
+            <description>Microphone unmuted status</description>
+            <label>Mic is unmuted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
             </items>
         </conditional>
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
             <description>Speaker volume level</description>
-            <label>Speaker Volume</label>
+            <label>Speaker volume is 1-10</label>
             <items>
-                <item>If Speaker volume is 1</item>
-                <item>If Speaker volume is 2</item>
-                <item>If Speaker volume is 3</item>
-                <item>If Speaker volume is 4</item>
-                <item>If Speaker volume is 5</item>
-                <item>If Speaker volume is 6</item>
-                <item>If Speaker volume is 7</item>
-                <item>If Speaker volume is 8</item>
-                <item>If Speaker volume is 9</item>
-                <item>If Speaker volume is 10</item>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
             </items>
         </conditional>
     </conditionals>
