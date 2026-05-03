@@ -139,6 +139,7 @@ local EVENT_ID_MAP = {
 
 --conditional state
 local conditional_state = {
+    STRANGER = false,
     LOCKED = false,
     UNLOCKED = false,
     IN_FAULT = false,

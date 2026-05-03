@@ -319,6 +319,16 @@
                 <item>10</item>
             </items>
         </conditional>
+        <conditional>
+            <name>STRANGER</name>
+            <type>LIST</type>
+            <description>Stranger Detected</description>
+            <label>Stranger Detected</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
     </conditionals>
     <search>
         <search_type>slomins:lock</search_type>
