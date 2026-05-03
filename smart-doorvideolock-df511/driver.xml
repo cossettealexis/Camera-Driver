@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins DF511 Door Video Lock</name>
-    <version>1.0.6</version>
+    <version>1.0.9</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>DF511</model>
     <created>2025-1-27</created>
-    <modified>2026-4-15</modified>
+    <modified>2026-4-30</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -18,13 +18,13 @@
         <category>Locks</category>
     </composer_categories>
     <proxies>
-        <proxy proxybindingid="8001" name="DF511 Door Lock">uibutton</proxy>
+        <proxy proxybindingid="5003" name="DF511 Door Lock">uibutton</proxy>
         <proxy proxybindingid="5002" name="Door Lock">lock</proxy>
         <proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>
     </proxies>
     <OnlineCategory>Security</OnlineCategory>
     <capabilities>
-          <modes>H264,H265, SNAPSHOT, MJPEG</modes>
+        <modes>H264,H265, SNAPSHOT, MJPEG</modes>
         <default_http_port>3333</default_http_port>
         <default_rtsp_port>554</default_rtsp_port>
         <default_authentication_required>False</default_authentication_required>
@@ -50,20 +50,19 @@
         <supports_rtsp_auth>True</supports_rtsp_auth>
         <navigator_display_option proxybindingid="5003">
             <display_icons>
-            <!-- Default icon (used when no state yet) -->
-            <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
-            <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
-            <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
-            <state id="locked">
                 <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
                 <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
                 <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
-            </state>
-            <state id="unlocked">
-                <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_70.png</Icon>
-                <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_90.png</Icon>
-                <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_300.png</Icon>
-            </state>
+                <state id="locked">
+                    <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
+                    <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
+                    <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
+                </state>
+                <state id="unlocked">
+                    <Icon width="70" height="70">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_70.png</Icon>
+                    <Icon width="90" height="90">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_90.png</Icon>
+                    <Icon width="300" height="300">controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_300.png</Icon>
+                </state>
             </display_icons>
         </navigator_display_option>
         <web_view_url proxybindingid="5003">controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
@@ -71,8 +70,8 @@
         <network>true</network>
         <address_required>true</address_required>
     </capabilities>
-     <notification_attachment_provider>True</notification_attachment_provider>
-     <notification_attachments>
+    <notification_attachment_provider>True</notification_attachment_provider>
+    <notification_attachments>
         <attachment>
             <id>1001</id>
             <type>IMAGE_JPEG</type>
@@ -206,9 +205,9 @@
         <conditional>
             <name>STRANGER</name>
             <type>LIST</type>
-             <description>Stranger Detected</description>
-             <label>Stranger Detected</label>
-             <items>
+            <description>Stranger Detected</description>
+            <label>Stranger Detected</label>
+            <items>
                 <item>True</item>
                 <item>False</item>
             </items>
@@ -217,7 +216,7 @@
     <search>
         <search_type>slomins:lock</search_type>
         <add_device_properties>
-            <property type="string" id="1" name="IP Address" network_address="true"/>
+            <property type="string" id="1" name="IP Address" network_address="true" />
         </add_device_properties>
         <add_connection_binding_address>
             <connection_id>6001</connection_id>
@@ -225,9 +224,9 @@
     </search>
 
     <config>
-        <script file="driver.lua"/>
+        <script file="driver.lua" />
         <documentation file="README.html">Slomins DF511 Door Video lock Documentation</documentation>
-      <properties>
+        <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
@@ -252,7 +251,7 @@
                 <default></default>
                 <readonly>false</readonly>
             </property>
-              <property>
+            <property>
                 <name>Status</name>
                 <type>STRING</type>
                 <default></default>
@@ -313,13 +312,44 @@
                 <default></default>
                 <readonly>false</readonly>
             </property>
-          
+
             <property>
                 <name>Camera Status</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
             </property>
+            <property>
+                <name>Battery Level</name>
+                <type>STRING</type>
+                <default>0</default>
+                <readonly>true</readonly>
+            </property>
+             <property>
+                <name>Battery Recovery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>80</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>15</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Alert Interval (Hours)</name>
+                <type>RANGED_INTEGER</type>
+                <default>6</default>
+                <minimum>1</minimum>
+                <maximum>24</maximum>
+                <readonly>false</readonly>
+            </property>
+
         </properties>
         <actions>
             <action>
@@ -331,12 +361,8 @@
                 <command>BIND_DEVICE</command>
             </action>
             <action>
-                <name>Initialize</name>
+                <name>Initialize/Login</name>
                 <command>INITIALIZE_CAMERA</command>
-            </action>
-            <action>
-                <name>Login/Register</name>
-                <command>LOGIN_OR_REGISTER</command>
             </action>
             <action>
                 <name>Set Device active (SDDP)</name>
@@ -357,6 +383,13 @@
                 <command>Unlock</command>
             </action>
         </actions>
+        <variables>
+            <variable>
+                <name>BATTERY_LEVEL</name>
+                <type>STRING</type>
+                <default>-1</default>
+            </variable>
+        </variables>
         <commands>
             <command>
                 <name>CAMERA_LIVE_PREVIEW</name>
@@ -386,42 +419,8 @@
             <command>
                 <name>REQUEST_CUSTOM_SETTINGS</name>
             </command>
-             <command>
+            <command>
                 <name>SELECT</name>
-            </command>
-            <command>
-                <name>PTZ_MOVE</name>
-                <description>Move PTZ camera</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_START</name>
-                <description>Start continuous PTZ movement</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_STOP</name>
-                <description>Stop continuous PTZ movement</description>
             </command>
             <command>
                 <name>BIND_DEVICE</name>
@@ -442,26 +441,6 @@
             <command>
                 <name>SET_DEVICE_PROPERTY</name>
                 <description>Set device active via API (e.g., sddp_swt)</description>
-            </command>
-            <command>
-                <name>PRESET_SAVE</name>
-                <description>Save current position as preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PRESET_RECALL</name>
-                <description>Recall a saved preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
             </command>
             <command>
                 <name>SEND_NOTIFICATION</name>

@@ -1,16 +1,22 @@
-const smartLockBtn = document.querySelector('.smart_lock_btn');
-const lockStatus = smartLockBtn.querySelector('.lock_status');
-const cameraBtn = document.querySelector('.camera-panel');
-let unlocking = false;
-let timeoutId = 0;
-var player = null;
+// =====================================================
+// DF511 Smart Lock — index.js
+// =====================================================
+let smartLockBtn = null;
+let lockStatus   = null;
+
+document.addEventListener('DOMContentLoaded', function () {
+    smartLockBtn = document.querySelector('.smart_lock_btn');
+    lockStatus   = smartLockBtn ? smartLockBtn.querySelector('.lock_status') : null;
+    if (smartLockBtn) {
+        smartLockBtn.addEventListener('mousedown', beginUnlocking);
+        smartLockBtn.addEventListener('touchstart', beginUnlocking, { passive: true });
+    }
+});
+
+let unlocking  = false;
+let timeoutId  = 0;
 var video_quality = 'SD';
-let totalBytes = 0;
-let lastReportTime = Date.now();
-window._initialLockState="unknown";
-// ======================
-// Debug Panel
-// ======================
+
 function dbg(msg) {
     var panel = document.getElementById('debugPanel');
     if (!panel) return;
@@ -20,174 +26,166 @@ function dbg(msg) {
     panel.scrollTop = panel.scrollHeight;
 }
 
-// lockstate.js already set window._initialLockState
-(function() {
-    if (window._initialLockState && window._initialLockState !== 'unknown') {
-        // Can't use querySelector yet, so use a CSS class on body
-        document.write('<style>' +
-            (window._initialLockState === 'locked' 
-                ? '.smart_lock_btn{background:radial-gradient(ellipse at center,#e4efe9 0%,#93a5cf 100%)!important;border-color:#00aaff!important}.unlock_icon{display:none!important}.lock_icon{display:block!important}'
-                : '.lock_icon{display:none!important}.unlock_icon{display:block!important}') +
-            '</style>');
+// ── Show UI helper ──────────────────────────────────
+function showUI() {
+    var el = document.querySelector('.smartlockui');
+    if (el && el.style.display === 'none') {
+        el.style.display = 'block';
     }
-})();
-// ======================
-// Apply Lock State to UI
-// ======================
+}
+
+// ── Lock state ──────────────────────────────────────
 function applyLockState(state) {
-    dbg("applyLockState: " + state);
-    if (state === "locked") {
+    if (!smartLockBtn || !lockStatus) return;
+    if (state === 'locked') {
         smartLockBtn.classList.add('lock');
         lockStatus.textContent = 'Hold to unlock';
-    } else if (state === "unlocked") {
+    } else if (state === 'unlocked') {
         smartLockBtn.classList.remove('lock');
         lockStatus.textContent = 'Hold to lock';
     }
 }
 
-// ======================
-// Init
-// ======================
-// ✅ Add this - poll file for state changes while screen is open
 var statePoller = null;
-
 function startStatePolling() {
-    if (statePoller) return; // already running
-    dbg("polling started");
-    statePoller = setInterval(function() {
+    if (statePoller) return;
+    statePoller = setInterval(function () {
         fetch('lockstate.json?t=' + Date.now())
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.state && data.state !== "unknown") {
-                    if (window._lastKnownState !== data.state) {
-                        dbg("✅ poll change: " + data.state);
-                        window._lastKnownState = data.state;
-                        applyLockState(data.state);
-                    }
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.state && data.state !== 'unknown' &&
+                    data.state !== window._lastKnownState) {
+                    window._lastKnownState = data.state;
+                    applyLockState(data.state);
                 }
             })
-            .catch(function() {});
-    }, 2000); // check every 2 seconds
+            .catch(function () {});
+    }, 2000);
 }
 
-function stopStatePolling() {
-    if (statePoller) {
-        clearInterval(statePoller);
-        statePoller = null;
-        dbg("polling stopped");
-    }
+// ── Battery ─────────────────────────────────────────
+var batteryPoller    = null;
+var _lastBatteryPct  = null;   // track last value to avoid redundant DOM writes
+
+function startBatteryPolling() {
+    if (batteryPoller) return;
+    pollBatteryFile();                               // immediate first poll
+    batteryPoller = setInterval(pollBatteryFile, 10000); // every 10 s as fallback
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+function pollBatteryFile() {
+    fetch('battery.json?t=' + Date.now())
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.battery !== undefined) {
+                updateBatteryUI(data.battery);
+            }
+        })
+        .catch(function () {});
+}
+
+// ── Init ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
     try {
-        dbg("DOM ready");
-
-        // ✅ Apply from JS variable INSTANTLY - no fetch needed
-        if (window._initialLockState && window._initialLockState !== 'unknown') {
-            dbg("✅ instant state: " + window._initialLockState);
-            applyLockState(window._initialLockState);
-            window._lastKnownState = window._initialLockState;
-        }
-
-        // Fetch file as backup and start polling
+        // Load lock state from file
         fetch('lockstate.json?t=' + Date.now())
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.state && data.state !== 'unknown' && 
-                    data.state !== window._lastKnownState) {
-                    dbg("file update: " + data.state);
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.state && data.state !== 'unknown') {
                     applyLockState(data.state);
                     window._lastKnownState = data.state;
                 }
             })
-            .catch(function(e) { dbg("no file: " + e.message); });
+            .catch(function () {});
 
         startStatePolling();
+        startBatteryPolling();
 
+        // Subscribe to real-time pushes from Lua
         C4.subscribeToDataToUi(true);
-        C4.subscribeToVariable("LAST_ROOM_SELECTED");
-        C4.subscribeToVariable("LAST_MENU_SELECTED");
-        C4.sendCommand("sendCameraPreviewCommand", "", false, false);
+        C4.subscribeToVariable('LAST_ROOM_SELECTED');
+        C4.subscribeToVariable('LAST_MENU_SELECTED');
+        C4.sendCommand('sendCameraPreviewCommand', '', false, false);
 
-        setTimeout(function() {
-            C4.sendCommand("REQUEST_SETTINGS", "", false, false);
+        setTimeout(function () {
+            C4.sendCommand('REQUEST_SETTINGS', '', false, false);
         }, 300);
 
-    } catch (error) {
-        dbg("INIT ERROR: " + error.message);
+        // Staggered battery re-requests — catches cases where Lua pushes
+        // before the WebView subscription is ready
+        setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 1000);
+        setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 3000);
+
+    } catch (e) {
+        dbg('INIT ERR: ' + e.message);
     }
 });
 
-// ======================
-// Receive live updates from Lua (C4:SendDataToUI)
-// ======================
-function onDataToUi(value) {
-    // ✅ Always re-show UI and apply state immediately
-    try {
-        const obj = JSON.parse(value);
+// Show UI after 1 s regardless (safety net)
+document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(showUI, 1000);
+});
 
-        // Skip C4 system messages
-        if (!obj.icon && !obj.state && !obj.C4Message) {
+// ── Main data receiver ───────────────────────────────
+function onDataToUi(value) {
+    try {
+        // Always try to show UI when data arrives
+        showUI();
+
+        var obj = JSON.parse(value);
+
+        // ── Battery update (real-time from Lua C4:SendDataToUI) ──
+        if (obj.battery !== undefined) {
+            updateBatteryUI(obj.battery);
             return;
         }
 
-        // Handle camera stream
+        // ── Stream info ──
         if (obj.C4Message && obj.C4Message.Data) {
             try {
-                const data = JSON.parse(obj.C4Message.Data);
-                if (data.stream_url) {
-                    if (data.video_quality) video_quality = data.video_quality;
-                    startTuyaStream(data.stream_url);
-                }
-            } catch(e) {}
+                var d = JSON.parse(obj.C4Message.Data);
+                if (d.stream_url && d.video_quality) video_quality = d.video_quality;
+            } catch (e) {}
             return;
         }
 
-        // ✅ Handle lock state update
-        const state = obj.icon || obj.state;
-        if (state && state !== "unknown") {
-            dbg("✅ live: " + state);
+        // ── Lock state ──
+        var state = obj.icon || obj.state;
+        if (state && state !== 'unknown') {
             applyLockState(state);
-
-            // ✅ Also update the lockstate.json cache in memory
             window._lastKnownState = state;
         }
 
     } catch (e) {
-        dbg("ERR: " + e.message);
+        dbg('onDataToUi ERR: ' + e.message);
     }
 }
 
-// ======================
-// Lock button hold events
-// ======================
-smartLockBtn.addEventListener('mousedown', beginUnlocking);
-smartLockBtn.addEventListener('touchstart', beginUnlocking);
+// ── Touch / mouse handlers ───────────────────────────
 window.addEventListener('mouseup', resetUnlocking);
 window.addEventListener('touchend', resetUnlocking);
 
 function beginUnlocking() {
-    const elements = $('.smart_lock_btn');
+    var btn = $('.smart_lock_btn');
     unlocking = true;
     $('.circle-shade').show();
-
-    if (elements.hasClass('lock')) {
+    if (btn.hasClass('lock')) {
         $('.circle-shade circle').addClass('unlock').removeClass('lock');
     } else {
         $('.circle-shade circle').addClass('lock').removeClass('unlock');
     }
 
     clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(function () {
         if (!unlocking) return;
 
-        if (!elements.hasClass('lock')) {
+        if (!btn.hasClass('lock')) {
             smartLockBtn.classList.add('lock');
-            lockStatus.textContent = 'Hold to unlock';
+            if (lockStatus) lockStatus.textContent = 'Hold to unlock';
             sendLockCommand('lock');
         } else {
             smartLockBtn.classList.remove('lock');
-            lockStatus.textContent = 'Hold to lock';
+            if (lockStatus) lockStatus.textContent = 'Hold to lock';
             sendLockCommand('unlock');
         }
 
@@ -206,101 +204,68 @@ function resetUnlocking() {
 }
 
 function sendLockCommand(action) {
-    dbg("sendLockCommand: " + action);
     try {
-        C4.sendCommand("SetLockUnlock", JSON.stringify({ command: action }), false, true);
+        C4.sendCommand('SetLockUnlock', JSON.stringify({ command: action }), false, true);
     } catch (e) {
-        dbg("cmd error: " + e.message);
+        dbg('cmd err: ' + e.message);
     }
 }
 
-// ======================
-// C4 callbacks
-// ======================
-function onVariable(value) { console.log("onVariable:", value); }
-function onSendCommandError(msg) { dbg("cmd error: " + msg); }
-function onSubscribeToDataToUi(msg) { dbg("sub error: " + msg); }
-function onSubscribeToVariableError(v, msg) { dbg("var error: " + v + " " + msg); }
+// ── C4 callbacks ─────────────────────────────────────
+function onVariable(v)                        { console.log('onVariable:', v); }
+function onSendCommandError(m)                { dbg('cmdErr: ' + m); }
+function onSubscribeToDataToUi(m)             { dbg('subErr: ' + m); }
+function onSubscribeToVariableError(v, m)     { dbg('varErr: ' + v + ' ' + m); }
 
-// ======================
-// Disable text selection
-// ======================
+// ── jQuery helpers ───────────────────────────────────
 $(document).ready(function () {
     $('body').disableSelection();
 });
+
 $.fn.extend({
     disableSelection: function () {
         this.each(function () {
             this.onselectstart = function () { return false; };
-            this.unselectable = "on";
-            $(this).css('-moz-user-select', 'none');
-            $(this).css('-webkit-user-select', 'none');
+            this.unselectable  = 'on';
+            $(this).css({ '-moz-user-select': 'none', '-webkit-user-select': 'none' });
         });
+        return this;
     }
 });
 
-// ======================
-// Camera Preview
-// ======================
-cameraBtn.addEventListener('click', () => startCameraPreview());
+// ── Battery UI renderer ──────────────────────────────
+function updateBatteryUI(power) {
+    var icon = document.getElementById('batteryIcon');
+    var text = document.getElementById('batteryText');
+    if (!icon) return;
 
-function startCameraPreview() {
-    try {
-         stopStatePolling();
-        const icon = cameraBtn.querySelector('.camera-icon');
-        icon.style.color = '#01ff70';
-        setTimeout(() => icon.style.color = '#01a6fe', 300);
+    var pwr = parseInt(power, 10);
+    if (isNaN(pwr)) return;
 
-        document.getElementById('videoContainer').style.display = 'block';
-        document.getElementById('streamLoader').style.display = 'block';
+    // Skip redundant DOM updates
+    if (pwr === _lastBatteryPct) return;
+    _lastBatteryPct = pwr;
 
-        C4.sendCommand("CAMERA_LIVE_PREVIEW", JSON.stringify({}), false, true);
-    } catch (e) {
-        dbg("preview error: " + e.message);
-    }
-}
+    var css;
+    if      (pwr >= 75) css = 100;
+    else if (pwr >= 50) css = 75;
+    else if (pwr >= 25) css = 50;
+    else if (pwr > 15)  css = 25;
+    else                css = 10;
 
-document.getElementById('btnCloseVideo').addEventListener('click', () => {
-    document.getElementById('videoContainer').style.display = 'none';
-    if (player) { player.destroy(); player = null; }
-       startStatePolling();
-});
+    icon.setAttribute('data-percent', css);
 
-function startVideoStream(url) {
-    const canvas = document.getElementById('videoCanvas');
-    canvas.style.display = 'block';
-    if (window.player) { window.player.destroy(); }
-    window.player = new JSMpeg.Player(url, {
-        canvas: canvas, autoplay: true, audio: false, loop: true,
-    });
-    document.getElementById('streamLoader').style.display = 'none';
-}
-
-function startTuyaStream(rtspUrl) {
-    const encodedUrl = btoa(rtspUrl);
-    const wsUrl = 'wss://tuya.slomins.com/api/ffmpeg?url=' + encodedUrl + '&quality=' + video_quality.toLowerCase();
-    dbg("stream: " + wsUrl.substring(0, 50));
-
-    const canvas = document.getElementById('videoCanvas');
-    document.getElementById('videoContainer').style.display = 'block';
-    document.getElementById('streamLoader').style.display = 'block';
-    canvas.style.display = 'none';
-
-    if (player) { player.destroy(); player = null; }
-
-    player = new JSMpeg.Player(wsUrl, {
-        canvas: canvas, autoplay: true, audio: true, loop: false,
-        onSourceEstablished: (source) => {
-            source.socket.binaryType = 'arraybuffer';
-            source.socket.addEventListener('message', e => { totalBytes += e.data.byteLength; });
-        },
-        onVideoDecode: () => {
-            const now = Date.now();
-            if (now - lastReportTime >= 1000) {
-                totalBytes = 0; lastReportTime = now;
-                document.getElementById('streamLoader').style.display = 'none';
-                canvas.style.display = 'block';
-            }
+    if (text) {
+        text.textContent = pwr + '%';
+        if (pwr <= 15) {
+            text.style.color      = '#ff0000';
+            text.style.fontWeight = '600';
+        } else if (pwr <= 25) {
+            text.style.color      = '#e67e22';
+            text.style.fontWeight = '600';
+        } else {
+            text.style.color      = '#444';
+            text.style.fontWeight = '400';
         }
-    });
+    }
 }
