@@ -99,6 +99,7 @@ function MQTT.reconnect()
     MQTT.state.connected = false
     MQTT.state.subscribed = false
     MQTT.state.packet_id = 1
+    MQTT.state.manual_disconnect = false  -- ← ADD THIS
     MQTT.connect()
 end
 
@@ -148,8 +149,12 @@ function MQTT.subscribe(vid)
     print("[MQTT] SUBSCRIBE →", topic)
 end
 
-function MQTT.unsubscribe(vid)
-    if not vid then return end
+function MQTT.unsubscribe(vid, on_done)
+    if not vid then 
+        if on_done then on_done() end
+        return 
+    end
+    
     MQTT.state.manual_disconnect = true 
     local topic = "$push/down/device/" .. vid
     local pid = MQTT.state.packet_id
@@ -161,8 +166,14 @@ function MQTT.unsubscribe(vid)
 
     C4:SendToNetwork(MQTT.BINDING, MQTT.props.MQTT.port, packet)
     print("[MQTT] UNSUBSCRIBE →", topic)
-     C4:SetTimer(300, function()
+
+    C4:SetTimer(300, function()
         MQTT.disconnect()
+        -- Reset manual_disconnect AFTER disconnect so reconnect is allowed
+        C4:SetTimer(200, function()
+            MQTT.state.manual_disconnect = false
+            if on_done then on_done() end
+        end)
     end)
 end
 

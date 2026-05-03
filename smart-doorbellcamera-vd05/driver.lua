@@ -12,16 +12,16 @@ local NOTIFICATION_QUEUE = {}
 PENDING_NOTIFICATION_URL = nil
 ACTIVE_NOTIFICATION_URL  = nil
 LAST_NOTIFY_ID           = LAST_NOTIFY_ID or nil
-MAX_TIME_DRIFT           = 600    -- seconds (acceptable drift)
+MAX_TIME_DRIFT           = 600 -- seconds (acceptable drift)
 
 local CAMERA_BINDING     = 5001
 local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 7000
 
 local last_ip_refresh    = 0
-local MIN_REFRESH_GAP    = 5     -- seconds (small gap, not too strict)
+local MIN_REFRESH_GAP    = 5  -- seconds (small gap, not too strict)
 -- Camera wake timing constants (global)
-CAMERA_WAKE_DURATION_SEC = 10    -- Camera stays awake for 10 seconds after wake call
-CAMERA_WAKE_COOLDOWN_SEC = 5     -- Must wait 5 seconds before next wake call
+CAMERA_WAKE_DURATION_SEC = 10 -- Camera stays awake for 10 seconds after wake call
+CAMERA_WAKE_COOLDOWN_SEC = 5  -- Must wait 5 seconds before next wake call
 
 
 -- Track first RTSP call to skip wake on initial attempt
@@ -55,25 +55,25 @@ local last_confirmed_online = nil
 
 
 --TCP variables
-local _pendingAuthToken       = nil
-local _tcpConnected           = false
-local TCP_BINDING_ID          = 7001
+local _pendingAuthToken      = nil
+local _tcpConnected          = false
+local TCP_BINDING_ID         = 7001
 
-GlobalObject                  = {}
-GlobalObject.LnduBaseUrl      = "https://api.arpha-tech.com"
-GlobalObject.ClientID         = ""
-GlobalObject.ClientSecret     = ""
-GlobalObject.AES_KEY          = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG" -- 32 bytes = AES-256
-GlobalObject.AES_IV           = "33rj6KNVN4kFvd0s"                 --16 bytes
-GlobalObject.BaseUrl          = ""
-GlobalObject.TCP_SERVER_IP    = 'tuyadev.slomins.net'
-GlobalObject.TCP_SERVER_PORT  = 8081
-GlobalObject.DeviceModel      = "vd05"
-GlobalObject.ProductSubType   = "video_bell"
-GlobalObject.CldBusAppId      = ""
-GlobalObject.CldBusSecret     = ""
-GlobalObject.CustomerEmail    = ""
-GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject                 = {}
+GlobalObject.LnduBaseUrl     = "https://api.arpha-tech.com"
+GlobalObject.ClientID        = ""
+GlobalObject.ClientSecret    = ""
+GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"  -- 32 bytes = AES-256
+GlobalObject.AES_IV          = "33rj6KNVN4kFvd0s"                  --16 bytes
+GlobalObject.BaseUrl         = ""
+GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
+GlobalObject.TCP_SERVER_PORT = 8081
+GlobalObject.DeviceModel     = "vd05"
+GlobalObject.ProductSubType  = "video_bell"
+GlobalObject.CldBusAppId     = ""
+GlobalObject.CldBusSecret    = ""
+GlobalObject.CustomerEmail   = ""
+GlobalObject.BaseApi         = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
 
 CameraDefaultProps             = {}
@@ -85,18 +85,18 @@ CameraDefaultProps.SubStream   = "stream1"
 CameraDefaultProps.SnapshotURL = "tmp/snap.jpeg"
 CameraDefaultProps.MJPEGURL    = "video.mjpg"
 
-_props.MQTT                   = {
+_props.MQTT                    = {
     socket_ready = false,
     connected = false,
     packet_id = 1,
     keepalive = 30
 }
-_props.MQTT.manual_disconnect = false
+_props.MQTT.manual_disconnect  = false
 
-local PROP_MQTT_HOST          = "MQTT Host"
-local PROP_MQTT_PORT          = "MQTT Port"
-local PROP_MQTT_CLIENT_ID     = "MQTT Client ID"
-local PROP_MQTT_SECRET        = "MQTT Secret"
+local PROP_MQTT_HOST           = "MQTT Host"
+local PROP_MQTT_PORT           = "MQTT Port"
+local PROP_MQTT_CLIENT_ID      = "MQTT Client ID"
+local PROP_MQTT_SECRET         = "MQTT Secret"
 
 
 local EVENT = {
@@ -111,12 +111,17 @@ local EVENT = {
 }
 
 
-local mqtt_enabled       = false
-local WAKE_DURATION      = 17 -- seconds
-local WAKE_INTERVAL      = 23 -- seconds
+local mqtt_enabled         = false
+local WAKE_DURATION        = 17 -- seconds
+local WAKE_INTERVAL        = 23 -- seconds
 
-local MQTT_AUTO_ENABLED  = false
-local GET_DEVICES_CALLED = false
+local MQTT_AUTO_ENABLED    = false
+local GET_DEVICES_CALLED   = false
+
+local _lastLowBatteryAlert = 0
+local _batteryPollTimer    = nil
+local _batteryPollVid      = nil
+local _batteryAlertTimer   = nil
 -- Wake Camera with Retry and stop retry after retry attempts
 function WakeCamera(retry)
     retry = retry or 1
@@ -203,7 +208,7 @@ function OnDriverInit()
         end
         _props[k] = v
     end
-    
+
     -- Sync IP Address property with Camera Proxy
     local ip_address = Properties["IP Address"]
     if ip_address and ip_address ~= "" and ip_address ~= "127.0.0.1" then
@@ -212,7 +217,7 @@ function OnDriverInit()
     else
         print("[INIT] No valid IP Address set, keeping default")
     end
-    
+
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -238,86 +243,85 @@ function ValidateMacAddress(mac)
         ["Content-Type"] = "application/json"
     }
 
-     C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers,true,
+    C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers, true,
         function(ticketId, strData, responseCode, tHeaders, strError)
+            if strError ~= nil and strError ~= "" then
+                print("Error calling API: " .. strError)
+                C4:UpdateProperty("Status", "Error calling API: " .. strError)
+                return
+            end
 
-        if strError ~= nil and strError ~= "" then
-            print("Error calling API: " .. strError)
-            C4:UpdateProperty("Status","Error calling API: " .. strError)
-            return
-        end
+            if responseCode ~= 200 then
+                print("HTTP Error: " .. tostring(responseCode))
+                C4:UpdateProperty("Status", "HTTP Error: " .. tostring(responseCode))
+                return
+            end
 
-        if responseCode ~= 200 then
-            print("HTTP Error: " .. tostring(responseCode))
-            C4:UpdateProperty("Status","HTTP Error: " .. tostring(responseCode))
-            return
-        end
+            local response = C4:JsonDecode(strData)
+            if response then
+                if response.IsValidMacAddress == true then
+                    print("MAC Address is valid")
+                    C4:UpdateProperty("Status", "MAC Address is valid")
 
-        local response = C4:JsonDecode(strData)
-        if response then
-            if response.IsValidMacAddress == true then
-                print("MAC Address is valid")
-                C4:UpdateProperty("Status","MAC Address is valid")
-                
-                local strData = response.EncryptMsg
-                if string.sub(strData, -2) == "\r\n" then
-                  strData = string.sub(strData, 1, -3)
-                end
-          
-                local cipher = 'AES-256-CBC'
-                local options = {
-                    return_encoding = 'NONE',
-                    key_encoding = 'NONE',
-                    iv_encoding = 'NONE',
-                    data_encoding = 'BASE64',
-                    padding = true,
-                }
+                    local strData = response.EncryptMsg
+                    if string.sub(strData, -2) == "\r\n" then
+                        strData = string.sub(strData, 1, -3)
+                    end
 
-                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
-                
-                if (decrypted_data ~= nil) then
-                 
-                  local data = C4:JsonDecode(decrypted_data)
-                  extractedData = {}
-                
-                  if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
-                     data.message.MacAddress == C4:GetUniqueMAC() then
-                        print("ValidateMacAddress() " , data.message.EventName)
-                        
-                        GlobalObject.CldBusAppId = data.message.CldBusAppId
-                        GlobalObject.CldBusSecret = data.message.CldBusSecret
-                        GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
-                        
-                        C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
-                        C4:UpdateProperty("AppSecret", data.message.SecretId or "")
-                        C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
-                        print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
-                   end
+                    local cipher = 'AES-256-CBC'
+                    local options = {
+                        return_encoding = 'NONE',
+                        key_encoding = 'NONE',
+                        iv_encoding = 'NONE',
+                        data_encoding = 'BASE64',
+                        padding = true,
+                    }
+
+                    local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData,
+                        options)
+
+                    if (decrypted_data ~= nil) then
+                        local data = C4:JsonDecode(decrypted_data)
+                        extractedData = {}
+
+                        if data and data.message and data.message.EventName == "UpdateClientSecretId" and
+                            data.message.MacAddress == C4:GetUniqueMAC() then
+                            print("ValidateMacAddress() ", data.message.EventName)
+
+                            GlobalObject.CldBusAppId = data.message.CldBusAppId
+                            GlobalObject.CldBusSecret = data.message.CldBusSecret
+                            GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
+
+                            C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
+                            C4:UpdateProperty("AppSecret", data.message.SecretId or "")
+                            C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
+                            print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
+                        end
+                    end
+                else
+                    print("MAC Address is invalid")
+                    C4:UpdateProperty("Device Response", "MAC Address is invalid")
+                    GlobalObject.CldBusAppId = ""
+                    GlobalObject.CldBusSecret = ""
+                    GlobalObject.CustomerEmail = ""
+
+                    C4:UpdateProperty("AppId", "")
+                    C4:UpdateProperty("AppSecret", "")
+                    C4:UpdateProperty("Account", "")
                 end
             else
-                print("MAC Address is invalid")
-                C4:UpdateProperty("Device Response","MAC Address is invalid")
-                GlobalObject.CldBusAppId = ""
-                GlobalObject.CldBusSecret = ""
-                GlobalObject.CustomerEmail = ""
-
-                C4:UpdateProperty("AppId",  "")
-                C4:UpdateProperty("AppSecret", "")
-                C4:UpdateProperty("Account", "")
+                print("Failed to parse JSON response")
+                C4:UpdateProperty("Device Response", "Failed to parse JSON response")
             end
-        else
-            print("Failed to parse JSON response")
-            C4:UpdateProperty("Device Response","Failed to parse JSON response")
-        end
-    end)
+        end)
 end
 
 function OnDriverLateInit()
     print("=== VD05 Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
-    
+
     ValidateMacAddress(C4:GetUniqueMAC())
-    
+
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
         if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
@@ -401,6 +405,16 @@ function OnPropertyChanged(strProperty)
         end
         return
     end
+     if strProperty == "Low Battery Alert Interval (Hours)" then
+        print("[ALERT ENGINE] Interval changed — restarting")
+        START_BATTERY_ALERT_ENGINE()
+        return
+    end
+
+    if strProperty == "VID" then
+        RESET_MQTT_AND_BATTERY(_batteryPollVid, Properties["VID"])
+        return
+    end
     if strProperty == "Enable Alert Notifications" then
         user_settings.enable_alerts =
             (Properties[strProperty] == "True")
@@ -419,6 +433,23 @@ function OnPropertyChanged(strProperty)
     if strProperty == "Event Interval (ms)" then
         EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
         print("[WAKE] Event interval updated to:", EVENT_DELAY_MS, "ms")
+        return
+    end
+
+    if strProperty == "Account" then
+        local newAccount = Properties["Account"] or ""
+        print("[ACCOUNT] Account changed to: " .. newAccount)
+
+        _props["Account"] = newAccount
+        GlobalObject.CustomerEmail = newAccount
+
+        if newAccount and newAccount ~= "" then
+            print("[ACCOUNT] Account changed → Re-initializing login...")
+            C4:UpdateProperty("Status", "Account changed - Re-logging in...")
+
+            -- Re-run full initialization with new email
+            C4:SetTimer(1500, InitializeCamera)
+        end
         return
     end
 
@@ -489,14 +520,6 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "GET_SNAPSHOT_URL" then
         GET_SNAPSHOT_URL(tParams)
-        return
-    end
-    if strCommand == "GET_TEMP_TOKEN" then
-        GET_TEMP_TOKEN(tParams)
-        return
-    end
-    if strCommand == "GET_EXCHANGE_TOKEN" then
-        GET_EXCHANGE_TOKEN(tParams)
         return
     end
     if strCommand == "GET_DEVICES" then
@@ -606,7 +629,7 @@ function InitializeCamera()
                 if not account or account == "" then
                     account = GlobalObject.CustomerEmail
                 end
-                
+
                 if not account or account == "" then
                     print("ERROR: No customer email available")
                     C4:UpdateProperty("Status", "Login failed: No email")
@@ -626,7 +649,6 @@ function InitializeCamera()
 
     print("================================================================")
 end
-
 
 -- Convert binary data to hex string
 function BinaryToHex(binary)
@@ -687,7 +709,7 @@ function LoginOrRegister(country_code, account, public_key)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] =  GlobalObject.CldBusAppId
+            ["App-Name"] = GlobalObject.CldBusAppId
         }
 
         local req = {
@@ -927,11 +949,13 @@ function GET_DEVICES(p_vid)
                         print("  Model: " .. (device.model or "N/A"))
                         print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                         break
-                    -- If no IP set, filter by model or product subtype
+                        -- If no IP set, filter by model or product subtype
                     elseif (not ip or ip == "") then
-                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
-                        
+                        local model_match = device.model and
+                        string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and
+                        string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+
                         if model_match or subtype_match then
                             target_device = device
                             print("Found VD05 device (no IP filter) at index " .. i)
@@ -942,14 +966,17 @@ function GET_DEVICES(p_vid)
                         end
                     end
                 end
-                
+
                 if not target_device and ip then
                     print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
                     print("Keeping SDDP-discovered IP, waiting for correct device match")
                     return
                 end
-                
+
                 if target_device and target_device.vid then
+                    local newVid = target_device.vid
+                    RESET_MQTT_AND_BATTERY(_batteryPollVid, newVid)
+
                     print("Storing device information for VD05:")
                     print("  VID: " .. target_device.vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
@@ -958,6 +985,8 @@ function GET_DEVICES(p_vid)
 
                     _props["VID"] = target_device.vid
                     C4:UpdateProperty("VID", target_device.vid)
+
+     
 
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
@@ -974,7 +1003,9 @@ function GET_DEVICES(p_vid)
                             print("  IP Address already set to: " .. ip)
                         end
                     end
-                    
+
+
+
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
 
@@ -986,7 +1017,7 @@ function GET_DEVICES(p_vid)
 
                         APPLY_MQTT_INFO()
                     end
-                    
+
                     print("VD05 properties updated successfully")
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
@@ -999,6 +1030,181 @@ function GET_DEVICES(p_vid)
     end)
 
     print("================================================================")
+end
+
+
+local function HANDLE_BATTERY_LEVEL(pct)
+    if type(pct) ~= "number" then return end
+
+    local high_recovery  = tonumber(Properties["Battery Recovery Threshold (%)"]) or 80
+    local low_threshold  = tonumber(Properties["Low Battery Threshold (%)"]) or 15
+    local interval_hours = tonumber(Properties["Low Battery Alert Interval (Hours)"]) or 6
+    local interval_sec   = interval_hours * 3600
+    local now = os.time()
+
+    -- Recovery resets alert timer
+    if pct > high_recovery then
+        _lastLowBatteryAlert = 0
+        print("[BATTERY] Battery recovered — alert reset")
+        return
+    end
+
+    -- Battery not low enough
+    if pct > low_threshold then return end
+
+    -- Rate limiting
+    local elapsed = now - _lastLowBatteryAlert
+    if elapsed < interval_sec then
+        print("[BATTERY] Alert suppressed, next in "
+            .. math.floor((interval_sec - elapsed) / 60) .. " min")
+        return
+    end
+
+    -- Fire alert
+    _lastLowBatteryAlert = now
+    C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
+    C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
+
+    print("[BATTERY] ✅ Low battery alert fired")
+end
+
+
+
+function START_BATTERY_ALERT_ENGINE()
+    STOP_BATTERY_ALERT_ENGINE() 
+
+    local interval_hours =
+        tonumber(Properties["Low Battery Alert Interval (Hours)"]) or 6
+    local interval_ms = interval_hours * 60 * 60 * 1000
+
+    print("[ALERT ENGINE] Starting (interval =", interval_hours, "hours)")
+
+    _batteryAlertTimer = C4:SetTimer(interval_ms, function()
+        local pct = tonumber(Properties["Battery Level"])
+        if pct then
+            print("[ALERT ENGINE] Checking battery:", pct)
+            HANDLE_BATTERY_LEVEL(pct)
+        else
+            print("[ALERT ENGINE] No cached battery value")
+        end
+    end, true) -- ✅ repeating timer
+end
+
+function STOP_BATTERY_ALERT_ENGINE()
+    if type(_batteryAlertTimer) == "number" then
+        print("[ALERT ENGINE] Stopping timer:", _batteryAlertTimer)
+        C4:KillTimer(_batteryAlertTimer)
+    end
+    _batteryAlertTimer = nil
+end
+
+function RESET_MQTT_AND_BATTERY(oldVid, newVid)
+    print("[RESET] VID:", tostring(oldVid), "→", tostring(newVid))
+
+    if not newVid or newVid == "" then return end
+    if _batteryPollVid == newVid then
+        print("[RESET] Same VID, skipping")
+        return
+    end
+
+    _batteryPollVid = newVid
+      _props["VID"] = newVid
+    C4:UpdateProperty("VID", newVid)
+
+    APPLY_MQTT_INFO()
+
+    STOP_BATTERY_POLL()
+    STOP_BATTERY_ALERT_ENGINE()
+
+    START_BATTERY_POLL()
+    START_BATTERY_ALERT_ENGINE()
+end
+
+function GET_BATTERY_LEVEL()
+    print("===== GET BATTERY =====")
+
+    local token   = Properties["Auth Token"] or _props["Auth Token"]
+    local vid     = Properties["VID"] or _props["VID"]
+    local baseUrl = GlobalObject.LnduBaseUrl
+
+    if not token or token == "" then
+        print("Missing Token")
+        return
+    end
+    if not vid or vid == "" then
+        print("Missing VID")
+        return
+    end
+
+    transport.execute({
+        url     = baseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = { ["Authorization"] = "Bearer " .. token }
+    }, function(code, resp)
+        print("[BATTERY] Response code:", code)
+        if code ~= 200 then return end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or type(data) ~= "table" or type(data.data) ~= "table" then
+            print("[BATTERY] Parse error")
+            return
+        end
+
+        local function find(list)
+            if type(list) ~= "table" then return nil end
+            for _, d in ipairs(list) do
+                if tostring(d.vid) == tostring(vid) then return d end
+            end
+            return list[1]
+        end
+
+        local device = find(data.data.devices) or find(data.data.share_devices)
+        if not device then
+            print("[BATTERY] No device found")
+            return
+        end
+
+        -- Online status
+        local status = (device.is_online == 1 or device.is_online == true) and "Online" or "Offline"
+        if _props["Camera Status"] ~= status then
+            C4:UpdateProperty("Camera Status", status)
+            _props["Camera Status"] = status
+        end
+
+        -- Battery level
+        local pct = tonumber(device.power)
+        if not pct then
+            print("[BATTERY] Battery field missing")
+            return
+        end
+
+        print("[BATTERY] Level:", pct, "%")
+        C4:SetVariable("BatteryPercent", tostring(pct))
+        C4:UpdateProperty("Battery Level", tostring(pct))
+    end)
+end
+
+function START_BATTERY_POLL()
+    STOP_BATTERY_POLL()
+
+    local POLL_INTERVAL_MS = 60 * 60 * 1000 -- 1 hour
+
+    print("[BATTERY POLL] Starting poll timer")
+
+    GET_BATTERY_LEVEL() -- immediate fetch
+
+    _batteryPollTimer = C4:SetTimer(POLL_INTERVAL_MS, function()
+        print("[BATTERY POLL] Polling API...")
+        GET_BATTERY_LEVEL()
+    end, true)
+end
+
+function STOP_BATTERY_POLL()
+    if type(_batteryPollTimer) == "number" then
+        print("[BATTERY POLL] Stopping poll timer:", _batteryPollTimer)
+        C4:KillTimer(_batteryPollTimer)
+    end
+    _batteryPollTimer = nil
 end
 
 -- Set Device Property
@@ -1210,20 +1416,20 @@ function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
-        
+
         print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
         print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
-        
+
         local ip_to_use = nil
-        
+
         if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
-            ip_to_use = ssdp_ip                
+            ip_to_use = ssdp_ip
         end
-        
+
         if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
             ip_to_use = binding_ip
         end
-        
+
         if ip_to_use then
             C4:UpdateProperty("IP Address", ip_to_use)
             _props["IP Address"] = ip_to_use
@@ -1487,8 +1693,8 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
         tries = tries + 1
 
         GetImageForEvent(extp, function(url)
-            if not url and tries < 6 then
-                C4:SetTimer(400, fetch)
+            if not url and tries < 15 then
+                C4:SetTimer(700, fetch)
                 return
             end
 
@@ -1534,9 +1740,7 @@ local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
 end
 
-local function handle_low_battery()
-    send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
-end
+
 
 
 local function handle_online_status(new_online)
@@ -1585,12 +1789,24 @@ end
 local function handle_device_status(msg)
     if not msg.status then return end
 
+    local battery_pct = nil
+    local is_charging = false
+    local power_status = nil
+
     for _, s in ipairs(msg.status) do
         if s.status_key == "is_online" then
-            local is_online = (s.status_val == 1)
-            handle_online_status(is_online)
-            return
+            handle_online_status(s.status_val == 1)
         end
+
+        if s.status_key == "e" then
+            battery_pct = tonumber(s.status_val)
+        end
+    end
+
+    if battery_pct then
+        print("[BATTERY] Level:", battery_pct, "% | Charging:", is_charging)
+
+        HANDLE_BATTERY_LEVEL(battery_pct)
     end
 end
 
@@ -1652,7 +1868,9 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 1 then
-                handle_low_battery()
+                local pct = tonumber(params.battery) or tonumber(params.battery_level) or
+                    (tonumber(Properties["Low Battery Threshold (%)"]) - 1)
+                HANDLE_BATTERY_LEVEL(pct)
                 return true
             end
 

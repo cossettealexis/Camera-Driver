@@ -367,6 +367,10 @@
                 <command>SPEAKER_VOLUME_DOWN</command>
             </action>
             <action>
+                <name>Set Sensitivity</name>
+                <command>SET_SENSITIVITY</command>
+            </action>
+            <action>
                 <name>Awake Camera</name>
                 <command>AWAKE_CAMERA</command>
             </action>
@@ -398,6 +402,18 @@
             <command>
                 <name>SPEAKER_VOLUME_DOWN</name>
                 <description>Decrease speaker volume</description>
+            </command>
+            <command>
+                <name>SET_SENSITIVITY</name>
+                <description>Set camera sensitivity level</description>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                    </param>
+                </params>
             </command>
             <command>
                 <name>AWAKE_CAMERA</name>

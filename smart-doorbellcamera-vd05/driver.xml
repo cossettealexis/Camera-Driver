@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>1.0.1</version>
+    <version>1.0.4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>2025-12-16</created>
-    <modified>2026-1-21</modified>
+    <modified>2026-4-30</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -210,6 +210,37 @@
                 <default></default>
                 <readonly>true</readonly>
             </property>
+             <property>
+                <name>Battery Level</name>
+                <type>STRING</type>
+                <default>0</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Battery Recovery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>80</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>15</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Alert Interval (Hours)</name>
+                <type>RANGED_INTEGER</type>
+                <default>6</default>
+                <minimum>1</minimum>
+                <maximum>24</maximum>
+                <readonly>false</readonly>
+            </property>
+
         </properties>
         <actions>
             <!-- <action>
