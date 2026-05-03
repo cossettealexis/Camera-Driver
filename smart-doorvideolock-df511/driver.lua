@@ -139,7 +139,16 @@ local EVENT_ID_MAP = {
 
 --conditional state
 local conditional_state = {
-    STRANGER = false
+    LOCKED = false,
+    UNLOCKED = false,
+    IN_FAULT = false,
+    MOTION_DETECTED = false,
+    NOT_MOTION_DETECTED = true,
+    MIC_MUTED = false,
+    MIC_UNMUTED = true,
+    SPEAKER_VOLUME = 5,
+    BATTERY_LEVEL = 100,
+    SENSITIVITY = 5
 }
 
 local lock_state = "UNKNOWN"  --1.0.6
@@ -1557,6 +1566,9 @@ end
 local function HANDLE_BATTERY_LEVEL(pct)
     if type(pct) ~= "number" then return end
 
+    -- Update battery conditional
+    UpdateConditional("BATTERY_LEVEL", pct)
+
     local high_recovery  = tonumber(Properties["Battery Recovery Threshold (%)"]) or 80
     local low_threshold  = tonumber(Properties["Low Battery Threshold (%)"]) or 15
     local interval_hours = tonumber(Properties["Low Battery Alert Interval (Hours)"]) or 6
@@ -2306,6 +2318,10 @@ end
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
     C4:FireEvent(1)
+    
+    -- Update motion conditional states
+    UpdateConditional("MOTION_DETECTED", true)
+    UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
 local function handle_doorbell(filename, extp)
@@ -4297,46 +4313,52 @@ end
 function UpdateConditional(cond_name, value)
     if not cond_name then return end
 
-    value = (value == true or value == "true" or value == 1 or value == "True")
+    -- Convert string booleans to actual booleans
+    if type(value) == "string" then
+        if value == "True" or value == "true" then
+            value = true
+        elseif value == "False" or value == "false" then
+            value = false
+        else
+            value = tonumber(value) or value
+        end
+    end
 
-    print("[CONDITIONAL] Update requested → " .. cond_name .. " = " .. tostring(value))
-
-    -- Force set our main key
-    conditional_state.STRANGER = value
-
-    -- Also set common variations that Control4 might use
-    conditional_state["Stranger Detected"] = value
-    conditional_state["stranger detected"] = value
-    conditional_state["stranger"] = value
-
-    print("[CONDITIONAL] STRANGER forced to " .. tostring(value))
+    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
+    
+    conditional_state[cond_name] = value
 end
 
 function TestCondition(condition_name, test_value)
-    print("[TESTCONDITION] Control4 asked for: " .. tostring(condition_name) .. " | Desired: " .. tostring(test_value))
+    print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
 
-    if not condition_name then
+    if not condition_name then 
         print("[TESTCONDITION] No condition_name provided")
-        return false
+        return false 
     end
 
+    -- Convert test_value to proper type
     local desired = true
     if type(test_value) == "string" then
         desired = (test_value == "True" or test_value == "true")
     elseif type(test_value) == "boolean" then
         desired = test_value
+    elseif type(test_value) == "number" then
+        desired = test_value
     end
 
-    -- Check our main conditional
-    if conditional_state.STRANGER ~= nil then
-        local result = (conditional_state.STRANGER == desired)
-        print("[TESTCONDITION] Using STRANGER key → Result = " ..
-            tostring(result) .. " (state = " .. tostring(conditional_state.STRANGER) .. ")")
-        return result
+    -- Check conditional state
+    local current_value = conditional_state[condition_name]
+    
+    if current_value == nil then
+        print("[TESTCONDITION] Condition not found: " .. condition_name)
+        return false
     end
 
-    print("[TESTCONDITION] STRANGER key not found in conditional_state")
-    return false
+    local result = (current_value == desired)
+    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+    
+    return result
 end
 
 -- Process any token that arrived before the driver was fully initialized

@@ -200,16 +200,123 @@
             <name>Locked Outside</name>
             <description>When someone is locked outside NAME</description>
         </event>
+        <event>
+            <id>22</id>
+            <name>System Is Locked</name>
+            <description>When NAME system is locked</description>
+        </event>
     </events>
     <conditionals>
         <conditional>
-            <name>STRANGER</name>
+            <name>LOCKED</name>
             <type>LIST</type>
-            <description>Stranger Detected</description>
-            <label>Stranger Detected</label>
+            <description>Locked</description>
+            <label>Locked</label>
             <items>
                 <item>True</item>
                 <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>UNLOCKED</name>
+            <type>LIST</type>
+            <description>Unlocked</description>
+            <label>Unlocked</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>IN_FAULT</name>
+            <type>LIST</type>
+            <description>In fault</description>
+            <label>in fault</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Sensing motion</description>
+            <label>sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>NOT_MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Not sensing motion</description>
+            <label>not sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_MUTED</name>
+            <type>LIST</type>
+            <description>Mic is muted</description>
+            <label>Mic is muted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_UNMUTED</name>
+            <type>LIST</type>
+            <description>Mic is unmuted</description>
+            <label>Mic is unmuted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>SPEAKER_VOLUME</name>
+            <type>LIST</type>
+            <description>Speaker volume is 1-10</description>
+            <label>Speaker volume is 1-10</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>BATTERY_LEVEL</name>
+            <type>NUMBER</type>
+            <description>Battery level</description>
+            <label>battery is</label>
+        </conditional>
+        <conditional>
+            <name>SENSITIVITY</name>
+            <type>LIST</type>
+            <description>Sensitivity level</description>
+            <label>Sensitivity is</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
             </items>
         </conditional>
     </conditionals>
@@ -353,34 +460,42 @@
         </properties>
         <actions>
             <action>
-                <name>Test Snapshot</name>
-                <command>TEST_SNAPSHOT</command>
+                <name>Take Snapshot</name>
+                <command>TAKE_SNAPSHOT</command>
             </action>
             <action>
-                <name>Bind Device</name>
-                <command>BIND_DEVICE</command>
-            </action>
-            <action>
-                <name>Initialize/Login</name>
+                <name>Initialize Camera</name>
                 <command>INITIALIZE_CAMERA</command>
             </action>
             <action>
-                <name>Set Device active (SDDP)</name>
-                <command>SET_DEVICE_PROPERTY</command>
+                <name>Unmute Mic</name>
+                <command>UNMUTE_MIC</command>
             </action>
             <action>
-                <name>Test Push Notification</name>
-                <command>TEST_PUSH_NOTIFICATION</command>
+                <name>Mute Mic</name>
+                <command>MUTE_MIC</command>
+            </action>
+            <action>
+                <name>Turn up speaker volume</name>
+                <command>SPEAKER_VOLUME_UP</command>
+            </action>
+            <action>
+                <name>Turn down speaker volume</name>
+                <command>SPEAKER_VOLUME_DOWN</command>
+            </action>
+            <action>
+                <name>Set Sensitivity</name>
+                <command>SET_SENSITIVITY</command>
             </action>
             <action>
                 <name>Lock</name>
                 <description>Lock the device</description>
-                <command>Lock</command>
+                <command>LOCK_DOOR</command>
             </action>
             <action>
                 <name>Unlock</name>
                 <description>Unlock the device</description>
-                <command>Unlock</command>
+                <command>UNLOCK_DOOR</command>
             </action>
         </actions>
         <variables>
@@ -391,6 +506,50 @@
             </variable>
         </variables>
         <commands>
+            <command>
+                <name>TAKE_SNAPSHOT</name>
+                <description>Take a snapshot from the camera</description>
+            </command>
+            <command>
+                <name>INITIALIZE_CAMERA</name>
+                <description>Initialize the camera</description>
+            </command>
+            <command>
+                <name>UNMUTE_MIC</name>
+                <description>Unmute the camera microphone</description>
+            </command>
+            <command>
+                <name>MUTE_MIC</name>
+                <description>Mute the camera microphone</description>
+            </command>
+            <command>
+                <name>SPEAKER_VOLUME_UP</name>
+                <description>Increase speaker volume</description>
+            </command>
+            <command>
+                <name>SPEAKER_VOLUME_DOWN</name>
+                <description>Decrease speaker volume</description>
+            </command>
+            <command>
+                <name>SET_SENSITIVITY</name>
+                <description>Set camera sensitivity level</description>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>LOCK_DOOR</name>
+                <description>Lock door</description>
+            </command>
+            <command>
+                <name>UNLOCK_DOOR</name>
+                <description>Unlock door</description>
+            </command>
             <command>
                 <name>CAMERA_LIVE_PREVIEW</name>
                 <description>Open live camera preview from WebView UI</description>
@@ -421,38 +580,6 @@
             </command>
             <command>
                 <name>SELECT</name>
-            </command>
-            <command>
-                <name>BIND_DEVICE</name>
-                <description>Bind device to CldBus API</description>
-            </command>
-            <command>
-                <name>INITIALIZE_CAMERA</name>
-                <description>Initialize CldBus</description>
-            </command>
-            <command>
-                <name>LOGIN_OR_REGISTER</name>
-                <description>Login or register a user</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol (multicast)</description>
-            </command>
-            <command>
-                <name>SET_DEVICE_PROPERTY</name>
-                <description>Set device active via API (e.g., sddp_swt)</description>
-            </command>
-            <command>
-                <name>SEND_NOTIFICATION</name>
-                <description>Send notification to control4 app</description>
-            </command>
-            <command>
-                <name>LOCK_DOOR</name>
-                <description>Lock door</description>
-            </command>
-            <command>
-                <name>UNLOCK_DOOR</name>
-                <description>Unlock door</description>
             </command>
         </commands>
         <interfaces>
