@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>2026-03-17</created>
-    <modified>2026-04-24</modified>
+    <modified>2026-05-04</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -92,7 +92,102 @@
         <name>Camera Restarted</name>
         <description>When NAME restarts</description>
     </event>
+    <event>
+        <id>6</id>
+        <name>Registered User Detected</name>
+        <description>When NAME detects a registered user</description>
+    </event>
+    <event>
+        <id>7</id>
+        <name>Stranger Detected</name>
+        <description>When NAME detects a stranger</description>
+    </event>
 </events>
+
+    <conditionals>
+        <conditional>
+            <name>MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Sensing motion</description>
+            <label>sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>NOT_MOTION_DETECTED</name>
+            <type>LIST</type>
+            <description>Not sensing motion</description>
+            <label>not sensing motion</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_MUTED</name>
+            <type>LIST</type>
+            <description>Mic is muted</description>
+            <label>Mic is muted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>MIC_UNMUTED</name>
+            <type>LIST</type>
+            <description>Mic is unmuted</description>
+            <label>Mic is unmuted</label>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>SPEAKER_VOLUME</name>
+            <type>LIST</type>
+            <description>Speaker volume is 1-10</description>
+            <label>Speaker volume is 1-10</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>BATTERY_LEVEL</name>
+            <type>NUMBER</type>
+            <description>Battery level</description>
+            <label>battery is</label>
+        </conditional>
+        <conditional>
+            <name>SENSITIVITY</name>
+            <type>LIST</type>
+            <description>Sensitivity level</description>
+            <label>Sensitivity is</label>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+    </conditionals>
 
     <config>
         <script file="driver.lua"/>
@@ -268,6 +363,30 @@
                 </params>
             </action>
             <action>
+                <name>Take Snapshot</name>
+                <command>TAKE_SNAPSHOT</command>
+            </action>
+            <action>
+                <name>Initialize Camera</name>
+                <command>INITIALIZE_CAMERA</command>
+            </action>
+            <action>
+                <name>Unmute Mic</name>
+                <command>UNMUTE_MIC</command>
+            </action>
+            <action>
+                <name>Mute Mic</name>
+                <command>MUTE_MIC</command>
+            </action>
+            <action>
+                <name>Turn up speaker volume</name>
+                <command>SPEAKER_VOLUME_UP</command>
+            </action>
+            <action>
+                <name>Turn down speaker volume</name>
+                <command>SPEAKER_VOLUME_DOWN</command>
+            </action>
+            <action>
                 <name>Initialize</name>
                 <command>INITIALIZE_CAMERA</command>
             </action>
@@ -398,7 +517,27 @@
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize CldBus</description>
+                <description>Initialize Camera</description>
+            </command>
+            <command>
+                <name>TAKE_SNAPSHOT</name>
+                <description>Take Snapshot</description>
+            </command>
+            <command>
+                <name>UNMUTE_MIC</name>
+                <description>Unmute Mic</description>
+            </command>
+            <command>
+                <name>MUTE_MIC</name>
+                <description>Mute Mic</description>
+            </command>
+            <command>
+                <name>SPEAKER_VOLUME_UP</name>
+                <description>Turn up speaker volume</description>
+            </command>
+            <command>
+                <name>SPEAKER_VOLUME_DOWN</name>
+                <description>Turn down speaker volume</description>
             </command>
             <command>
                 <name>LOGIN_OR_REGISTER</name>

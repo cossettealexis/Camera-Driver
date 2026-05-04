@@ -101,6 +101,16 @@ local EVENT = {
 
 local mqtt_enabled = false
 
+local conditional_state = {
+    MOTION_DETECTED = false,
+    NOT_MOTION_DETECTED = true,
+    MIC_MUTED = false,
+    MIC_UNMUTED = true,
+    SPEAKER_VOLUME = 5,
+    BATTERY_LEVEL = 100,
+    SENSITIVITY = 5
+}
+
 --Establishes a TCP connection to the configured server.
   
 
@@ -1496,6 +1506,10 @@ end
 
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
+    
+    -- Update motion conditional states
+    UpdateConditional("MOTION_DETECTED", true)
+    UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
 local function handle_human(filename, extp)
@@ -3561,4 +3575,55 @@ function GET_PRESETS_API() -- v1.0.3
 
         C4:UpdateProperty("Status", "Presets loaded: " .. tostring(#PersistData.presets))
     end)
+
+function UpdateConditional(cond_name, value)
+    if not cond_name then return end
+
+    -- Convert string booleans to actual booleans
+    if type(value) == "string" then
+        if value == "True" or value == "true" then
+            value = true
+        elseif value == "False" or value == "false" then
+            value = false
+        else
+            value = tonumber(value) or value
+        end
+    end
+
+    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
+    
+    conditional_state[cond_name] = value
+end
+
+function TestCondition(condition_name, test_value)
+    print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
+
+    if not condition_name then 
+        print("[TESTCONDITION] No condition_name provided")
+        return false 
+    end
+
+    -- Convert test_value to proper type
+    local desired = true
+    if type(test_value) == "string" then
+        desired = (test_value == "True" or test_value == "true")
+    elseif type(test_value) == "boolean" then
+        desired = test_value
+    elseif type(test_value) == "number" then
+        desired = test_value
+    end
+
+    -- Check conditional state
+    local current_value = conditional_state[condition_name]
+    
+    if current_value == nil then
+        print("[TESTCONDITION] Condition not found: " .. condition_name)
+        return false
+    end
+
+    local result = (current_value == desired)
+    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+    
+    return result
+end
 end
