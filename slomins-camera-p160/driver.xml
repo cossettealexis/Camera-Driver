@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>2025-12-16</created>
-    <modified>2026-04-17</modified>
+    <modified>2026-05-01</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -97,7 +97,7 @@
         </event>
         <event>
             <id>6</id>
-            <name>Memory Card Not Detected</name>
+            <name>Memory Card not detected</name>
             <description>When NAME detects memory card is missing</description>
         </event>
     </events>
@@ -298,27 +298,27 @@
         <commands>
             <command>
                 <name>TAKE_SNAPSHOT</name>
-                <description>Take a snapshot from the camera</description>
+                <description>Take Snapshot</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize the camera</description>
+                <description>Initialize Camera</description>
             </command>
             <command>
                 <name>UNMUTE_MIC</name>
-                <description>Unmute the camera microphone</description>
+                <description>Unmute Mic</description>
             </command>
             <command>
                 <name>MUTE_MIC</name>
-                <description>Mute the camera microphone</description>
+                <description>Mute Mic</description>
             </command>
             <command>
                 <name>SPEAKER_VOLUME_UP</name>
-                <description>Increase speaker volume</description>
+                <description>Turn up speaker volume</description>
             </command>
             <command>
                 <name>SPEAKER_VOLUME_DOWN</name>
-                <description>Decrease speaker volume</description>
+                <description>Turn down speaker volume</description>
             </command>
         </commands>
         <interfaces>

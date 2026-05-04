@@ -494,7 +494,7 @@
                 <command>SPEAKER_VOLUME_DOWN</command>
             </action>
             <action>
-                <name>Set Sensitivity</name>
+                <name>Sensitivity =</name>
                 <command>SET_SENSITIVITY</command>
             </action>
             <action>
@@ -518,31 +518,31 @@
         <commands>
             <command>
                 <name>TAKE_SNAPSHOT</name>
-                <description>Take a snapshot from the camera</description>
+                <description>Take Snapshot</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
-                <description>Initialize the camera</description>
+                <description>Initialize Camera</description>
             </command>
             <command>
                 <name>UNMUTE_MIC</name>
-                <description>Unmute the camera microphone</description>
+                <description>Unmute Mic</description>
             </command>
             <command>
                 <name>MUTE_MIC</name>
-                <description>Mute the camera microphone</description>
+                <description>Mute Mic</description>
             </command>
             <command>
                 <name>SPEAKER_VOLUME_UP</name>
-                <description>Increase speaker volume</description>
+                <description>Turn up speaker volume</description>
             </command>
             <command>
                 <name>SPEAKER_VOLUME_DOWN</name>
-                <description>Decrease speaker volume</description>
+                <description>Turn down speaker volume</description>
             </command>
             <command>
                 <name>SET_SENSITIVITY</name>
-                <description>Set camera sensitivity level</description>
+                <description>Sensitivity =</description>
                 <params>
                     <param>
                         <name>LEVEL</name>
