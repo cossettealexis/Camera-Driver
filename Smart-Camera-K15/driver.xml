@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>1.0.1</version>
+    <version>1.0.0</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>2026-03-17</created>
-    <modified>2026-04-24</modified>
+    <modified>2026-03-17</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -94,35 +94,85 @@
     </event>
 </events>
 
+    <search>
+        <searchtype>slomins:camera</searchtype>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true"/>
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
+
     <config>
         <script file="driver.lua"/>
-        <documentation file="README.html">Slomins K15-SL Camera Documentation</documentation>
-       <properties>
+        <documentation file="README.md">Slomins K15-SL Camera Documentation</documentation>
+        <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.50</default>
+                <default>192.168.60.139</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>HTTP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>3333</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>RTSP Port</name>
+                <type>RANGED_INTEGER</type>
+                <default>554</default>
+                <minimum>1</minimum>
+                <maximum>65535</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Main Stream Path</name>
+                <type>STRING</type>
+                <default>streamtype=1</default>
+                <readonly>false</readonly>
+                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
+            </property>
+            <property>
+                <name>Sub Stream Path</name>
+                <type>STRING</type>
+                <default>streamtype=0</default>
+                <readonly>false</readonly>
+                <tooltip>RTSP stream path. Use 'streamtype=1' for high quality or 'streamtype=0' for low quality. Leave as default to auto-select based on resolution.</tooltip>
+            </property>
+            <property>
+                <name>Snapshot URL Path</name>
+                <type>STRING</type>
+                <default>/wps-cgi/image.cgi</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d6rrkb6hg7rc73dvgr40</default>
+                <default>d4n44no1k1vs73fqjjo0</default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>PoE PTZ Camera </default>
+                <default>K15 C4</default>
                 <readonly>false</readonly>
             </property>
-             <property>
-                <name>MAC Address</name>
-                <type>STRING</type>
-                <default></default>
+            <property>
+                <name>PTZ Enabled</name>
+                <type>LIST</type>
+                <items>
+                    <item>Yes</item>
+                    <item>No</item>
+                </items>
+                <default>Yes</default>
                 <readonly>false</readonly>
             </property>
-             <property>
+            <property>
                 <name>Status</name>
                 <type>STRING</type>
                 <default></default>
@@ -134,14 +184,14 @@
                 <default>pyabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
-            <property>
+              <property>
                 <name>Enable MQTT</name>
                 <type>LIST</type>
                 <items>
                     <item>False</item>
                     <item>True</item>
                 </items>
-                <default>False</default>
+                <default>True</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -154,6 +204,7 @@
                 <default>True</default>
                 <readonly>false</readonly>
             </property>
+
             <property>
                 <name>Enable Info Notifications</name>
                 <type>LIST</type>
@@ -162,6 +213,43 @@
                     <item>False</item>
                 </items>
                 <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>ClientID</name>
+                <type>STRING</type>
+                <default>064d0d44-29dd-48bc-9ff7-3f69bd24c91f</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Public Key</name>
+                <type>STRING</type>
+                <default>
+                </default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Base API URL</name>
+                <type>STRING</type>
+                <default>https://api.arpha-tech.com</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Pre-Encrypted Post Data</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Temp Token</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Exchange Token</name>
+                <type>STRING</type>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -184,33 +272,25 @@
                 <readonly>true</readonly>
             </property>
             <property>
-                <name>Camera Status</name>
+                <name>Main Stream URL</name>
                 <type>STRING</type>
                 <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Sub Stream URL</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Online</name>
+                <type>STRING</type>
+                <default>false</default>
                 <readonly>true</readonly>
             </property>
         </properties>
         <actions>
-             <action>
-                <name>Get Cloud Presets</name>
-                <command>GET_PRESETS_API</command>
-            </action>
-            <action>
-                <name>Go To Preset</name>
-                <command>PTZ_GOTO_PRESET</command>
-                <params>
-                    <param>
-                        <name>X</name>
-                        <type>INTEGER</type>
-                        <default>500</default>
-                    </param>
-                    <param>
-                        <name>Y</name>
-                        <type>INTEGER</type>
-                        <default>500</default>
-                    </param>
-                </params>
-            </action>
             <action>
                 <name>PTZ Up</name>
                 <command>PTZ_MOVE</command>
@@ -268,6 +348,10 @@
                 </params>
             </action>
             <action>
+                <name>Bind Device</name>
+                <command>BIND_DEVICE</command>
+            </action>
+            <action>
                 <name>Initialize</name>
                 <command>INITIALIZE_CAMERA</command>
             </action>
@@ -293,58 +377,6 @@
             </action>
         </actions>
         <commands>
-            <command>
-                <name>GET_PRESETS_API</name>
-                <description>Fetch cloud preset spots from API</description>
-            </command>
-            <command>
-                <name>PTZ_GOTO_PRESET</name>
-                <description>Move camera to a preset using trace_point/ac_ptz sequence</description>
-                <params>
-                    <param>
-                        <name>X</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Y</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-        </command>
-            <command>
-                <name>PRESET</name>
-                <description>Move camera to a preset using ac_ptz sequence</description>
-                <params>
-                    <param>
-                        <name>INDEX</name>  <!-- Preset number -->
-                        <type>INTEGER</type>
-                    </param>
-                    <!-- Optional: override step counts per direction -->
-                    <param>
-                        <name>Right</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Up</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Left</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Down</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>SAVE_PRESET</name>
-                <parameter>
-                    <name>INDEX</name>
-                    <type>INTEGER</type>
-                </parameter>
-            </command>
             <command>
                 <name>PTZ_MOVE</name>
                 <description>Move PTZ camera</description>
@@ -375,8 +407,7 @@
                     </param>
                 </params>
             </command>
-           
-             <command>
+            <command>
                 <name>PTZ_CONT_STOP</name>
                 <description>Stop continuous PTZ movement</description>
             </command>
@@ -480,12 +511,30 @@
         <connection>
             <id>6001</id>
             <facing>1</facing>
-            <connectionname>MQTT Proxy</connectionname>
+            <connectionname>Network/MQTT</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
-                    <classname>GENERIC_PROXY</classname>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>3333</number>
+                        </port>
+                        <port>
+                            <number>554</number>
+                        </port>
+                        <port>
+                            <number>8883</number>
+                        </port>
+                        <port>
+                            <number>8884</number>
+                        </port>
+                        <port>
+                            <number>8080</number>
+                        </port>
+                    </ports>
                 </class>
             </classes>
         </connection>
