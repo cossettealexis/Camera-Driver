@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>1.0.2</version>
+    <version>1.0.1</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
@@ -164,27 +164,13 @@
             </items>
         </conditional>
         <conditional>
-            <name>BATTERY_LEVEL</name>
-            <type>NUMBER</type>
-            <description>Battery level</description>
-            <label>battery is</label>
-        </conditional>
-        <conditional>
-            <name>SENSITIVITY</name>
+            <name>TRACKING</name>
             <type>LIST</type>
-            <description>Sensitivity level</description>
-            <label>Sensitivity is</label>
+            <description>Tracking is on/off</description>
+            <label>tracking is</label>
             <items>
-                <item>1</item>
-                <item>2</item>
-                <item>3</item>
-                <item>4</item>
-                <item>5</item>
-                <item>6</item>
-                <item>7</item>
-                <item>8</item>
-                <item>9</item>
-                <item>10</item>
+                <item>True</item>
+                <item>False</item>
             </items>
         </conditional>
     </conditionals>
@@ -465,55 +451,8 @@
                 </parameter>
             </command>
             <command>
-                <name>PTZ_MOVE</name>
-                <description>Move PTZ camera</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>PTZ_CONT_START</name>
-                <description>Start continuous PTZ movement</description>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <type>STRING</type>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <type>INTEGER</type>
-                        <default>1</default>
-                    </param>
-                </params>
-            </command>
-           
-             <command>
                 <name>PTZ_CONT_STOP</name>
                 <description>Stop continuous PTZ movement</description>
-            </command>
-            <command>
-                <name>TEST_SNAPSHOT</name>
-                <description>Test camera snapshot URL</description>
-            </command>
-            <command>
-                <name>TEST_MAIN_STREAM</name>
-                <description>Dynamic stream API - Main Stream</description>
-            </command>
-            <command>
-                <name>TEST_SUB_STREAM</name>
-                <description>Dynamic stream API - Sub Stream</description>
-            </command>
-            <command>
-                <name>BIND_DEVICE</name>
-                <description>Bind device to CldBus API</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
@@ -538,34 +477,6 @@
             <command>
                 <name>SPEAKER_VOLUME_DOWN</name>
                 <description>Turn down speaker volume</description>
-            </command>
-            <command>
-                <name>LOGIN_OR_REGISTER</name>
-                <description>Login or register a user</description>
-            </command>
-            <command>
-                <name>GET_TEMP_TOKEN</name>
-                <description>Get temporary token for user</description>
-            </command>
-            <command>
-                <name>GET_EXCHANGE_TOKEN</name>
-                <description>Get exchange token for user</description>
-            </command>
-            <command>
-                <name>GET_DEVICES</name>
-                <description>Get list of devices for user</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS</name>
-                <description>Discover IP cameras on local network via HTTP scan</description>
-            </command>
-            <command>
-                <name>DISCOVER_CAMERAS_SDDP</name>
-                <description>Discover IP cameras via SDDP protocol (multicast)</description>
-            </command>
-            <command>
-                <name>SET_DEVICE_PROPERTY</name>
-                <description>Set device active via API (e.g., sddp_swt)</description>
             </command>
             <command>
                 <name>PRESET_SAVE</name>

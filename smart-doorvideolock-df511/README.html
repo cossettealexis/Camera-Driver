@@ -78,8 +78,8 @@
 
 Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, PTZ support, lock control, and real-time MQTT event detection.
 
-**Version:** 1.0.2
-**Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)
+**Version:** 1.0.2<br>
+**Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)<br>
 **Minimum Control4 OS:** 3.3.2+
 
 ---
@@ -101,7 +101,6 @@ Complete Control4 driver for **Slomins DF511-SL Camera** with full API integrati
 ✅ **Camera Functions**
 
 * Snapshot URL generation
-* PTZ controls (Pan, Tilt, Zoom)
 * Preset management
 
 ✅ **Lock Control**
@@ -756,6 +755,47 @@ local client_id = util.uuid_v4()
 ### v1.0.1
 * HTML Readme File
 * Dynamic credentials retrieval
+
+### v1.0.2
+* Manually Locking and locking trigger events/Scenes in Control4
+
+### v1.0.3
+*
+
+
+### v1.0.4
+* Bug Fixes : device hang when API is unreachable, MQTT connection stability improvements
+
+
+### v1.0.5
+* Dynamic Cldbus API Id and App Secret retrieval from API when MAC address is provided
+
+
+### v1.0.6
+* Added conditionals in composer pro for mapping lock and unlock events to push notifications, ensuring that notifications are only sent when the corresponding event occurs. 
+* Disabled ptz on the command panel of the composer pro as the camera does not support ptz, preventing confusion and improving usability for users configuring the driver in their Control4 system. 
+
+### v1.0.7
+* Improved device wake-up reliability by implementing a retry mechanism for API calls when the camera is offline. 
+* Bug Fixes: Reinitializes the device when account property changes to ensure the driver is fetching the latest authentication token.
+
+
+### v1.0.8
+* Bug Fixes: Low Battery, Battery Warning, and Battery Critical events are now properly detected and logged in Lua Output. 
+* Bug Fixes: Lock and Unlock controls now working in Android and iOS Control4 apps. 
+* Bug Fixes: Offline password unlock, Motion Detection events are now properly triggering push notifications. 
+
+
+### v1.0.9
+* 
+
+### v1.0.10
+* Updated Control4 Camera Programming Options
+* **Device Events**: Added "System Is Locked"
+* **Commands Removed**: Pan Left, Pan Right, Pan Scan, Tilt Up, Tilt Down, Tilt Scan, Zoom In, Zoom Out, Preset, Home
+* **Commands Added**: Take Snapshot, Initialize Camera, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =
+* **DF511 Door Lock Commands Removed**: Toggle Door Lock
+* **Conditions Added**: If Speaker volume is 1-10, If battery is <,> or =, If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, Sensitivity = 
 
 ---
 
