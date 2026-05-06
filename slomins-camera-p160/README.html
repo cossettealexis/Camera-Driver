@@ -71,8 +71,8 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
 
-<p><strong>Version:</strong> 0.1.0<br>
-<strong>Package:</strong> Smart-Camera-P160-SL-v0.1.0.c4z (22.1 KB)<br>
+<p><strong>Version:</strong> 1.0.3<br>
+<strong>Package:</strong> Slomins-indoor-P160.c4z<br>
 <strong>Minimum Control4 OS:</strong> 3.3.2+</p>
 
 <hr>
@@ -134,7 +134,7 @@
 <ol>
   <li>Open <strong>Control4 Composer Pro</strong></li>
   <li>Go to <strong>Drivers</strong> → <strong>Add Driver</strong> → <strong>Install From File</strong></li>
-  <li>Select <code>Smart-Camera-P160-SL-v0.1.0.c4z</code> and click <strong>Install</strong></li>
+  <li>Select <code>Slomins-indoor-P160.c4z</code> and click <strong>Install</strong></li>
 </ol>
 
 <h3>2. Add Device to Project</h3>
@@ -591,7 +591,16 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 <hr>
 
 <h2>Version History</h2>
-<h3>v0.1.0 (Current)</h3>
+<h3>v1.0.3 (Current)</h3>
+<ul>
+  <li>Updated Control4 Camera Programming Options</li>
+  <li><strong>Device Events</strong>: Added "Memory Card not detected"</li>
+  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume</li>
+  <li><strong>Commands Removed</strong>: AWAKE_CAMERA, TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, DISCOVER_CAMERAS, DISCOVER_CAMERAS_SDDP, SET_DEVICE_PROPERTY, SEND_NOTIFICATION</li>
+  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10</li>
+</ul>
+
+<h3>v0.1.0</h3>
 <ul>
   <li>Complete API integration</li>
   <li>RSA-OAEP encryption with C4:Crypto()</li>
@@ -606,7 +615,7 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Support &amp; Contact</h2>
 <ul>
-  <li><strong>Driver Version:</strong> 0.1.0</li>
+  <li><strong>Driver Version:</strong> 1.0.3</li>
   <li><strong>Maintainer:</strong> Slomins</li>
   <li><strong>Website:</strong> <a href="https://www.slomins.com">www.slomins.com</a></li>
   <li><strong>Email:</strong> <a href="mailto:support@slomins.com">support@slomins.com</a></li>
