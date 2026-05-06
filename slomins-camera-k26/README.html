@@ -104,6 +104,10 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins K26-SL Solar-Powered Outdoor Camera with CldBus API integration, MQTT event streaming, RTSP video streaming, battery management, and wake-on-demand support.</p>
 
+<p><strong>Version:</strong> 1.0.4<br>
+<strong>Package:</strong> Slomins-outdoor-K26.c4z<br>
+<strong>Minimum Control4 OS:</strong> 3.3.2+</p>
+
 <h2>Purpose</h2>
 <p>Control4 driver for K26-based Tuya cameras with CldBus API integration, MQTT events, and notification handling.</p>
 
@@ -573,7 +577,15 @@ Rename-Item "temp.zip" "Slomins-outdoor-K26.c4z"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v1.1.0 (Current)</h3>
+<h3>v1.0.4 (Current)</h3>
+<ul>
+  <li>Updated Control4 Camera Programming Options</li>
+  <li><strong>Device Events</strong>: Added "Registered User Detected"</li>
+  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =</li>
+  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If battery is &lt;, &gt;, or =, Sensitivity =</li>
+</ul>
+
+<h3>v1.1.0</h3>
 <ul>
   <li>CldBus API integration (api.arpha-tech.com)</li>
   <li>RTSP streaming support (streamtype=0/1 format)</li>

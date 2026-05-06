@@ -105,7 +105,7 @@
 <p>Complete Control4 driver for Slomins VD05 Video Doorbell Camera with full CldBus API integration, MQTT event streaming, RTSP video streaming, doorbell functionality, and two-way audio support.</p>
 <ul>
   <li><strong>Model:</strong> VD05</li>
-  <li><strong>Version:</strong> 1.0.0</li>
+  <li><strong>Version:</strong> 1.0.5</li>
   <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
   <li><strong>Device Type:</strong> Video Doorbell with Camera</li>
 </ul>
@@ -1056,7 +1056,16 @@ Rename-Item "temp.zip" "Slomins-doorbell-VD05.c4z"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v1.0.0 (Current)</h3>
+<h3>v1.0.5 (Current)</h3>
+<ul>
+  <li>Updated Control4 Camera Programming Options</li>
+  <li><strong>Device Events</strong>: Added "Anti Pry alarm is triggered", "Registered User Detected"</li>
+  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =</li>
+  <li><strong>Commands Removed</strong>: TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, INITIALIZE_CAMERA, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, AWAKE_CAMERA, GET_MQTT_INFO, CONNECT_MQTT, DISCONNECT_MQTT, GET_CAMERA_PROPERTIES, UPDATE_UI_PROPERTIES, START_HTTP_POLLING, STOP_HTTP_POLLING, PRESET_SAVE, PRESET_RECALL</li>
+  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If battery is &lt;,&gt; or =, Sensitivity =</li>
+</ul>
+
+<h3>v1.0.0</h3>
 <ul>
   <li>Initial release</li>
   <li>CldBus API integration</li>

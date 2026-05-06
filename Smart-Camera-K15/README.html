@@ -104,7 +104,7 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins K15-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
 <ul>
-  <li><strong>Version:</strong> 0.1.0</li>
+  <li><strong>Version:</strong> 1.0.1</li>
   <li><strong>Package:</strong> <code>Smart-Camera-K15-SL-v0.1.0.c4z</code> (22.1 KB)</li>
   <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
 </ul>
@@ -688,7 +688,16 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v0.1.0 (Current)</h3>
+<h3>v1.0.1 (Current)</h3>
+<ul>
+  <li>Updated Control4 Camera Programming Options</li>
+  <li><strong>Device Events</strong>: Added "Registered User Detected", "Stranger Detected"</li>
+  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume</li>
+  <li><strong>Commands Removed</strong>: Zoom In, Zoom Out, PTZ_MOVE, PTZ_CONT_START, PTZ_CONT_STOP, TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, DISCOVER_CAMERAS, DISCOVER_CAMERAS_SDDP, SET_DEVICE_PROPERTY</li>
+  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If tracking is on/off</li>
+</ul>
+
+<h3>v0.1.0</h3>
 <ul>
   <li>Complete API integration</li>
   <li>RSA-OAEP encryption with C4:Crypto()</li>
@@ -706,7 +715,7 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"</code></pre>
 
 <h2>Support</h2>
 <ul>
-  <li><strong>Driver Version:</strong> 0.1.0</li>
+  <li><strong>Driver Version:</strong> 1.0.1</li>
   <li><strong>Maintainer:</strong> Slomins</li>
   <li><strong>Manufacturer:</strong> Slomins</li>
   <li><strong>Model:</strong> K15-SL</li>
