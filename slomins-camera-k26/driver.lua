@@ -2951,20 +2951,30 @@ end
 function UpdateConditional(cond_name, value)
     if not cond_name then return end
 
-    -- Convert string booleans to actual booleans
+    -- Convert string booleans to actual booleans for internal use
+    local internal_value = value
     if type(value) == "string" then
         if value == "True" or value == "true" then
-            value = true
+            internal_value = true
         elseif value == "False" or value == "false" then
-            value = false
+            internal_value = false
         else
-            value = tonumber(value) or value
+            internal_value = tonumber(value) or value
         end
     end
 
-    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
+    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(internal_value))
     
-    conditional_state[cond_name] = value
+    -- Update internal state
+    conditional_state[cond_name] = internal_value
+    
+    -- Update Control4 variable so Composer sees it
+    local var_value = tostring(internal_value)
+    if type(internal_value) == "boolean" then
+        var_value = internal_value and "True" or "False"
+    end
+    
+    C4:SetVariable(cond_name, var_value)
 end
 
 function TestCondition(condition_name, test_value)

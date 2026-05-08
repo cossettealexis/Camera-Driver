@@ -120,50 +120,55 @@
 
     <conditionals>
         <conditional>
+            <id>1</id>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If sensing motion is</condition_statement>
             <description>Sensing motion</description>
-            <label>sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
             </items>
         </conditional>
         <conditional>
+            <id>2</id>
             <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If not sensing motion is</condition_statement>
             <description>Not sensing motion</description>
-            <label>not sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
             </items>
         </conditional>
         <conditional>
+            <id>3</id>
             <name>MIC_MUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is muted</condition_statement>
             <description>Mic is muted</description>
-            <label>Mic is muted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
             </items>
         </conditional>
         <conditional>
+            <id>4</id>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is unmuted</condition_statement>
             <description>Mic is unmuted</description>
-            <label>Mic is unmuted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
             </items>
         </conditional>
         <conditional>
+            <id>5</id>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
+            <condition_statement>If Speaker volume is</condition_statement>
             <description>Speaker volume is 1-10</description>
-            <label>Speaker volume is 1-10</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -178,16 +183,20 @@
             </items>
         </conditional>
         <conditional>
+            <id>6</id>
             <name>BATTERY_LEVEL</name>
             <type>NUMBER</type>
+            <condition_statement>If battery level is</condition_statement>
             <description>Battery level</description>
-            <label>battery is</label>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
         </conditional>
         <conditional>
+            <id>7</id>
             <name>SENSITIVITY</name>
             <type>LIST</type>
+            <condition_statement>If Sensitivity is</condition_statement>
             <description>Sensitivity level</description>
-            <label>Sensitivity is</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -376,6 +385,41 @@
             </action>
         </actions>
         <variables>
+            <variable>
+                <name>MOTION_DETECTED</name>
+                <type>STRING</type>
+                <default>False</default>
+            </variable>
+            <variable>
+                <name>NOT_MOTION_DETECTED</name>
+                <type>STRING</type>
+                <default>True</default>
+            </variable>
+            <variable>
+                <name>MIC_MUTED</name>
+                <type>STRING</type>
+                <default>False</default>
+            </variable>
+            <variable>
+                <name>MIC_UNMUTED</name>
+                <type>STRING</type>
+                <default>True</default>
+            </variable>
+            <variable>
+                <name>SPEAKER_VOLUME</name>
+                <type>NUMBER</type>
+                <default>5</default>
+            </variable>
+            <variable>
+                <name>BATTERY_LEVEL</name>
+                <type>NUMBER</type>
+                <default>0</default>
+            </variable>
+            <variable>
+                <name>SENSITIVITY</name>
+                <type>NUMBER</type>
+                <default>5</default>
+            </variable>
         </variables>
 
         <commands>
