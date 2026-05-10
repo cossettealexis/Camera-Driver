@@ -632,11 +632,48 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
     if strCommand == "AWAKE_CAMERA" then
-        --AWAKE_CAMERA(tParams)
+        WakeCamera(3)
         return
     end
     if strCommand == "TEST_PUSH_NOTIFICATION" then
         SEND_TEST_NOTIFICATION()
+        return
+    end
+    if strCommand == "TAKE_SNAPSHOT" then
+        print("[COMMAND] Take Snapshot requested")
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+        return
+    end
+    if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic")
+        UpdateConditional("MIC_MUTED", false)
+        UpdateConditional("MIC_UNMUTED", true)
+        return
+    end
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic")
+        UpdateConditional("MIC_MUTED", true)
+        UpdateConditional("MIC_UNMUTED", false)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_UP" then
+        local current = conditional_state["SPEAKER_VOLUME"] or 5
+        local new_vol = math.min(current + 1, 10)
+        print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
+        UpdateConditional("SPEAKER_VOLUME", new_vol)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_DOWN" then
+        local current = conditional_state["SPEAKER_VOLUME"] or 5
+        local new_vol = math.max(current - 1, 1)
+        print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
+        UpdateConditional("SPEAKER_VOLUME", new_vol)
+        return
+    end
+    if strCommand == "SET_SENSITIVITY" then
+        local level = (tParams and tParams.LEVEL) or 5
+        print("[COMMAND] Set Sensitivity: " .. tostring(level))
+        UpdateConditional("SENSITIVITY", level)
         return
     end
 
