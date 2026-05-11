@@ -660,14 +660,18 @@ function ExecuteCommand(strCommand, tParams)
         local current = conditional_state["SPEAKER_VOLUME"] or 5
         local new_vol = math.min(current + 1, 10)
         print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
-        UpdateConditional("SPEAKER_VOLUME", new_vol)
+        SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+            UpdateConditional("SPEAKER_VOLUME", new_vol)
+        end)
         return
     end
     if strCommand == "SPEAKER_VOLUME_DOWN" then
         local current = conditional_state["SPEAKER_VOLUME"] or 5
         local new_vol = math.max(current - 1, 1)
         print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
-        UpdateConditional("SPEAKER_VOLUME", new_vol)
+        SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+            UpdateConditional("SPEAKER_VOLUME", new_vol)
+        end)
         return
     end
     if strCommand == "SET_SENSITIVITY" then
@@ -1410,6 +1414,81 @@ function AwakeCamera(tParams)
         else
             print("Wake-up failed with code: " .. tostring(code))
             --C4:UpdateProperty("Status", "Wake-up failed: " .. tostring(err or code))
+        end
+    end)
+
+    print("================================================================")
+end
+
+-- OP03. Device Control(properties)
+function SET_DEVICE_PROPERTY(property_data, success_callback)
+    print("================================================================")
+    print("           SET_DEVICE_PROPERTY CALLED                           ")
+    print("================================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    print("Using bearer token: " .. auth_token)
+    print("Using VID: " .. vid)
+    print("Property data: " .. json.encode(property_data))
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/do-property"
+
+    local appId, appSecret = GetCldBusCredentials()
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        data = json.encode(property_data)
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("[DEBUG] Request URL: " .. url)
+    print("[DEBUG] Request Body: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+        if err then
+            print("Error: " .. tostring(err))
+        end
+        print("----------------------------------------------------------------")
+
+        if code == 200 or code == 20000 then
+            print("Property set successfully")
+            if success_callback then
+                success_callback()
+            end
+        else
+            print("Set property failed with code: " .. tostring(code))
         end
     end)
 
