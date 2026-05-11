@@ -17,8 +17,8 @@ LAST_NOTIFY_ID           = LAST_NOTIFY_ID or nil
 MAX_TIME_DRIFT           = 600 -- seconds (acceptable drift)
 
 
-local IMAGE_RETRY_COUNT = tonumber(Properties["Image Retry Count"]) or 3
-local IMAGE_RETRY_DELAY = tonumber(Properties["Image Retry Interval (ms)"]) or 300
+local IMAGE_RETRY_COUNT = tonumber(Properties["Image Retry Count"]) or 5
+local IMAGE_RETRY_DELAY = tonumber(Properties["Image Retry Interval (ms)"]) or 400
 
 local CAMERA_BINDING    = 5001
 local EVENT_DELAY_MS    = tonumber(Properties["Event Interval (ms)"]) or 3000
@@ -171,12 +171,12 @@ AUTO_LOCK_TIMER            = nil
 local battery_timer        = nil
 
 -- ====================== TOKEN RECOVERY SYSTEM ======================
-local LAST_TOKEN_CHECK = 0
-local TOKEN_CHECK_INTERVAL = 180000   -- 3 minutes
+local LAST_TOKEN_CHECK     = 0
+local TOKEN_CHECK_INTERVAL = 180000 -- 3 minutes
 
 
 local last_error_code = nil --v1.0.7
-local last_error_time = 0 --v1.0.7
+local last_error_time = 0   --v1.0.7
 
 
 local _lastLowBatteryAlert = 0
@@ -327,6 +327,8 @@ end
 function OnDriverInit()
     TcpConnection()
     print("=== DF511 Driver Initialized ===")
+    C4:AddVariable("FaceKID", "", "STRING", true, false)
+    C4:AddVariable("FaceName", "", "STRING", true, false)
     C4:UpdateProperty("Camera Status", "false")
     -- Initialize properties
     for k, v in pairs(Properties) do
@@ -622,7 +624,7 @@ function OnPropertyChanged(strProperty)
         end
         return
     end
-       if strProperty == "Low Battery Alert Interval (Hours)" then
+    if strProperty == "Low Battery Alert Interval (Hours)" then
         print("[ALERT ENGINE] Interval changed — restarting")
         START_BATTERY_ALERT_ENGINE()
         return
@@ -1516,7 +1518,7 @@ function GET_DEVICES(p_vid)
 
                     _props["VID"] = target_device.vid
                     C4:UpdateProperty("VID", target_device.vid)
-                  
+
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
                         C4:UpdateProperty("Device Name", target_device.device_name)
@@ -1542,7 +1544,7 @@ function GET_DEVICES(p_vid)
                         C4:UpdateProperty("Enable MQTT", "True")
                         _props["Enable MQTT"] = "True"
 
-                        APPLY_MQTT_INFO()
+                        -- APPLY_MQTT_INFO()
                     end
                     print("DF511 properties updated successfully")
 
@@ -1562,7 +1564,6 @@ function GET_DEVICES(p_vid)
 
     print("================================================================")
 end
-
 
 local function HANDLE_BATTERY_LEVEL(pct)
     if type(pct) ~= "number" then return end
@@ -1621,7 +1622,7 @@ function START_BATTERY_ALERT_ENGINE()
         else
             print("[ALERT ENGINE] No cached battery value")
         end
-    end, true) 
+    end, true)
 end
 
 function STOP_BATTERY_ALERT_ENGINE()
@@ -1653,7 +1654,6 @@ function RESET_MQTT_AND_BATTERY(oldVid, newVid)
     START_BATTERY_POLL()
     START_BATTERY_ALERT_ENGINE()
 end
-
 
 function GET_BATTERY_LEVEL()
     print("===== GET BATTERY =====")
@@ -1747,6 +1747,7 @@ function GET_BATTERY_LEVEL()
         end
     end)
 end
+
 function START_BATTERY_POLL()
     STOP_BATTERY_POLL()
 
@@ -1769,6 +1770,7 @@ function STOP_BATTERY_POLL()
     end
     _batteryPollTimer = nil
 end
+
 -- Set Device Property
 function SET_DEVICE_PROPERTY(tParams)
     print("================================================================")
@@ -2177,63 +2179,85 @@ local function normalize_http_url(url)
     url = url:gsub("^%s+", ""):gsub("%s+$", "")
     return url
 end
-function GetImageForEvent(extp, done)
+
+
+function GetNotificationData(extp, event_ts, done)
+    event_ts = tonumber(event_ts) or 0  -- ← FIX: default nil to 0
+
     local vid              = Properties["VID"]
     local token            = Properties["Auth Token"]
     local base             = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
-        print("ERROR: CldBus credentials not loaded yet")
-        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
-        return
+        print("[NOTIFY] No credentials")
+        return done(nil, nil)
     end
-
-    if not extp then
-        return done(nil)
-    end
-
-    local wanted_file = extp:match("([^/]+%.jpg)")
-    if not wanted_file then
-        return done(nil)
-    end
-
-    local url = base .. "/api/v3/openapi/notifications/query"
 
     transport.execute({
-        url = url,
-        method = "POST",
+        url     = base .. "/api/v3/openapi/notifications/query",
+        method  = "POST",
         headers = {
             ["Content-Type"]  = "application/json",
             ["Authorization"] = "Bearer " .. token,
             ["App-Name"]      = appId
         },
-        body = json.encode({ page = 1, page_size = 10, vids = { vid } })
+        body    = json.encode({ page = 1, page_size = 10, vids = { vid } })
     }, function(code, resp)
         if code ~= 200 and code ~= 20000 then
-            return done(nil)
+            return done(nil, nil)
         end
 
         local ok, parsed = pcall(json.decode, resp or "")
         if not ok or not parsed or not parsed.data then
-            return done(nil)
+            return done(nil, nil)
         end
 
         local list = parsed.data.notifications
-        if not list then return done(nil) end
+        if not list then return done(nil, nil) end
+
+        local wanted_file = extp and extp:match("([^/]+%.jpg)")
+
+        -- normalize event_ts from ms to seconds once
+        if event_ts > 1e10 then
+            event_ts = math.floor(event_ts / 1000)
+        end
 
         for _, n in ipairs(list) do
-            local img = normalize_http_url(n.image_url)
-            local fname = extract_filename(img)
+            local img      = normalize_http_url(n.image_url or "")
+            local faceName = n.note or n.face_note or ""
 
-            if fname == wanted_file then
-                print("[MATCH] Found image for event:", fname)
-                return done(img)
+            local n_ts = tonumber(n.notify_time) or 0
+            if n_ts > 1e10 then n_ts = math.floor(n_ts / 1000) end
+
+            -- CASE 1: match by filename (extp present)
+            if wanted_file then
+                local fname = extract_filename(img)
+                if fname == wanted_file then
+                    print("[NOTIFY] ✅ filename match:", fname, "| FaceName:", faceName)
+                    C4:SetVariable("FaceName", faceName)
+                    return done(img ~= "" and img or nil, faceName)
+                end
+
+            -- CASE 2: match by timestamp (no extp, but timestamp given)
+            elseif event_ts > 0 then
+                local diff = math.abs(n_ts - event_ts)
+
+                print(string.format(
+                    "[CHECK] notify=%s event=%s diff=%s",
+                    tostring(n_ts), tostring(event_ts), tostring(diff)
+                ))
+
+                if diff <= 60 then
+                    print("[NOTIFY] ✅ timestamp match: diff=" .. diff .. "s | FaceName:", faceName)
+                    C4:SetVariable("FaceName", faceName)
+                    return done(img ~= "" and img or nil, faceName)
+                end
             end
         end
 
-        print("[MATCH] No matching image yet")
-        return done(nil)
+        print("[NOTIFY] no match found")
+        return done(nil, nil)
     end)
 end
 
@@ -2262,28 +2286,28 @@ end
 
 
 
-local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
+local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp, event_ts)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
     if not can_notify(cooldown_key, cooldown_sec) then return end
-    if not extp or extp == "" then
-        print("[NOTIFY] no ext_p → skipping image fetch, firing event directly")
+
+    -- If no ext_p and no timestamp, fire directly — nothing to look up
+    if (not extp or extp == "") and (not event_ts or event_ts == 0) then
+        print("[NOTIFY] no ext_p, no timestamp → firing directly")
         record_history(
             category == NOTIFY.ALERT and "Critical" or "Info",
-            event_name,
-            "IP Camera"
+            event_name, "IP Camera"
         )
         C4:FireEvent(event_name, CAMERA_BINDING)
         return
     end
-    local tries = 0
 
+    local tries = 0
     local function fetch()
         tries = tries + 1
-
-        GetImageForEvent(extp, function(url)
-            if not url and tries < IMAGE_RETRY_COUNT then
-                print("[IMG] retry", tries, "/", IMAGE_RETRY_COUNT)
+        GetNotificationData(extp, event_ts, function(img_url, face_name)
+            if not img_url and tries < IMAGE_RETRY_COUNT then
+                print("[NOTIFY] retry", tries, "/", IMAGE_RETRY_COUNT)
                 C4:SetTimer(IMAGE_RETRY_DELAY, fetch)
                 return
             end
@@ -2291,17 +2315,17 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             LAST_EVENT_ID = LAST_EVENT_ID + 1
             local id = LAST_EVENT_ID
 
-            if url then
-                NOTIFICATION_URLS[id] = url
+            if img_url then
+                NOTIFICATION_URLS[id] = img_url
                 table.insert(NOTIFICATION_QUEUE, id)
-                print("[NOTIFY] image attached", url)
+                print("[NOTIFY] image attached:", img_url)
             else
-                print("[NOTIFY] no image after retry")
+                print("[NOTIFY] no image after retries")
             end
+
             record_history(
                 category == NOTIFY.ALERT and "Critical" or "Info",
-                event_name,
-                "IP Camera"
+                event_name, "IP Camera"
             )
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
@@ -2319,7 +2343,7 @@ end
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
     C4:FireEvent(1)
-    
+
     -- Update motion conditional states
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
@@ -2330,7 +2354,7 @@ local function handle_doorbell(filename, extp)
 end
 
 
-local function handle_unlock(event_name, filename, extp)
+local function handle_unlock(event_name, filename, extp, event_ts)
     print("[LOCK EVENT] Unlock detected:", event_name)
 
     updateLockState("UNLOCKED")
@@ -2341,7 +2365,8 @@ local function handle_unlock(event_name, filename, extp)
         "unlock",
         5,
         filename,
-        extp
+        extp,
+        event_ts
     )
 end
 
@@ -2365,9 +2390,6 @@ local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
 end
 
-local function handle_low_battery()
-    send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
-end
 
 local function handle_online_status(new_online)
     local now = os.time()
@@ -2415,7 +2437,7 @@ end
 local function handle_device_status(msg)
     if not msg.status then return end
 
-    
+
 
     for _, s in ipairs(msg.status) do
         if s.status_key == "is_online" then
@@ -2423,7 +2445,7 @@ local function handle_device_status(msg)
             handle_online_status(is_online)
         end
 
-        
+
 
         ------------------------------------------------
         -- CAPTURE ERROR CODE (for offline password)
@@ -2438,7 +2460,6 @@ local function handle_device_status(msg)
         -- LOCK STATE
         ------------------------------------------------
         if s.status_type == 2 and s.status_key == "d_s" then
-
             local state = tonumber(s.status_val)
 
             ------------------------------------------------
@@ -2500,17 +2521,24 @@ function HANDLE_JSON_EVENT(payload)
     -- DEVICE EVENTS
     ------------------------------------------------
     if msg.method == "deviceEvent" and msg.event then
-        local id     = msg.event.identifier or ""
-        local mstype = msg.event.type or ""
-        local params = msg.event.params or {}
-
+        local id              = msg.event.identifier or ""
+        local mstype          = msg.event.type or ""
+        local params          = msg.event.params or {}
+        local event_timestamp = tonumber(msg.event.timestamp) or (params.t and params.t * 1000)
         ------------------------------------------------
         -- 🎥 log_rec (Motion / Human / Doorbell)
         ------------------------------------------------
         if id == "log_rec" then
             local filename = nil
             local extp = params.ext_p
+            local k_id = params.k_id or ""
 
+
+            C4:SetVariable("FaceKID", k_id)
+
+            -- Build notification label
+            local face_label = (k_id ~= "") and ("Face " .. k_id) or "Face Unknown"
+            print("[FACE] k_id stored: '" .. k_id .. "' → Notifying as: " .. face_label)
             if extp then
                 filename = extp:match("([^/]+%.jpg)")
             end
@@ -2541,7 +2569,7 @@ function HANDLE_JSON_EVENT(payload)
                 return true
             end
             if t == 10001 then
-                handle_unlock(EVENT.UNLOCK_FACE, filename, extp)
+                handle_unlock(EVENT.UNLOCK_FACE, filename, extp, event_timestamp)
                 return true
             end
             if t == 10002 then
@@ -2611,7 +2639,7 @@ function HANDLE_JSON_EVENT(payload)
             local extp = params.ext_p
             local filename = extp and extp:match("([^/]+%.jpg)")
             local t = tonumber(params.type)
-
+            local k_id = params.k_id or ""
             print("[ALARM_REC_V2] type =", t)
 
             if t == 1 then
@@ -2657,6 +2685,11 @@ function HANDLE_JSON_EVENT(payload)
                 ------------------------------------------------
                 print("[EVENT] 👤 Face Triggered (QA simulation since hardware cannot provide face_id yet)")
 
+                C4:SetVariable("FaceKID", k_id)
+
+                -- Build notification label
+                local face_label = (k_id ~= "") and ("Face " .. k_id) or "Face Unknown"
+                print("[FACE] k_id stored: '" .. k_id .. "' → Notifying as: " .. face_label)
                 if user_settings.enable_alerts then
                     send_notification(NOTIFY.ALERT, EVENT.FACE, "face", 0)
                 end
@@ -3348,6 +3381,7 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
                 C4:SendDataToUI(json.encode({ battery = power }))
             end)
             -- Push at 500ms and 1500ms to catch WebView load
+            PushLockStateToUI(iconState) -- instant
             C4:SetTimer(500, function() PushLockStateToUI(iconState) end)
             C4:SetTimer(1500, function() PushLockStateToUI(iconState) end)
             return
@@ -4326,16 +4360,16 @@ function UpdateConditional(cond_name, value)
     end
 
     print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
-    
+
     conditional_state[cond_name] = value
 end
 
 function TestCondition(condition_name, test_value)
     print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
 
-    if not condition_name then 
+    if not condition_name then
         print("[TESTCONDITION] No condition_name provided")
-        return false 
+        return false
     end
 
     -- Convert test_value to proper type
@@ -4350,15 +4384,16 @@ function TestCondition(condition_name, test_value)
 
     -- Check conditional state
     local current_value = conditional_state[condition_name]
-    
+
     if current_value == nil then
         print("[TESTCONDITION] Condition not found: " .. condition_name)
         return false
     end
 
     local result = (current_value == desired)
-    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
-    
+    print("[TESTCONDITION] Result: " ..
+        tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+
     return result
 end
 
