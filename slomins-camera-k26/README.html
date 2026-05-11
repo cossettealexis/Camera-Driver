@@ -1,407 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Slomins K26-SL — Control4 Driver Documentation</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 1.7;
-    color: #24292e;
-    background: #fff;
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 40px 32px 80px;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slomins K26-SL — Control4 Driver Documentation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #24292e;
+      background: #fff;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
 
-  h1 { font-size: 32px; border-bottom: 1px solid #e1e4e8; padding-bottom: 10px; margin: 0 0 16px; }
-  h2 { font-size: 24px; border-bottom: 1px solid #e1e4e8; padding-bottom: 6px; margin: 40px 0 14px; }
-  h3 { font-size: 18px; margin: 28px 0 10px; }
-  h4 { font-size: 15px; margin: 20px 0 8px; color: #444; }
+    h1 {
+      font-size: 32px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 10px;
+      margin: 0 0 16px;
+    }
 
-  p  { margin: 0 0 14px; color: #444; }
-  a  { color: #0366d6; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+    h2 {
+      font-size: 24px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 6px;
+      margin: 40px 0 14px;
+    }
 
-  ul, ol { padding-left: 24px; margin: 0 0 14px; color: #444; }
-  li { margin-bottom: 4px; }
+    h3 {
+      font-size: 18px;
+      margin: 28px 0 10px;
+    }
 
-  strong { color: #24292e; }
+    h4 {
+      font-size: 15px;
+      margin: 20px 0 8px;
+      color: #444;
+    }
 
-  code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 13px;
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    border-radius: 3px;
-    padding: 2px 5px;
-    color: #e36209;
-  }
+    p {
+      margin: 0 0 14px;
+      color: #444;
+    }
 
-  pre {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 13px;
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    border-radius: 6px;
-    padding: 16px;
-    overflow-x: auto;
-    line-height: 1.6;
-    margin: 12px 0 20px;
-  }
+    a {
+      color: #0366d6;
+      text-decoration: none;
+    }
 
-  pre code {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #24292e;
-    font-size: 13px;
-  }
+    a:hover {
+      text-decoration: underline;
+    }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    margin: 12px 0 20px;
-  }
-  th {
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    text-align: left;
-    font-weight: 600;
-  }
-  td {
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    color: #444;
-    vertical-align: top;
-  }
-  tr:nth-child(even) td { background: #fafafa; }
+    ul,
+    ol {
+      padding-left: 24px;
+      margin: 0 0 14px;
+      color: #444;
+    }
 
-  blockquote {
-    border-left: 4px solid #dfe2e5;
-    margin: 0 0 14px;
-    padding: 4px 16px;
-    color: #6a737d;
-  }
+    li {
+      margin-bottom: 4px;
+    }
 
-  hr {
-    border: none;
-    border-top: 1px solid #e1e4e8;
-    margin: 36px 0;
-  }
+    strong {
+      color: #24292e;
+    }
 
-  img { max-width: 100%; }
-</style>
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 3px;
+      padding: 2px 5px;
+      color: #e36209;
+    }
+
+    pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin: 12px 0 20px;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #24292e;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 12px 0 20px;
+    }
+
+    th {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      color: #444;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    blockquote {
+      border-left: 4px solid #dfe2e5;
+      margin: 0 0 14px;
+      padding: 4px 16px;
+      color: #6a737d;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e1e4e8;
+      margin: 36px 0;
+    }
+
+    img {
+      max-width: 100%;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>Slomins K26-SL Solar Outdoor Camera — Control4 Driver</h1>
+  <h1>Slomins K26-SL Solar Outdoor Camera — Control4 Driver</h1>
 
-<h2>Overview</h2>
-<p>Complete Control4 driver for Slomins K26-SL Solar-Powered Outdoor Camera with CldBus API integration, MQTT event streaming, RTSP video streaming, battery management, and wake-on-demand support.</p>
+  <h2>Overview</h2>
+  <p>Complete Control4 driver for Slomins K26-SL Solar-Powered Outdoor Camera with CldBus API integration, MQTT event
+    streaming, RTSP video streaming, battery management, and wake-on-demand support.</p>
 
-<p><strong>Version:</strong> 1.0.4<br>
-<strong>Package:</strong> Slomins-outdoor-K26.c4z<br>
-<strong>Minimum Control4 OS:</strong> 3.3.2+</p>
+  <p><strong>Version:</strong> 1.0.4<br>
+    <strong>Package:</strong> Slomins-outdoor-K26.c4z<br>
+    <strong>Minimum Control4 OS:</strong> 3.3.2+
+  </p>
 
-<h2>Purpose</h2>
-<p>Control4 driver for K26-based Tuya cameras with CldBus API integration, MQTT events, and notification handling.</p>
+  <h2>Purpose</h2>
+  <p>Control4 driver for K26-based Tuya cameras with CldBus API integration, MQTT events, and notification handling.</p>
 
-<h2>Key Files</h2>
-<ul>
-  <li><code>driver.lua</code> — main driver: init, auth flows, MQTT, device events, notification flow, URL generation.</li>
-  <li><code>mqtt_manager.lua</code> — MQTT helper for connections and message handling.</li>
-  <li><code>driver.xml</code> — driver manifest and properties.</li>
-  <li><code>CldBusApi/*</code> — helper libs: <code>dkjson.lua</code>, <code>http.lua</code>, <code>transport_c4.lua</code>, <code>util.lua</code>, <code>sha256.lua</code>, <code>auth.lua</code>.</li>
-</ul>
+  <h2>Key Files</h2>
+  <ul>
+    <li><code>driver.lua</code> — main driver: init, auth flows, MQTT, device events, notification flow, URL generation.
+    </li>
+    <li><code>mqtt_manager.lua</code> — MQTT helper for connections and message handling.</li>
+    <li><code>driver.xml</code> — driver manifest and properties.</li>
+    <li><code>CldBusApi/*</code> — helper libs: <code>dkjson.lua</code>, <code>http.lua</code>,
+      <code>transport_c4.lua</code>, <code>util.lua</code>, <code>sha256.lua</code>, <code>auth.lua</code>.</li>
+  </ul>
 
-<h2>Default Camera Settings</h2>
-<p>Defined in <code>driver.lua</code> via <code>CameraDefaultProps</code>:</p>
-<ul>
-  <li>HTTP Port: <code>8080</code></li>
-  <li>RTSP Port: <code>8554</code></li>
-  <li>Main Stream path: <code>stream0</code></li>
-  <li>Sub Stream path: <code>stream1</code></li>
-  <li>Snapshot path: <code>tmp/snap.jpeg</code></li>
-</ul>
+  <h2>Default Camera Settings</h2>
+  <p>Defined in <code>driver.lua</code> via <code>CameraDefaultProps</code>:</p>
+  <ul>
+    <li>HTTP Port: <code>8080</code></li>
+    <li>RTSP Port: <code>8554</code></li>
+    <li>Main Stream path: <code>stream0</code></li>
+    <li>Sub Stream path: <code>stream1</code></li>
+    <li>Snapshot path: <code>tmp/snap.jpeg</code></li>
+  </ul>
 
-<h2>Initialization Flow</h2>
-<ol>
-  <li><code>OnDriverInit()</code> populates <code>_props</code> and initializes MQTT helper.</li>
-  <li><code>InitializeCamera()</code> calls the remote init endpoint to fetch the public key.</li>
-  <li><code>LoginOrRegister()</code> encrypts credentials (RSA-OAEP via external helper) and stores tokens.</li>
-  <li><code>OnDriverLateInit()</code> pushes camera IP/port/auth to Camera Proxy and generates <code>Main Stream URL</code> / <code>Sub Stream URL</code> for the Control4 UI.</li>
-</ol>
+  <h2>Initialization Flow</h2>
+  <ol>
+    <li><code>OnDriverInit()</code> populates <code>_props</code> and initializes MQTT helper.</li>
+    <li><code>InitializeCamera()</code> calls the remote init endpoint to fetch the public key.</li>
+    <li><code>LoginOrRegister()</code> encrypts credentials (RSA-OAEP via external helper) and stores tokens.</li>
+    <li><code>OnDriverLateInit()</code> pushes camera IP/port/auth to Camera Proxy and generates
+      <code>Main Stream URL</code> / <code>Sub Stream URL</code> for the Control4 UI.</li>
+  </ol>
 
-<h2>Notifications</h2>
-<ul>
-  <li>Events are processed by <code>HANDLE_JSON_EVENT()</code>; images are located via <code>GetImageForEvent()</code> and normalized with <code>normalize_http_url()</code>.</li>
-  <li>Notification queue uses <code>NOTIFICATION_URLS</code> and <code>NOTIFICATION_QUEUE</code> to provide attachments to Control4.</li>
-</ul>
+  <h2>Notifications</h2>
+  <ul>
+    <li>Events are processed by <code>HANDLE_JSON_EVENT()</code>; images are located via <code>GetImageForEvent()</code>
+      and normalized with <code>normalize_http_url()</code>.</li>
+    <li>Notification queue uses <code>NOTIFICATION_URLS</code> and <code>NOTIFICATION_QUEUE</code> to provide
+      attachments to Control4.</li>
+  </ul>
 
-<h2>Auth &amp; MQTT</h2>
-<ul>
-  <li><code>APPLY_MQTT_INFO()</code> requests broker details and credentials then calls <code>MQTT.connect()</code>.</li>
-  <li>Tokens may be received via TCP; <code>UpdateAuthToken()</code> stores them and updates properties.</li>
-</ul>
+  <h2>Auth &amp; MQTT</h2>
+  <ul>
+    <li><code>APPLY_MQTT_INFO()</code> requests broker details and credentials then calls <code>MQTT.connect()</code>.
+    </li>
+    <li>Tokens may be received via TCP; <code>UpdateAuthToken()</code> stores them and updates properties.</li>
+  </ul>
 
-<h2>Maintainer Notes</h2>
-<ul>
-  <li>Remove camera-specific properties from <code>driver.xml</code> if you want the driver to rely solely on <code>CameraDefaultProps</code>.</li>
-  <li>Keep <code>transport.execute(req, callback)</code> usage consistent when editing network calls.</li>
-  <li>Use <code>normalize_http_url()</code> when decoding signed/escaped URLs from API responses.</li>
-</ul>
+  <h2>Maintainer Notes</h2>
+  <ul>
+    <li>Remove camera-specific properties from <code>driver.xml</code> if you want the driver to rely solely on
+      <code>CameraDefaultProps</code>.</li>
+    <li>Keep <code>transport.execute(req, callback)</code> usage consistent when editing network calls.</li>
+    <li>Use <code>normalize_http_url()</code> when decoding signed/escaped URLs from API responses.</li>
+  </ul>
 
-<h2>Quick Dev Commands</h2>
-<pre><code>git status
+  <h2>Quick Dev Commands</h2>
+  <pre><code>git status
 git add Smart-Camera-K26/driver.lua Smart-Camera-K26/README.md
 git commit -m "Fix driver runtime errors; rely on CameraDefaultProps; update README"</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Dynamic IP Auto-Update (Online Event Handling)</h2>
-<p>The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.</p>
-<p>Whenever the camera comes online, the driver automatically:</p>
-<ul>
-  <li>Detects the <strong>Camera Online</strong> event</li>
-  <li>Calls the <strong>Get Devices API</strong></li>
-  <li>Matches the device using <strong>VID (Virtual ID)</strong></li>
-  <li>Retrieves the latest <strong>local IP address</strong></li>
-  <li>Updates the <strong>IP Address</strong> property in the driver</li>
-  <li>Pushes the updated address to the <strong>Control4 Camera Proxy</strong></li>
-</ul>
+  <h2>Dynamic IP Auto-Update (Online Event Handling)</h2>
+  <p>The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.
+  </p>
+  <p>Whenever the camera comes online, the driver automatically:</p>
+  <ul>
+    <li>Detects the <strong>Camera Online</strong> event</li>
+    <li>Calls the <strong>Get Devices API</strong></li>
+    <li>Matches the device using <strong>VID (Virtual ID)</strong></li>
+    <li>Retrieves the latest <strong>local IP address</strong></li>
+    <li>Updates the <strong>IP Address</strong> property in the driver</li>
+    <li>Pushes the updated address to the <strong>Control4 Camera Proxy</strong></li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Events</h2>
-<p>The driver triggers Control4 events for automation:</p>
-<table>
-  <thead>
-    <tr><th>Event ID</th><th>Event Name</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>1</td><td>Motion Detected</td><td>Camera detected motion (alert, with snapshot)</td></tr>
-    <tr><td>2</td><td>Human Detected</td><td>Person identified in frame</td></tr>
-    <tr><td>3</td><td>Stranger Detected</td><td>Unknown face detected</td></tr>
-    <tr><td>4</td><td>Camera Online</td><td>Camera came online</td></tr>
-    <tr><td>5</td><td>Camera Offline</td><td>Camera went offline</td></tr>
-    <tr><td>6</td><td>Camera Restarted</td><td>Camera rebooted</td></tr>
-    <tr><td>7</td><td>Battery Low</td><td>Battery below 20%</td></tr>
-  </tbody>
-</table>
+  <h2>Events</h2>
+  <p>The driver triggers Control4 events for automation:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Event ID</th>
+        <th>Event Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Motion Detected</td>
+        <td>Camera detected motion (alert, with snapshot)</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Human Detected</td>
+        <td>Person identified in frame</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Stranger Detected</td>
+        <td>Unknown face detected</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Camera Online</td>
+        <td>Camera came online</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Camera Offline</td>
+        <td>Camera went offline</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Camera Restarted</td>
+        <td>Camera rebooted</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Battery Low</td>
+        <td>Battery below 20%</td>
+      </tr>
+    </tbody>
+  </table>
 
-<h3>Event Automation Examples</h3>
-<p>Use Control4 programming to:</p>
-<ul>
-  <li>Turn on outdoor lights when motion detected</li>
-  <li>Send push notification on human detection</li>
-  <li>Display snapshot on TVs when stranger detected</li>
-  <li>Alert when battery low</li>
-  <li>Trigger security system on line crossing</li>
-</ul>
+  <h3>Event Automation Examples</h3>
+  <p>Use Control4 programming to:</p>
+  <ul>
+    <li>Turn on outdoor lights when motion detected</li>
+    <li>Send push notification on human detection</li>
+    <li>Display snapshot on TVs when stranger detected</li>
+    <li>Alert when battery low</li>
+    <li>Trigger security system on line crossing</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Troubleshooting</h2>
+  <h2>Troubleshooting</h2>
 
-<h3>Camera Not Waking Up</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Camera has sufficient battery charge (check <strong>Battery Level</strong> property)</li>
-  <li>Solar panel receiving adequate sunlight</li>
-  <li>Camera is online and reachable on network</li>
-  <li>SDDP discovery working (test with <strong>Discover Cameras (SDDP)</strong>)</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Wake Camera (SDDP)</strong> action</li>
-  <li>Wait full 7 seconds before accessing stream</li>
-  <li>Check battery level — charge if below 20%</li>
-  <li>Verify camera online status</li>
-</ol>
+  <h3>Camera Not Waking Up</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Camera has sufficient battery charge (check <strong>Battery Level</strong> property)</li>
+    <li>Solar panel receiving adequate sunlight</li>
+    <li>Camera is online and reachable on network</li>
+    <li>SDDP discovery working (test with <strong>Discover Cameras (SDDP)</strong>)</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Wake Camera (SDDP)</strong> action</li>
+    <li>Wait full 7 seconds before accessing stream</li>
+    <li>Check battery level — charge if below 20%</li>
+    <li>Verify camera online status</li>
+  </ol>
 
-<h3>No Video Stream</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Camera is awake (7-second wake delay required)</li>
-  <li>RTSP port 8554 is open and accessible</li>
-  <li>Main/Sub Stream URL properties are populated</li>
-  <li>Battery level is sufficient (above 20%)</li>
-  <li>Network bandwidth is adequate</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Wake Camera (SDDP)</strong> first</li>
-  <li>Wait 7 seconds</li>
-  <li>Run <strong>Test Main Stream</strong> or <strong>Test Sub Stream</strong></li>
-  <li>Check generated RTSP URL in logs</li>
-  <li>Verify network connectivity to camera</li>
-</ol>
+  <h3>No Video Stream</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Camera is awake (7-second wake delay required)</li>
+    <li>RTSP port 8554 is open and accessible</li>
+    <li>Main/Sub Stream URL properties are populated</li>
+    <li>Battery level is sufficient (above 20%)</li>
+    <li>Network bandwidth is adequate</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Wake Camera (SDDP)</strong> first</li>
+    <li>Wait 7 seconds</li>
+    <li>Run <strong>Test Main Stream</strong> or <strong>Test Sub Stream</strong></li>
+    <li>Check generated RTSP URL in logs</li>
+    <li>Verify network connectivity to camera</li>
+  </ol>
 
-<h3>Camera Not Initializing</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>IP address is correct and camera is reachable</li>
-  <li>Account credentials are valid</li>
-  <li>VID matches the actual device</li>
-  <li>Camera is powered on (check battery level)</li>
-  <li>Wi-Fi connection is stable</li>
-</ol>
-<p><strong>Action:</strong> Run <strong>Initialize</strong> action and check logs.</p>
+  <h3>Camera Not Initializing</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>IP address is correct and camera is reachable</li>
+    <li>Account credentials are valid</li>
+    <li>VID matches the actual device</li>
+    <li>Camera is powered on (check battery level)</li>
+    <li>Wi-Fi connection is stable</li>
+  </ol>
+  <p><strong>Action:</strong> Run <strong>Initialize</strong> action and check logs.</p>
 
-<h3>MQTT Events Not Working</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li><strong>Enable MQTT</strong> property is set to <strong>True</strong></li>
-  <li>MQTT broker info is retrieved (Host, Port, Client ID, Secret)</li>
-  <li>Port 8884 is accessible</li>
-  <li>Network firewall allows MQTT over SSL</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Get MQTT Info</strong> to populate MQTT settings</li>
-  <li>Run <strong>Connect MQTT</strong> to establish connection</li>
-  <li>Check <strong>MQTT Host</strong> and <strong>MQTT Port</strong> properties are filled</li>
-  <li>Verify in logs: <code>MQTT Connected</code></li>
-</ol>
+  <h3>MQTT Events Not Working</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Enable MQTT</strong> property is set to <strong>True</strong></li>
+    <li>MQTT broker info is retrieved (Host, Port, Client ID, Secret)</li>
+    <li>Port 8884 is accessible</li>
+    <li>Network firewall allows MQTT over SSL</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Get MQTT Info</strong> to populate MQTT settings</li>
+    <li>Run <strong>Connect MQTT</strong> to establish connection</li>
+    <li>Check <strong>MQTT Host</strong> and <strong>MQTT Port</strong> properties are filled</li>
+    <li>Verify in logs: <code>MQTT Connected</code></li>
+  </ol>
 
-<h3>Battery Draining Too Fast</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Solar panel receiving direct sunlight (4+ hours/day minimum)</li>
-  <li>Too many streaming requests (each wake drains battery)</li>
-  <li>Event interval too short (increase from 5000ms)</li>
-  <li>MQTT generating too many events</li>
-</ol>
-<p><strong>Solution:</strong></p>
-<ol>
-  <li>Reposition camera for better solar exposure</li>
-  <li>Reduce unnecessary streaming</li>
-  <li>Increase event interval to 10000ms or higher</li>
-  <li>Use HTTP polling instead of MQTT if too many events</li>
-  <li>Disable info notifications, keep only alerts</li>
-</ol>
+  <h3>Battery Draining Too Fast</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Solar panel receiving direct sunlight (4+ hours/day minimum)</li>
+    <li>Too many streaming requests (each wake drains battery)</li>
+    <li>Event interval too short (increase from 5000ms)</li>
+    <li>MQTT generating too many events</li>
+  </ol>
+  <p><strong>Solution:</strong></p>
+  <ol>
+    <li>Reposition camera for better solar exposure</li>
+    <li>Reduce unnecessary streaming</li>
+    <li>Increase event interval to 10000ms or higher</li>
+    <li>Use HTTP polling instead of MQTT if too many events</li>
+    <li>Disable info notifications, keep only alerts</li>
+  </ol>
 
-<h3>Snapshot Not Capturing</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Camera is awake (run <strong>Wake Camera (SDDP)</strong> first)</li>
-  <li>HTTP Port 8080 is accessible</li>
-  <li>Authentication credentials are correct</li>
-  <li>Battery level sufficient</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Wake camera and wait 7 seconds</li>
-  <li>Run <strong>Test Snapshot</strong> action</li>
-  <li>Check <strong>Last Snapshot URL</strong> property</li>
-  <li>Test URL in browser: <code>http://[YOUR_CAMERA_IP]:8080/tmp/snap.jpeg</code></li>
-</ol>
+  <h3>Snapshot Not Capturing</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Camera is awake (run <strong>Wake Camera (SDDP)</strong> first)</li>
+    <li>HTTP Port 8080 is accessible</li>
+    <li>Authentication credentials are correct</li>
+    <li>Battery level sufficient</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Wake camera and wait 7 seconds</li>
+    <li>Run <strong>Test Snapshot</strong> action</li>
+    <li>Check <strong>Last Snapshot URL</strong> property</li>
+    <li>Test URL in browser: <code>http://[YOUR_CAMERA_IP]:8080/tmp/snap.jpeg</code></li>
+  </ol>
 
-<h3>Discovery Not Finding Camera</h3>
-<p><strong>HTTP Scan:</strong></p>
-<ul>
-  <li>Ensure camera IP is within scan range</li>
-  <li>Adjust <strong>IP Scan Range End</strong> property</li>
-  <li>Camera must respond to HTTP on port 8080</li>
-  <li>Camera may be asleep (use SDDP instead)</li>
-</ul>
-<p><strong>SDDP:</strong></p>
-<ul>
-  <li>Camera must support SDDP protocol (K26-SL does)</li>
-  <li>Multicast must be enabled on network</li>
-  <li>Check firewall allows multicast traffic</li>
-  <li>SDDP also wakes sleeping cameras</li>
-</ul>
+  <h3>Discovery Not Finding Camera</h3>
+  <p><strong>HTTP Scan:</strong></p>
+  <ul>
+    <li>Ensure camera IP is within scan range</li>
+    <li>Adjust <strong>IP Scan Range End</strong> property</li>
+    <li>Camera must respond to HTTP on port 8080</li>
+    <li>Camera may be asleep (use SDDP instead)</li>
+  </ul>
+  <p><strong>SDDP:</strong></p>
+  <ul>
+    <li>Camera must support SDDP protocol (K26-SL does)</li>
+    <li>Multicast must be enabled on network</li>
+    <li>Check firewall allows multicast traffic</li>
+    <li>SDDP also wakes sleeping cameras</li>
+  </ul>
 
-<h3>Authentication Failures</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li><strong>Account</strong> property has valid CldBus email</li>
-  <li><strong>Public Key</strong> is retrieved from API</li>
-  <li><strong>Base API URL</strong> is correct: <code>https://api.arpha-tech.com</code></li>
-  <li>Network can reach API endpoint</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Login/Register</strong> action</li>
-  <li>Check for <code>Authentication successful</code> in logs</li>
-  <li>Verify <strong>Temp Token</strong> property is populated</li>
-</ol>
+  <h3>Authentication Failures</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Account</strong> property has valid CldBus email</li>
+    <li><strong>Public Key</strong> is retrieved from API</li>
+    <li><strong>Base API URL</strong> is correct: <code>https://api.arpha-tech.com</code></li>
+    <li>Network can reach API endpoint</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Login/Register</strong> action</li>
+    <li>Check for <code>Authentication successful</code> in logs</li>
+    <li>Verify <strong>Temp Token</strong> property is populated</li>
+  </ol>
 
-<h3>Camera Shows Offline</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Battery is charged (check <strong>Battery Level</strong> property)</li>
-  <li>Solar panel working (check physical condition)</li>
-  <li>Wi-Fi signal strength is sufficient</li>
-  <li>Network has not changed (SSID/password)</li>
-  <li>Camera hasn't been reset</li>
-</ol>
-<p><strong>Solution:</strong></p>
-<ol>
-  <li>Charge battery via USB if solar insufficient</li>
-  <li>Verify Wi-Fi connection on camera</li>
-  <li>Run <strong>Get Camera Properties</strong> action</li>
-  <li>Check <strong>Online</strong> property in driver</li>
-</ol>
+  <h3>Camera Shows Offline</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Battery is charged (check <strong>Battery Level</strong> property)</li>
+    <li>Solar panel working (check physical condition)</li>
+    <li>Wi-Fi signal strength is sufficient</li>
+    <li>Network has not changed (SSID/password)</li>
+    <li>Camera hasn't been reset</li>
+  </ol>
+  <p><strong>Solution:</strong></p>
+  <ol>
+    <li>Charge battery via USB if solar insufficient</li>
+    <li>Verify Wi-Fi connection on camera</li>
+    <li>Run <strong>Get Camera Properties</strong> action</li>
+    <li>Check <strong>Online</strong> property in driver</li>
+  </ol>
 
-<h3>Solar Panel Not Charging</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Panel clean and unobstructed</li>
-  <li>Direct sunlight exposure (not shaded)</li>
-  <li>Panel cable connected properly</li>
-  <li>Battery not damaged (check voltage)</li>
-</ol>
-<p><strong>Solution:</strong></p>
-<ol>
-  <li>Clean solar panel surface</li>
-  <li>Reposition camera for better sun exposure</li>
-  <li>Verify physical connections</li>
-  <li>Replace battery if damaged</li>
-</ol>
+  <h3>Solar Panel Not Charging</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Panel clean and unobstructed</li>
+    <li>Direct sunlight exposure (not shaded)</li>
+    <li>Panel cable connected properly</li>
+    <li>Battery not damaged (check voltage)</li>
+  </ol>
+  <p><strong>Solution:</strong></p>
+  <ol>
+    <li>Clean solar panel surface</li>
+    <li>Reposition camera for better sun exposure</li>
+    <li>Verify physical connections</li>
+    <li>Replace battery if damaged</li>
+  </ol>
 
-<hr>
+  <hr>
 
-<h2>Technical Notes</h2>
+  <h2>Technical Notes</h2>
 
-<h3>RTSP URL Format</h3>
-<p>The driver generates RTSP URLs in the format:</p>
-<pre><code>rtsp://[IP]:[PORT]/streamtype=[TYPE]</code></pre>
-<ul>
-  <li><strong>IP:</strong> Camera IP address</li>
-  <li><strong>PORT:</strong> RTSP port (default 8554)</li>
-  <li><strong>TYPE:</strong>
-    <ul>
-      <li><code>0</code> = Sub stream (low quality, low bandwidth)</li>
-      <li><code>1</code> = Main stream (high quality, higher bandwidth)</li>
-    </ul>
-  </li>
-</ul>
-<p><strong>Example URLs:</strong></p>
-<pre><code>Main: rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1
+  <h3>RTSP URL Format</h3>
+  <p>The driver generates RTSP URLs in the format:</p>
+  <pre><code>rtsp://[IP]:[PORT]/streamtype=[TYPE]</code></pre>
+  <ul>
+    <li><strong>IP:</strong> Camera IP address</li>
+    <li><strong>PORT:</strong> RTSP port (default 8554)</li>
+    <li><strong>TYPE:</strong>
+      <ul>
+        <li><code>0</code> = Sub stream (low quality, low bandwidth)</li>
+        <li><code>1</code> = Main stream (high quality, higher bandwidth)</li>
+      </ul>
+    </li>
+  </ul>
+  <p><strong>Example URLs:</strong></p>
+  <pre><code>Main: rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1
 Sub:  rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0</code></pre>
 
-<h3>CldBus API Authentication Flow</h3>
-<ol>
-  <li><strong>Initialize Camera:</strong> GET <code>/v1/init</code> → Retrieve RSA public key</li>
-  <li><strong>Login/Register:</strong> Encrypt account with RSA-OAEP-SHA256 → POST <code>/v1/LoginOrRegisterUser</code> → Get temporary token</li>
-  <li><strong>Get Temp Token:</strong> Generate HMAC-SHA256 signature → GET <code>/v1/TempTokenGet</code> → Verify temp token</li>
-  <li><strong>Exchange Token:</strong> POST <code>/v1/TempTokenExchange</code> → Get exchange token</li>
-  <li><strong>Bind Device:</strong> POST <code>/v1/BindDeviceToUser</code> → Associate VID with account</li>
-  <li><strong>Ongoing API Calls:</strong> Use <code>Authorization: Bearer [auth_token]</code> header with HMAC signature on each request</li>
-</ol>
+  <h3>CldBus API Authentication Flow</h3>
+  <ol>
+    <li><strong>Initialize Camera:</strong> GET <code>/v1/init</code> → Retrieve RSA public key</li>
+    <li><strong>Login/Register:</strong> Encrypt account with RSA-OAEP-SHA256 → POST
+      <code>/v1/LoginOrRegisterUser</code> → Get temporary token</li>
+    <li><strong>Get Temp Token:</strong> Generate HMAC-SHA256 signature → GET <code>/v1/TempTokenGet</code> → Verify
+      temp token</li>
+    <li><strong>Exchange Token:</strong> POST <code>/v1/TempTokenExchange</code> → Get exchange token</li>
+    <li><strong>Bind Device:</strong> POST <code>/v1/BindDeviceToUser</code> → Associate VID with account</li>
+    <li><strong>Ongoing API Calls:</strong> Use <code>Authorization: Bearer [auth_token]</code> header with HMAC
+      signature on each request</li>
+  </ol>
 
-<h3>MQTT Event Format</h3>
-<p>Events received on MQTT topic: <code>{VID}/events</code></p>
+  <h3>MQTT Event Format</h3>
+  <p>Events received on MQTT topic: <code>{VID}/events</code></p>
 
-<p><strong>Motion Detection Example:</strong></p>
-<pre><code>{
+  <p><strong>Motion Detection Example:</strong></p>
+  <pre><code>{
   "event": "motion",
   "timestamp": 1708300000,
   "snapshot_url": "http://[CAMERA_IP]:8080/snapshot/12345.jpg",
@@ -409,88 +503,91 @@ Sub:  rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0</code></pre>
   "battery_level": 75
 }</code></pre>
 
-<p><strong>Human Detection Example:</strong></p>
-<pre><code>{
+  <p><strong>Human Detection Example:</strong></p>
+  <pre><code>{
   "event": "human",
   "timestamp": 1708300000,
   "snapshot_url": "http://[CAMERA_IP]:8080/snapshot/12346.jpg",
   "device_id": "[YOUR_DEVICE_VID]"
 }</code></pre>
 
-<p><strong>Battery Alert Example:</strong></p>
-<pre><code>{
+  <p><strong>Battery Alert Example:</strong></p>
+  <pre><code>{
   "event": "battery_low",
   "timestamp": 1708300000,
   "battery_level": 15,
   "device_id": "[YOUR_DEVICE_VID]"
 }</code></pre>
 
-<h3>Connection Types</h3>
-<p>The driver maintains multiple connections:</p>
-<ol>
-  <li><strong>Camera Connection (5001):</strong> Type: CAMERA, Facing: 6 (bidirectional), Purpose: Control4 camera proxy interface, Hidden: True</li>
-  <li><strong>Network/MQTT Connection (6001):</strong> Type: TCP, Ports: 3333 (API), 8554 (RTSP), 8884 (MQTT SSL), Purpose: Network communication</li>
-  <li><strong>Keep-Alive Connection (7001):</strong> Type: TCP, Port: 8081, Features: Auto-connect, keep-alive, connection monitoring, Purpose: Persistent connection to camera</li>
-</ol>
+  <h3>Connection Types</h3>
+  <p>The driver maintains multiple connections:</p>
+  <ol>
+    <li><strong>Camera Connection (5001):</strong> Type: CAMERA, Facing: 6 (bidirectional), Purpose: Control4 camera
+      proxy interface, Hidden: True</li>
+    <li><strong>Network/MQTT Connection (6001):</strong> Type: TCP, Ports: 3333 (API), 8554 (RTSP), 8884 (MQTT SSL),
+      Purpose: Network communication</li>
+    <li><strong>Keep-Alive Connection (7001):</strong> Type: TCP, Port: 8081, Features: Auto-connect, keep-alive,
+      connection monitoring, Purpose: Persistent connection to camera</li>
+  </ol>
 
-<h3>Battery &amp; Power Management</h3>
-<p><strong>Solar Charging:</strong></p>
-<ul>
-  <li>Built-in solar panel continuously charges battery</li>
-  <li>Requires 4+ hours direct sunlight per day</li>
-  <li>Optimal: 6–8 hours full sun exposure</li>
-  <li>Battery: Rechargeable lithium 5000mAh (typical)</li>
-</ul>
+  <h3>Battery &amp; Power Management</h3>
+  <p><strong>Solar Charging:</strong></p>
+  <ul>
+    <li>Built-in solar panel continuously charges battery</li>
+    <li>Requires 4+ hours direct sunlight per day</li>
+    <li>Optimal: 6–8 hours full sun exposure</li>
+    <li>Battery: Rechargeable lithium 5000mAh (typical)</li>
+  </ul>
 
-<p><strong>Wake-on-Demand:</strong></p>
-<ul>
-  <li>Camera sleeps when inactive to save battery</li>
-  <li>7-second wake delay when accessing</li>
-  <li>Auto-wake on streaming requests</li>
-  <li>Auto-wake on initialization</li>
-  <li>SDDP wake command supported</li>
-</ul>
+  <p><strong>Wake-on-Demand:</strong></p>
+  <ul>
+    <li>Camera sleeps when inactive to save battery</li>
+    <li>7-second wake delay when accessing</li>
+    <li>Auto-wake on streaming requests</li>
+    <li>Auto-wake on initialization</li>
+    <li>SDDP wake command supported</li>
+  </ul>
 
-<p><strong>Battery Conservation Tips:</strong></p>
-<ul>
-  <li>Minimize streaming frequency</li>
-  <li>Use sub stream instead of main stream</li>
-  <li>Increase event interval (10000ms+)</li>
-  <li>Disable info notifications (keep only alerts)</li>
-  <li>Ensure good solar panel exposure</li>
-</ul>
+  <p><strong>Battery Conservation Tips:</strong></p>
+  <ul>
+    <li>Minimize streaming frequency</li>
+    <li>Use sub stream instead of main stream</li>
+    <li>Increase event interval (10000ms+)</li>
+    <li>Disable info notifications (keep only alerts)</li>
+    <li>Ensure good solar panel exposure</li>
+  </ul>
 
-<h3>Encryption Level 2</h3>
-<p>Driver uses encryption level 2 for source code protection:</p>
-<ul>
-  <li><code>&lt;devicedata encryption="2"&gt;</code> in driver.xml</li>
-  <li><code>&lt;script file="driver.lua" encryption="2"/&gt;</code> in driver.xml</li>
-  <li>Protects driver.lua source code in .c4z package</li>
-  <li>Prevents unauthorized modification</li>
-</ul>
+  <h3>Encryption Level 2</h3>
+  <p>Driver uses encryption level 2 for source code protection:</p>
+  <ul>
+    <li><code>&lt;devicedata encryption="2"&gt;</code> in driver.xml</li>
+    <li><code>&lt;script file="driver.lua" encryption="2"/&gt;</code> in driver.xml</li>
+    <li>Protects driver.lua source code in .c4z package</li>
+    <li>Prevents unauthorized modification</li>
+  </ul>
 
-<h3>Video Codec Support</h3>
-<ul>
-  <li><strong>H.264 (Recommended):</strong> Widely compatible, lower bandwidth</li>
-  <li><strong>H.265 (HEVC):</strong> Better compression, higher quality, requires more CPU</li>
-</ul>
-<p>Control4 prefers H.264 for maximum compatibility.</p>
+  <h3>Video Codec Support</h3>
+  <ul>
+    <li><strong>H.264 (Recommended):</strong> Widely compatible, lower bandwidth</li>
+    <li><strong>H.265 (HEVC):</strong> Better compression, higher quality, requires more CPU</li>
+  </ul>
+  <p>Control4 prefers H.264 for maximum compatibility.</p>
 
-<hr>
+  <hr>
 
-<h2>Integration Examples</h2>
+  <h2>Integration Examples</h2>
 
-<h3>Example 1: Motion-Activated Lights</h3>
-<p><strong>Scenario:</strong> Turn on outdoor lights when motion detected</p>
-<pre><code>When: Slomins K26-SL → Motion Detected
+  <h3>Example 1: Motion-Activated Lights</h3>
+  <p><strong>Scenario:</strong> Turn on outdoor lights when motion detected</p>
+  <pre><code>When: Slomins K26-SL → Motion Detected
 Then:
   - Outdoor Lights → Turn On
   - Wait 5 minutes
   - Outdoor Lights → Turn Off</code></pre>
 
-<h3>Example 2: Security Alert on Human Detection</h3>
-<p><strong>Scenario:</strong> Alert when person detected at night</p>
-<pre><code>When: Slomins K26-SL → Human Detected
+  <h3>Example 2: Security Alert on Human Detection</h3>
+  <p><strong>Scenario:</strong> Alert when person detected at night</p>
+  <pre><code>When: Slomins K26-SL → Human Detected
 If:   Time is between 10:00 PM and 6:00 AM
 Then:
   - Send notification "Person detected outside"
@@ -498,15 +595,15 @@ Then:
   - Start recording: NVR Camera Group
   - Send snapshot to mobile app</code></pre>
 
-<h3>Example 3: Battery Low Alert</h3>
-<p><strong>Scenario:</strong> Notify when battery needs attention</p>
-<pre><code>When: Slomins K26-SL → Battery Low
+  <h3>Example 3: Battery Low Alert</h3>
+  <p><strong>Scenario:</strong> Notify when battery needs attention</p>
+  <pre><code>When: Slomins K26-SL → Battery Low
 Then:
   - Send notification "K26 camera battery low - check solar panel"
   - Log: System event</code></pre>
 
-<h3>Example 4: Perimeter Breach</h3>
-<pre><code>When: Slomins K26-SL → Line Crossing
+  <h3>Example 4: Perimeter Breach</h3>
+  <pre><code>When: Slomins K26-SL → Line Crossing
 If:   Security System → State is "Armed"
 Then:
   - Send notification "Perimeter breach detected"
@@ -514,35 +611,35 @@ Then:
   - Start recording for 5 minutes
   - Display snapshot on security panel</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Support</h2>
-<p><strong>Slomins Support:</strong></p>
-<ul>
-  <li>Website: <a href="https://www.slomins.com">www.slomins.com</a></li>
-  <li>Email: <a href="mailto:support@slomins.com">support@slomins.com</a></li>
-  <li>Phone: Customer service hotline</li>
-</ul>
+  <h2>Support</h2>
+  <p><strong>Slomins Support:</strong></p>
+  <ul>
+    <li>Website: <a href="https://www.slomins.com">www.slomins.com</a></li>
+    <li>Email: <a href="mailto:support@slomins.com">support@slomins.com</a></li>
+    <li>Phone: Customer service hotline</li>
+  </ul>
 
-<p><strong>CldBus API Issues:</strong></p>
-<ul>
-  <li>API Endpoint: <a href="https://api.arpha-tech.com">https://api.arpha-tech.com</a></li>
-  <li>Contact: API support via Slomins</li>
-</ul>
+  <p><strong>CldBus API Issues:</strong></p>
+  <ul>
+    <li>API Endpoint: <a href="https://api.arpha-tech.com">https://api.arpha-tech.com</a></li>
+    <li>Contact: API support via Slomins</li>
+  </ul>
 
-<p><strong>Control4 Integration:</strong></p>
-<ul>
-  <li>Requires Control4 Composer Pro for installation</li>
-  <li>Compatible with Control4 OS 3.3.2 and newer</li>
-  <li>Camera automation programming available</li>
-</ul>
+  <p><strong>Control4 Integration:</strong></p>
+  <ul>
+    <li>Requires Control4 Composer Pro for installation</li>
+    <li>Compatible with Control4 OS 3.3.2 and newer</li>
+    <li>Camera automation programming available</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Building the Driver</h2>
+  <h2>Building the Driver</h2>
 
-<h3>Files Structure</h3>
-<pre><code>Slomins-outdoor-K26/
+  <h3>Files Structure</h3>
+  <pre><code>Slomins-outdoor-K26/
 ├── driver.lua              # Main driver logic
 ├── driver.xml              # Configuration &amp; metadata
 ├── mqtt_manager.lua        # MQTT event streaming &amp; broker management
@@ -556,13 +653,13 @@ Then:
 │   └── util.lua
 └── build-c4z.ps1           # Build script</code></pre>
 
-<h3>Build Package</h3>
-<p>Run in PowerShell:</p>
-<pre><code>.\build-c4z.ps1</code></pre>
-<p>This creates <code>Slomins-outdoor-K26-v1.1.0.c4z</code> ready for installation.</p>
+  <h3>Build Package</h3>
+  <p>Run in PowerShell:</p>
+  <pre><code>.\build-c4z.ps1</code></pre>
+  <p>This creates <code>Slomins-outdoor-K26-v1.1.0.c4z</code> ready for installation.</p>
 
-<h3>Manual Build</h3>
-<pre><code>$files = @(
+  <h3>Manual Build</h3>
+  <pre><code>$files = @(
     "driver.lua",
     "driver.xml",
     "mqtt_manager.lua",
@@ -573,168 +670,223 @@ Then:
 Compress-Archive -Path $files -DestinationPath "temp.zip"
 Rename-Item "temp.zip" "Slomins-outdoor-K26.c4z"</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Version History</h2>
+  <h2>Version History</h2>
 
-<h3>v1.0.4 (Current)</h3>
+  <h3>v1.0.6 (Current)</h3>
+  <ul>
+    <li>Fixed device specific conditionals labels not showing in Control4 Composer</li>
+  </ul>
+
+  <h3>v1.0.5</h3>
+  <ul>
+    <li>Removed hardcoded AppName</li>
+  </ul>
+
+  <h3>v1.0.4</h3>
+  <ul>
+    <li>Updated Control4 Camera Programming Options</li>
+    <li><strong>Device Events</strong>: Added "Registered User Detected"</li>
+    <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker
+      volume, Turn down speaker volume, Sensitivity =</li>
+    <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted,
+      If Speaker volume is 1-10, If battery is &lt;, &gt;, or =, Sensitivity =</li>
+  </ul>
+
+ <h3>v1.0.3</h3>
 <ul>
-  <li>Updated Control4 Camera Programming Options</li>
-  <li><strong>Device Events</strong>: Added "Registered User Detected"</li>
-  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =</li>
-  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If battery is &lt;, &gt;, or =, Sensitivity =</li>
-</ul>
+  <li>Send Control4 notification marked as critical if battery percentage is less than 15%</li>
+  <li>Send notification every 4–6 hours (interval should be configurable in properties; default is 6 hours)</li>
+  <li>Disable the timer if battery level is greater than 80%</li>
+  <li>Enable the timer only when the first notification below 15% is received</li>
+  </ul>
 
-<h3>v1.1.0</h3>
-<ul>
-  <li>CldBus API integration (api.arpha-tech.com)</li>
-  <li>RTSP streaming support (streamtype=0/1 format)</li>
-  <li>Battery management and monitoring</li>
-  <li>Solar power support</li>
-  <li>Wake-on-demand (7-second delay)</li>
-  <li>MQTT event streaming over SSL (port 8884)</li>
-  <li>Real-time detection (motion, human, stranger)</li>
-  <li>SDDP discovery and wake command</li>
-  <li>HTTP polling mode</li>
-  <li>Snapshot capture with wake support</li>
-  <li>PTZ controls with presets</li>
-  <li>Encryption level 2 for driver protection</li>
-  <li>Multi-device support via VID</li>
-</ul>
+  <h3>v1.0.2</h3>
+  <ul>
+    <li>convert the readme.md file to readme.html file</li>
+  </ul>
 
-<hr>
+  <h3>v1.0.1 </h3>
+  <ul>
+    <li></li>
+  </ul>
 
-<h2>License</h2>
-<p>Copyright &copy; 2025 Slomins. All Rights Reserved.</p>
-<p>This driver is proprietary software provided by Slomins for use with Slomins branded solar cameras and Control4 home automation systems. Unauthorized distribution, modification, or reverse engineering is prohibited.</p>
+  <h3>v1.1.0</h3>
+  <ul>
+    <li>CldBus API integration (api.arpha-tech.com)</li>
+    <li>RTSP streaming support (streamtype=0/1 format)</li>
+    <li>Battery management and monitoring</li>
+    <li>Solar power support</li>
+    <li>Wake-on-demand (7-second delay)</li>
+    <li>MQTT event streaming over SSL (port 8884)</li>
+    <li>Real-time detection (motion, human, stranger)</li>
+    <li>SDDP discovery and wake command</li>
+    <li>HTTP polling mode</li>
+    <li>Snapshot capture with wake support</li>
+    <li>PTZ controls with presets</li>
+    <li>Encryption level 2 for driver protection</li>
+    <li>Multi-device support via VID</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Appendix: Quick Reference</h2>
+  <h2>License</h2>
+  <p>Copyright &copy; 2025 Slomins. All Rights Reserved.</p>
+  <p>This driver is proprietary software provided by Slomins for use with Slomins branded solar cameras and Control4
+    home automation systems. Unauthorized distribution, modification, or reverse engineering is prohibited.</p>
 
-<h3>Default Ports</h3>
-<ul>
-  <li><strong>HTTP:</strong> 8080</li>
-  <li><strong>RTSP:</strong> 8554</li>
-  <li><strong>TCP:</strong> 3333, 8081</li>
-  <li><strong>MQTT:</strong> 8884 (SSL)</li>
-</ul>
+  <hr>
 
-<h3>Example Device</h3>
-<ul>
-  <li><strong>Model:</strong> K26-SL (solar_box_cam)</li>
-  <li><strong>IP:</strong> Assigned by your router (DHCP)</li>
-  <li><strong>VID:</strong> Unique per device</li>
-  <li><strong>Wake Delay:</strong> 7 seconds</li>
-</ul>
+  <h2>Appendix: Quick Reference</h2>
 
-<h3>RTSP URLs</h3>
-<pre><code>Main: rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1
+  <h3>Default Ports</h3>
+  <ul>
+    <li><strong>HTTP:</strong> 8080</li>
+    <li><strong>RTSP:</strong> 8554</li>
+    <li><strong>TCP:</strong> 3333, 8081</li>
+    <li><strong>MQTT:</strong> 8884 (SSL)</li>
+  </ul>
+
+  <h3>Example Device</h3>
+  <ul>
+    <li><strong>Model:</strong> K26-SL (solar_box_cam)</li>
+    <li><strong>IP:</strong> Assigned by your router (DHCP)</li>
+    <li><strong>VID:</strong> Unique per device</li>
+    <li><strong>Wake Delay:</strong> 7 seconds</li>
+  </ul>
+
+  <h3>RTSP URLs</h3>
+  <pre><code>Main: rtsp://[YOUR_CAMERA_IP]:8554/streamtype=1
 Sub:  rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0</code></pre>
 
-<h3>Snapshot URL</h3>
-<pre><code>http://[YOUR_CAMERA_IP]:8080/tmp/snap.jpeg</code></pre>
+  <h3>Snapshot URL</h3>
+  <pre><code>http://[YOUR_CAMERA_IP]:8080/tmp/snap.jpeg</code></pre>
 
-<h3>Primary Events</h3>
-<ul>
-  <li><strong>Motion Detected</strong> — Movement in frame</li>
-  <li><strong>Human Detected</strong> — Person identified</li>
-  <li><strong>Stranger Detected</strong> — Unknown person</li>
-  <li><strong>Battery Low</strong> — Battery below 20%</li>
-  <li><strong>Camera Offline</strong> — Connectivity lost</li>
-</ul>
+  <h3>Primary Events</h3>
+  <ul>
+    <li><strong>Motion Detected</strong> — Movement in frame</li>
+    <li><strong>Human Detected</strong> — Person identified</li>
+    <li><strong>Stranger Detected</strong> — Unknown person</li>
+    <li><strong>Battery Low</strong> — Battery below 20%</li>
+    <li><strong>Camera Offline</strong> — Connectivity lost</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Real-Time Event Detection</h2>
-<p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides notifications for:</p>
-<ul>
-  <li>Doorbell ring notifications with snapshot</li>
-  <li>Motion detection with snapshot attachment</li>
-  <li>Human detection</li>
-  <li>Face detection</li>
-  <li>Stranger detection</li>
-  <li>Camera online/offline status monitoring</li>
-</ul>
+  <h2>Real-Time Event Detection</h2>
+  <p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides
+    notifications for:</p>
+  <ul>
+    <li>Doorbell ring notifications with snapshot</li>
+    <li>Motion detection with snapshot attachment</li>
+    <li>Human detection</li>
+    <li>Face detection</li>
+    <li>Stranger detection</li>
+    <li>Camera online/offline status monitoring</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>MQTT Configuration</h2>
+  <h2>MQTT Configuration</h2>
 
-<h3>Default Behavior</h3>
-<p>MQTT is <strong>enabled automatically by the driver after authentication</strong>. The driver will automatically:</p>
-<ol>
-  <li>Enable MQTT</li>
-  <li>Fetch MQTT credentials</li>
-  <li>Connect to the MQTT broker</li>
-  <li>Subscribe to camera event topics</li>
-</ol>
-<p>You normally <strong>do not need to enable MQTT manually</strong>.</p>
+  <h3>Default Behavior</h3>
+  <p>MQTT is <strong>enabled automatically by the driver after authentication</strong>. The driver will automatically:
+  </p>
+  <ol>
+    <li>Enable MQTT</li>
+    <li>Fetch MQTT credentials</li>
+    <li>Connect to the MQTT broker</li>
+    <li>Subscribe to camera event topics</li>
+  </ol>
+  <p>You normally <strong>do not need to enable MQTT manually</strong>.</p>
 
-<hr>
+  <hr>
 
-<h2>CldBus App Motion Detection Settings</h2>
-<p>To receive <strong>Motion Detection</strong> and <strong>Human Detection</strong> events, detection must be enabled in the <strong>CldBus mobile app</strong>.</p>
+  <h2>CldBus App Motion Detection Settings</h2>
+  <p>To receive <strong>Motion Detection</strong> and <strong>Human Detection</strong> events, detection must be enabled
+    in the <strong>CldBus mobile app</strong>.</p>
 
-<h3>Steps</h3>
-<ol>
-  <li>Open the <strong>CldBus App</strong></li>
-  <li>Select your <strong>camera device</strong></li>
-  <li>Tap <strong>Settings</strong></li>
-  <li>Navigate to <code>Settings → Motion Detection</code></li>
-  <li>Under <strong>Detection Type</strong>, select one of the following:</li>
-</ol>
+  <h3>Steps</h3>
+  <ol>
+    <li>Open the <strong>CldBus App</strong></li>
+    <li>Select your <strong>camera device</strong></li>
+    <li>Tap <strong>Settings</strong></li>
+    <li>Navigate to <code>Settings → Motion Detection</code></li>
+    <li>Under <strong>Detection Type</strong>, select one of the following:</li>
+  </ol>
 
-<table>
-  <thead>
-    <tr><th>Detection Type</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td><strong>All Detections</strong></td><td>All movement events will trigger notifications. This includes general motion detection.</td></tr>
-    <tr><td><strong>Human Detection</strong></td><td>Only human movement will trigger events. Non-human motion will be ignored.</td></tr>
-  </tbody>
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>Detection Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>All Detections</strong></td>
+        <td>All movement events will trigger notifications. This includes general motion detection.</td>
+      </tr>
+      <tr>
+        <td><strong>Human Detection</strong></td>
+        <td>Only human movement will trigger events. Non-human motion will be ignored.</td>
+      </tr>
+    </tbody>
+  </table>
 
-<hr>
+  <hr>
 
-<h2>Push Notification Configuration</h2>
+  <h2>Push Notification Configuration</h2>
 
-<h3>1. Create Push Notification</h3>
-<ol>
-  <li>Open <strong>Composer Pro</strong></li>
-  <li>Navigate to <code>Agents → Push Notification</code></li>
-  <li>Click <strong>Add Notification</strong> then enter a name</li>
-</ol>
-<p>Configure the following:</p>
-<table>
-  <thead>
-    <tr><th>Setting</th><th>Value</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Category</td><td>Cameras</td></tr>
-    <tr><td>Severity</td><td>Info / Critical</td></tr>
-    <tr><td>Subject</td><td>Camera Event</td></tr>
-  </tbody>
-</table>
-<p>Click <strong>Save</strong>.</p>
+  <h3>1. Create Push Notification</h3>
+  <ol>
+    <li>Open <strong>Composer Pro</strong></li>
+    <li>Navigate to <code>Agents → Push Notification</code></li>
+    <li>Click <strong>Add Notification</strong> then enter a name</li>
+  </ol>
+  <p>Configure the following:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Setting</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Category</td>
+        <td>Cameras</td>
+      </tr>
+      <tr>
+        <td>Severity</td>
+        <td>Info / Critical</td>
+      </tr>
+      <tr>
+        <td>Subject</td>
+        <td>Camera Event</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Click <strong>Save</strong>.</p>
 
-<h3>2. Enable Snapshot Attachment</h3>
-<p>Edit the created notification and set:</p>
-<pre><code>Attachment Type = Snapshot URL</code></pre>
-<p>This allows push notifications to include the <strong>camera snapshot image</strong>.</p>
+  <h3>2. Enable Snapshot Attachment</h3>
+  <p>Edit the created notification and set:</p>
+  <pre><code>Attachment Type = Snapshot URL</code></pre>
+  <p>This allows push notifications to include the <strong>camera snapshot image</strong>.</p>
 
-<h3>Mapping Push Notifications in Programming</h3>
-<ol>
-  <li>In <strong>Composer Pro</strong>, open <strong>Programming</strong>.</li>
-  <li>Select the <strong>Camera Driver</strong> from the device list.</li>
-  <li>In the <strong>Events</strong> section, choose the event you want (e.g. <strong>Motion Detected</strong>).</li>
-  <li>On the right-side panel, click <strong>Push Notifications</strong>.</li>
-  <li>From the dropdown list, select the notification you created.</li>
-  <li>Drag and drop the notification into the programming area or double-click the green arrow.</li>
-</ol>
+  <h3>Mapping Push Notifications in Programming</h3>
+  <ol>
+    <li>In <strong>Composer Pro</strong>, open <strong>Programming</strong>.</li>
+    <li>Select the <strong>Camera Driver</strong> from the device list.</li>
+    <li>In the <strong>Events</strong> section, choose the event you want (e.g. <strong>Motion Detected</strong>).</li>
+    <li>On the right-side panel, click <strong>Push Notifications</strong>.</li>
+    <li>From the dropdown list, select the notification you created.</li>
+    <li>Drag and drop the notification into the programming area or double-click the green arrow.</li>
+  </ol>
 
-<h3>Notification Flow</h3>
-<pre><code>Camera Event (MQTT)
+  <h3>Notification Flow</h3>
+  <pre><code>Camera Event (MQTT)
       ↓
 Driver Receives Event
       ↓
@@ -748,20 +900,21 @@ Mobile Notification Sent
       ↓
 Snapshot Image Attached</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Battery Tips</h2>
-<ul>
-  <li>Ensure 4+ hours direct sunlight daily</li>
-  <li>Keep solar panel clean</li>
-  <li>Minimize streaming frequency</li>
-  <li>Use sub stream to save battery</li>
-  <li>Monitor battery level regularly</li>
-</ul>
+  <h2>Battery Tips</h2>
+  <ul>
+    <li>Ensure 4+ hours direct sunlight daily</li>
+    <li>Keep solar panel clean</li>
+    <li>Minimize streaming frequency</li>
+    <li>Use sub stream to save battery</li>
+    <li>Monitor battery level regularly</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<p><em>End of Documentation</em></p>
+  <p><em>End of Documentation</em></p>
 
 </body>
+
 </html>

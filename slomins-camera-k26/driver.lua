@@ -117,6 +117,9 @@ local conditional_state = {
     SENSITIVITY = 5
 }
 
+-- Track volume before muting for restore
+local volume_before_mute = nil
+
 local mqtt_enabled       = false
 local WAKE_DURATION      = 7  -- K26 camera stays awake for 7 seconds
 local WAKE_INTERVAL      = 13 -- Wake every 13 seconds
@@ -658,15 +661,52 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
     if strCommand == "UNMUTE_MIC" then
-        print("[COMMAND] Unmute Mic")
-        UpdateConditional("MIC_MUTED", false)
-        UpdateConditional("MIC_UNMUTED", true)
+        print("[COMMAND] Unmute Mic requested")
+        -- Check if volume is actually 0 before unmuting
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 0
+            if current == 0 then
+                -- Only unmute if volume is 0 (muted)
+                if volume_before_mute and volume_before_mute > 0 then
+                    -- Restore saved volume
+                    print("[COMMAND] Unmute Mic: Restoring volume to " .. volume_before_mute)
+                    SET_DEVICE_PROPERTY({ beep_vol = tostring(volume_before_mute) }, function()
+                        UpdateConditional("MIC_MUTED", false)
+                        UpdateConditional("MIC_UNMUTED", true)
+                        UpdateConditional("SPEAKER_VOLUME", volume_before_mute)
+                    end)
+                else
+                    -- Never muted before, don't change volume
+                    print("[COMMAND] Unmute Mic: No saved volume, not changing device")
+                    UpdateConditional("MIC_MUTED", false)
+                    UpdateConditional("MIC_UNMUTED", true)
+                end
+            else
+                -- Already unmuted, just update conditionals
+                print("[COMMAND] Unmute Mic: Already unmuted (volume is " .. current .. ")")
+                UpdateConditional("MIC_MUTED", false)
+                UpdateConditional("MIC_UNMUTED", true)
+                UpdateConditional("SPEAKER_VOLUME", current)
+            end
+        end)
         return
     end
     if strCommand == "MUTE_MIC" then
-        print("[COMMAND] Mute Mic")
-        UpdateConditional("MIC_MUTED", true)
-        UpdateConditional("MIC_UNMUTED", false)
+        print("[COMMAND] Mute Mic requested")
+        -- Save current volume before muting
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            if current > 0 then
+                volume_before_mute = current
+                print("[COMMAND] Saved volume before mute: " .. volume_before_mute)
+            end
+            print("[COMMAND] Mute Mic: Setting volume to 0")
+            SET_DEVICE_PROPERTY({ beep_vol = "0" }, function()
+                UpdateConditional("MIC_MUTED", true)
+                UpdateConditional("MIC_UNMUTED", false)
+                UpdateConditional("SPEAKER_VOLUME", 0)
+            end)
+        end)
         return
     end
     if strCommand == "SPEAKER_VOLUME_UP" then
@@ -694,7 +734,7 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
     if strCommand == "SET_SENSITIVITY" then
-        local level = (tParams and tParams.LEVEL) or 5
+        local level = (tParams and tParams.LEVEL)
         print("[COMMAND] Set Sensitivity: " .. tostring(level))
         UpdateConditional("SENSITIVITY", level)
         return

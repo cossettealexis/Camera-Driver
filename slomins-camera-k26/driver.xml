@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
@@ -378,6 +378,15 @@
             <action>
                 <name>Sensitivity =</name>
                 <command>SET_SENSITIVITY</command>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                        <default>5</default>
+                    </param>
+                </params>
             </action>
             <action>
                 <name>Awake Camera</name>
