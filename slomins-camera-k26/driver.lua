@@ -657,20 +657,26 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
     if strCommand == "SPEAKER_VOLUME_UP" then
-        local current = conditional_state["SPEAKER_VOLUME"] or 5
-        local new_vol = math.min(current + 1, 10)
-        print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
-        SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
-            UpdateConditional("SPEAKER_VOLUME", new_vol)
+        print("[COMMAND] Speaker Volume Up requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.min(current + 1, 10)
+            print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
         end)
         return
     end
     if strCommand == "SPEAKER_VOLUME_DOWN" then
-        local current = conditional_state["SPEAKER_VOLUME"] or 5
-        local new_vol = math.max(current - 1, 1)
-        print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
-        SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
-            UpdateConditional("SPEAKER_VOLUME", new_vol)
+        print("[COMMAND] Speaker Volume Down requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.max(current - 1, 1)
+            print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
         end)
         return
     end
@@ -1495,6 +1501,65 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     print("================================================================")
 end
 
+-- Get Device Property (query current value)
+function GET_DEVICE_PROPERTY(property_name, callback)
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
+
+    local appId, appSecret = GetCldBusCredentials()
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "GET",
+        headers = headers
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code ~= 200 and code ~= 20000 then
+            print("ERROR: Failed to get device properties")
+            if callback then callback(nil) end
+            return
+        end
+
+        local ok, parsed = pcall(json.decode, resp)
+        if ok and parsed and parsed.data and parsed.data.status then
+            for _, prop in ipairs(parsed.data.status) do
+                if prop.status_key == property_name then
+                    if callback then callback(prop.status_val) end
+                    return
+                end
+            end
+        end
+        
+        if callback then callback(nil) end
+    end)
+end
+
 -- -----------------------
 --  Apply MQTT Info
 -- -----------------------
@@ -2139,6 +2204,25 @@ function HANDLE_JSON_EVENT(payload)
     ------------------------------------------------
     if msg.method == "updateDeviceStatus" then
         handle_device_status(msg, now)
+        return true
+    end
+
+    ------------------------------------------------
+    -- DEVICE PROPERTIES (beep_vol, etc.)
+    ------------------------------------------------
+    if msg.method == "updateDeviceProperty" and msg.status then
+        for _, prop in ipairs(msg.status) do
+            local key = prop.status_key
+            local val = prop.status_val
+
+            if key == "beep_vol" then
+                local volume = tonumber(val)
+                if volume then
+                    print("[MQTT] Speaker volume updated: " .. volume)
+                    UpdateConditional("SPEAKER_VOLUME", volume)
+                end
+            end
+        end
         return true
     end
 
