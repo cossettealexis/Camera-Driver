@@ -97,14 +97,14 @@ local PROP_MQTT_SECRET        = "MQTT Secret"
 
 
 local EVENT = {
-    MOTION           = "Motion Detected",
-    CAMERA_ONLINE    = "Camera Online",
-    CAMERA_OFFLINE   = "Camera Offline",
-    CAMERA_RESTARTED = "Camera Restarted",
-    HUMAN            = "Human Detected",
-    LOW_BATTERY      = "Low Battery",
-    STRANGER         = "Stranger Detected",
-    FACE_DETECTED    = "Face Detected",
+    MOTION                  = "Motion Detected",
+    CAMERA_ONLINE           = "Camera Online",
+    CAMERA_OFFLINE          = "Camera Offline",
+    CAMERA_RESTARTED        = "Camera Restarted",
+    HUMAN                   = "Human Detected",
+    LOW_BATTERY             = "Low Battery",
+    STRANGER                = "Stranger Detected",
+    REGISTERED_USER         = "Registered User Detected",
 }
 
 -- Conditional state storage
@@ -2101,7 +2101,7 @@ end
 
 local function handle_face(filename, extp, face_id, face_name)
     print("[EVENT] Registered face detected - face_id: " .. tostring(face_id) .. " | name: " .. tostring(face_name))
-    send_notification(NOTIFY.INFO, EVENT.FACE_DETECTED, "face", COOLDOWN.face, filename, extp, face_name)
+    send_notification(NOTIFY.INFO, EVENT.REGISTERED_USER, "face", COOLDOWN.face, filename, extp, face_name)
 end
 
 local function handle_motion(filename, extp)
