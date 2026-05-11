@@ -2013,15 +2013,16 @@ function GetImageForEvent(extp, done)
         for _, n in ipairs(list) do
             local img = normalize_http_url(n.image_url)
             local fname = extract_filename(img)
+            local faceName = n.note or n.face_note or ""
 
             if fname == wanted_file then
-                print("[MATCH] Found image for event:", fname)
-                return done(img)
+                print("[MATCH] Found image for event:", fname, "| FaceName:", faceName)
+                return done(img, faceName)
             end
         end
 
         print("[MATCH] No matching image yet")
-        return done(nil)
+        return done(nil, nil)
     end)
 end
 
@@ -2048,7 +2049,7 @@ local function record_history(severity, event_type, subcategory)
     return uuid
 end
 
-local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
+local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp, face_name_hint)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
     if not can_notify(cooldown_key, cooldown_sec) then return end
@@ -2058,7 +2059,10 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     local function fetch()
         tries = tries + 1
 
-        GetImageForEvent(extp, function(url)
+        GetImageForEvent(extp, function(url, face_name)
+            -- Use face_name from API, fallback to hint from MQTT
+            local final_face_name = face_name or face_name_hint or ""
+            
             if not url and tries < 6 then
                 C4:SetTimer(400, fetch)
                 return
@@ -2092,16 +2096,16 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
 end
 
 local function handle_stranger(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
+    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp, nil)
 end
 
-local function handle_face(filename, extp, face_id)
-    print("[EVENT] Registered face detected - face_id: " .. tostring(face_id))
-    send_notification(NOTIFY.INFO, EVENT.FACE_DETECTED, "face", COOLDOWN.face, filename, extp)
+local function handle_face(filename, extp, face_id, face_name)
+    print("[EVENT] Registered face detected - face_id: " .. tostring(face_id) .. " | name: " .. tostring(face_name))
+    send_notification(NOTIFY.INFO, EVENT.FACE_DETECTED, "face", COOLDOWN.face, filename, extp, face_name)
 end
 
 local function handle_motion(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
+    send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp, nil)
     
     -- Update motion conditional states
     UpdateConditional("MOTION_DETECTED", true)
@@ -2109,11 +2113,11 @@ local function handle_motion(filename, extp)
 end
 
 local function handle_human(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
+    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp, nil)
 end
 
 local function handle_restart()
-    send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
+    send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart, nil, nil, nil)
 end
 
 
@@ -2146,7 +2150,10 @@ local function handle_online_status(new_online)
                 NOTIFY.INFO,
                 EVENT.CAMERA_ONLINE,
                 "online",
-                COOLDOWN.online
+                COOLDOWN.online,
+                nil,
+                nil,
+                nil
             )
         else
             C4:UpdateProperty("Camera Status", "Offline")
@@ -2155,7 +2162,10 @@ local function handle_online_status(new_online)
                 NOTIFY.ALERT,
                 EVENT.CAMERA_OFFLINE,
                 "offline",
-                COOLDOWN.offline
+                COOLDOWN.offline,
+                nil,
+                nil,
+                nil
             )
         end
     end
@@ -2238,12 +2248,21 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 21 then
-                -- Check if face_id exists to distinguish registered face vs stranger
                 if params.face_id and params.face_id ~= "" then
-                    -- Registered face detected
-                    handle_face(filename, extp, params.face_id)
+                    -- Face detected - query notification API to get face name
+                    -- The name is NOT in MQTT params, must query notifications API
+                    GetImageForEvent(extp, function(url, face_name)
+                        -- If face_name exists and is NOT "stranger", it's a named person
+                        if face_name and face_name ~= "" and face_name:lower() ~= "stranger" then
+                            print("[FACE] Named registered person: '" .. face_name .. "'")
+                            handle_face(filename, extp, params.face_id, face_name)
+                        else
+                            print("[FACE] Unnamed stranger (auto-saved), faceName: '" .. tostring(face_name) .. "'")
+                            handle_stranger(filename, extp)
+                        end
+                    end)
                 else
-                    -- Unknown stranger detected
+                    -- No face_id at all - unknown person
                     handle_stranger(filename, extp)
                 end
                 return true
@@ -2325,6 +2344,7 @@ function SEND_TEST_NOTIFICATION()
         "online",
         0,
         nil,
+        nil,
         nil
     )
 
@@ -2335,6 +2355,7 @@ function SEND_TEST_NOTIFICATION()
         EVENT.CAMERA_OFFLINE,
         "offline",
         0,
+        nil,
         nil,
         nil
     )
