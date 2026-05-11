@@ -72,8 +72,8 @@ local COOLDOWN = {
     restart  = 30,
     battery  = 300,
     power    = 60,
-    stranger = 0
-
+    stranger = 0,
+    face     = 0
 }
 
 
@@ -104,6 +104,7 @@ local EVENT = {
     HUMAN            = "Human Detected",
     LOW_BATTERY      = "Low Battery",
     STRANGER         = "Stranger Detected",
+    FACE_DETECTED    = "Face Detected",
 }
 
 -- Conditional state storage
@@ -2094,6 +2095,11 @@ local function handle_stranger(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
 end
 
+local function handle_face(filename, extp, face_id)
+    print("[EVENT] Registered face detected - face_id: " .. tostring(face_id))
+    send_notification(NOTIFY.INFO, EVENT.FACE_DETECTED, "face", COOLDOWN.face, filename, extp)
+end
+
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
     
@@ -2232,7 +2238,14 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 21 then
-                handle_stranger(filename, extp)
+                -- Check if face_id exists to distinguish registered face vs stranger
+                if params.face_id and params.face_id ~= "" then
+                    -- Registered face detected
+                    handle_face(filename, extp, params.face_id)
+                else
+                    -- Unknown stranger detected
+                    handle_stranger(filename, extp)
+                end
                 return true
             end
 
