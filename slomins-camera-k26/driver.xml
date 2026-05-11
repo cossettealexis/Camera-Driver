@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
     <created>2025-11-11</created>
-    <modified>2026-05-01</modified>
+    <modified>2026-05-12</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -259,7 +259,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default></default>
+                <default>cgabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
             <property>

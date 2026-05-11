@@ -30,6 +30,8 @@ GlobalObject.AES_KEY           = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
 GlobalObject.AES_IV            = "33rj6KNVN4kFvd0s"
 GlobalObject.ProductSubType    = "solar_box_cam" -- solar_box_cam K26
 GlobalObject.BaseApi           = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject.CldBusAppId       = "cldbus"
+GlobalObject.CldBusSecret      = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -202,6 +204,12 @@ function OnDriverInit()
         _props[k] = v
     end
 
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
     -- Initialize EVENT_DELAY_MS from properties
     EVENT_DELAY_MS = tonumber(Properties["Event Interval (ms)"]) or 5000
 
@@ -364,6 +372,12 @@ function OnDriverLateInit()
 
     ValidateMacAddress(C4:GetUniqueMAC())
 
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
         if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
@@ -477,10 +491,9 @@ local function update_prop(name, value)
     _props[name] = tostring(value)
 end
 
--- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId     = Properties["AppId"] or _props["AppId"] or ""
-    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    local appId     = Properties["AppId"] or _props["AppId"] or "cldbus"
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     return appId, appSecret
 end
 
@@ -632,7 +645,7 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
     if strCommand == "AWAKE_CAMERA" then
-        WakeCamera(3)
+        AwakeCamera(tParams and tParams.RETRY)
         return
     end
     if strCommand == "TEST_PUSH_NOTIFICATION" then
@@ -708,7 +721,9 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -801,7 +816,10 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -962,7 +980,10 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1043,7 +1064,10 @@ function GET_DEVICES(p_vid)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices-v2"
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -1896,12 +1920,15 @@ local function normalize_http_url(url)
     url = url:gsub("^%s+", ""):gsub("%s+$", "")
     return url
 end
+
 function GetImageForEvent(extp, done)
     local vid              = Properties["VID"]
     local token            = Properties["Auth Token"]
     local base             = GlobalObject.LnduBaseUrl
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
