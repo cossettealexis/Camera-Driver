@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K26-SL Outdoor Camera</name>
-    <version>1.0.6</version>
+    <version>2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
-    <created>2025-11-11</created>
-    <modified>2026-05-12</modified>
+    <created>11/11/2025 12:00 AM</created>
+    <modified>05/12/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
