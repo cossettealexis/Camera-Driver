@@ -153,7 +153,7 @@ function OnDriverInit()
     --Call TCP upon driver initialization
     TcpConnection()
     print("=== P160-SL Driver Initialized ===")
-    C4:UpdateProperty("Camera Status", "Unknown")
+    C4:UpdateProperty("Camera Status", "false")
     -- Initialize MQTT
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -460,6 +460,32 @@ function OnPropertyChanged(strProperty)
     if strProperty == "Event Interval (ms)" then
         EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
         print("[EVENT_DELAY_MS] Event interval updated to:", EVENT_DELAY_MS, "ms")
+        return
+    end
+    if strProperty == "VID" then
+    local newVid = Properties["VID"] or ""
+    if newVid ~= "" then
+        print("[VID] VID changed to:", newVid)
+        _props["VID"] = newVid
+        -- ✅ VID just changed and is valid, refresh camera status
+        GET_BATTERY_LEVEL()
+    end
+    return
+end
+   if strProperty == "Account" then
+        local newAccount = Properties["Account"] or ""
+        print("[ACCOUNT] Account changed to: " .. newAccount)
+
+        _props["Account"] = newAccount
+        GlobalObject.CustomerEmail = newAccount
+
+        if newAccount and newAccount ~= "" then
+            print("[ACCOUNT] Account changed → Re-initializing login...")
+            C4:UpdateProperty("Status", "Account changed - Re-logging in...")
+
+            -- Re-run full initialization with new email
+            C4:SetTimer(1500, InitializeCamera)
+        end
         return
     end
     local value = Properties[strProperty]
@@ -1378,6 +1404,7 @@ function GET_DEVICES(p_vid)
                         _props["Device Name"] = target_device.device_name
                         C4:UpdateProperty("Device Name", target_device.device_name)
                         print("  Device Name property updated to: " .. target_device.device_name)
+                         GET_BATTERY_LEVEL()
                     end
 
                     -- Set IP Address if found and not already set
@@ -3571,4 +3598,56 @@ function TestCondition(condition_name, test_value)
     print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
     
     return result
+end
+function GET_BATTERY_LEVEL()
+    print("===== GET BATTERY =====")
+
+    local token   = Properties["Auth Token"] or _props["Auth Token"]
+    local vid     = Properties["VID"] or _props["VID"]
+    local baseUrl = GlobalObject.LnduBaseUrl
+
+    if not token or token == "" then
+        print("Missing Token")
+        return
+    end
+    if not vid or vid == "" then
+        print("Missing VID")
+        return
+    end
+
+    transport.execute({
+        url     = baseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = { ["Authorization"] = "Bearer " .. token }
+    }, function(code, resp)
+        print("[BATTERY] Response code:", code)
+        if code ~= 200 then return end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or type(data) ~= "table" or type(data.data) ~= "table" then
+            print("[BATTERY] Parse error")
+            return
+        end
+
+        local function find(list)
+            if type(list) ~= "table" then return nil end
+            for _, d in ipairs(list) do
+                if tostring(d.vid) == tostring(vid) then return d end
+            end
+            return list[1]
+        end
+
+        local device = find(data.data.devices) or find(data.data.share_devices)
+        if not device then
+            print("[BATTERY] No device found")
+            return
+        end
+
+        -- Online status
+        local status = (device.is_online == 1 or device.is_online == true) and "Online" or "Offline"
+        if _props["Camera Status"] ~= status then
+            C4:UpdateProperty("Camera Status", status)
+            _props["Camera Status"] = status
+        end
+    end)
 end
