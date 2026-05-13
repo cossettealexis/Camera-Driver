@@ -65,6 +65,15 @@ GlobalObject.DeviceModel      = "p160"
 GlobalObject.ProductSubType   = "plugged_camera"
 GlobalObject.CustomerEmail    = ""
 GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject.CldBusAppId      = "cldbus"
+GlobalObject.CldBusSecret     = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.TCP_SERVER_PORT  = 8081
+GlobalObject.DeviceModel      = "p160"
+GlobalObject.ProductSubType   = "plugged_camera"
+GlobalObject.CustomerEmail    = ""
+GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject.CldBusAppId      = "cldbus"
+GlobalObject.CldBusSecret     = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 _props.MQTT                   = {
     socket_ready = false,
     connected = false,
@@ -106,6 +115,9 @@ local conditional_state = {
     MIC_UNMUTED = true,
     SPEAKER_VOLUME = 5
 }
+
+-- Volume tracking
+local volume_before_mute = nil
 
 --Establishes a TCP connection to the configured server.
 
@@ -161,6 +173,13 @@ function OnDriverInit()
         end
         _props[k] = v
     end
+
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -314,6 +333,12 @@ function OnDriverLateInit()
     C4:UpdateProperty("Status", "Ready")
     
     ValidateMacAddress(C4:GetUniqueMAC())
+
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
@@ -396,8 +421,9 @@ end
 
 -- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId     = Properties["AppId"]     or _props["AppId"]     or ""
-    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    -- Check GlobalObject first (set immediately by ValidateMacAddress)
+    local appId     = GlobalObject.CldBusAppId   or _props["AppId"]     or Properties["AppId"]     or "cldbus"
+    local appSecret = GlobalObject.CldBusSecret  or _props["AppSecret"] or Properties["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     return appId, appSecret
 end
 
@@ -553,6 +579,140 @@ end
     end
 end
 
+-- OP03. Device Control(properties)
+function SET_DEVICE_PROPERTY(property_data, success_callback)
+    print("================================================================")
+    print("           SET_DEVICE_PROPERTY CALLED                           ")
+    print("================================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    print("Using bearer token: " .. auth_token)
+    print("Using VID: " .. vid)
+    print("Property data: " .. json.encode(property_data))
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/do-property"
+
+    local appId = _props["AppId"] or Properties["AppId"] or ""
+    local appSecret = _props["AppSecret"] or Properties["AppSecret"] or ""
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        data = json.encode(property_data)
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("[DEBUG] Request URL: " .. url)
+    print("[DEBUG] Request Body: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+        if err then
+            print("Error: " .. tostring(err))
+        end
+        print("----------------------------------------------------------------")
+
+        if code == 200 or code == 20000 then
+            print("Property set successfully")
+            if success_callback then
+                success_callback()
+            end
+        else
+            print("Failed to set property")
+        end
+    end)
+    print("================================================================")
+end
+
+function GET_DEVICE_PROPERTY(property_name, callback)
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
+
+    local appId = _props["AppId"] or Properties["AppId"] or ""
+    local appSecret = _props["AppSecret"] or Properties["AppSecret"] or ""
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "GET",
+        headers = headers
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code ~= 200 and code ~= 20000 then
+            print("ERROR: Failed to get device properties")
+            if callback then callback(nil) end
+            return
+        end
+
+        local ok, parsed = pcall(json.decode, resp)
+        if ok and parsed and parsed.data and parsed.data.status then
+            for _, prop in ipairs(parsed.data.status) do
+                if prop.status_key == property_name then
+                    if callback then callback(prop.status_val) end
+                    return
+                end
+            end
+        end
+        
+        if callback then callback(nil) end
+    end)
+end
+
 function ExecuteCommand(strCommand, tParams)
     print("ExecuteCommand called: " .. strCommand)
 
@@ -623,6 +783,47 @@ function ExecuteCommand(strCommand, tParams)
         SEND_TEST_NOTIFICATION_HUMAN()
         return
     end
+    if strCommand == "TAKE_SNAPSHOT" then
+        print("[COMMAND] Take Snapshot requested")
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+        return
+    end
+    if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        UpdateConditional("MIC_MUTED", false)
+        UpdateConditional("MIC_UNMUTED", true)
+        return
+    end
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        UpdateConditional("MIC_MUTED", true)
+        UpdateConditional("MIC_UNMUTED", false)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_UP" then
+        print("[COMMAND] Speaker Volume Up requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.min(current + 1, 10)
+            print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_DOWN" then
+        print("[COMMAND] Speaker Volume Down requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.max(current - 1, 1)
+            print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -651,7 +852,9 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -817,7 +1020,10 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1234,7 +1440,10 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1310,7 +1519,10 @@ function GET_DEVICES(p_vid)
 
     print("Using bearer token: " .. auth_token)
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -1806,7 +2018,9 @@ function GetImageForEvent(extp, done)
         return done(nil)
     end
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
     print("ERROR: CldBus credentials not loaded yet")

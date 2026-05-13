@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>1.0.4</version>
+    <version>2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
@@ -106,8 +106,8 @@
         <conditional>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If sensing motion</condition_statement>
             <description>Sensing motion</description>
-            <label>sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -116,8 +116,8 @@
         <conditional>
             <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If not sensing motion</condition_statement>
             <description>Not sensing motion</description>
-            <label>not sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -126,8 +126,8 @@
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is muted</condition_statement>
             <description>Mic is muted</description>
-            <label>Mic is muted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -136,8 +136,8 @@
         <conditional>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is unmuted</condition_statement>
             <description>Mic is unmuted</description>
-            <label>Mic is unmuted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -146,8 +146,8 @@
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
+            <condition_statement>If Speaker volume is</condition_statement>
             <description>Speaker volume is 1-10</description>
-            <label>Speaker volume is 1-10</label>
             <items>
                 <item>1</item>
                 <item>2</item>
