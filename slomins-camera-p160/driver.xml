@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>2025-12-16</created>
-    <modified>2026-05-06</modified>
+    <modified>05/13/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -210,7 +210,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default></default>
+                <default>cgabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
             <property>
