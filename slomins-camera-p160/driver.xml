@@ -6,7 +6,7 @@
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
-    <created>2025-12-16</created>
+    <created>12/16/2025 12:00 AM</created>
     <modified>05/13/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
