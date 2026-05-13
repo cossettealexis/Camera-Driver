@@ -1,708 +1,1095 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Slomins VD05 Video Doorbell — Control4 Driver Documentation</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 1.7;
-    color: #24292e;
-    background: #fff;
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 40px 32px 80px;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slomins VD05 Video Doorbell — Control4 Driver Documentation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #24292e;
+      background: #fff;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
 
-  h1 { font-size: 32px; border-bottom: 1px solid #e1e4e8; padding-bottom: 10px; margin: 0 0 16px; }
-  h2 { font-size: 24px; border-bottom: 1px solid #e1e4e8; padding-bottom: 6px; margin: 40px 0 14px; }
-  h3 { font-size: 18px; margin: 28px 0 10px; }
-  h4 { font-size: 15px; margin: 20px 0 8px; color: #444; }
+    h1 {
+      font-size: 32px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 10px;
+      margin: 0 0 16px;
+    }
 
-  p  { margin: 0 0 14px; color: #444; }
-  a  { color: #0366d6; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+    h2 {
+      font-size: 24px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 6px;
+      margin: 40px 0 14px;
+    }
 
-  ul, ol { padding-left: 24px; margin: 0 0 14px; color: #444; }
-  li { margin-bottom: 4px; }
+    h3 {
+      font-size: 18px;
+      margin: 28px 0 10px;
+    }
 
-  strong { color: #24292e; }
+    h4 {
+      font-size: 15px;
+      margin: 20px 0 8px;
+      color: #444;
+    }
 
-  code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 13px;
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    border-radius: 3px;
-    padding: 2px 5px;
-    color: #e36209;
-  }
+    p {
+      margin: 0 0 14px;
+      color: #444;
+    }
 
-  pre {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 13px;
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    border-radius: 6px;
-    padding: 16px;
-    overflow-x: auto;
-    line-height: 1.6;
-    margin: 12px 0 20px;
-  }
+    a {
+      color: #0366d6;
+      text-decoration: none;
+    }
 
-  pre code {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #24292e;
-    font-size: 13px;
-  }
+    a:hover {
+      text-decoration: underline;
+    }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    margin: 12px 0 20px;
-  }
-  th {
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    text-align: left;
-    font-weight: 600;
-  }
-  td {
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    color: #444;
-    vertical-align: top;
-  }
-  tr:nth-child(even) td { background: #fafafa; }
+    ul,
+    ol {
+      padding-left: 24px;
+      margin: 0 0 14px;
+      color: #444;
+    }
 
-  blockquote {
-    border-left: 4px solid #dfe2e5;
-    margin: 0 0 14px;
-    padding: 4px 16px;
-    color: #6a737d;
-  }
+    li {
+      margin-bottom: 4px;
+    }
 
-  hr {
-    border: none;
-    border-top: 1px solid #e1e4e8;
-    margin: 36px 0;
-  }
+    strong {
+      color: #24292e;
+    }
 
-  img { max-width: 100%; }
-</style>
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 3px;
+      padding: 2px 5px;
+      color: #e36209;
+    }
+
+    pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin: 12px 0 20px;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #24292e;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 12px 0 20px;
+    }
+
+    th {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      color: #444;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    blockquote {
+      border-left: 4px solid #dfe2e5;
+      margin: 0 0 14px;
+      padding: 4px 16px;
+      color: #6a737d;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e1e4e8;
+      margin: 36px 0;
+    }
+
+    img {
+      max-width: 100%;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>Slomins VD05 Video Doorbell — Control4 Driver</h1>
-
-<h2>Overview</h2>
-<p>Complete Control4 driver for Slomins VD05 Video Doorbell Camera with full CldBus API integration, MQTT event streaming, RTSP video streaming, doorbell functionality, and two-way audio support.</p>
-<ul>
-  <li><strong>Model:</strong> VD05</li>
-  <li><strong>Version:</strong> 1.0.5</li>
-  <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
-  <li><strong>Device Type:</strong> Video Doorbell with Camera</li>
-</ul>
-
-<hr>
-
-<h2>Features</h2>
-
-<h3>Doorbell Functionality</h3>
-<ul>
-  <li>Doorbell ring detection and notifications</li>
-  <li>Two-way audio communication (intercom)</li>
-  <li>Visitor notification with snapshot attachment</li>
-  <li>Integration with Control4 doorbell events</li>
-  <li>Chime trigger support</li>
-</ul>
-
-<h3>Video Streaming</h3>
-<ul>
-  <li>RTSP streaming support (H.264/H.265)</li>
-  <li>Main stream (high quality) and sub stream (low quality)</li>
-  <li>Dynamic RTSP URL generation with token authentication</li>
-  <li>Format: <code>rtsp://IP:8554/streamtype=0</code> (sub) / <code>streamtype=1</code> (main)</li>
-  <li>Snapshot capture via HTTP API</li>
-</ul>
-
-<h3>Dynamic IP Auto-Update (Online Event Handling)</h3>
-<p>The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.</p>
-<p>Whenever the camera comes online, the driver automatically:</p>
-<ul>
-  <li>Detects the <strong>Camera Online</strong> event</li>
-  <li>Calls the <strong>Get Devices API</strong></li>
-  <li>Matches the device using <strong>VID (Virtual ID)</strong></li>
-  <li>Retrieves the latest <strong>local IP address</strong></li>
-  <li>Updates the <strong>IP Address</strong> property in the driver</li>
-  <li>Pushes the updated address to the <strong>Control4 Camera Proxy</strong></li>
-</ul>
-
-<h3>Real-Time Event Detection</h3>
-<p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides notifications for the following events:</p>
-<ul>
-  <li>Doorbell ring notifications with snapshot</li>
-  <li>Motion detection with snapshot attachment</li>
-  <li>Human detection</li>
-  <li>Stranger detection</li>
-  <li>Camera online/offline status monitoring</li>
-</ul>
-
-<h3>Security &amp; Authentication</h3>
-<ul>
-  <li>CldBus API integration with RSA-OAEP + SHA256 encryption</li>
-  <li>HMAC-SHA256 signatures for API requests</li>
-  <li>Secure token management (temp token, exchange token, auth token)</li>
-  <li>MQTT over SSL/TLS (port 8884)</li>
-  <li>OAuth-style authentication flow</li>
-  <li>Pre-encrypted post data support for API calls</li>
-</ul>
-
-<h3>Network Discovery</h3>
-<ul>
-  <li>HTTP scan-based camera discovery (IP range scanning)</li>
-  <li>SDDP (Simple Device Discovery Protocol) multicast discovery</li>
-  <li>Automatic device binding to CldBus API</li>
-  <li>Multi-device support via VID (Virtual ID)</li>
-</ul>
-
-<h3>Advanced Features</h3>
-<ul>
-  <li>Multiple connection types (Camera, Network/MQTT, Keep-alive TCP)</li>
-  <li>Configurable event intervals (default: 5 seconds)</li>
-  <li>Alert and info notifications (enable/disable)</li>
-  <li>MQTT auto-connect and reconnection</li>
-  <li>HTTP polling mode (alternative to MQTT)</li>
-  <li>PTZ support (Pan/Tilt/Zoom) — Note: VD05 has limited PTZ</li>
-  <li>Preset management (8 presets)</li>
-  <li>Custom authentication types: BASIC, DIGEST, NONE</li>
-</ul>
-
-<hr>
-
-<h2>Requirements</h2>
-<ul>
-  <li><strong>Control4 Composer Pro</strong> (version compatible with OS 3.3.2+)</li>
-  <li><strong>Control4 OS</strong> 3.3.2 or newer (required for C4:Crypto() RSA encryption)</li>
-  <li><strong>Network Access</strong> to:
-    <ul>
-      <li>Doorbell on local LAN:
-        <ul>
-          <li>HTTP: 8080 (API, snapshots)</li>
-          <li>RTSP: 8554 (video streaming)</li>
-          <li>TCP: 3333 (device communication)</li>
-          <li>TCP: 8081 (keep-alive connection)</li>
-        </ul>
-      </li>
-      <li>CldBus API: <code>https://api.arpha-tech.com</code></li>
-      <li>MQTT Broker: Port 8884 (SSL/TLS)</li>
-    </ul>
-  </li>
-  <li><strong>Slomins VD05 Video Doorbell</strong> with firmware supporting CldBus protocol</li>
-  <li><strong>Account credentials</strong> for CldBus API (default: pyabu@slomins.com)</li>
-  <li><strong>Power:</strong> Wired (doorbell transformer or AC adapter)</li>
-</ul>
-
-<hr>
-
-<h2>Device Specifications</h2>
-<p><strong>VD05 Video Doorbell</strong></p>
-<ul>
-  <li><strong>Type:</strong> Wired video doorbell camera</li>
-  <li><strong>Power:</strong> 16-24V AC (doorbell transformer) or POE</li>
-  <li><strong>Resolution:</strong> 1920x1080 (1080p), 1280x720 (720p), 640x480 (VGA)</li>
-  <li><strong>Video Codec:</strong> H.264, H.265</li>
-  <li><strong>Field of View:</strong> 180° wide angle</li>
-  <li><strong>Night Vision:</strong> IR LEDs</li>
-  <li><strong>Audio:</strong> Two-way audio (speaker + microphone)</li>
-  <li><strong>Button:</strong> Mechanical doorbell button with LED ring</li>
-  <li><strong>Network:</strong> Wi-Fi primary, Ethernet optional</li>
-  <li><strong>Default IP:</strong> DHCP assigned by router</li>
-  <li><strong>VID:</strong> Unique per device (obtained from CldBus API)</li>
-  <li><strong>Ports:</strong>
-    <ul>
-      <li>HTTP: 8080 (API, snapshots)</li>
-      <li>RTSP: 8554 (video streaming)</li>
-      <li>TCP: 3333 (device communication)</li>
-      <li>TCP: 8081 (keep-alive connection with auto-reconnect)</li>
-      <li>MQTT: 8884 (SSL/TLS events)</li>
-    </ul>
-  </li>
-</ul>
-
-<hr>
-
-<h2>Installation</h2>
-
-<h3>1. Install Driver Package</h3>
-<ol>
-  <li>Download <code>Slomins-doorbell-VD05.c4z</code></li>
-  <li>Open <strong>Control4 Composer Pro</strong></li>
-  <li>Navigate to <strong>System Design</strong> &gt; <strong>Agents &amp; Drivers</strong></li>
-  <li>Click <strong>Add Driver</strong> &gt; <strong>Browse</strong> and select the <code>.c4z</code> file</li>
-  <li>Driver will appear as "Slomins VD05 Video Doorbell"</li>
-</ol>
-
-<h3>2. Add Doorbell to Project</h3>
-<ol>
-  <li>In Composer Pro, drag "Slomins VD05 Video Doorbell" to your room (typically Porch/Entry)</li>
-  <li>The driver will auto-initialize and attempt connection</li>
-  <li>Check the driver properties for configuration</li>
-</ol>
-
-<h3>3. Configure Doorbell Settings</h3>
-<p>Navigate to driver <strong>Properties</strong> tab:</p>
-
-<h4>Required Settings:</h4>
-<ul>
-  <li><strong>IP Address:</strong> Doorbell's local IP (e.g., assigned by your router via DHCP)</li>
-  <li><strong>VID:</strong> Doorbell's Virtual ID from CldBus API (unique per device)</li>
-  <li><strong>Account:</strong> CldBus account email (default: pyabu@slomins.com)</li>
-</ul>
-
-<h4>Optional Settings:</h4>
-<ul>
-  <li><strong>HTTP Port:</strong> Default 8080</li>
-  <li><strong>RTSP Port:</strong> Default 8554</li>
-  <li><strong>Authentication Type:</strong> BASIC (default), DIGEST, or NONE</li>
-  <li><strong>Username/Password:</strong> If authentication required (default: SystemConnect/123456)</li>
-  <li><strong>PTZ Enabled:</strong> Yes/No (default: Yes, limited on VD05)</li>
-  <li><strong>Enable MQTT:</strong> True/False (default: False, enable for real-time doorbell events)</li>
-  <li><strong>Enable Alert Notifications:</strong> True/False (default: True)</li>
-  <li><strong>Enable Info Notifications:</strong> True/False (default: True)</li>
-  <li><strong>Event Interval:</strong> 5000ms (default, 0-30000ms range)</li>
-</ul>
-
-<h4>Advanced Settings:</h4>
-<ul>
-  <li><strong>Base API URL:</strong> https://api.arpha-tech.com (default)</li>
-  <li><strong>ClientID:</strong> OAuth client ID</li>
-  <li><strong>Public Key:</strong> RSA public key (auto-populated)</li>
-</ul>
-
-<h3>4. Initialize Doorbell</h3>
-<p>Use the <strong>Actions</strong> tab to initialize:</p>
-<ol>
-  <li><strong>Login/Register:</strong> Authenticate with CldBus API</li>
-  <li><strong>Get Temp Token:</strong> Retrieve temporary token</li>
-  <li><strong>Get Exchange Token:</strong> Exchange for persistent token</li>
-  <li><strong>Get Devices:</strong> List all devices on account</li>
-  <li><strong>Bind Device:</strong> Bind doorbell to Control4 driver</li>
-  <li><strong>Initialize:</strong> Complete initialization sequence</li>
-</ol>
-<p>Or use the single action: <strong>Initialize</strong> — Runs full initialization sequence automatically.</p>
-
-<h3>5. Test Streaming</h3>
-<p>Use <strong>Actions</strong> tab to test:</p>
-<ol>
-  <li><strong>Test Snapshot:</strong> Verify snapshot URL generation</li>
-  <li><strong>Test Main Stream:</strong> Test high-quality RTSP stream</li>
-  <li><strong>Test Sub Stream:</strong> Test low-quality RTSP stream</li>
-</ol>
-<p>Check the driver logs for RTSP URLs generated:</p>
-<ul>
-  <li>Main: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1</code></li>
-  <li>Sub: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></li>
-</ul>
-
-<h3>6. Enable MQTT Events (Recommended for Doorbell)</h3>
-<p>For real-time doorbell ring notifications:</p>
-<ol>
-  <li>Set <strong>Enable MQTT</strong> property to <strong>True</strong></li>
-  <li>Run action: <strong>Get MQTT Info</strong></li>
-  <li>Run action: <strong>Connect MQTT</strong></li>
-  <li>Verify connection in logs</li>
-</ol>
-<p>Alternative: Use <strong>HTTP Polling</strong> for periodic status updates — Action: <strong>Start HTTP Polling</strong></p>
-
-<h3>7. Configure Control4 Doorbell Integration</h3>
-<ol>
-  <li>In Composer Pro, go to <strong>Programming</strong></li>
-  <li>Create doorbell automation:
-    <ul>
-      <li><strong>When:</strong> "Doorbell Ring" event</li>
-      <li><strong>Then:</strong> Trigger chime, lights, notifications, etc.</li>
-    </ul>
-  </li>
-  <li>Use <strong>Doorbell Ring</strong> event for Control4 announcements</li>
-  <li>Optionally forward video to TVs or mobile app</li>
-</ol>
-
-<hr>
-
-<h2>Usage</h2>
-
-<h3>Doorbell Ring Event</h3>
-<p>When someone presses the doorbell:</p>
-<ol>
-  <li>VD05 detects button press</li>
-  <li>MQTT event sent to driver</li>
-  <li>Driver triggers Control4 <strong>"Doorbell Ring"</strong> event</li>
-  <li>Snapshot captured automatically</li>
-  <li>Notification sent with visitor snapshot</li>
-  <li>Control4 automation triggered (chime, lights, etc.)</li>
-</ol>
-<p><strong>Configure Doorbell Automation:</strong> Go to <strong>Programming</strong> &gt; <strong>When</strong> &gt; Select doorbell &gt; <strong>Doorbell Ring</strong>, then add actions: Announce, send notification, turn on lights, etc.</p>
-
-<h3>Live Video Streaming</h3>
-<ol>
-  <li>In Control4 app, navigate to doorbell camera</li>
-  <li>Tap camera to view live stream</li>
-  <li>Driver automatically generates RTSP URL with authentication token</li>
-  <li>View visitor at door in real-time</li>
-</ol>
-<p><strong>Manual RTSP Access:</strong></p>
-<ul>
-  <li>Main Stream: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1</code></li>
-  <li>Sub Stream: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></li>
-</ul>
-
-<h3>Two-Way Audio (Intercom)</h3>
-<p><strong>Via Control4 App:</strong></p>
-<ol>
-  <li>Open doorbell camera view</li>
-  <li>Tap microphone/speaker icon</li>
-  <li>Speak to visitor through doorbell speaker</li>
-  <li>Hear visitor through doorbell microphone</li>
-</ol>
-<p><strong>Note:</strong> Two-way audio requires Control4 app version that supports intercom on camera devices.</p>
-
-<h3>Event Notifications</h3>
-<p>When MQTT is enabled, driver receives real-time events:</p>
-<ul>
-  <li><strong>Doorbell Ring</strong> → Notification with snapshot attachment</li>
-  <li>Motion detected → Alert</li>
-  <li>Human/Stranger detected → Alerts</li>
-  <li>Camera online/offline → Status updates</li>
-</ul>
-<p><strong>Configure in Properties:</strong></p>
-<ul>
-  <li><strong>Enable Alert Notifications:</strong> Doorbell ring, motion, intruder alerts</li>
-  <li><strong>Enable Info Notifications:</strong> Online/offline, restart events</li>
-</ul>
-
-<h3>Camera Discovery</h3>
-<p><strong>HTTP Scan Discovery:</strong></p>
-<ol>
-  <li>Action: <strong>Discover Cameras (HTTP Scan)</strong></li>
-  <li>Scans IP range (e.g., 192.168.1.1 to 192.168.1.50)</li>
-  <li>Set <strong>IP Scan Range End</strong> property (default: 50)</li>
-  <li>Finds doorbells on local network</li>
-</ol>
-<p><strong>SDDP Discovery:</strong></p>
-<ol>
-  <li>Action: <strong>Discover Cameras (SDDP)</strong></li>
-  <li>Sends multicast discovery packets</li>
-  <li>Doorbells respond with device info</li>
-  <li>Faster than HTTP scan</li>
-</ol>
-
-<h3>Snapshot Capture</h3>
-<p><strong>Snapshot URL format:</strong></p>
-<pre><code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></pre>
-<p>Or use dynamic snapshot action: Action: <strong>Test Snapshot</strong> — Checks <strong>Last Snapshot URL</strong> property for result.</p>
-
-<h3>PTZ Control (Limited)</h3>
-<p>VD05 has limited PTZ functionality:</p>
-<ul>
-  <li>Digital zoom only (no mechanical pan/tilt)</li>
-  <li>Preset positions not available on doorbell</li>
-  <li>Use PTZ actions for zoom control only</li>
-</ul>
-
-<hr>
-
-<h2>Properties Reference</h2>
-
-<h3>Network Settings</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>IP Address</td><td>STRING</td><td>(DHCP assigned)</td><td>Doorbell's local IP address</td></tr>
-    <tr><td>HTTP Port</td><td>INTEGER</td><td>8080</td><td>Port for API and snapshots</td></tr>
-    <tr><td>RTSP Port</td><td>INTEGER</td><td>8554</td><td>Port for RTSP streaming</td></tr>
-    <tr><td>Authentication Type</td><td>LIST</td><td>BASIC</td><td>BASIC, DIGEST, or NONE</td></tr>
-    <tr><td>Username</td><td>STRING</td><td>SystemConnect</td><td>HTTP authentication username</td></tr>
-    <tr><td>Password</td><td>PASSWORD</td><td>123456</td><td>HTTP authentication password</td></tr>
-  </tbody>
-</table>
-
-<h3>Device Identification</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>VID</td><td>STRING</td><td>(unique per device)</td><td>Virtual device ID from CldBus</td></tr>
-    <tr><td>Product ID</td><td>STRING</td><td>VD05</td><td>Doorbell model identifier</td></tr>
-    <tr><td>Device Name</td><td>STRING</td><td>VD05</td><td>Friendly device name</td></tr>
-    <tr><td>Account</td><td>STRING</td><td>pyabu@slomins.com</td><td>CldBus account email</td></tr>
-  </tbody>
-</table>
-
-<h3>Streaming Settings</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Stream Path</td><td>STRING</td><td>stream1</td><td>Legacy RTSP stream path</td></tr>
-    <tr><td>Snapshot URL Path</td><td>STRING</td><td>/GetSnapshot</td><td>Legacy snapshot path</td></tr>
-    <tr><td>Default Resolution</td><td>LIST</td><td>1280x720</td><td>640x480, 1280x720, 1920x1080</td></tr>
-    <tr><td>PTZ Enabled</td><td>LIST</td><td>Yes</td><td>Enable PTZ controls (limited on VD05)</td></tr>
-  </tbody>
-</table>
-
-<h3>API &amp; Authentication</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Base API URL</td><td>STRING</td><td>https://api.arpha-tech.com</td><td>CldBus API endpoint</td></tr>
-    <tr><td>ClientID</td><td>STRING</td><td>(auto)</td><td>OAuth client ID</td></tr>
-    <tr><td>Public Key</td><td>STRING</td><td>(auto)</td><td>RSA public key from API</td></tr>
-    <tr><td>Temp Token</td><td>STRING</td><td>(auto)</td><td>Temporary authentication token</td></tr>
-    <tr><td>Exchange Token</td><td>STRING</td><td>(auto)</td><td>Exchange authentication token</td></tr>
-    <tr><td>Auth Token</td><td>STRING</td><td>(auto)</td><td>Persistent auth token</td></tr>
-  </tbody>
-</table>
-
-<h3>MQTT Settings</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Enable MQTT</td><td>LIST</td><td>False</td><td>Enable real-time MQTT events</td></tr>
-    <tr><td>MQTT Host</td><td>STRING</td><td>(auto)</td><td>MQTT broker hostname</td></tr>
-    <tr><td>MQTT Port</td><td>STRING</td><td>(auto)</td><td>MQTT broker port (8884)</td></tr>
-    <tr><td>MQTT Client ID</td><td>STRING</td><td>(auto)</td><td>Unique MQTT client ID</td></tr>
-    <tr><td>MQTT Secret</td><td>PASSWORD</td><td>(auto)</td><td>MQTT authentication secret</td></tr>
-  </tbody>
-</table>
-
-<h3>Event Configuration</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Event Interval (ms)</td><td>INTEGER</td><td>5000</td><td>Event polling interval (0-30000ms)</td></tr>
-    <tr><td>Enable Alert Notifications</td><td>LIST</td><td>True</td><td>Doorbell ring, motion, intruder alerts</td></tr>
-    <tr><td>Enable Info Notifications</td><td>LIST</td><td>True</td><td>Online/offline, restart events</td></tr>
-  </tbody>
-</table>
-
-<h3>Status Properties (Read-Only)</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Status</td><td>STRING</td><td>Driver initialization status</td></tr>
-    <tr><td>Online</td><td>STRING</td><td>Doorbell online status (true/false)</td></tr>
-    <tr><td>Main Stream URL</td><td>STRING</td><td>Generated main RTSP URL</td></tr>
-    <tr><td>Sub Stream URL</td><td>STRING</td><td>Generated sub RTSP URL</td></tr>
-    <tr><td>Last Motion</td><td>STRING</td><td>Last motion detection timestamp</td></tr>
-    <tr><td>Last Snapshot URL</td><td>STRING</td><td>Last captured snapshot URL</td></tr>
-    <tr><td>Last Clip URL</td><td>STRING</td><td>Last recorded video clip URL</td></tr>
-  </tbody>
-</table>
-
-<hr>
-
-<h2>Actions Reference</h2>
-
-<h3>Initialization Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Initialize</td><td>Run full initialization sequence</td></tr>
-    <tr><td>Login/Register</td><td>Authenticate with CldBus API</td></tr>
-    <tr><td>Get Temp Token</td><td>Retrieve temporary token</td></tr>
-    <tr><td>Get Exchange Token</td><td>Exchange for persistent token</td></tr>
-    <tr><td>Get Devices</td><td>List all devices on account</td></tr>
-    <tr><td>Bind Device</td><td>Bind doorbell to driver</td></tr>
-  </tbody>
-</table>
-
-<h3>Streaming Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Test Snapshot</td><td>Test snapshot URL generation</td></tr>
-    <tr><td>Test Main Stream</td><td>Test high-quality RTSP stream</td></tr>
-    <tr><td>Test Sub Stream</td><td>Test low-quality RTSP stream</td></tr>
-  </tbody>
-</table>
-
-<h3>Discovery Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Discover Cameras (HTTP Scan)</td><td>Scan IP range for doorbells</td></tr>
-    <tr><td>Discover Cameras (SDDP)</td><td>Multicast SDDP discovery</td></tr>
-  </tbody>
-</table>
-
-<h3>MQTT Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Get MQTT Info</td><td>Retrieve MQTT broker info</td></tr>
-    <tr><td>Connect MQTT</td><td>Connect to MQTT broker</td></tr>
-    <tr><td>Disconnect MQTT</td><td>Disconnect from MQTT</td></tr>
-  </tbody>
-</table>
-
-<h3>Polling Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Start HTTP Polling</td><td>Start periodic status polling</td></tr>
-    <tr><td>Stop HTTP Polling</td><td>Stop HTTP polling</td></tr>
-  </tbody>
-</table>
-
-<h3>Utility Actions</h3>
-<table>
-  <thead>
-    <tr><th>Action</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Test Push Notification</td><td>Send test notification</td></tr>
-    <tr><td>Get Camera Properties</td><td>Retrieve doorbell properties</td></tr>
-    <tr><td>Update UI Properties</td><td>Update Control4 UI</td></tr>
-  </tbody>
-</table>
-
-<hr>
-
-<h2>Events</h2>
-<p>The driver triggers Control4 events for automation:</p>
-<table>
-  <thead>
-    <tr><th>Event ID</th><th>Event Name</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>1</td><td>Motion Detected</td><td>Doorbell detected motion (alert, with snapshot)</td></tr>
-    <tr><td>2</td><td>Doorbell Ring</td><td>Button pressed — primary doorbell event</td></tr>
-    <tr><td>3</td><td>Human Detected</td><td>Person identified in frame</td></tr>
-    <tr><td>4</td><td>Camera Online</td><td>Doorbell came online</td></tr>
-    <tr><td>5</td><td>Camera Offline</td><td>Doorbell went offline</td></tr>
-    <tr><td>6</td><td>Camera Restarted</td><td>Doorbell rebooted</td></tr>
-  </tbody>
-</table>
-
-<p><strong>Event Automation Examples:</strong></p>
-<p>Use Control4 programming to:</p>
-<ul>
-  <li>Ring physical chime when doorbell pressed</li>
-  <li>Announce "Someone is at the front door"</li>
-  <li>Send push notification to mobile devices</li>
-  <li>Turn on porch lights when doorbell rings</li>
-  <li>Display video on TVs when motion detected</li>
-  <li>Record video clip on doorbell ring</li>
-</ul>
-
-<hr>
-
-<h2>MQTT Configuration</h2>
-
-<h3>Default Behavior</h3>
-<p>MQTT is <strong>enabled automatically by the driver after authentication</strong>. The driver will automatically:</p>
-<ol>
-  <li>Enable MQTT</li>
-  <li>Fetch MQTT credentials</li>
-  <li>Connect to the MQTT broker</li>
-  <li>Subscribe to camera event topics</li>
-</ol>
-<p>You normally <strong>do not need to enable MQTT manually</strong>.</p>
-
-<hr>
-
-<h2>CldBus App Motion Detection Settings</h2>
-<p>To receive <strong>Motion Detection</strong> and <strong>Human Detection</strong> events, detection must be enabled in the <strong>CldBus mobile app</strong>.</p>
-
-<h3>Steps</h3>
-<ol>
-  <li>Open the <strong>CldBus App</strong></li>
-  <li>Select your <strong>camera device</strong></li>
-  <li>Tap <strong>Settings</strong></li>
-  <li>Navigate to <code>Settings → Motion Detection</code></li>
-  <li>Under <strong>Detection Type</strong>, select one of the following:</li>
-</ol>
-
-<table>
-  <thead>
-    <tr><th>Detection Type</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td><strong>All Detections</strong></td><td>All movement events will trigger notifications. This includes general motion detection.</td></tr>
-    <tr><td><strong>Human Detection</strong></td><td>Only human movement will trigger events. Non-human motion will be ignored.</td></tr>
-  </tbody>
-</table>
-
-<hr>
-
-<h2>Push Notification Configuration</h2>
-
-<h3>1. Create Push Notification</h3>
-<ol>
-  <li>Open <strong>Composer Pro</strong></li>
-  <li>Navigate to <code>Agents → Push Notification</code></li>
-  <li>Click <strong>Add Notification</strong> then enter a name for the notification.</li>
-</ol>
-<p>Configure the following:</p>
-<table>
-  <thead>
-    <tr><th>Setting</th><th>Value</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Category</td><td>Cameras</td></tr>
-    <tr><td>Severity</td><td>Info / Critical</td></tr>
-    <tr><td>Subject</td><td>Camera Event</td></tr>
-  </tbody>
-</table>
-<p>Click <strong>Save</strong>.</p>
-
-<h3>2. Enable Snapshot Attachment</h3>
-<p>Edit the created notification and set:</p>
-<pre><code>Attachment Type = Snapshot URL</code></pre>
-<p>This allows push notifications to include the <strong>camera snapshot image</strong>.</p>
-
-<h3>Mapping Push Notifications in Programming</h3>
-<ol>
-  <li>In <strong>Composer Pro</strong>, open <strong>Programming</strong>.</li>
-  <li>Select the <strong>Camera Driver</strong> from the device list.</li>
-  <li>In the <strong>Events</strong> section, choose the event you want to trigger the notification (for example <strong>Motion Detected</strong>).</li>
-  <li>On the <strong>right-side panel</strong>, click <strong>Push Notifications</strong>.</li>
-  <li>From the dropdown list, select the <strong>notification you created earlier</strong>.</li>
-  <li>Drag and drop the notification into the programming area <strong>or double-click the green arrow</strong> to add it.</li>
-</ol>
-<p>This maps the camera event to the push notification.</p>
-
-<h3>Notification Flow</h3>
-<pre><code>Camera Event (MQTT)
+  <h1>Slomins VD05 Video Doorbell — Control4 Driver</h1>
+
+  <h2>Overview</h2>
+  <p>Complete Control4 driver for Slomins VD05 Video Doorbell Camera with full CldBus API integration, MQTT event
+    streaming, RTSP video streaming, doorbell functionality, and two-way audio support.</p>
+  <ul>
+    <li><strong>Model:</strong> VD05</li>
+    <li><strong>Version:</strong> 1.0.5</li>
+    <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
+    <li><strong>Device Type:</strong> Video Doorbell with Camera</li>
+  </ul>
+
+  <hr>
+
+  <h2>Features</h2>
+
+  <h3>Doorbell Functionality</h3>
+  <ul>
+    <li>Doorbell ring detection and notifications</li>
+    <li>Two-way audio communication (intercom)</li>
+    <li>Visitor notification with snapshot attachment</li>
+    <li>Integration with Control4 doorbell events</li>
+    <li>Chime trigger support</li>
+  </ul>
+
+  <h3>Video Streaming</h3>
+  <ul>
+    <li>RTSP streaming support (H.264/H.265)</li>
+    <li>Main stream (high quality) and sub stream (low quality)</li>
+    <li>Dynamic RTSP URL generation with token authentication</li>
+    <li>Format: <code>rtsp://IP:8554/streamtype=0</code> (sub) / <code>streamtype=1</code> (main)</li>
+    <li>Snapshot capture via HTTP API</li>
+  </ul>
+
+  <h3>Dynamic IP Auto-Update (Online Event Handling)</h3>
+  <p>The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.
+  </p>
+  <p>Whenever the camera comes online, the driver automatically:</p>
+  <ul>
+    <li>Detects the <strong>Camera Online</strong> event</li>
+    <li>Calls the <strong>Get Devices API</strong></li>
+    <li>Matches the device using <strong>VID (Virtual ID)</strong></li>
+    <li>Retrieves the latest <strong>local IP address</strong></li>
+    <li>Updates the <strong>IP Address</strong> property in the driver</li>
+    <li>Pushes the updated address to the <strong>Control4 Camera Proxy</strong></li>
+  </ul>
+
+  <h3>Real-Time Event Detection</h3>
+  <p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides
+    notifications for the following events:</p>
+  <ul>
+    <li>Doorbell ring notifications with snapshot</li>
+    <li>Motion detection with snapshot attachment</li>
+    <li>Human detection</li>
+    <li>Stranger detection</li>
+    <li>Camera online/offline status monitoring</li>
+  </ul>
+
+  <h3>Security &amp; Authentication</h3>
+  <ul>
+    <li>CldBus API integration with RSA-OAEP + SHA256 encryption</li>
+    <li>HMAC-SHA256 signatures for API requests</li>
+    <li>Secure token management (temp token, exchange token, auth token)</li>
+    <li>MQTT over SSL/TLS (port 8884)</li>
+    <li>OAuth-style authentication flow</li>
+    <li>Pre-encrypted post data support for API calls</li>
+  </ul>
+
+  <h3>Network Discovery</h3>
+  <ul>
+    <li>HTTP scan-based camera discovery (IP range scanning)</li>
+    <li>SDDP (Simple Device Discovery Protocol) multicast discovery</li>
+    <li>Automatic device binding to CldBus API</li>
+    <li>Multi-device support via VID (Virtual ID)</li>
+  </ul>
+
+  <h3>Advanced Features</h3>
+  <ul>
+    <li>Multiple connection types (Camera, Network/MQTT, Keep-alive TCP)</li>
+    <li>Configurable event intervals (default: 5 seconds)</li>
+    <li>Alert and info notifications (enable/disable)</li>
+    <li>MQTT auto-connect and reconnection</li>
+    <li>HTTP polling mode (alternative to MQTT)</li>
+    <li>PTZ support (Pan/Tilt/Zoom) — Note: VD05 has limited PTZ</li>
+    <li>Preset management (8 presets)</li>
+    <li>Custom authentication types: BASIC, DIGEST, NONE</li>
+  </ul>
+
+  <hr>
+
+  <h2>Requirements</h2>
+  <ul>
+    <li><strong>Control4 Composer Pro</strong> (version compatible with OS 3.3.2+)</li>
+    <li><strong>Control4 OS</strong> 3.3.2 or newer (required for C4:Crypto() RSA encryption)</li>
+    <li><strong>Network Access</strong> to:
+      <ul>
+        <li>Doorbell on local LAN:
+          <ul>
+            <li>HTTP: 8080 (API, snapshots)</li>
+            <li>RTSP: 8554 (video streaming)</li>
+            <li>TCP: 3333 (device communication)</li>
+            <li>TCP: 8081 (keep-alive connection)</li>
+          </ul>
+        </li>
+        <li>CldBus API: <code>https://api.arpha-tech.com</code></li>
+        <li>MQTT Broker: Port 8884 (SSL/TLS)</li>
+      </ul>
+    </li>
+    <li><strong>Slomins VD05 Video Doorbell</strong> with firmware supporting CldBus protocol</li>
+    <li><strong>Account credentials</strong> for CldBus API (default: pyabu@slomins.com)</li>
+    <li><strong>Power:</strong> Wired (doorbell transformer or AC adapter)</li>
+  </ul>
+
+  <hr>
+
+  <h2>Device Specifications</h2>
+  <p><strong>VD05 Video Doorbell</strong></p>
+  <ul>
+    <li><strong>Type:</strong> Wired video doorbell camera</li>
+    <li><strong>Power:</strong> 16-24V AC (doorbell transformer) or POE</li>
+    <li><strong>Resolution:</strong> 1920x1080 (1080p), 1280x720 (720p), 640x480 (VGA)</li>
+    <li><strong>Video Codec:</strong> H.264, H.265</li>
+    <li><strong>Field of View:</strong> 180° wide angle</li>
+    <li><strong>Night Vision:</strong> IR LEDs</li>
+    <li><strong>Audio:</strong> Two-way audio (speaker + microphone)</li>
+    <li><strong>Button:</strong> Mechanical doorbell button with LED ring</li>
+    <li><strong>Network:</strong> Wi-Fi primary, Ethernet optional</li>
+    <li><strong>Default IP:</strong> DHCP assigned by router</li>
+    <li><strong>VID:</strong> Unique per device (obtained from CldBus API)</li>
+    <li><strong>Ports:</strong>
+      <ul>
+        <li>HTTP: 8080 (API, snapshots)</li>
+        <li>RTSP: 8554 (video streaming)</li>
+        <li>TCP: 3333 (device communication)</li>
+        <li>TCP: 8081 (keep-alive connection with auto-reconnect)</li>
+        <li>MQTT: 8884 (SSL/TLS events)</li>
+      </ul>
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2>Installation</h2>
+
+  <h3>1. Install Driver Package</h3>
+  <ol>
+    <li>Download <code>Slomins-doorbell-VD05.c4z</code></li>
+    <li>Open <strong>Control4 Composer Pro</strong></li>
+    <li>Navigate to <strong>System Design</strong> &gt; <strong>Agents &amp; Drivers</strong></li>
+    <li>Click <strong>Add Driver</strong> &gt; <strong>Browse</strong> and select the <code>.c4z</code> file</li>
+    <li>Driver will appear as "Slomins VD05 Video Doorbell"</li>
+  </ol>
+
+  <h3>2. Add Doorbell to Project</h3>
+  <ol>
+    <li>In Composer Pro, drag "Slomins VD05 Video Doorbell" to your room (typically Porch/Entry)</li>
+    <li>The driver will auto-initialize and attempt connection</li>
+    <li>Check the driver properties for configuration</li>
+  </ol>
+
+  <h3>3. Configure Doorbell Settings</h3>
+  <p>Navigate to driver <strong>Properties</strong> tab:</p>
+
+  <h4>Required Settings:</h4>
+  <ul>
+    <li><strong>IP Address:</strong> Doorbell's local IP (e.g., assigned by your router via DHCP)</li>
+    <li><strong>VID:</strong> Doorbell's Virtual ID from CldBus API (unique per device)</li>
+    <li><strong>Account:</strong> CldBus account email (default: pyabu@slomins.com)</li>
+  </ul>
+
+  <h4>Optional Settings:</h4>
+  <ul>
+    <li><strong>HTTP Port:</strong> Default 8080</li>
+    <li><strong>RTSP Port:</strong> Default 8554</li>
+    <li><strong>Authentication Type:</strong> BASIC (default), DIGEST, or NONE</li>
+    <li><strong>Username/Password:</strong> If authentication required (default: SystemConnect/123456)</li>
+    <li><strong>PTZ Enabled:</strong> Yes/No (default: Yes, limited on VD05)</li>
+    <li><strong>Enable MQTT:</strong> True/False (default: False, enable for real-time doorbell events)</li>
+    <li><strong>Enable Alert Notifications:</strong> True/False (default: True)</li>
+    <li><strong>Enable Info Notifications:</strong> True/False (default: True)</li>
+    <li><strong>Event Interval:</strong> 5000ms (default, 0-30000ms range)</li>
+  </ul>
+
+  <h4>Advanced Settings:</h4>
+  <ul>
+    <li><strong>Base API URL:</strong> https://api.arpha-tech.com (default)</li>
+    <li><strong>ClientID:</strong> OAuth client ID</li>
+    <li><strong>Public Key:</strong> RSA public key (auto-populated)</li>
+  </ul>
+
+  <h3>4. Initialize Doorbell</h3>
+  <p>Use the <strong>Actions</strong> tab to initialize:</p>
+  <ol>
+    <li><strong>Login/Register:</strong> Authenticate with CldBus API</li>
+    <li><strong>Get Temp Token:</strong> Retrieve temporary token</li>
+    <li><strong>Get Exchange Token:</strong> Exchange for persistent token</li>
+    <li><strong>Get Devices:</strong> List all devices on account</li>
+    <li><strong>Bind Device:</strong> Bind doorbell to Control4 driver</li>
+    <li><strong>Initialize:</strong> Complete initialization sequence</li>
+  </ol>
+  <p>Or use the single action: <strong>Initialize</strong> — Runs full initialization sequence automatically.</p>
+
+  <h3>5. Test Streaming</h3>
+  <p>Use <strong>Actions</strong> tab to test:</p>
+  <ol>
+    <li><strong>Test Snapshot:</strong> Verify snapshot URL generation</li>
+    <li><strong>Test Main Stream:</strong> Test high-quality RTSP stream</li>
+    <li><strong>Test Sub Stream:</strong> Test low-quality RTSP stream</li>
+  </ol>
+  <p>Check the driver logs for RTSP URLs generated:</p>
+  <ul>
+    <li>Main: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1</code></li>
+    <li>Sub: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></li>
+  </ul>
+
+  <h3>6. Enable MQTT Events (Recommended for Doorbell)</h3>
+  <p>For real-time doorbell ring notifications:</p>
+  <ol>
+    <li>Set <strong>Enable MQTT</strong> property to <strong>True</strong></li>
+    <li>Run action: <strong>Get MQTT Info</strong></li>
+    <li>Run action: <strong>Connect MQTT</strong></li>
+    <li>Verify connection in logs</li>
+  </ol>
+  <p>Alternative: Use <strong>HTTP Polling</strong> for periodic status updates — Action: <strong>Start HTTP
+      Polling</strong></p>
+
+  <h3>7. Configure Control4 Doorbell Integration</h3>
+  <ol>
+    <li>In Composer Pro, go to <strong>Programming</strong></li>
+    <li>Create doorbell automation:
+      <ul>
+        <li><strong>When:</strong> "Doorbell Ring" event</li>
+        <li><strong>Then:</strong> Trigger chime, lights, notifications, etc.</li>
+      </ul>
+    </li>
+    <li>Use <strong>Doorbell Ring</strong> event for Control4 announcements</li>
+    <li>Optionally forward video to TVs or mobile app</li>
+  </ol>
+
+  <hr>
+
+  <h2>Usage</h2>
+
+  <h3>Doorbell Ring Event</h3>
+  <p>When someone presses the doorbell:</p>
+  <ol>
+    <li>VD05 detects button press</li>
+    <li>MQTT event sent to driver</li>
+    <li>Driver triggers Control4 <strong>"Doorbell Ring"</strong> event</li>
+    <li>Snapshot captured automatically</li>
+    <li>Notification sent with visitor snapshot</li>
+    <li>Control4 automation triggered (chime, lights, etc.)</li>
+  </ol>
+  <p><strong>Configure Doorbell Automation:</strong> Go to <strong>Programming</strong> &gt; <strong>When</strong> &gt;
+    Select doorbell &gt; <strong>Doorbell Ring</strong>, then add actions: Announce, send notification, turn on lights,
+    etc.</p>
+
+  <h3>Live Video Streaming</h3>
+  <ol>
+    <li>In Control4 app, navigate to doorbell camera</li>
+    <li>Tap camera to view live stream</li>
+    <li>Driver automatically generates RTSP URL with authentication token</li>
+    <li>View visitor at door in real-time</li>
+  </ol>
+  <p><strong>Manual RTSP Access:</strong></p>
+  <ul>
+    <li>Main Stream: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1</code></li>
+    <li>Sub Stream: <code>rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></li>
+  </ul>
+
+  <h3>Two-Way Audio (Intercom)</h3>
+  <p><strong>Via Control4 App:</strong></p>
+  <ol>
+    <li>Open doorbell camera view</li>
+    <li>Tap microphone/speaker icon</li>
+    <li>Speak to visitor through doorbell speaker</li>
+    <li>Hear visitor through doorbell microphone</li>
+  </ol>
+  <p><strong>Note:</strong> Two-way audio requires Control4 app version that supports intercom on camera devices.</p>
+
+  <h3>Event Notifications</h3>
+  <p>When MQTT is enabled, driver receives real-time events:</p>
+  <ul>
+    <li><strong>Doorbell Ring</strong> → Notification with snapshot attachment</li>
+    <li>Motion detected → Alert</li>
+    <li>Human/Stranger detected → Alerts</li>
+    <li>Camera online/offline → Status updates</li>
+  </ul>
+  <p><strong>Configure in Properties:</strong></p>
+  <ul>
+    <li><strong>Enable Alert Notifications:</strong> Doorbell ring, motion, intruder alerts</li>
+    <li><strong>Enable Info Notifications:</strong> Online/offline, restart events</li>
+  </ul>
+
+  <h3>Camera Discovery</h3>
+  <p><strong>HTTP Scan Discovery:</strong></p>
+  <ol>
+    <li>Action: <strong>Discover Cameras (HTTP Scan)</strong></li>
+    <li>Scans IP range (e.g., 192.168.1.1 to 192.168.1.50)</li>
+    <li>Set <strong>IP Scan Range End</strong> property (default: 50)</li>
+    <li>Finds doorbells on local network</li>
+  </ol>
+  <p><strong>SDDP Discovery:</strong></p>
+  <ol>
+    <li>Action: <strong>Discover Cameras (SDDP)</strong></li>
+    <li>Sends multicast discovery packets</li>
+    <li>Doorbells respond with device info</li>
+    <li>Faster than HTTP scan</li>
+  </ol>
+
+  <h3>Snapshot Capture</h3>
+  <p><strong>Snapshot URL format:</strong></p>
+  <pre><code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></pre>
+  <p>Or use dynamic snapshot action: Action: <strong>Test Snapshot</strong> — Checks <strong>Last Snapshot URL</strong>
+    property for result.</p>
+
+  <h3>PTZ Control (Limited)</h3>
+  <p>VD05 has limited PTZ functionality:</p>
+  <ul>
+    <li>Digital zoom only (no mechanical pan/tilt)</li>
+    <li>Preset positions not available on doorbell</li>
+    <li>Use PTZ actions for zoom control only</li>
+  </ul>
+
+  <hr>
+
+  <h2>Properties Reference</h2>
+
+  <h3>Network Settings</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>IP Address</td>
+        <td>STRING</td>
+        <td>(DHCP assigned)</td>
+        <td>Doorbell's local IP address</td>
+      </tr>
+      <tr>
+        <td>HTTP Port</td>
+        <td>INTEGER</td>
+        <td>8080</td>
+        <td>Port for API and snapshots</td>
+      </tr>
+      <tr>
+        <td>RTSP Port</td>
+        <td>INTEGER</td>
+        <td>8554</td>
+        <td>Port for RTSP streaming</td>
+      </tr>
+      <tr>
+        <td>Authentication Type</td>
+        <td>LIST</td>
+        <td>BASIC</td>
+        <td>BASIC, DIGEST, or NONE</td>
+      </tr>
+      <tr>
+        <td>Username</td>
+        <td>STRING</td>
+        <td>SystemConnect</td>
+        <td>HTTP authentication username</td>
+      </tr>
+      <tr>
+        <td>Password</td>
+        <td>PASSWORD</td>
+        <td>123456</td>
+        <td>HTTP authentication password</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Device Identification</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>VID</td>
+        <td>STRING</td>
+        <td>(unique per device)</td>
+        <td>Virtual device ID from CldBus</td>
+      </tr>
+      <tr>
+        <td>Product ID</td>
+        <td>STRING</td>
+        <td>VD05</td>
+        <td>Doorbell model identifier</td>
+      </tr>
+      <tr>
+        <td>Device Name</td>
+        <td>STRING</td>
+        <td>VD05</td>
+        <td>Friendly device name</td>
+      </tr>
+      <tr>
+        <td>Account</td>
+        <td>STRING</td>
+        <td>pyabu@slomins.com</td>
+        <td>CldBus account email</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Streaming Settings</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Stream Path</td>
+        <td>STRING</td>
+        <td>stream1</td>
+        <td>Legacy RTSP stream path</td>
+      </tr>
+      <tr>
+        <td>Snapshot URL Path</td>
+        <td>STRING</td>
+        <td>/GetSnapshot</td>
+        <td>Legacy snapshot path</td>
+      </tr>
+      <tr>
+        <td>Default Resolution</td>
+        <td>LIST</td>
+        <td>1280x720</td>
+        <td>640x480, 1280x720, 1920x1080</td>
+      </tr>
+      <tr>
+        <td>PTZ Enabled</td>
+        <td>LIST</td>
+        <td>Yes</td>
+        <td>Enable PTZ controls (limited on VD05)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>API &amp; Authentication</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Base API URL</td>
+        <td>STRING</td>
+        <td>https://api.arpha-tech.com</td>
+        <td>CldBus API endpoint</td>
+      </tr>
+      <tr>
+        <td>ClientID</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>OAuth client ID</td>
+      </tr>
+      <tr>
+        <td>Public Key</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>RSA public key from API</td>
+      </tr>
+      <tr>
+        <td>Temp Token</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>Temporary authentication token</td>
+      </tr>
+      <tr>
+        <td>Exchange Token</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>Exchange authentication token</td>
+      </tr>
+      <tr>
+        <td>Auth Token</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>Persistent auth token</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>MQTT Settings</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Enable MQTT</td>
+        <td>LIST</td>
+        <td>False</td>
+        <td>Enable real-time MQTT events</td>
+      </tr>
+      <tr>
+        <td>MQTT Host</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>MQTT broker hostname</td>
+      </tr>
+      <tr>
+        <td>MQTT Port</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>MQTT broker port (8884)</td>
+      </tr>
+      <tr>
+        <td>MQTT Client ID</td>
+        <td>STRING</td>
+        <td>(auto)</td>
+        <td>Unique MQTT client ID</td>
+      </tr>
+      <tr>
+        <td>MQTT Secret</td>
+        <td>PASSWORD</td>
+        <td>(auto)</td>
+        <td>MQTT authentication secret</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Event Configuration</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Event Interval (ms)</td>
+        <td>INTEGER</td>
+        <td>5000</td>
+        <td>Event polling interval (0-30000ms)</td>
+      </tr>
+      <tr>
+        <td>Enable Alert Notifications</td>
+        <td>LIST</td>
+        <td>True</td>
+        <td>Doorbell ring, motion, intruder alerts</td>
+      </tr>
+      <tr>
+        <td>Enable Info Notifications</td>
+        <td>LIST</td>
+        <td>True</td>
+        <td>Online/offline, restart events</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Status Properties (Read-Only)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Status</td>
+        <td>STRING</td>
+        <td>Driver initialization status</td>
+      </tr>
+      <tr>
+        <td>Online</td>
+        <td>STRING</td>
+        <td>Doorbell online status (true/false)</td>
+      </tr>
+      <tr>
+        <td>Main Stream URL</td>
+        <td>STRING</td>
+        <td>Generated main RTSP URL</td>
+      </tr>
+      <tr>
+        <td>Sub Stream URL</td>
+        <td>STRING</td>
+        <td>Generated sub RTSP URL</td>
+      </tr>
+      <tr>
+        <td>Last Motion</td>
+        <td>STRING</td>
+        <td>Last motion detection timestamp</td>
+      </tr>
+      <tr>
+        <td>Last Snapshot URL</td>
+        <td>STRING</td>
+        <td>Last captured snapshot URL</td>
+      </tr>
+      <tr>
+        <td>Last Clip URL</td>
+        <td>STRING</td>
+        <td>Last recorded video clip URL</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Actions Reference</h2>
+
+  <h3>Initialization Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Initialize</td>
+        <td>Run full initialization sequence</td>
+      </tr>
+      <tr>
+        <td>Login/Register</td>
+        <td>Authenticate with CldBus API</td>
+      </tr>
+      <tr>
+        <td>Get Temp Token</td>
+        <td>Retrieve temporary token</td>
+      </tr>
+      <tr>
+        <td>Get Exchange Token</td>
+        <td>Exchange for persistent token</td>
+      </tr>
+      <tr>
+        <td>Get Devices</td>
+        <td>List all devices on account</td>
+      </tr>
+      <tr>
+        <td>Bind Device</td>
+        <td>Bind doorbell to driver</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Streaming Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Test Snapshot</td>
+        <td>Test snapshot URL generation</td>
+      </tr>
+      <tr>
+        <td>Test Main Stream</td>
+        <td>Test high-quality RTSP stream</td>
+      </tr>
+      <tr>
+        <td>Test Sub Stream</td>
+        <td>Test low-quality RTSP stream</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Discovery Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Discover Cameras (HTTP Scan)</td>
+        <td>Scan IP range for doorbells</td>
+      </tr>
+      <tr>
+        <td>Discover Cameras (SDDP)</td>
+        <td>Multicast SDDP discovery</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>MQTT Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Get MQTT Info</td>
+        <td>Retrieve MQTT broker info</td>
+      </tr>
+      <tr>
+        <td>Connect MQTT</td>
+        <td>Connect to MQTT broker</td>
+      </tr>
+      <tr>
+        <td>Disconnect MQTT</td>
+        <td>Disconnect from MQTT</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Polling Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Start HTTP Polling</td>
+        <td>Start periodic status polling</td>
+      </tr>
+      <tr>
+        <td>Stop HTTP Polling</td>
+        <td>Stop HTTP polling</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Utility Actions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Test Push Notification</td>
+        <td>Send test notification</td>
+      </tr>
+      <tr>
+        <td>Get Camera Properties</td>
+        <td>Retrieve doorbell properties</td>
+      </tr>
+      <tr>
+        <td>Update UI Properties</td>
+        <td>Update Control4 UI</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Events</h2>
+  <p>The driver triggers Control4 events for automation:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Event ID</th>
+        <th>Event Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Motion Detected</td>
+        <td>Doorbell detected motion (alert, with snapshot)</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Doorbell Ring</td>
+        <td>Button pressed — primary doorbell event</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Human Detected</td>
+        <td>Person identified in frame</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Camera Online</td>
+        <td>Doorbell came online</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Camera Offline</td>
+        <td>Doorbell went offline</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Camera Restarted</td>
+        <td>Doorbell rebooted</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Event Automation Examples:</strong></p>
+  <p>Use Control4 programming to:</p>
+  <ul>
+    <li>Ring physical chime when doorbell pressed</li>
+    <li>Announce "Someone is at the front door"</li>
+    <li>Send push notification to mobile devices</li>
+    <li>Turn on porch lights when doorbell rings</li>
+    <li>Display video on TVs when motion detected</li>
+    <li>Record video clip on doorbell ring</li>
+  </ul>
+
+  <hr>
+
+  <h2>MQTT Configuration</h2>
+
+  <h3>Default Behavior</h3>
+  <p>MQTT is <strong>enabled automatically by the driver after authentication</strong>. The driver will automatically:
+  </p>
+  <ol>
+    <li>Enable MQTT</li>
+    <li>Fetch MQTT credentials</li>
+    <li>Connect to the MQTT broker</li>
+    <li>Subscribe to camera event topics</li>
+  </ol>
+  <p>You normally <strong>do not need to enable MQTT manually</strong>.</p>
+
+  <hr>
+
+  <h2>CldBus App Motion Detection Settings</h2>
+  <p>To receive <strong>Motion Detection</strong> and <strong>Human Detection</strong> events, detection must be enabled
+    in the <strong>CldBus mobile app</strong>.</p>
+
+  <h3>Steps</h3>
+  <ol>
+    <li>Open the <strong>CldBus App</strong></li>
+    <li>Select your <strong>camera device</strong></li>
+    <li>Tap <strong>Settings</strong></li>
+    <li>Navigate to <code>Settings → Motion Detection</code></li>
+    <li>Under <strong>Detection Type</strong>, select one of the following:</li>
+  </ol>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Detection Type</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>All Detections</strong></td>
+        <td>All movement events will trigger notifications. This includes general motion detection.</td>
+      </tr>
+      <tr>
+        <td><strong>Human Detection</strong></td>
+        <td>Only human movement will trigger events. Non-human motion will be ignored.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Push Notification Configuration</h2>
+
+  <h3>1. Create Push Notification</h3>
+  <ol>
+    <li>Open <strong>Composer Pro</strong></li>
+    <li>Navigate to <code>Agents → Push Notification</code></li>
+    <li>Click <strong>Add Notification</strong> then enter a name for the notification.</li>
+  </ol>
+  <p>Configure the following:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Setting</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Category</td>
+        <td>Cameras</td>
+      </tr>
+      <tr>
+        <td>Severity</td>
+        <td>Info / Critical</td>
+      </tr>
+      <tr>
+        <td>Subject</td>
+        <td>Camera Event</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Click <strong>Save</strong>.</p>
+
+  <h3>2. Enable Snapshot Attachment</h3>
+  <p>Edit the created notification and set:</p>
+  <pre><code>Attachment Type = Snapshot URL</code></pre>
+  <p>This allows push notifications to include the <strong>camera snapshot image</strong>.</p>
+
+  <h3>Mapping Push Notifications in Programming</h3>
+  <ol>
+    <li>In <strong>Composer Pro</strong>, open <strong>Programming</strong>.</li>
+    <li>Select the <strong>Camera Driver</strong> from the device list.</li>
+    <li>In the <strong>Events</strong> section, choose the event you want to trigger the notification (for example
+      <strong>Motion Detected</strong>).
+    </li>
+    <li>On the <strong>right-side panel</strong>, click <strong>Push Notifications</strong>.</li>
+    <li>From the dropdown list, select the <strong>notification you created earlier</strong>.</li>
+    <li>Drag and drop the notification into the programming area <strong>or double-click the green arrow</strong> to add
+      it.</li>
+  </ol>
+  <p>This maps the camera event to the push notification.</p>
+
+  <h3>Notification Flow</h3>
+  <pre><code>Camera Event (MQTT)
         ↓
 Driver Receives Event
         ↓
@@ -716,193 +1103,197 @@ Mobile Notification Sent
         ↓
 Snapshot Image Attached</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Troubleshooting</h2>
+  <h2>Troubleshooting</h2>
 
-<h3>Doorbell Not Ringing in Control4</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>MQTT is enabled and connected</li>
-  <li><strong>Enable Alert Notifications</strong> is set to <strong>True</strong></li>
-  <li>Doorbell button is functioning (test locally)</li>
-  <li>Event automation is configured in Control4 Programming</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Connect MQTT</strong> to establish connection</li>
-  <li>Verify MQTT connection in logs</li>
-  <li>Press doorbell button and check driver logs for "Doorbell Ring" event</li>
-  <li>Configure Control4 automation for doorbell ring event</li>
-</ol>
+  <h3>Doorbell Not Ringing in Control4</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>MQTT is enabled and connected</li>
+    <li><strong>Enable Alert Notifications</strong> is set to <strong>True</strong></li>
+    <li>Doorbell button is functioning (test locally)</li>
+    <li>Event automation is configured in Control4 Programming</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Connect MQTT</strong> to establish connection</li>
+    <li>Verify MQTT connection in logs</li>
+    <li>Press doorbell button and check driver logs for "Doorbell Ring" event</li>
+    <li>Configure Control4 automation for doorbell ring event</li>
+  </ol>
 
-<h3>Doorbell Not Initializing</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>IP address is correct and doorbell is reachable</li>
-  <li>Account credentials are valid</li>
-  <li>VID matches the actual device</li>
-  <li>Doorbell is powered on and connected to network</li>
-  <li>Power supply is adequate (16-24V AC)</li>
-</ol>
-<p><strong>Action:</strong> Run <strong>Initialize</strong> action and check logs.</p>
+  <h3>Doorbell Not Initializing</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>IP address is correct and doorbell is reachable</li>
+    <li>Account credentials are valid</li>
+    <li>VID matches the actual device</li>
+    <li>Doorbell is powered on and connected to network</li>
+    <li>Power supply is adequate (16-24V AC)</li>
+  </ol>
+  <p><strong>Action:</strong> Run <strong>Initialize</strong> action and check logs.</p>
 
-<h3>No Video Stream</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>RTSP port 8554 is open and accessible</li>
-  <li>Main/Sub Stream URL properties are populated</li>
-  <li>Network bandwidth is sufficient for streaming</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Test Main Stream</strong> or <strong>Test Sub Stream</strong></li>
-  <li>Check generated RTSP URL in logs</li>
-  <li>Verify network connectivity to doorbell</li>
-</ol>
+  <h3>No Video Stream</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>RTSP port 8554 is open and accessible</li>
+    <li>Main/Sub Stream URL properties are populated</li>
+    <li>Network bandwidth is sufficient for streaming</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Test Main Stream</strong> or <strong>Test Sub Stream</strong></li>
+    <li>Check generated RTSP URL in logs</li>
+    <li>Verify network connectivity to doorbell</li>
+  </ol>
 
-<h3>MQTT Events Not Working</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li><strong>Enable MQTT</strong> property is set to <strong>True</strong></li>
-  <li>MQTT broker info is retrieved (Host, Port, Client ID, Secret)</li>
-  <li>Port 8884 is accessible</li>
-  <li>Network firewall allows MQTT over SSL</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Get MQTT Info</strong> to populate MQTT settings</li>
-  <li>Run <strong>Connect MQTT</strong> to establish connection</li>
-  <li>Check <strong>MQTT Host</strong> and <strong>MQTT Port</strong> properties are filled</li>
-  <li>Verify in logs: <code>MQTT Connected</code></li>
-</ol>
+  <h3>MQTT Events Not Working</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Enable MQTT</strong> property is set to <strong>True</strong></li>
+    <li>MQTT broker info is retrieved (Host, Port, Client ID, Secret)</li>
+    <li>Port 8884 is accessible</li>
+    <li>Network firewall allows MQTT over SSL</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Get MQTT Info</strong> to populate MQTT settings</li>
+    <li>Run <strong>Connect MQTT</strong> to establish connection</li>
+    <li>Check <strong>MQTT Host</strong> and <strong>MQTT Port</strong> properties are filled</li>
+    <li>Verify in logs: <code>MQTT Connected</code></li>
+  </ol>
 
-<h3>Two-Way Audio Not Working</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Control4 app version supports intercom on cameras</li>
-  <li>Audio permissions enabled on mobile device</li>
-  <li>Network has sufficient bandwidth for audio streaming</li>
-  <li>Doorbell microphone and speaker are functional</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Test audio locally with Slomins app</li>
-  <li>Verify RTSP stream includes audio track</li>
-  <li>Check Control4 app settings for audio support</li>
-</ol>
+  <h3>Two-Way Audio Not Working</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Control4 app version supports intercom on cameras</li>
+    <li>Audio permissions enabled on mobile device</li>
+    <li>Network has sufficient bandwidth for audio streaming</li>
+    <li>Doorbell microphone and speaker are functional</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Test audio locally with Slomins app</li>
+    <li>Verify RTSP stream includes audio track</li>
+    <li>Check Control4 app settings for audio support</li>
+  </ol>
 
-<h3>Snapshot Not Capturing</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>HTTP Port 8080 is accessible</li>
-  <li>Authentication credentials are correct</li>
-  <li>Snapshot path is valid</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Test Snapshot</strong> action</li>
-  <li>Check <strong>Last Snapshot URL</strong> property</li>
-  <li>Test URL in browser: <code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></li>
-</ol>
+  <h3>Snapshot Not Capturing</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>HTTP Port 8080 is accessible</li>
+    <li>Authentication credentials are correct</li>
+    <li>Snapshot path is valid</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Test Snapshot</strong> action</li>
+    <li>Check <strong>Last Snapshot URL</strong> property</li>
+    <li>Test URL in browser: <code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></li>
+  </ol>
 
-<h3>Discovery Not Finding Doorbell</h3>
-<p><strong>HTTP Scan:</strong></p>
-<ul>
-  <li>Ensure doorbell IP is within scan range</li>
-  <li>Adjust <strong>IP Scan Range End</strong> property</li>
-  <li>Doorbell must respond to HTTP on port 8080</li>
-</ul>
-<p><strong>SDDP:</strong></p>
-<ul>
-  <li>Doorbell must support SDDP protocol</li>
-  <li>Multicast must be enabled on network</li>
-  <li>Check firewall allows multicast traffic</li>
-</ul>
+  <h3>Discovery Not Finding Doorbell</h3>
+  <p><strong>HTTP Scan:</strong></p>
+  <ul>
+    <li>Ensure doorbell IP is within scan range</li>
+    <li>Adjust <strong>IP Scan Range End</strong> property</li>
+    <li>Doorbell must respond to HTTP on port 8080</li>
+  </ul>
+  <p><strong>SDDP:</strong></p>
+  <ul>
+    <li>Doorbell must support SDDP protocol</li>
+    <li>Multicast must be enabled on network</li>
+    <li>Check firewall allows multicast traffic</li>
+  </ul>
 
-<h3>Authentication Failures</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li><strong>Account</strong> property has valid CldBus email</li>
-  <li><strong>Public Key</strong> is retrieved from API</li>
-  <li><strong>Base API URL</strong> is correct: <code>https://api.arpha-tech.com</code></li>
-  <li>Network can reach API endpoint</li>
-</ol>
-<p><strong>Action:</strong></p>
-<ol>
-  <li>Run <strong>Login/Register</strong> action</li>
-  <li>Check for "Authentication successful" in logs</li>
-  <li>Verify <strong>Temp Token</strong> property is populated</li>
-</ol>
+  <h3>Authentication Failures</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Account</strong> property has valid CldBus email</li>
+    <li><strong>Public Key</strong> is retrieved from API</li>
+    <li><strong>Base API URL</strong> is correct: <code>https://api.arpha-tech.com</code></li>
+    <li>Network can reach API endpoint</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Run <strong>Login/Register</strong> action</li>
+    <li>Check for "Authentication successful" in logs</li>
+    <li>Verify <strong>Temp Token</strong> property is populated</li>
+  </ol>
 
-<h3>Doorbell Shows Offline</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Power supply is connected and adequate (16-24V AC minimum)</li>
-  <li>Wi-Fi signal strength is sufficient</li>
-  <li>Network has not changed (SSID/password)</li>
-  <li>Doorbell hasn't been reset</li>
-</ol>
-<p><strong>Solution:</strong></p>
-<ol>
-  <li>Check physical power connection</li>
-  <li>Verify Wi-Fi connection on doorbell</li>
-  <li>Run <strong>Get Camera Properties</strong> action</li>
-  <li>Check <strong>Online</strong> property in driver</li>
-</ol>
+  <h3>Doorbell Shows Offline</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Power supply is connected and adequate (16-24V AC minimum)</li>
+    <li>Wi-Fi signal strength is sufficient</li>
+    <li>Network has not changed (SSID/password)</li>
+    <li>Doorbell hasn't been reset</li>
+  </ol>
+  <p><strong>Solution:</strong></p>
+  <ol>
+    <li>Check physical power connection</li>
+    <li>Verify Wi-Fi connection on doorbell</li>
+    <li>Run <strong>Get Camera Properties</strong> action</li>
+    <li>Check <strong>Online</strong> property in driver</li>
+  </ol>
 
-<h3>Video Quality Issues</h3>
-<p><strong>Check:</strong></p>
-<ol>
-  <li>Network bandwidth is sufficient</li>
-  <li>Using appropriate stream (main vs sub)</li>
-  <li>Wi-Fi signal strength is good</li>
-  <li>Multiple devices not streaming simultaneously</li>
-</ol>
-<p><strong>Solution:</strong></p>
-<ol>
-  <li>Use sub stream for lower bandwidth</li>
-  <li>Check network speed to doorbell</li>
-  <li>Move Wi-Fi access point closer if needed</li>
-  <li>Enable QoS for video traffic on router</li>
-</ol>
+  <h3>Video Quality Issues</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Network bandwidth is sufficient</li>
+    <li>Using appropriate stream (main vs sub)</li>
+    <li>Wi-Fi signal strength is good</li>
+    <li>Multiple devices not streaming simultaneously</li>
+  </ol>
+  <p><strong>Solution:</strong></p>
+  <ol>
+    <li>Use sub stream for lower bandwidth</li>
+    <li>Check network speed to doorbell</li>
+    <li>Move Wi-Fi access point closer if needed</li>
+    <li>Enable QoS for video traffic on router</li>
+  </ol>
 
-<hr>
+  <hr>
 
-<h2>Technical Notes</h2>
+  <h2>Technical Notes</h2>
 
-<h3>RTSP URL Format</h3>
-<p>The driver generates RTSP URLs in the format:</p>
-<pre><code>rtsp://[IP]:[PORT]/streamtype=[TYPE]</code></pre>
-<ul>
-  <li><strong>IP:</strong> Doorbell IP address</li>
-  <li><strong>PORT:</strong> RTSP port (default 8554)</li>
-  <li><strong>TYPE:</strong>
-    <ul>
-      <li><code>0</code> = Sub stream (low quality, low bandwidth)</li>
-      <li><code>1</code> = Main stream (high quality, higher bandwidth)</li>
-    </ul>
-  </li>
-</ul>
-<p><strong>Example URLs:</strong></p>
-<pre><code>Main: rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1
+  <h3>RTSP URL Format</h3>
+  <p>The driver generates RTSP URLs in the format:</p>
+  <pre><code>rtsp://[IP]:[PORT]/streamtype=[TYPE]</code></pre>
+  <ul>
+    <li><strong>IP:</strong> Doorbell IP address</li>
+    <li><strong>PORT:</strong> RTSP port (default 8554)</li>
+    <li><strong>TYPE:</strong>
+      <ul>
+        <li><code>0</code> = Sub stream (low quality, low bandwidth)</li>
+        <li><code>1</code> = Main stream (high quality, higher bandwidth)</li>
+      </ul>
+    </li>
+  </ul>
+  <p><strong>Example URLs:</strong></p>
+  <pre><code>Main: rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1
 Sub:  rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></pre>
 
-<h3>CldBus API Authentication Flow</h3>
-<ol>
-  <li><strong>Initialize Camera:</strong> GET <code>/v1/init</code> → Retrieve RSA public key</li>
-  <li><strong>Login/Register:</strong> Encrypt account with RSA-OAEP-SHA256 → POST <code>/v1/LoginOrRegisterUser</code> → Get temporary token</li>
-  <li><strong>Get Temp Token:</strong> Generate HMAC-SHA256 signature → GET <code>/v1/TempTokenGet</code> → Verify temp token</li>
-  <li><strong>Exchange Token:</strong> POST <code>/v1/TempTokenExchange</code> → Get exchange token</li>
-  <li><strong>Bind Device:</strong> POST <code>/v1/BindDeviceToUser</code> → Associate VID with account</li>
-  <li><strong>Ongoing API Calls:</strong> Use <code>Authorization: Bearer [auth_token]</code> header with HMAC signature on each request</li>
-</ol>
+  <h3>CldBus API Authentication Flow</h3>
+  <ol>
+    <li><strong>Initialize Camera:</strong> GET <code>/v1/init</code> → Retrieve RSA public key</li>
+    <li><strong>Login/Register:</strong> Encrypt account with RSA-OAEP-SHA256 → POST
+      <code>/v1/LoginOrRegisterUser</code> → Get temporary token
+    </li>
+    <li><strong>Get Temp Token:</strong> Generate HMAC-SHA256 signature → GET <code>/v1/TempTokenGet</code> → Verify
+      temp token</li>
+    <li><strong>Exchange Token:</strong> POST <code>/v1/TempTokenExchange</code> → Get exchange token</li>
+    <li><strong>Bind Device:</strong> POST <code>/v1/BindDeviceToUser</code> → Associate VID with account</li>
+    <li><strong>Ongoing API Calls:</strong> Use <code>Authorization: Bearer [auth_token]</code> header with HMAC
+      signature on each request</li>
+  </ol>
 
-<h3>MQTT Event Format for Doorbell</h3>
-<p>Events received on MQTT topic: <code>{VID}/events</code></p>
+  <h3>MQTT Event Format for Doorbell</h3>
+  <p>Events received on MQTT topic: <code>{VID}/events</code></p>
 
-<p><strong>Doorbell Ring Example:</strong></p>
-<pre><code>{
+  <p><strong>Doorbell Ring Example:</strong></p>
+  <pre><code>{
   "event": "doorbell_ring",
   "timestamp": 1708300000,
   "snapshot_url": "http://[DOORBELL_IP]:8080/snapshot/12345.jpg",
@@ -910,63 +1301,66 @@ Sub:  rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></pre>
   "button": "pressed"
 }</code></pre>
 
-<p><strong>Motion Detection Example:</strong></p>
-<pre><code>{
+  <p><strong>Motion Detection Example:</strong></p>
+  <pre><code>{
   "event": "motion",
   "timestamp": 1708300000,
   "snapshot_url": "http://[DOORBELL_IP]:8080/snapshot/12346.jpg",
   "device_id": "[YOUR_DEVICE_VID]"
 }</code></pre>
 
-<p>Driver parses events and triggers corresponding Control4 events.</p>
+  <p>Driver parses events and triggers corresponding Control4 events.</p>
 
-<h3>Connection Types</h3>
-<p>The driver maintains multiple connections:</p>
-<ol>
-  <li><strong>Camera Connection (5001):</strong> Type: CAMERA, Facing: 6 (bidirectional), Purpose: Control4 camera proxy interface, Hidden: True (doorbell button is primary interface)</li>
-  <li><strong>Network/MQTT Connection (6001):</strong> Type: TCP, Ports: 3333 (API), 554 (RTSP), 8884 (MQTT SSL), Purpose: Network communication</li>
-  <li><strong>Keep-Alive Connection (7001):</strong> Type: TCP, Port: 8081, Features: Auto-connect, keep-alive, connection monitoring, Purpose: Persistent connection to doorbell</li>
-</ol>
+  <h3>Connection Types</h3>
+  <p>The driver maintains multiple connections:</p>
+  <ol>
+    <li><strong>Camera Connection (5001):</strong> Type: CAMERA, Facing: 6 (bidirectional), Purpose: Control4 camera
+      proxy interface, Hidden: True (doorbell button is primary interface)</li>
+    <li><strong>Network/MQTT Connection (6001):</strong> Type: TCP, Ports: 3333 (API), 554 (RTSP), 8884 (MQTT SSL),
+      Purpose: Network communication</li>
+    <li><strong>Keep-Alive Connection (7001):</strong> Type: TCP, Port: 8081, Features: Auto-connect, keep-alive,
+      connection monitoring, Purpose: Persistent connection to doorbell</li>
+  </ol>
 
-<h3>Doorbell Button LED</h3>
-<p>VD05 has LED ring around button:</p>
-<ul>
-  <li><strong>Solid White:</strong> Normal operation, online</li>
-  <li><strong>Pulsing White:</strong> Processing (button pressed)</li>
-  <li><strong>Red:</strong> Offline or error</li>
-  <li><strong>Blue:</strong> Pairing/setup mode</li>
-</ul>
+  <h3>Doorbell Button LED</h3>
+  <p>VD05 has LED ring around button:</p>
+  <ul>
+    <li><strong>Solid White:</strong> Normal operation, online</li>
+    <li><strong>Pulsing White:</strong> Processing (button pressed)</li>
+    <li><strong>Red:</strong> Offline or error</li>
+    <li><strong>Blue:</strong> Pairing/setup mode</li>
+  </ul>
 
-<h3>Power Requirements</h3>
-<ul>
-  <li><strong>Voltage:</strong> 16-24V AC</li>
-  <li><strong>Current:</strong> Minimum 1A recommended</li>
-  <li><strong>Source:</strong> Doorbell transformer or dedicated AC adapter</li>
-  <li><strong>Note:</strong> Insufficient power may cause random disconnections</li>
-</ul>
+  <h3>Power Requirements</h3>
+  <ul>
+    <li><strong>Voltage:</strong> 16-24V AC</li>
+    <li><strong>Current:</strong> Minimum 1A recommended</li>
+    <li><strong>Source:</strong> Doorbell transformer or dedicated AC adapter</li>
+    <li><strong>Note:</strong> Insufficient power may cause random disconnections</li>
+  </ul>
 
-<h3>Video Codec Support</h3>
-<ul>
-  <li><strong>H.264 (Recommended):</strong> Widely compatible, lower bandwidth</li>
-  <li><strong>H.265 (HEVC):</strong> Better compression, higher quality, requires more CPU</li>
-</ul>
-<p>Control4 prefers H.264 for maximum compatibility.</p>
+  <h3>Video Codec Support</h3>
+  <ul>
+    <li><strong>H.264 (Recommended):</strong> Widely compatible, lower bandwidth</li>
+    <li><strong>H.265 (HEVC):</strong> Better compression, higher quality, requires more CPU</li>
+  </ul>
+  <p>Control4 prefers H.264 for maximum compatibility.</p>
 
-<hr>
+  <hr>
 
-<h2>Integration Examples</h2>
+  <h2>Integration Examples</h2>
 
-<h3>Example 1: Doorbell Chime Automation</h3>
-<p><strong>Scenario:</strong> Ring physical chime when doorbell pressed</p>
-<pre><code>When: Slomins VD05 → Doorbell Ring
+  <h3>Example 1: Doorbell Chime Automation</h3>
+  <p><strong>Scenario:</strong> Ring physical chime when doorbell pressed</p>
+  <pre><code>When: Slomins VD05 → Doorbell Ring
 Then:
   - Doorbell Chime → Activate
   - Wait 5 seconds
   - Doorbell Chime → Deactivate</code></pre>
 
-<h3>Example 2: Video Display on TV</h3>
-<p><strong>Scenario:</strong> Show doorbell video on living room TV when pressed</p>
-<pre><code>When: Slomins VD05 → Doorbell Ring
+  <h3>Example 2: Video Display on TV</h3>
+  <p><strong>Scenario:</strong> Show doorbell video on living room TV when pressed</p>
+  <pre><code>When: Slomins VD05 → Doorbell Ring
 Then:
   - Living Room TV → Power On
   - Living Room TV → Select HDMI 1 (Control4 Matrix)
@@ -974,9 +1368,9 @@ Then:
   - Wait 30 seconds
   - Living Room TV → Return to Previous Input</code></pre>
 
-<h3>Example 3: Security Mode Integration</h3>
-<p><strong>Scenario:</strong> Enhanced alerts when away</p>
-<pre><code>When: Slomins VD05 → Motion Detected
+  <h3>Example 3: Security Mode Integration</h3>
+  <p><strong>Scenario:</strong> Enhanced alerts when away</p>
+  <pre><code>When: Slomins VD05 → Motion Detected
 If: Security System → State is "Away"
 Then:
   - Send notification "Motion at front door while away"
@@ -984,44 +1378,44 @@ Then:
   - Start recording: NVR Camera Group
   - Send snapshot to mobile app</code></pre>
 
-<h3>Example 4: Package Delivery Detection</h3>
-<p><strong>Scenario:</strong> Alert on human detection during day</p>
-<pre><code>When: Slomins VD05 → Human Detected
+  <h3>Example 4: Package Delivery Detection</h3>
+  <p><strong>Scenario:</strong> Alert on human detection during day</p>
+  <pre><code>When: Slomins VD05 → Human Detected
 If: Time is between 9:00 AM and 6:00 PM
 Then:
   - Announce "Delivery detected at front door"
   - Send notification with snapshot
   - Start recording for 2 minutes</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Support</h2>
-<p><strong>Slomins Support:</strong></p>
-<ul>
-  <li>Website: <a href="https://www.slomins.com">www.slomins.com</a></li>
-  <li>Email: <a href="mailto:support@slomins.com">support@slomins.com</a></li>
-  <li>Phone: Customer service hotline</li>
-</ul>
+  <h2>Support</h2>
+  <p><strong>Slomins Support:</strong></p>
+  <ul>
+    <li>Website: <a href="https://www.slomins.com">www.slomins.com</a></li>
+    <li>Email: <a href="mailto:support@slomins.com">support@slomins.com</a></li>
+    <li>Phone: Customer service hotline</li>
+  </ul>
 
-<p><strong>CldBus API Issues:</strong></p>
-<ul>
-  <li>API Endpoint: <a href="https://api.arpha-tech.com">https://api.arpha-tech.com</a></li>
-  <li>Contact: API support via Slomins</li>
-</ul>
+  <p><strong>CldBus API Issues:</strong></p>
+  <ul>
+    <li>API Endpoint: <a href="https://api.arpha-tech.com">https://api.arpha-tech.com</a></li>
+    <li>Contact: API support via Slomins</li>
+  </ul>
 
-<p><strong>Control4 Integration:</strong></p>
-<ul>
-  <li>Requires Control4 Composer Pro for installation</li>
-  <li>Compatible with Control4 OS 3.3.2 and newer</li>
-  <li>Doorbell automation programming available</li>
-</ul>
+  <p><strong>Control4 Integration:</strong></p>
+  <ul>
+    <li>Requires Control4 Composer Pro for installation</li>
+    <li>Compatible with Control4 OS 3.3.2 and newer</li>
+    <li>Doorbell automation programming available</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<h2>Building the Driver</h2>
+  <h2>Building the Driver</h2>
 
-<h3>Files Structure</h3>
-<pre><code>Slomins-doorbell-VD05/
+  <h3>Files Structure</h3>
+  <pre><code>Slomins-doorbell-VD05/
 ├── driver.lua              # Main driver logic
 ├── driver.xml              # Configuration &amp; metadata
 ├── mqtt_manager.lua        # MQTT event streaming &amp; broker management
@@ -1035,13 +1429,13 @@ Then:
 │   └── util.lua
 └── build-c4z.ps1           # Build script</code></pre>
 
-<h3>Build Package</h3>
-<p>Run in PowerShell:</p>
-<pre><code>.\build-c4z.ps1</code></pre>
-<p>This creates <code>Slomins-doorbell-VD05-v1.0.0.c4z</code> ready for installation.</p>
+  <h3>Build Package</h3>
+  <p>Run in PowerShell:</p>
+  <pre><code>.\build-c4z.ps1</code></pre>
+  <p>This creates <code>Slomins-doorbell-VD05-v1.0.0.c4z</code> ready for installation.</p>
 
-<h3>Manual Build</h3>
-<pre><code>$files = @(
+  <h3>Manual Build</h3>
+  <pre><code>$files = @(
     "driver.lua",
     "driver.xml",
     "mqtt_manager.lua",
@@ -1052,78 +1446,116 @@ Then:
 Compress-Archive -Path $files -DestinationPath "temp.zip"
 Rename-Item "temp.zip" "Slomins-doorbell-VD05.c4z"</code></pre>
 
-<hr>
+  <hr>
 
-<h2>Version History</h2>
+  <h2>Version History</h2>
 
-<h3>v1.0.5 (Current)</h3>
-<ul>
-  <li>Updated Control4 Camera Programming Options</li>
-  <li><strong>Device Events</strong>: Added "Anti Pry alarm is triggered", "Registered User Detected"</li>
-  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =</li>
-  <li><strong>Commands Removed</strong>: TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, INITIALIZE_CAMERA, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, AWAKE_CAMERA, GET_MQTT_INFO, CONNECT_MQTT, DISCONNECT_MQTT, GET_CAMERA_PROPERTIES, UPDATE_UI_PROPERTIES, START_HTTP_POLLING, STOP_HTTP_POLLING, PRESET_SAVE, PRESET_RECALL</li>
-  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If battery is &lt;,&gt; or =, Sensitivity =</li>
-</ul>
+  <h3>v1.0.6 (Current)</h3>
+  <ul>
+    <li>Removed hardcoded AppName</li>
+  </ul>
 
-<h3>v1.0.0</h3>
-<ul>
-  <li>Initial release</li>
-  <li>CldBus API integration</li>
-  <li>RTSP streaming support</li>
-  <li>Doorbell ring detection</li>
-  <li>Two-way audio support</li>
-  <li>Motion and human detection</li>
-  <li>MQTT event streaming</li>
-  <li>HTTP polling mode</li>
-  <li>Snapshot capture</li>
-  <li>PTZ controls (digital zoom)</li>
-  <li>Control4 event integration</li>
-</ul>
+  <h3>v1.0.5</h3>
+  <ul>
+    <li>Updated Control4 Camera Programming Options</li>
+    <li><strong>Device Events</strong>: Added "Anti Pry alarm is triggered", "Registered User Detected"</li>
+    <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker
+      volume, Turn down speaker volume, Sensitivity =</li>
+    <li><strong>Commands Removed</strong>: TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE,
+      INITIALIZE_CAMERA, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, AWAKE_CAMERA,
+      GET_MQTT_INFO, CONNECT_MQTT, DISCONNECT_MQTT, GET_CAMERA_PROPERTIES, UPDATE_UI_PROPERTIES, START_HTTP_POLLING,
+      STOP_HTTP_POLLING, PRESET_SAVE, PRESET_RECALL</li>
+    <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted,
+      If Speaker volume is 1-10, If battery is &lt;,&gt; or =, Sensitivity =</li>
+  </ul>
 
-<hr>
 
-<h2>License</h2>
-<p>Copyright &copy; 2025 Slomins. All Rights Reserved.</p>
-<p>This driver is proprietary software provided by Slomins for use with Slomins branded video doorbells and Control4 home automation systems. Unauthorized distribution, modification, or reverse engineering is prohibited.</p>
+  <h3>v1.0.4</h3>
+  <ul>
+    <li>Bug fixes for low battery alert implementation, including timer and recovery logic</li>
+  </ul>
 
-<hr>
 
-<h2>Appendix: Quick Reference</h2>
+  <h3>v1.0.3</h3>
+  <ul>
+    <li>Send Control4 notification marked as critical if battery percentage is less than 15%</li>
+    <li>Send notification every 4–6 hours (interval should be configurable in properties; default is 6 hours)</li>
+    <li>Disable the timer if battery level is greater than 80%</li>
+    <li>Enable the timer only when the first notification below 15% is received</li>
+  </ul>
 
-<h3>Default Ports</h3>
-<ul>
-  <li><strong>HTTP:</strong> 8080</li>
-  <li><strong>RTSP:</strong> 8554</li>
-  <li><strong>TCP:</strong> 3333, 8081</li>
-  <li><strong>MQTT:</strong> 8884 (SSL)</li>
-</ul>
 
-<h3>Example Device</h3>
-<ul>
-  <li><strong>Model:</strong> VD05</li>
-  <li><strong>IP:</strong> Assigned by your router (DHCP)</li>
-  <li><strong>VID:</strong> Unique per device</li>
-</ul>
+  <h3>v1.0.2</h3>
+  <ul>
+    <li>convert the readme.md file to readme.html file</li>
+  </ul>
 
-<h3>RTSP URLs</h3>
-<pre><code>Main: rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1
+  <h3>v1.0.1</h3>
+  <ul>
+    <li></li>
+  </ul>
+
+  <h3>v1.0.0</h3>
+  <ul>
+    <li>Initial release</li>
+    <li>CldBus API integration</li>
+    <li>RTSP streaming support</li>
+    <li>Doorbell ring detection</li>
+    <li>Two-way audio support</li>
+    <li>Motion and human detection</li>
+    <li>MQTT event streaming</li>
+    <li>HTTP polling mode</li>
+    <li>Snapshot capture</li>
+    <li>PTZ controls (digital zoom)</li>
+    <li>Control4 event integration</li>
+  </ul>
+
+  <hr>
+
+  <h2>License</h2>
+  <p>Copyright &copy; 2025 Slomins. All Rights Reserved.</p>
+  <p>This driver is proprietary software provided by Slomins for use with Slomins branded video doorbells and Control4
+    home automation systems. Unauthorized distribution, modification, or reverse engineering is prohibited.</p>
+
+  <hr>
+
+  <h2>Appendix: Quick Reference</h2>
+
+  <h3>Default Ports</h3>
+  <ul>
+    <li><strong>HTTP:</strong> 8080</li>
+    <li><strong>RTSP:</strong> 8554</li>
+    <li><strong>TCP:</strong> 3333, 8081</li>
+    <li><strong>MQTT:</strong> 8884 (SSL)</li>
+  </ul>
+
+  <h3>Example Device</h3>
+  <ul>
+    <li><strong>Model:</strong> VD05</li>
+    <li><strong>IP:</strong> Assigned by your router (DHCP)</li>
+    <li><strong>VID:</strong> Unique per device</li>
+  </ul>
+
+  <h3>RTSP URLs</h3>
+  <pre><code>Main: rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=1
 Sub:  rtsp://[YOUR_DOORBELL_IP]:8554/streamtype=0</code></pre>
 
-<h3>Snapshot URL</h3>
-<pre><code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></pre>
+  <h3>Snapshot URL</h3>
+  <pre><code>http://[YOUR_DOORBELL_IP]:8080/tmp/snap.jpeg</code></pre>
 
-<h3>Primary Events</h3>
-<ul>
-  <li><strong>Doorbell Ring</strong> — Button pressed</li>
-  <li><strong>Motion Detected</strong> — Movement at door</li>
-  <li><strong>Human Detected</strong> — Person identified</li>
-  <li><strong>Stranger Detected</strong> — Unrecognized person identified</li>
-  <li><strong>Camera Offline</strong> — Connectivity lost</li>
-</ul>
+  <h3>Primary Events</h3>
+  <ul>
+    <li><strong>Doorbell Ring</strong> — Button pressed</li>
+    <li><strong>Motion Detected</strong> — Movement at door</li>
+    <li><strong>Human Detected</strong> — Person identified</li>
+    <li><strong>Stranger Detected</strong> — Unrecognized person identified</li>
+    <li><strong>Camera Offline</strong> — Connectivity lost</li>
+  </ul>
 
-<hr>
+  <hr>
 
-<p><em>End of Documentation</em></p>
+  <p><em>End of Documentation</em></p>
 
 </body>
+
 </html>
