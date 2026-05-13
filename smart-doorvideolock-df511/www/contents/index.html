@@ -33,9 +33,12 @@
         }
 
         .smartlockui {
-            min-height: 100vh;
-            background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 100%) !important;
-        }
+    min-height: 100vh;
+    background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 100%) !important;
+    /* Remove display:none logic entirely — let it render immediately */
+    visibility: visible;
+    opacity: 1;
+}
 
         /* ── Header ── */
         .header {
@@ -265,7 +268,7 @@
     <div class="sucess_popup">Success</div>
     <div class="overlay"></div>
 
-    <div class="smartlockui" style="display:none;">
+    <div class="smartlockui">
 
         <header class="header">
             <img src="images/slomins-logo-new-white.png" alt="Slomins" />

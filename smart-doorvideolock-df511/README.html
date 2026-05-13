@@ -76,7 +76,7 @@
 
 ## Overview
 
-Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, PTZ support, lock control, and real-time MQTT event detection.
+Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, lock control, and real-time MQTT event detection.
 
 **Version:** 1.0.2<br>
 **Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)<br>
@@ -386,12 +386,6 @@ Accessible via **Device → Actions**
 * Test Sub Stream
 * Get Snapshot URL
 
-### PTZ Controls
-
-* PTZ Up
-* PTZ Down
-* PTZ Left
-* PTZ Right
 
 ### Lock Controls
 
@@ -747,7 +741,6 @@ local client_id = util.uuid_v4()
 * Device listing
 * RTSP streaming
 * Snapshot support
-* PTZ controls
 * Lock proxy integration
 * MQTT real-time event detection
 * Push notification support
@@ -760,7 +753,7 @@ local client_id = util.uuid_v4()
 * Manually Locking and locking trigger events/Scenes in Control4
 
 ### v1.0.3
-*
+* Implemented real-time state synchronization for lock/unlock status to ensure the UI reflects changes instantly without requiring a refresh.
 
 
 ### v1.0.4
@@ -787,7 +780,9 @@ local client_id = util.uuid_v4()
 
 
 ### v1.0.9
-* 
+* Fixed an issue with low battery notifications where MQTT was not re-enabled after VID changes.
+* Minor bug fixes and improvements.
+
 
 ### v1.0.10
 * Updated Control4 Camera Programming Options
@@ -797,6 +792,20 @@ local client_id = util.uuid_v4()
 * **DF511 Door Lock Commands Removed**: Toggle Door Lock
 * **Conditions Added**: If Speaker volume is 1-10, If battery is &lt;,&gt; or =, If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, Sensitivity = 
 
+### v1.0.11
+* Updates- Added device variable to display **FaceName** in face detection notifications.
+* How to Display Face Name in Push Notifications
+
+1. Open **Control4 Composer Pro**
+2. Navigate to **Agents** → **Notifications**
+3. Select or create a notification for the **Face Detected** event
+4. In the notification message body, click **Add Variable**
+5. In the variable picker tree, expand your **DF511 Door Lock** device
+6. Expand **Device Variables**
+7. Select **FaceName** from the list
+8. Click **OK**
+
+* Fixes- Resolved issue where the **lock UI was taking time to load** in the updated Control4 app.
 ---
 
 # Support

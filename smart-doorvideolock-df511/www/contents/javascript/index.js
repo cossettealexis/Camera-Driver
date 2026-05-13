@@ -85,52 +85,90 @@ function pollBatteryFile() {
 }
 
 // ── Init ─────────────────────────────────────────────
+// document.addEventListener('DOMContentLoaded', function () {
+//     try {
+//         // Load lock state from file
+//         fetch('lockstate.json?t=' + Date.now())
+//             .then(function (r) { return r.json(); })
+//             .then(function (data) {
+//                 if (data.state && data.state !== 'unknown') {
+//                     applyLockState(data.state);
+//                     window._lastKnownState = data.state;
+//                 }
+//             })
+//             .catch(function () {});
+
+//         startStatePolling();
+//         startBatteryPolling();
+
+//         // Subscribe to real-time pushes from Lua
+//         C4.subscribeToDataToUi(true);
+//         C4.subscribeToVariable('LAST_ROOM_SELECTED');
+//         C4.subscribeToVariable('LAST_MENU_SELECTED');
+//         C4.sendCommand('sendCameraPreviewCommand', '', false, false);
+
+//         setTimeout(function () {
+//             C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+//         }, 300);
+
+//         // Staggered battery re-requests — catches cases where Lua pushes
+//         // before the WebView subscription is ready
+//         setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 1000);
+//         setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 3000);
+
+//     } catch (e) {
+//         dbg('INIT ERR: ' + e.message);
+//     }
+// });
+
 document.addEventListener('DOMContentLoaded', function () {
     try {
-        // Load lock state from file
-        fetch('lockstate.json?t=' + Date.now())
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.state && data.state !== 'unknown') {
-                    applyLockState(data.state);
-                    window._lastKnownState = data.state;
-                }
-            })
-            .catch(function () {});
+        // Fire all requests in parallel immediately
+        Promise.all([
+            fetch('lockstate.json?t=' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    if (data.state && data.state !== 'unknown') {
+                        applyLockState(data.state);
+                        window._lastKnownState = data.state;
+                    }
+                }).catch(() => {}),
+
+            fetch('battery.json?t=' + Date.now())
+                .then(r => r.json())
+                .then(data => {
+                    if (data.battery !== undefined) updateBatteryUI(data.battery);
+                }).catch(() => {})
+        ]);
 
         startStatePolling();
         startBatteryPolling();
 
-        // Subscribe to real-time pushes from Lua
         C4.subscribeToDataToUi(true);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
         C4.sendCommand('sendCameraPreviewCommand', '', false, false);
+        C4.sendCommand('REQUEST_SETTINGS', '', false, false);
 
-        setTimeout(function () {
-            C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-        }, 300);
-
-        // Staggered battery re-requests — catches cases where Lua pushes
-        // before the WebView subscription is ready
-        setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 1000);
-        setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 3000);
+        // Staggered fallback requests
+        setTimeout(() => C4.sendCommand('REQUEST_SETTINGS', '', false, false), 800);
+        setTimeout(() => C4.sendCommand('REQUEST_SETTINGS', '', false, false), 2500);
 
     } catch (e) {
         dbg('INIT ERR: ' + e.message);
     }
 });
 
-// Show UI after 1 s regardless (safety net)
-document.addEventListener('DOMContentLoaded', function () {
-    setTimeout(showUI, 1000);
-});
+// // Show UI after 1 s regardless (safety net)
+// document.addEventListener('DOMContentLoaded', function () {
+//     setTimeout(showUI, 1000);
+// });
 
 // ── Main data receiver ───────────────────────────────
 function onDataToUi(value) {
     try {
         // Always try to show UI when data arrives
-        showUI();
+        // showUI();
 
         var obj = JSON.parse(value);
 
