@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>1.0.6</version>
+    <version>2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
-    <created>2025-12-16</created>
-    <modified>2026-05-06</modified>
+    <created>12/16/2025 12:00 AM</created>
+    <modified>05/13/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -125,6 +125,7 @@
         <conditional>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If sensing motion</condition_statement>
             <description>Sensing motion</description>
             <label>sensing motion</label>
             <items>
@@ -135,6 +136,7 @@
         <conditional>
             <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If not sensing motion</condition_statement>
             <description>Not sensing motion</description>
             <label>not sensing motion</label>
             <items>
@@ -145,6 +147,7 @@
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is muted</condition_statement>
             <description>Mic is muted</description>
             <label>Mic is muted</label>
             <items>
@@ -155,6 +158,7 @@
         <conditional>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is unmuted</condition_statement>
             <description>Mic is unmuted</description>
             <label>Mic is unmuted</label>
             <items>
@@ -165,6 +169,7 @@
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
+            <condition_statement>If Speaker volume is</condition_statement>
             <description>Speaker volume is 1-10</description>
             <label>Speaker volume is 1-10</label>
             <items>
@@ -183,14 +188,16 @@
         <conditional>
             <name>BATTERY_LEVEL</name>
             <type>NUMBER</type>
+            <condition_statement>If battery level is</condition_statement>
             <description>Battery level</description>
-            <label>battery is</label>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
         </conditional>
         <conditional>
             <name>SENSITIVITY</name>
             <type>LIST</type>
+            <condition_statement>If Sensitivity is</condition_statement>
             <description>Sensitivity level</description>
-            <label>Sensitivity is</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -247,7 +254,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default></default>
+                <default>cgabu@slomins.com</default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -365,6 +372,15 @@
             <action>
                 <name>Sensitivity =</name>
                 <command>SET_SENSITIVITY</command>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                        <default>5</default>
+                    </param>
+                </params>
             </action>
         </actions>
         <commands>

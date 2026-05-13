@@ -70,8 +70,8 @@ GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT = 8081
 GlobalObject.DeviceModel     = "vd05"
 GlobalObject.ProductSubType  = "video_bell"
-GlobalObject.CldBusAppId     = ""
-GlobalObject.CldBusSecret    = ""
+GlobalObject.CldBusAppId     = "cldbus"
+GlobalObject.CldBusSecret    = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 GlobalObject.CustomerEmail   = ""
 GlobalObject.BaseApi         = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
@@ -120,6 +120,9 @@ local conditional_state = {
     BATTERY_LEVEL = 100,
     SENSITIVITY = 5
 }
+
+-- Volume tracking
+local volume_before_mute = nil
 
 local mqtt_enabled         = false
 local WAKE_DURATION        = 17 -- seconds
@@ -218,6 +221,12 @@ function OnDriverInit()
         end
         _props[k] = v
     end
+
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     -- Sync IP Address property with Camera Proxy
     local ip_address = Properties["IP Address"]
@@ -331,6 +340,12 @@ function OnDriverLateInit()
     C4:UpdateProperty("Status", "Ready")
 
     ValidateMacAddress(C4:GetUniqueMAC())
+
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
@@ -560,6 +575,48 @@ function ExecuteCommand(strCommand, tParams)
         SEND_TEST_NOTIFICATION()
         return
     end
+    if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        UpdateConditional("MIC_MUTED", false)
+        UpdateConditional("MIC_UNMUTED", true)
+        return
+    end
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        UpdateConditional("MIC_MUTED", true)
+        UpdateConditional("MIC_UNMUTED", false)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_UP" then
+        print("[COMMAND] Speaker Volume Up requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.min(current + 1, 10)
+            print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
+    if strCommand == "SPEAKER_VOLUME_DOWN" then
+        print("[COMMAND] Speaker Volume Down requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
+            local new_vol = math.max(current - 1, 1)
+            print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
+            SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
+    if strCommand == "SET_SENSITIVITY" then
+        local level = (tParams and tParams.LEVEL)
+        print("[COMMAND] Set Sensitivity: " .. tostring(level))
+        UpdateConditional("SENSITIVITY", level)
+        return
+    end
     if strCommand == "GET_CAMERA_PROPERTIES" then
         local props = GET_CAMERA_PROPERTIES()
         SendUpdateCameraProp(props)
@@ -576,6 +633,159 @@ function ExecuteCommand(strCommand, tParams)
             ExecuteCommand(tParams.ACTION, tParams)
         end
     end
+end
+
+-- OP03. Device Control(properties)
+function SET_DEVICE_PROPERTY(property_data, success_callback)
+    print("================================================================")
+    print("           SET_DEVICE_PROPERTY CALLED                           ")
+    print("================================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    print("Using bearer token: " .. auth_token)
+    print("Using VID: " .. vid)
+    print("Property data: " .. json.encode(property_data))
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/do-property"
+
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        data = json.encode(property_data)
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("[DEBUG] Request URL: " .. url)
+    print("[DEBUG] Request Body: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+        if err then
+            print("Error: " .. tostring(err))
+        end
+        print("----------------------------------------------------------------")
+
+        if code == 200 or code == 20000 then
+            print("Property set successfully")
+            if success_callback then
+                success_callback()
+            end
+        else
+            print("Failed to set property")
+        end
+    end)
+    print("================================================================")
+end
+
+function GET_DEVICE_PROPERTY(property_name, callback)
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
+
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "GET",
+        headers = headers
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code ~= 200 then
+            print("ERROR: Failed to get device property - HTTP " .. tostring(code))
+            if callback then callback(nil) end
+            return
+        end
+
+        local response = json.decode(resp)
+        if not response or not response.data then
+            print("ERROR: Invalid response format")
+            if callback then callback(nil) end
+            return
+        end
+
+        local device = response.data
+        if not device.status then
+            print("ERROR: No status in device data")
+            if callback then callback(nil) end
+            return
+        end
+
+        local status_data = json.decode(device.status)
+        if not status_data then
+            print("ERROR: Failed to parse status JSON")
+            if callback then callback(nil) end
+            return
+        end
+
+        local value = status_data[property_name]
+        print("[GET_DEVICE_PROPERTY] " .. property_name .. " = " .. tostring(value))
+        if callback then callback(value) end
+    end)
 end
 
 function InitializeCamera()
