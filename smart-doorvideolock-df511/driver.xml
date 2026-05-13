@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins DF511 Door Video Lock</name>
-    <version>1.0.11</version>
+    <version>2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>DF511</model>
-    <created>2025-1-27</created>
-    <modified>2026-5-5</modified>
+    <created>01/27/2025 12:00 AM</created>
+    <modified>05/13/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -220,8 +220,8 @@
         <conditional>
             <name>LOCKED</name>
             <type>LIST</type>
+            <condition_statement>If Locked</condition_statement>
             <description>Locked</description>
-            <label>Locked</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -230,8 +230,8 @@
         <conditional>
             <name>UNLOCKED</name>
             <type>LIST</type>
+            <condition_statement>If Unlocked</condition_statement>
             <description>Unlocked</description>
-            <label>Unlocked</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -240,8 +240,8 @@
         <conditional>
             <name>IN_FAULT</name>
             <type>LIST</type>
+            <condition_statement>If in fault</condition_statement>
             <description>In fault</description>
-            <label>in fault</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -250,8 +250,8 @@
         <conditional>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If sensing motion</condition_statement>
             <description>Sensing motion</description>
-            <label>sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -260,8 +260,8 @@
         <conditional>
             <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If not sensing motion</condition_statement>
             <description>Not sensing motion</description>
-            <label>not sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -270,8 +270,8 @@
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is muted</condition_statement>
             <description>Mic is muted</description>
-            <label>Mic is muted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -280,8 +280,8 @@
         <conditional>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is unmuted</condition_statement>
             <description>Mic is unmuted</description>
-            <label>Mic is unmuted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -290,8 +290,8 @@
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
+            <condition_statement>If Speaker volume is</condition_statement>
             <description>Speaker volume is 1-10</description>
-            <label>Speaker volume is 1-10</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -308,14 +308,16 @@
         <conditional>
             <name>BATTERY_LEVEL</name>
             <type>NUMBER</type>
+            <condition_statement>If battery level is</condition_statement>
             <description>Battery level</description>
-            <label>battery is</label>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
         </conditional>
         <conditional>
             <name>SENSITIVITY</name>
             <type>LIST</type>
+            <condition_statement>If Sensitivity is</condition_statement>
             <description>Sensitivity level</description>
-            <label>Sensitivity is</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -332,8 +334,8 @@
         <conditional>
             <name>STRANGER</name>
             <type>LIST</type>
+            <condition_statement>If Stranger Detected</condition_statement>
             <description>Stranger Detected</description>
-            <label>Stranger Detected</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -519,6 +521,15 @@
             <action>
                 <name>Sensitivity =</name>
                 <command>SET_SENSITIVITY</command>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                        <default>5</default>
+                    </param>
+                </params>
             </action>
             <action>
                 <name>Lock</name>

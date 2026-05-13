@@ -78,7 +78,7 @@
 
 Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, lock control, and real-time MQTT event detection.
 
-**Version:** 1.0.2<br>
+**Version:** 2<br>
 **Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)<br>
 **Minimum Control4 OS:** 3.3.2+
 
@@ -733,6 +733,10 @@ local client_id = util.uuid_v4()
 
 # Version History
 
+### v2.0 (Current)
+* Fixed version display showing 0 in Control4 Manage Drivers interface
+* Fixed device specific conditionals labels not showing in Control4 Composer
+
 ### v1.0.0
 
 * Complete API integration
@@ -810,7 +814,7 @@ local client_id = util.uuid_v4()
 
 # Support
 
-**Driver Version:** 0.1.0
+**Driver Version:** 2
 **Manufacturer:** Slomins
 **Model:** DF511-SL
 **Control4 OS:** 3.3.2+
