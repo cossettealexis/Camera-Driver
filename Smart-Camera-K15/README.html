@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart-Camera-K15-SL — Control4 Driver Documentation</title>
+<title>Smart-Camera-DF511-SL — Control4 Driver</title>
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -52,146 +52,162 @@
     margin: 12px 0 20px;
   }
 
-  pre code {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #24292e;
-    font-size: 13px;
-  }
+  pre code { background: none; border: none; padding: 0; color: #24292e; font-size: 13px; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    margin: 12px 0 20px;
-  }
-  th {
-    background: #f6f8fa;
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    text-align: left;
-    font-weight: 600;
-  }
-  td {
-    border: 1px solid #e1e4e8;
-    padding: 8px 12px;
-    color: #444;
-    vertical-align: top;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0 20px; }
+  th { background: #f6f8fa; border: 1px solid #e1e4e8; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { border: 1px solid #e1e4e8; padding: 8px 12px; color: #444; vertical-align: top; }
   tr:nth-child(even) td { background: #fafafa; }
 
-  blockquote {
-    border-left: 4px solid #dfe2e5;
-    margin: 0 0 14px;
-    padding: 4px 16px;
-    color: #6a737d;
-  }
-
-  hr {
-    border: none;
-    border-top: 1px solid #e1e4e8;
-    margin: 36px 0;
-  }
-
+  blockquote { border-left: 4px solid #dfe2e5; margin: 0 0 14px; padding: 4px 16px; color: #6a737d; }
+  hr { border: none; border-top: 1px solid #e1e4e8; margin: 36px 0; }
   img { max-width: 100%; }
 </style>
 </head>
 <body>
 
-<h1>Smart-Camera-K15-SL — Control4 Driver</h1>
 
-<h2>Overview</h2>
-<p>Complete Control4 driver for Slomins K15-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
-<ul>
-  <li><strong>Version:</strong> 1.0.1</li>
-  <li><strong>Package:</strong> <code>Smart-Camera-K15-SL-v0.1.0.c4z</code> (22.1 KB)</li>
-  <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
-</ul>
 
-<h2>Features</h2>
+<!-- Markdown source embedded below; rendered client-side using marked.js -->
+<div id="content"></div>
 
-<h3>Full API Integration</h3>
-<ul>
-  <li>Initialize camera and retrieve public key</li>
-  <li>User authentication with RSA-OAEP encryption</li>
-  <li>Token management (temporary and exchange tokens)</li>
-  <li>Device listing</li>
-</ul>
+<script id="readme-md" type="text/plain">
+# Smart-Camera-DF511-SL — Control4 Driver
 
-<h3>Streaming Support</h3>
-<ul>
-  <li>RTSP main stream (high quality)</li>
-  <li>RTSP sub stream (low quality)</li>
-  <li>Dynamic URL generation</li>
-</ul>
+## Overview
 
-<h3>Camera Functions</h3>
-<ul>
-  <li>Snapshot URL generation</li>
-  <li>PTZ controls (Pan, Tilt, Zoom)</li>
-  <li>Preset management</li>
-</ul>
+Complete Control4 driver for **Slomins DF511-SL Camera** with full API integration, authentication, streaming, lock control, and real-time MQTT event detection.
 
-<h3>Security</h3>
-<ul>
-  <li>RSA-OAEP + SHA256 encryption using <code>C4:Crypto()</code></li>
-  <li>HMAC-SHA256 signatures for API requests</li>
-  <li>Secure token storage</li>
-</ul>
+**Version:** 2<br>
+**Package:** Slomins-doorvideolock-DF511.c4z (22.1 KB)<br>
+**Minimum Control4 OS:** 3.3.2+
 
-<h3>Real-Time Event Detection (MQTT)</h3>
-<ul>
-  <li>Motion, human, face, and stranger detection</li>
-  <li>Doorbell ring notifications with snapshot</li>
-  <li>Camera online/offline monitoring</li>
-</ul>
+---
 
-<h2>Requirements</h2>
-<ul>
-  <li><strong>Control4 Composer Pro</strong> (appropriate version for your platform)</li>
-  <li><strong>Control4 OS</strong> 3.3.2 or newer (for RSA encryption support)</li>
-  <li><strong>Network Access</strong> to API endpoint and camera</li>
-  <li><strong>Camera</strong> accessible on LAN</li>
-</ul>
+# Features
 
-<h2>Installation</h2>
+✅ **Full API Integration**
 
-<h3>1. Install Driver Package</h3>
-<ol>
-  <li>Open <strong>Control4 Composer Pro</strong></li>
-  <li>Go to <strong>Drivers</strong> menu → <strong>Add Driver</strong> → <strong>Install From File</strong></li>
-  <li>Select <code>Smart-Camera-K15-SL-v0.1.0.c4z</code></li>
-  <li>Click <strong>Install</strong></li>
-  <li>Driver will appear in available drivers list</li>
-</ol>
+* Initialize camera and retrieve public key
+* User authentication with RSA-OAEP encryption
+* Token management and device listing
 
-<h3>2. Add Device to Project</h3>
-<ol>
-  <li>Go to <strong>Project</strong> view</li>
-  <li>Select a room</li>
-  <li>Click <strong>Add Device</strong></li>
-  <li>Search for "Slomins K15-SL"</li>
-  <li>Add to room</li>
-</ol>
+✅ **Streaming Support**
 
-<h3>3. Configure Properties</h3>
-<p><strong>API Configuration:</strong></p>
-<ul>
-  <li><strong>Base API URL:</strong> <code>https://api.arpha-tech.com</code></li>
-  <li><strong>Account:</strong> Your email or phone number</li>
-</ul>
-<p><strong>Camera Configuration:</strong></p>
-<ul>
-  <li><strong>IP Address:</strong> Camera IP (e.g., 192.168.1.100)</li>
-  <li><strong>HTTP Port:</strong> 80 (default)</li>
-  <li><strong>RTSP Port:</strong> 554 (default)</li>
-  <li><strong>Username:</strong> Camera username</li>
-  <li><strong>Password:</strong> Camera password</li>
-</ul>
+* RTSP main stream (high quality)
+* RTSP sub stream (low quality)
+* Dynamic URL generation
 
-<h2>Quick Start Guide</h2>
-<pre><code>1. Execute "Initialize"
+✅ **Camera Functions**
+
+* Snapshot URL generation
+* Preset management
+
+✅ **Lock Control**
+
+* Remote lock and unlock commands via Cloudbus API
+* Full Control4 Lock Proxy integration
+* Supports Control4 proxy commands:
+
+  * LOCK
+  * UNLOCK
+  * QUERY_STATE
+* Automatic Control4 UI padlock updates
+* Lock status synchronization with Control4 automation
+* Lock/Unlock events fired for Composer automation
+
+✅ **Auto Relock**
+
+* Optional automatic relock after unlocking
+* Configurable **Lock Seconds** property
+* Existing timers are cancelled when a new unlock occurs
+* Automatically triggers lock command after timer expires
+
+✅ **Security**
+
+* RSA-OAEP + SHA256 encryption using `C4:Crypto()`
+* HMAC-SHA256 signatures for API requests
+* Secure token storage
+
+✅ **Real-Time Event Detection (MQTT)**
+
+* Motion detection events
+* Human detection events
+* Stranger detection alerts
+* Camera online/offline monitoring
+* Snapshot attachment support for notifications
+
+---
+
+# Requirements
+
+* **Control4 Composer Pro**
+* **Control4 OS 3.3.2+**
+* **Network access** to API endpoint and camera
+* Camera accessible on LAN
+
+---
+
+# Installation
+
+## 1. Install Driver Package
+
+1. Open **Control4 Composer Pro**
+2. Go to **Drivers → Add Driver → Install From File**
+3. Select `Slomins-doorvideolock-DF511.c4z`
+4. Click **Install**
+5. Driver will appear in the available drivers list
+
+---
+
+## 2. Add Device to Project
+
+1. Open **Project View**
+2. Select a room
+3. Click **Add Device**
+4. Search for **Slomins DF511 Door Video Lock**
+5. Add to the room
+
+---
+
+## 3. Configure Properties
+
+### API Configuration
+
+* **Base API URL:** `https://api.arpha-tech.com`
+* **Account:** Your email or phone number
+
+### Camera Configuration
+
+* **IP Address:** Camera IP (example `192.168.1.100`)
+* **HTTP Port:** 80
+* **RTSP Port:** 554
+* **Username:** Camera username
+* **Password:** Camera password
+
+---
+
+## 4. Enable Lock Tile in Control4 UI
+
+To make the **DF511 Lock tile visible** in the Control4 interface:
+
+1. Open **Composer Pro**
+2. Navigate to the room where the device was added
+3. Select the **Security** tab
+4. Locate **DF511 Lock**
+5. Enable **Show in Navigator**
+6. Click **OK**
+
+The lock control tile will now appear in the Control4 mobile app and touchscreens.
+
+---
+
+# Quick Start Guide
+
+### Complete Setup Flow
+
+```
+1. Execute "Initialize"
    → Gets RSA public key from API
    → Stores in "Public Key" property
 
@@ -200,107 +216,144 @@
    → Authenticates with API
    → Stores Auth Token
 
-3. Execute "Get Devices"
-   → Lists all devices for user
-   → View results in Lua Output
-
-4. Execute "Test Main Stream"
+3. Execute "Test Main Stream"
    → Generates RTSP URL for streaming
 
-5. Execute "Get Snapshot URL"
-   → Generates HTTP snapshot URL</code></pre>
+4. Execute "Get Snapshot URL"
+   → Generates HTTP snapshot URL
 
-<hr>
+5. Test Lock Control 
+   → Lock/Unlock using Control4 Navigator 
+   → Driver sends commands to API 
+   → Lock status updates automatically
 
-<h2>Real-Time Event Detection (MQTT)</h2>
-<p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides notifications for the following events:</p>
-<ul>
-  <li>Doorbell ring notifications with snapshot</li>
-  <li>Motion detection with snapshot attachment</li>
-  <li>Human detection</li>
-  <li>Face detection</li>
-  <li>Stranger detection</li>
-  <li>Camera online/offline status monitoring</li>
-</ul>
+```
 
-<h2>MQTT Configuration</h2>
+---
 
-<h3>Default Behavior</h3>
-<p>MQTT is <strong>enabled automatically by the driver after authentication</strong>. The driver will automatically:</p>
-<ol>
-  <li>Enable MQTT</li>
-  <li>Fetch MQTT credentials</li>
-  <li>Connect to the MQTT broker</li>
-  <li>Subscribe to camera event topics</li>
-</ol>
-<p>You normally <strong>do not need to enable MQTT manually</strong>.</p>
+### 🌐 **Dynamic IP Auto-Update (Online Event Handling)**
+The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.
 
-<hr>
+#### 🔄 How It Works
 
-<h2>CldBus App Motion Detection Settings</h2>
-<p>To receive <strong>Motion Detection</strong> and <strong>Human Detection</strong> events, detection must be enabled in the <strong>CldBus mobile app</strong>.</p>
+Whenever the camera comes online, the driver automatically:
+- Detects the **Camera Online** event  
+- Calls the **Get Devices API**  
+- Matches the device using **VID (Virtual ID)**  
+- Retrieves the latest **local IP address**  
+- Updates the **IP Address** property in the driver  
+- Pushes the updated address to the **Control4 Camera Proxy**
 
-<h3>Steps</h3>
-<ol>
-  <li>Open the <strong>CldBus App</strong></li>
-  <li>Select your <strong>camera device</strong></li>
-  <li>Tap <strong>Settings</strong></li>
-  <li>Navigate to <code>Settings → Motion Detection</code></li>
-  <li>Under <strong>Detection Type</strong>, select one of the following:</li>
-</ol>
+### 🔔 **Real-Time Event Detection**
 
-<table>
-  <thead>
-    <tr><th>Detection Type</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td><strong>All Detections</strong></td><td>All movement events will trigger notifications. This includes general motion detection.</td></tr>
-    <tr><td><strong>Human Detection</strong></td><td>Only human movement will trigger events. Non-human motion will be ignored.</td></tr>
-  </tbody>
-</table>
+The driver supports **MQTT-based real-time event streaming over SSL (port 8884)** and provides notifications for the following events:
 
-<hr>
+* Doorbell ring notifications with snapshot
+* Motion detection with snapshot attachment
+* Human detection
+* Stranger detection
+* Camera online/offline status monitoring
 
-<h2>Push Notification Configuration</h2>
+---
 
-<h3>1. Create Push Notification</h3>
-<ol>
-  <li>Open <strong>Composer Pro</strong></li>
-  <li>Navigate to <code>Agents → Push Notification</code></li>
-  <li>Click <strong>Add Notification</strong> then enter a name for the notification</li>
-</ol>
-<p>Configure the following:</p>
-<table>
-  <thead>
-    <tr><th>Setting</th><th>Value</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Category</td><td>Cameras</td></tr>
-    <tr><td>Severity</td><td>Info / Critical</td></tr>
-    <tr><td>Subject</td><td>Camera Event</td></tr>
-  </tbody>
-</table>
-<p>Click <strong>Save</strong>.</p>
+## MQTT Configuration
 
-<h3>2. Enable Snapshot Attachment</h3>
-<p>Edit the created notification and set:</p>
-<pre><code>Attachment Type = Snapshot URL</code></pre>
-<p>This allows push notifications to include the <strong>camera snapshot image</strong>.</p>
+### Default Behavior
 
-<h3>3. Map Push Notifications in Programming</h3>
-<ol>
-  <li>In <strong>Composer Pro</strong>, open <strong>Programming</strong></li>
-  <li>Select the <strong>Camera Driver</strong> from the device list</li>
-  <li>In the <strong>Events</strong> section, choose the event to trigger (e.g. <strong>Motion Detected</strong>)</li>
-  <li>On the right-side panel, click <strong>Push Notifications</strong></li>
-  <li>From the dropdown, select the notification you created earlier</li>
-  <li>Drag and drop the notification into the programming area <strong>or double-click the green arrow</strong> to add it</li>
-</ol>
-<p>Example:</p>
-<pre><code>WHEN Motion Detected → THEN Send Push Notification</code></pre>
+MQTT is **enabled automatically by the driver after authentication**.
 
-<h3>Notification Flow</h3>
-<pre><code>Camera Event (MQTT)
+The driver will automatically:
+
+1. Enable MQTT
+2. Fetch MQTT credentials
+3. Connect to the MQTT broker
+4. Subscribe to camera event topics
+
+You normally **do not need to enable MQTT manually**.
+
+
+---
+
+
+## CldBus App Motion Detection Settings
+
+To receive **Motion Detection** and **Human Detection** events, detection must be enabled in the **CldBus mobile app**.
+
+### Steps
+
+1. Open the **CldBus App**
+2. Select your **camera device**
+3. Tap **Settings**
+4. Navigate to:
+
+```
+Settings → Motion Detection
+```
+
+5. Under **Detection Type**, select one of the following:
+
+| Detection Type | Description |
+|----------------|-------------|
+| **All Detections** | All movement events will trigger notifications. This includes general motion detection. |
+| **Human Detection** | Only human movement will trigger events. Non-human motion will be ignored. |
+
+
+## Push Notification Configuration
+
+### 1. Create Push Notification
+
+1. Open **Composer Pro**
+2. Navigate to:
+
+```
+Agents → Push Notification
+```
+
+3. Click **Add Notification** then enter a name for the notification.
+
+Configure the following:
+
+| Setting  | Value           |
+| -------- | --------------- |
+| Category | Cameras         |
+| Severity | Info / Critical |
+| Subject  | Camera Event    |
+
+Click **Save**.
+
+---
+
+### 2. Enable Snapshot Attachment
+
+Edit the created notification and set:
+
+```
+Attachment Type = Snapshot URL
+```
+
+This allows push notifications to include the **camera snapshot image**.
+
+---
+
+### Mapping Push Notifications in Programming
+
+1. In **Composer Pro**, open **Programming**. 2. Select the **Camera Driver** from the device list. 3. In the **Events** section, choose the event you want to trigger the notification (for example **Motion Detected**).
+
+On the **right-side panel**:
+
+4. Click **Push Notifications**. 5. From the dropdown list, select the **notification you created earlier**. 6. Drag and drop the notification into the programming area **or double-click the green arrow** to add it.
+
+This maps the camera event to the push notification.
+
+Example:
+
+
+WHEN Motion Detected THEN Send Push Notification
+
+## Notification Flow
+
+```
+Camera Event (MQTT)
         ↓
 Driver Receives Event
         ↓
@@ -312,427 +365,482 @@ Push Notification Agent
         ↓
 Mobile Notification Sent
         ↓
-Snapshot Image Attached</code></pre>
+Snapshot Image Attached
+```
 
-<hr>
+---
 
-<h2>Available Actions</h2>
-<p>All actions accessible via: <strong>Device → Actions → Select action → Execute</strong></p>
+# Available Actions
 
-<h3>Authentication &amp; API</h3>
-<ul>
-  <li><strong>Initialize</strong> — Get RSA public key from API</li>
-  <li><strong>Login/Register</strong> — Authenticate user and get auth token</li>
-  <li><strong>Get Temp Token</strong> — Get temporary token (300 seconds)</li>
-  <li><strong>Get Exchange Token</strong> — Exchange temp token for identity token</li>
-  <li><strong>Get Devices</strong> — List all user devices</li>
-</ul>
+Accessible via **Device → Actions**
 
-<h3>Streaming &amp; Snapshots</h3>
-<ul>
-  <li><strong>Test Main Stream</strong> — Generate high quality RTSP URL</li>
-  <li><strong>Test Sub Stream</strong> — Generate low quality RTSP URL</li>
-  <li><strong>Test Snapshot</strong> — Generate HTTP snapshot URL</li>
-</ul>
+### Authentication
 
-<h3>PTZ Controls</h3>
-<ul>
-  <li><strong>PTZ Up</strong> — Move camera up</li>
-  <li><strong>PTZ Down</strong> — Move camera down</li>
-  <li><strong>PTZ Left</strong> — Move camera left</li>
-  <li><strong>PTZ Right</strong> — Move camera right</li>
-</ul>
+* Initialize
+* Login/Register
+* Get Devices
 
-<hr>
+### Streaming
 
-<h2>API Functions</h2>
+* Test Main Stream
+* Test Sub Stream
+* Get Snapshot URL
 
-<h3>1. Initialize Camera</h3>
-<p><strong>Command:</strong> <code>INITIALIZE_CAMERA</code><br>
-<strong>Endpoint:</strong> <code>POST /api/v3/openapi/init</code><br>
-<strong>Purpose:</strong> Retrieve RSA public key for encryption</p>
-<p>What it does:</p>
-<ul>
-  <li>Generates client ID and request ID</li>
-  <li>Creates HMAC-SHA256 signature</li>
-  <li>Requests public key from API</li>
-  <li>Stores key in "Public Key" property</li>
-</ul>
-<p><strong>Expected Output:</strong></p>
-<pre><code>Camera initialization succeeded
+
+### Lock Controls
+
+* Lock
+* Unlock
+
+---
+
+# Properties
+
+## Input Properties
+
+| Property      | Type    | Default                    | Description                         |
+| ------------- | ------- | -------------------------- | ----------------------------------- |
+| Base API URL  | STRING  | https://api.arpha-tech.com | API endpoint                        |
+| Account       | STRING  | -                          | User email/phone                    |
+| IP Address    | STRING  | 192.168.1.100              | Camera IP                           |
+| HTTP Port     | INTEGER | 3333                       | HTTP port                           |
+| RTSP Port     | INTEGER | 554                        | RTSP port                           |
+| Username      | STRING  | -                          | Camera username                     |
+| Password      | STRING  | -                          | Camera password                     |
+| Snapshot Path | STRING  | /wps-cgi/image.cgi         | Snapshot path                       |
+| Enable MQTT   | LIST    | True                       | Enable/disable MQTT event streaming |
+
+---
+
+## Output Properties
+
+| Property        | Description           |
+| --------------- | --------------------- |
+| Status          | Current driver status |
+| Public Key      | RSA public key        |
+| Client ID       | Generated client ID   |
+| Auth Token      | Authentication token  |
+| Main Stream URL | High quality RTSP URL |
+| Sub Stream URL  | Low quality RTSP URL  |
+| Lock State      | Locked / Unlocked     |
+| Online          | Camera online status  |
+
+---
+
+---
+
+## API Functions
+
+### 1. Initialize Camera
+
+**Command:** `INITIALIZE_CAMERA`
+
+**Endpoint:** `POST /api/v3/openapi/init`
+
+**Purpose:** Retrieve RSA public key for encryption
+
+**What it does:**
+- Generates client ID and request ID
+- Creates HMAC-SHA256 signature
+- Requests public key from API
+- Stores key in "Public Key" property
+
+**Expected Output:**
+```
+Camera initialization succeeded
 Received public key: MIGfMA...
-Public key stored successfully</code></pre>
+Public key stored successfully
+```
 
-<h3>2. Login/Register</h3>
-<p><strong>Command:</strong> <code>LOGIN_OR_REGISTER</code><br>
-<strong>Endpoint:</strong> <code>POST /api/v3/openapi/auth/login-or-register</code><br>
-<strong>Purpose:</strong> Authenticate user with encrypted credentials</p>
-<p><strong>Prerequisites:</strong> Must run Initialize first (needs public key). Account must be set in properties.</p>
-<p>Encryption Process:</p>
-<pre><code>1. Create crypto object: C4:Crypto("RSA")
+---
+
+### 2. Login/Register
+
+**Command:** `LOGIN_OR_REGISTER`
+
+**Endpoint:** `POST /api/v3/openapi/auth/login-or-register`
+
+**Purpose:** Authenticate user with encrypted credentials
+
+**Prerequisites:**
+- Must run Initialize first (needs public key)
+- Account must be set in properties
+
+**What it does:**
+- Encrypts credentials with RSA-OAEP + SHA256
+- Sends authentication request
+- Stores auth token and user ID
+- Token used for subsequent API calls
+
+**Encryption Process:**
+```lua
+1. Create crypto object: C4:Crypto("RSA")
 2. Import public key
 3. Encrypt JSON: {"country_code":"US","account":"user@email.com"}
 4. Generate HMAC-SHA256 signature
-5. Send to API</code></pre>
-<p><strong>Expected Output:</strong></p>
-<pre><code>Using C4:Crypto for RSA-OAEP encryption...
+5. Send to API
+```
+
+**Expected Output:**
+```
+Using C4:Crypto for RSA-OAEP encryption...
 Crypto object created successfully
 Public key imported successfully
 Encrypting data with RSA-OAEP + SHA256...
 Encryption successful!
 Login/Register succeeded
 Auth token stored
-User ID: 12345</code></pre>
+User ID: 12345
+```
 
-<h3>3. Get Temp Token</h3>
-<p><strong>Command:</strong> <code>GET_TEMP_TOKEN</code><br>
-<strong>Endpoint:</strong> <code>POST /api/v3/openapi/temperate-token</code><br>
-<strong>Purpose:</strong> Get temporary token (300 seconds duration)</p>
-<p><strong>Request:</strong></p>
-<pre><code>{
-  "duration": 300
-}</code></pre>
-<p><strong>Response:</strong></p>
-<pre><code>{
-  "code": 20000,
-  "message": "success",
-  "data": {
-    "token": "Em2SB9ijEYrQimb0v8irW/WTOZm67dHHeqArhGBom9M="
-  }
-}</code></pre>
 
-<h3>4. Get Exchange Token</h3>
-<p><strong>Command:</strong> <code>GET_EXCHANGE_TOKEN</code><br>
-<strong>Endpoint:</strong> <code>POST /api/v3/openapi/auth/exchange-identity</code><br>
-<strong>Purpose:</strong> Exchange temporary token for identity token</p>
-<p><strong>Prerequisites:</strong> Must run GET_TEMP_TOKEN first.</p>
-<p><strong>Response:</strong></p>
-<pre><code>{
-  "code": 20000,
-  "message": "success",
-  "data": {
-    "data": "Z6jSr30H6P60joVp69nGgTP8pvY4tEodneDAQY6Fe94="
-  }
-}</code></pre>
+### 3. Test Main Stream
 
-<h3>5. Get Devices</h3>
-<p><strong>Command:</strong> <code>GET_DEVICES</code><br>
-<strong>Endpoint:</strong> <code>GET /api/v3/openapi/devices-v2</code><br>
-<strong>Purpose:</strong> List all devices for authenticated user</p>
-<p><strong>Prerequisites:</strong> Must run Login/Register first (needs Auth Token).</p>
-<p><strong>Headers:</strong></p>
-<pre><code>Authorization: Bearer &lt;auth_token&gt;</code></pre>
+**Command:** `TEST_MAIN_STREAM`
 
-<h3>6. Test Main Stream</h3>
-<p><strong>Command:</strong> <code>TEST_MAIN_STREAM</code><br>
-<strong>Format:</strong> <code>rtsp://&lt;ip&gt;:554/streamtype=1</code></p>
-<pre><code>Main Stream RTSP URL: rtsp://192.168.1.100:554/streamtype=1</code></pre>
+**Purpose:** Generate high quality RTSP stream URL
 
-<h3>7. Test Sub Stream</h3>
-<p><strong>Command:</strong> <code>TEST_SUB_STREAM</code><br>
-<strong>Format:</strong> <code>rtsp://&lt;ip&gt;:554/streamtype=0</code></p>
-<pre><code>Sub Stream RTSP URL: rtsp://192.168.1.100:554/streamtype=0</code></pre>
+**Format:** `rtsp://<ip>:554/streamtype=1`
 
-<h3>8. Get Snapshot URL</h3>
-<p><strong>Command:</strong> <code>GET_SNAPSHOT_URL</code><br>
-<strong>Format:</strong> <code>http://[user:pass@]&lt;ip&gt;:&lt;port&gt;/snap.jpg</code></p>
-<pre><code>Snapshot URL: http://admin:password@192.168.1.100:80/snap.jpg</code></pre>
+**Prerequisites:**
+- IP Address set in properties
+- RTSP Port (default: 554)
 
-<hr>
+**Example Output:**
+```
+Main Stream RTSP URL: rtsp://192.168.1.100:554/streamtype=1
+```
 
-<h2>Properties</h2>
+**Result:**
+- URL stored in "Main Stream URL" property
+- Use URL in VMS or video player
 
-<h3>Input Properties (Configure These)</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Base API URL</td><td>STRING</td><td>https://api.arpha-tech.com</td><td>API endpoint</td></tr>
-    <tr><td>Account</td><td>STRING</td><td>—</td><td>User email or phone</td></tr>
-    <tr><td>IP Address</td><td>STRING</td><td>192.168.1.100</td><td>Camera IP</td></tr>
-    <tr><td>HTTP Port</td><td>INTEGER</td><td>80</td><td>HTTP port</td></tr>
-    <tr><td>RTSP Port</td><td>INTEGER</td><td>554</td><td>RTSP port</td></tr>
-    <tr><td>Username</td><td>STRING</td><td>—</td><td>Camera username</td></tr>
-    <tr><td>Password</td><td>STRING</td><td>—</td><td>Camera password</td></tr>
-    <tr><td>Snapshot Path</td><td>STRING</td><td>/snap.jpg</td><td>Snapshot path</td></tr>
-    <tr><td>Enable MQTT</td><td>LIST</td><td>True</td><td>Enable/disable MQTT event streaming</td></tr>
-  </tbody>
-</table>
+---
 
-<h3>Output Properties (Read-Only/Managed)</h3>
-<table>
-  <thead>
-    <tr><th>Property</th><th>Description</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Status</td><td>Current operation status</td></tr>
-    <tr><td>Public Key</td><td>RSA public key from API</td></tr>
-    <tr><td>Client ID</td><td>Generated client ID</td></tr>
-    <tr><td>Auth Token</td><td>Authentication token</td></tr>
-    <tr><td>Temp Token</td><td>Temporary token</td></tr>
-    <tr><td>Exchange Token</td><td>Identity token</td></tr>
-    <tr><td>Main Stream URL</td><td>High quality RTSP URL</td></tr>
-    <tr><td>Sub Stream URL</td><td>Low quality RTSP URL</td></tr>
-    <tr><td>Online</td><td>Camera online status</td></tr>
-  </tbody>
-</table>
+### 4. Test Sub Stream
 
-<hr>
+**Command:** `TEST_SUB_STREAM`
 
-<h2>Workflow Examples</h2>
+**Purpose:** Generate low quality RTSP stream URL
 
-<h3>Workflow 1: Initial Setup &amp; Authentication</h3>
-<pre><code>1. Set "Base API URL" property
-2. Set "Account" property (your email)
-3. Execute "Initialize"
-   → Gets public key
-4. Execute "Login/Register"
-   → Authenticates user
-   → Stores Auth Token
-   → MQTT auto-connects after auth
-5. Execute "Get Devices"
-   → Lists your devices</code></pre>
+**Format:** `rtsp://<ip>:554/streamtype=0`
 
-<h3>Workflow 2: Token Management</h3>
-<pre><code>1. Execute "Get Temp Token"
-   → Gets 300-second token
-2. Execute "Get Exchange Token"
-   → Exchanges for identity token
-3. Use tokens for custom API calls</code></pre>
+**Prerequisites:**
+- IP Address set in properties
+- RTSP Port (default: 554)
 
-<h3>Workflow 3: Streaming Setup</h3>
-<pre><code>1. Set "IP Address" property
-2. Execute "Test Main Stream"
-   → rtsp://192.168.1.100:554/streamtype=1
-3. Execute "Test Sub Stream"
-   → rtsp://192.168.1.100:554/streamtype=0
-4. Use URLs in Control4 video configuration
-   or external VMS</code></pre>
+**Example Output:**
+```
+Sub Stream RTSP URL: rtsp://192.168.1.100:554/streamtype=0
+```
 
-<h3>Workflow 4: Snapshot Testing</h3>
-<pre><code>1. Set "IP Address", "Username", "Password"
-2. Execute "Get Snapshot URL"
-3. URL sent to camera proxy
-4. Test URL in browser to verify</code></pre>
+**Result:**
+- URL stored in "Sub Stream URL" property
+- Use URL in VMS or video player
 
-<h3>Workflow 5: Push Notifications</h3>
-<pre><code>1. Complete Workflow 1 (auth + MQTT connected)
-2. Create notification in Agents → Push Notification
-3. Set Attachment Type = Snapshot URL
-4. In Programming, map camera event → Send Push Notification
-5. Trigger event to receive mobile notification with snapshot</code></pre>
+---
 
-<hr>
+### 5. Get Snapshot URL
 
-<h2>RSA Encryption</h2>
-<p>The driver uses <strong>Control4's C4:Crypto() API</strong> for RSA-OAEP + SHA256 encryption:</p>
-<pre><code>-- Create RSA crypto object
-local crypto = C4:Crypto("RSA")
+**Command:** `GET_SNAPSHOT_URL`
 
--- Import public key (from Initialize)
-crypto:ImportPublicKey(publicKey)
+**Purpose:** Generate HTTP snapshot URL
 
--- Encrypt credentials
-local encrypted = crypto:Encrypt(data, {
-    scheme = "oaep",
-    hash = "sha256"
-})</code></pre>
+**Format:** `http://<ip>:<port>/wps-cgi/image.cgi?resolution=640x480`
 
-<h3>Requirements</h3>
-<ul>
-  <li>Control4 OS 3.x or newer</li>
-  <li>Public key from Initialize API</li>
-  <li>PEM formatted public key</li>
-</ul>
+**Prerequisites:**
+- IP Address set in properties
+- Optional: Username/Password for authentication
 
-<h3>Fallback Mode</h3>
-<p>If <code>C4:Crypto()</code> is unavailable:</p>
-<ol>
-  <li>Set "Pre-Encrypted Post Data" property</li>
-  <li>Driver will use pre-encrypted value</li>
-  <li>For testing only</li>
-</ol>
+**Example Output:**
+```
+Snapshot URL: http://192.168.1.100:3333/wps-cgi/image.cgi?resolution=640x480
+```
 
-<hr>
 
-<h2>Troubleshooting</h2>
+### 6. Lock Status & Control
 
-<h3>View Logs</h3>
-<ol>
-  <li>Open <strong>Composer Pro</strong></li>
-  <li>Go to <strong>Lua Output</strong> window</li>
-  <li>Execute any action</li>
-  <li>Watch detailed logs: request URLs, headers, bodies, response codes, and error messages</li>
-</ol>
+**Purpose:** Control and monitor the door lock integrated in the DF511 device.
 
-<h3>Common Issues</h3>
+**API Endpoint Example**
 
-<h4>"No public key available"</h4>
-<ul>
-  <li>Run Initialize first</li>
-  <li>Check Base API URL</li>
-  <li>Verify network connectivity</li>
-</ul>
+```
+GET /v1.0/devices/{deviceId}/status
+```
 
-<h4>"Failed to create C4:Crypto object"</h4>
-<ul>
-  <li>Control4 OS too old (need 3.x+)</li>
-  <li>Use fallback pre-encryption mode</li>
-</ul>
+**What it does:**
 
-<h4>"Login failed"</h4>
-<ul>
-  <li>Verify Account property is set</li>
-  <li>Check public key exists</li>
-  <li>Ensure Initialize ran successfully</li>
-</ul>
+* Retrieves the device status from the cloud API
+* Extracts the `lock_motor_state` value
+* Updates Control4 lock proxy
+* Synchronizes lock state with Control4 UI
 
-<h4>"IP Address not set"</h4>
-<ul>
-  <li>Configure IP Address property</li>
-  <li>Verify camera is reachable</li>
-</ul>
+**Driver Behavior**
 
-<h4>"No auth token available"</h4>
-<ul>
-  <li>Run Login/Register first</li>
-  <li>Check authentication succeeded</li>
-</ul>
+When the driver receives lock status from the API:
 
-<h4>MQTT not receiving events</h4>
-<ul>
-  <li>Verify "Enable MQTT" is set to True</li>
-  <li>Confirm Login/Register completed successfully</li>
-  <li>Check motion detection is enabled in CldBus App</li>
-  <li>Verify network allows outbound port 8884 (MQTT over SSL)</li>
-</ul>
+| API Value | Control4 State |
+| --------- | -------------- |
+| true      | Locked         |
+| false     | Unlocked       |
 
-<h3>API Response Codes</h3>
-<table>
-  <thead>
-    <tr><th>Code</th><th>Meaning</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>200 / 20000</td><td>Success</td></tr>
-    <tr><td>401</td><td>Unauthorized (invalid token)</td></tr>
-    <tr><td>400</td><td>Bad request (invalid parameters)</td></tr>
-    <tr><td>500</td><td>Server error</td></tr>
-  </tbody>
-</table>
+The driver then updates the Control4 lock proxy:
 
-<hr>
+```lua
+C4:SendToProxy(5002, "LOCK_STATUS_CHANGED", { LOCK_STATUS = "locked" })
+```
 
-<h2>Files Structure</h2>
-<pre><code>Smart-Camera-K15-SL/
-├── driver.lua              # Main driver logic
-├── driver.xml              # Configuration &amp; metadata
-├── mqtt_manager.lua        # MQTT event streaming &amp; broker management
-├── README.md               # This documentation
-├── CldBusApi/              # API helper libraries
+or
+
+```lua
+C4:SendToProxy(5002, "LOCK_STATUS_CHANGED", { LOCK_STATUS = "unlocked" })
+```
+
+This ensures the **Navigator lock icon updates correctly**.
+
+**Automation Events**
+
+The driver fires Control4 events when state changes:
+
+* `Lock`
+* `Unlock`
+* `Lock Error`
+* `Unlock Error`
+
+---
+
+# Logging & Troubleshooting
+
+### View Logs
+
+1. Open **Composer Pro**
+2. Go to **Lua Output**
+3. Execute driver actions
+4. Review request and response logs
+
+---
+
+## Common Issues
+
+**No public key available**
+
+* Run Initialize first
+* Check API URL
+
+**Login failed**
+
+* Verify Account property
+* Ensure Initialize ran successfully
+
+**IP Address not set**
+
+* Verify camera is reachable on LAN
+
+**No auth token available**
+
+* Run Login/Register first
+
+**MQTT not receiving events**
+
+* Verify **Enable MQTT = True**
+* Confirm authentication completed
+* Ensure motion detection enabled in CldBus app
+* Verify outbound port **8884** is allowed
+
+
+---
+
+### API Response Codes
+
+- **200 / 20000** - Success
+- **401** - Unauthorized (invalid token)
+- **400** - Bad request (invalid parameters)
+- **500** - Server error
+
+# Building the Driver
+
+## File Structure
+
+```
+Slomins-doorvideolock-DF511/
+├── driver.lua
+├── driver.xml
+├── mqtt_manager.lua
+├── README.md
+├── CldBusApi/
 │   ├── auth.lua
 │   ├── dkjson.lua
 │   ├── http.lua
 │   ├── sha256.lua
 │   ├── transport_c4.lua
 │   └── util.lua
-└── build-c4z.ps1           # Build script</code></pre>
+└── build-c4z.ps1
+```
 
-<h2>Building the Driver</h2>
+---
 
-<h3>Build Package</h3>
-<p>Run in PowerShell:</p>
-<pre><code>.\build-c4z.ps1</code></pre>
-<p>This creates <code>Smart-Camera-K15-SL-v0.1.0.c4z</code> ready for installation.</p>
+## Build Package
 
-<h3>Manual Build</h3>
-<pre><code>$files = @(
-    "driver.lua",
-    "driver.xml",
-    "mqtt_manager.lua",
-    "README.md",
-    "CldBusApi\*.lua"
-)
+Run:
 
-Compress-Archive -Path $files -DestinationPath "temp.zip"
-Rename-Item "temp.zip" "Smart-Camera-K15-SL.c4z"</code></pre>
+```
+.\build-c4z.ps1
+```
 
-<h2>Development Notes</h2>
+This generates:
 
-<h3>Helper Libraries (CldBusApi/)</h3>
-<ul>
-  <li><strong>auth.lua</strong> — Authentication utilities</li>
-  <li><strong>dkjson.lua</strong> — JSON encoding/decoding</li>
-  <li><strong>http.lua</strong> — HTTP request helpers</li>
-  <li><strong>sha256.lua</strong> — HMAC-SHA256 implementation</li>
-  <li><strong>transport_c4.lua</strong> — Control4 transport adapter</li>
-  <li><strong>util.lua</strong> — UUID generation, HMAC functions</li>
-</ul>
+```
+Slomins-doorvideolock-DF511.c4z
+```
 
-<h3>Signature Generation</h3>
-<p>All API requests include HMAC-SHA256 signatures:</p>
-<pre><code>-- Message format
-local message = "client_id=&lt;uuid&gt;&amp;request_id=&lt;uuid&gt;&amp;time=&lt;timestamp&gt;&amp;version=0.0.1"
+---
+
+
+## Development Notes
+
+### Helper Libraries (CldBusApi/)
+
+- **auth.lua** - Authentication utilities
+- **dkjson.lua** - JSON encoding/decoding
+- **http.lua** - HTTP request helpers
+- **sha256.lua** - HMAC-SHA256 implementation
+- **transport_c4.lua** - Control4 transport adapter
+- **util.lua** - UUID generation, HMAC functions
+
+### Signature Generation
+
+All API requests include HMAC-SHA256 signatures:
+
+```lua
+-- Message format
+local message = "client_id=<uuid>&request_id=<uuid>&time=<timestamp>&version=0.0.1"
 
 -- Generate signature
 local signature = util.hmac_sha256_hex(message, app_secret)
 
 -- App secret
-local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"</code></pre>
+local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+```
 
-<h3>UUID Generation</h3>
-<pre><code>local client_id = util.uuid_v4()
--- Example: "0ffb133a-b03d-4cfd-82a9-d45220516199"</code></pre>
+### UUID Generation
 
-<hr>
+```lua
+local client_id = util.uuid_v4()
+-- Example: "0ffb133a-b03d-4cfd-82a9-d45220516199"
+```
 
-<h2>Version History</h2>
+---
 
-<h3>v1.0.1 (Current)</h3>
-<ul>
-  <li>Updated Control4 Camera Programming Options</li>
-  <li><strong>Device Events</strong>: Added "Registered User Detected", "Stranger Detected"</li>
-  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume</li>
-  <li><strong>Commands Removed</strong>: Zoom In, Zoom Out, PTZ_MOVE, PTZ_CONT_START, PTZ_CONT_STOP, TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, DISCOVER_CAMERAS, DISCOVER_CAMERAS_SDDP, SET_DEVICE_PROPERTY</li>
-  <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10, If tracking is on/off</li>
-</ul>
+# Version History
 
-<h3>v0.1.0</h3>
-<ul>
-  <li>Complete API integration</li>
-  <li>RSA-OAEP encryption with C4:Crypto()</li>
-  <li>User authentication</li>
-  <li>Token management</li>
-  <li>Device listing</li>
-  <li>RTSP streaming URLs</li>
-  <li>Snapshot support</li>
-  <li>PTZ controls</li>
-  <li>MQTT real-time event detection (SSL, port 8884)</li>
-  <li>Push notification support with snapshot attachment</li>
-</ul>
+### v2.0 (Current)
+* Fixed version display showing 0 in Control4 Manage Drivers interface
+* Fixed device specific conditionals labels not showing in Control4 Composer
 
-<hr>
+### v1.0.0
 
-<h2>Support</h2>
-<ul>
-  <li><strong>Driver Version:</strong> 1.0.1</li>
-  <li><strong>Maintainer:</strong> Slomins</li>
-  <li><strong>Manufacturer:</strong> Slomins</li>
-  <li><strong>Model:</strong> K15-SL</li>
-  <li><strong>Control4 OS:</strong> 3.3.2+</li>
-  <li><strong>API Endpoint:</strong> <a href="https://api.arpha-tech.com">https://api.arpha-tech.com</a></li>
-  <li><strong>Website:</strong> <a href="https://www.slomins.com">www.slomins.com</a></li>
-</ul>
-<p>For issues or questions, check Lua Output logs for detailed error information.</p>
+* Complete API integration
+* RSA-OAEP encryption
+* Authentication and token management
+* Device listing
+* RTSP streaming
+* Snapshot support
+* Lock proxy integration
+* MQTT real-time event detection
+* Push notification support
 
-<hr>
+### v1.0.1
+* HTML Readme File
+* Dynamic credentials retrieval
 
-<h2>License</h2>
-<p>Copyright &copy; 2025 Slomins. All Rights Reserved.</p>
+### v1.0.2
+* Manually Locking and locking trigger events/Scenes in Control4
 
-<hr>
+### v1.0.3
+* Implemented real-time state synchronization for lock/unlock status to ensure the UI reflects changes instantly without requiring a refresh.
 
-<p><em>End of Documentation</em></p>
+
+### v1.0.4
+* Bug Fixes : device hang when API is unreachable, MQTT connection stability improvements
+
+
+### v1.0.5
+* Dynamic Cldbus API Id and App Secret retrieval from API when MAC address is provided
+
+
+### v1.0.6
+* Added conditionals in composer pro for mapping lock and unlock events to push notifications, ensuring that notifications are only sent when the corresponding event occurs. 
+* Disabled ptz on the command panel of the composer pro as the camera does not support ptz, preventing confusion and improving usability for users configuring the driver in their Control4 system. 
+
+### v1.0.7
+* Improved device wake-up reliability by implementing a retry mechanism for API calls when the camera is offline. 
+* Bug Fixes: Reinitializes the device when account property changes to ensure the driver is fetching the latest authentication token.
+
+
+### v1.0.8
+* Bug Fixes: Low Battery, Battery Warning, and Battery Critical events are now properly detected and logged in Lua Output. 
+* Bug Fixes: Lock and Unlock controls now working in Android and iOS Control4 apps. 
+* Bug Fixes: Offline password unlock, Motion Detection events are now properly triggering push notifications. 
+
+
+### v1.0.9
+* Fixed an issue with low battery notifications where MQTT was not re-enabled after VID changes.
+* Minor bug fixes and improvements.
+
+
+### v1.0.10
+* Updated Control4 Camera Programming Options
+* **Device Events**: Added "System Is Locked"
+* **Commands Removed**: Pan Left, Pan Right, Pan Scan, Tilt Up, Tilt Down, Tilt Scan, Zoom In, Zoom Out, Preset, Home
+* **Commands Added**: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume, Sensitivity =
+* **DF511 Door Lock Commands Removed**: Toggle Door Lock
+* **Conditions Added**: If Speaker volume is 1-10, If battery is &lt;,&gt; or =, If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, Sensitivity = 
+
+### v1.0.11
+* Updates- Added device variable to display **FaceName** in face detection notifications.
+* How to Display Face Name in Push Notifications
+
+1. Open **Control4 Composer Pro**
+2. Navigate to **Agents** → **Notifications**
+3. Select or create a notification for the **Face Detected** event
+4. In the notification message body, click **Add Variable**
+5. In the variable picker tree, expand your **DF511 Door Lock** device
+6. Expand **Device Variables**
+7. Select **FaceName** from the list
+8. Click **OK**
+
+* Fixes- Resolved issue where the **lock UI was taking time to load** in the updated Control4 app.
+---
+
+# Support
+
+**Driver Version:** 2
+**Manufacturer:** Slomins
+**Model:** DF511-SL
+**Control4 OS:** 3.3.2+
+
+For issues check **Lua Output logs** in Composer Pro.
+
+---
+
+# License
+
+Copyright © 2025 Slomins. All Rights Reserved.
+</script>
+
+<!-- Marked.js from CDN (renders markdown to HTML) -->
+<script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+<script>
+  (function(){
+    try {
+      const md = document.getElementById('readme-md').textContent || '';
+      const html = marked.parse(md);
+      document.getElementById('content').innerHTML = html;
+    } catch (e) {
+      document.getElementById('content').textContent = 'Failed to render README: ' + e;
+    }
+  })();
+</script>
 
 </body>
 </html>

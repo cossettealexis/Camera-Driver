@@ -1,31 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
-    <name>Slomins K15-SL PTZ Camera</name>
-    <version>1.0.1</version>
+    <name>Slomins DF511 Door Video Lock</name>
+    <version>2</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
-    <model>K15-SL</model>
-    <created>2026-03-17</created>
-    <modified>2026-05-04</modified>
+    <model>DF511</model>
+    <created>01/27/2025 12:00 AM</created>
+    <modified>05/13/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
     <driver>DriverWorks</driver>
-    <search_type>slomins:camera</search_type>
     <composer_categories>
-        <category>Cameras</category>
+        <category>Security</category>
+        <category>Locks</category>
     </composer_categories>
-    <proxies qty="1">
-        <proxy proxybindingid="5001" name="Slomins K15-SL PTZ Camera">camera</proxy>
+    <proxies>
+        <proxy proxybindingid="5003" name="DF511 Door Lock">uibutton</proxy>
+        <proxy proxybindingid="5002" name="Door Lock">lock</proxy>
+        <proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>
     </proxies>
-    <OnlineCategory>Cameras</OnlineCategory>
+    <OnlineCategory>Security</OnlineCategory>
     <capabilities>
-        <modes>H265, SNAPSHOT, MJPEG, H264</modes>
+        <modes>H264,H265, SNAPSHOT, MJPEG</modes>
         <default_http_port>3333</default_http_port>
         <default_rtsp_port>554</default_rtsp_port>
-        <default_authentication_required>True</default_authentication_required>
+        <default_authentication_required>False</default_authentication_required>
         <default_authentication_type>BASIC</default_authentication_type>
         <default_username>SystemConnect</default_username>
         <default_password>123456</default_password>
@@ -36,29 +38,62 @@
         <requires_dynamic_snapshot_urls>false</requires_dynamic_snapshot_urls>
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
         <snapshot_cache_enabled>true</snapshot_cache_enabled>
-        <snapshot_cache_duration>180</snapshot_cache_duration>
-        <has_pan>true</has_pan>
-        <has_tilt>true</has_tilt>
-        <has_zoom>true</has_zoom>
-        <number_presets>8</number_presets>
+        <snapshot_cache_duration>5</snapshot_cache_duration>
+        <has_pan>false</has_pan>
+        <has_tilt>false</has_tilt>
+        <has_zoom>false</has_zoom>
+        <number_presets>0</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
-           <hasHistory>true</hasHistory>
+        <has_h264>True</has_h264>
+        <can_view_vlc>True</can_view_vlc>
+        <supports_rtsp_auth>True</supports_rtsp_auth>
+        <navigator_display_option proxybindingid="5003">
+            <display_icons>
+                <Icon width="70" height="70">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
+                <Icon width="90" height="90">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
+                <Icon width="300" height="300">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
+                <state id="locked">
+                    <Icon width="70" height="70">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_70.png</Icon>
+                    <Icon width="90" height="90">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_90.png</Icon>
+                    <Icon width="300" height="300">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/lock_300.png</Icon>
+                </state>
+                <state id="unlocked">
+                    <Icon width="70" height="70">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_70.png</Icon>
+                    <Icon width="90" height="90">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_90.png</Icon>
+                    <Icon width="300" height="300">
+                        controller://driver/Slomins-doorvideolock-DF511/icons/device/unlock_300.png</Icon>
+                </state>
+            </display_icons>
+        </navigator_display_option>
+        <web_view_url proxybindingid="5003">
+            controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
+        <mobile_web_view_enabled>true</mobile_web_view_enabled>
+        <network>true</network>
+        <address_required>true</address_required>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
-    <attachment>
-      <id>1001</id>
-      <type>IMAGE_JPEG</type>
-      <description>Current Snapshot</description>
-      <source>MEMORY</source>
-    </attachment>
-    <attachment>
-      <id>1002</id>
-      <type>IMAGE_JPEG</type>
-      <description>Snapshot (File)</description>
-      <source>FILE</source>
-    </attachment>
+        <attachment>
+            <id>1001</id>
+            <type>IMAGE_JPEG</type>
+            <description>Current Snapshot</description>
+            <source>MEMORY</source>
+        </attachment>
+        <attachment>
+            <id>1002</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (File)</description>
+            <source>FILE</source>
+        </attachment>
         <attachment>
             <id>1003</id>
             <type>IMAGE_JPEG</type>
@@ -66,50 +101,157 @@
             <source>URL</source>
         </attachment>
     </notification_attachments>
-  <events>
-    <event>
-        <id>1</id>
-        <name>Motion Detected</name>
-        <description>When NAME detects motion</description>
-    </event>
-    <event>
-        <id>2</id>
-        <name>Human Detected</name>
-        <description>When NAME detects a human</description>
-    </event>
-    <event>
-        <id>3</id>
-        <name>Camera Online</name>
-        <description>When NAME comes online</description>
-    </event>
-    <event>
-        <id>4</id>
-        <name>Camera Offline</name>
-        <description>When NAME goes offline</description>
-    </event>
-    <event>
-        <id>5</id>
-        <name>Camera Restarted</name>
-        <description>When NAME restarts</description>
-    </event>
-    <event>
-        <id>6</id>
-        <name>Registered User Detected</name>
-        <description>When NAME detects a registered user</description>
-    </event>
-    <event>
-        <id>7</id>
-        <name>Stranger Detected</name>
-        <description>When NAME detects a stranger</description>
-    </event>
-</events>
+    <events>
+        <event>
+            <id>1</id>
+            <name>Motion Detected</name>
+            <description>When NAME detects motion</description>
+        </event>
+        <event>
+            <id>2</id>
+            <name>Face Detected</name>
+            <description>When NAME detects a face</description>
+        </event>
+        <event>
+            <id>3</id>
+            <name>Stranger Detected</name>
+            <description>When NAME detects a stranger</description>
+        </event>
+        <event>
+            <id>4</id>
+            <name>Low Battery</name>
+            <description>When NAME battery is low</description>
+        </event>
+        <event>
+            <id>5</id>
+            <name>Camera Online</name>
+            <description>When NAME comes online</description>
+        </event>
+        <event>
+            <id>6</id>
+            <name>Camera Offline</name>
+            <description>When NAME goes offline</description>
+        </event>
+        <event>
+            <id>7</id>
+            <name>Camera Restarted</name>
+            <description>When NAME restarts</description>
+        </event>
+        <event>
+            <id>8</id>
+            <name>Doorbell Ring</name>
+            <description>When NAME doorbell is pressed</description>
+        </event>
 
+        <!-- Lock & Unlock Events -->
+
+        <event>
+            <id>9</id>
+            <name>Unlock with Password</name>
+            <description>When NAME is unlocked using a password</description>
+        </event>
+        <event>
+            <id>10</id>
+            <name>Offline Password Unlock</name>
+            <description>When NAME is unlocked using an offline password</description>
+        </event>
+        <event>
+            <id>11</id>
+            <name>Duress Unlock</name>
+            <description>When NAME is unlocked using a duress password</description>
+        </event>
+        <event>
+            <id>12</id>
+            <name>Face Recognition Unlock</name>
+            <description>When NAME is unlocked using face recognition</description>
+        </event>
+        <event>
+            <id>13</id>
+            <name>NFC Unlock</name>
+            <description>When NAME is unlocked using an NFC card</description>
+        </event>
+        <event>
+            <id>14</id>
+            <name>App Unlock</name>
+            <description>When NAME is unlocked from the mobile app</description>
+        </event>
+        <event>
+            <id>15</id>
+            <name>One-Click Unlock</name>
+            <description>When NAME is unlocked using one-click unlock</description>
+        </event>
+        <event>
+            <id>16</id>
+            <name>Key Unlock</name>
+            <description>When NAME is unlocked using a physical key</description>
+        </event>
+        <event>
+            <id>17</id>
+            <name>One-Touch Lock</name>
+            <description>When NAME is locked using one-touch lock</description>
+        </event>
+        <event>
+            <id>18</id>
+            <name>Lock Event</name>
+            <description>When NAME is locked</description>
+        </event>
+        <event>
+            <id>19</id>
+            <name>Remote Lock</name>
+            <description>When NAME is locked remotely</description>
+        </event>
+        <event>
+            <id>20</id>
+            <name>Locking Started</name>
+            <description>When NAME starts locking</description>
+        </event>
+        <event>
+            <id>21</id>
+            <name>Locked Outside</name>
+            <description>When someone is locked outside NAME</description>
+        </event>
+        <event>
+            <id>22</id>
+            <name>System Is Locked</name>
+            <description>When NAME system is locked</description>
+        </event>
+    </events>
     <conditionals>
+        <conditional>
+            <name>LOCKED</name>
+            <type>LIST</type>
+            <condition_statement>If Locked</condition_statement>
+            <description>Locked</description>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>UNLOCKED</name>
+            <type>LIST</type>
+            <condition_statement>If Unlocked</condition_statement>
+            <description>Unlocked</description>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>IN_FAULT</name>
+            <type>LIST</type>
+            <condition_statement>If in fault</condition_statement>
+            <description>In fault</description>
+            <items>
+                <item>True</item>
+                <item>False</item>
+            </items>
+        </conditional>
         <conditional>
             <name>MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If sensing motion</condition_statement>
             <description>Sensing motion</description>
-            <label>sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -118,8 +260,8 @@
         <conditional>
             <name>NOT_MOTION_DETECTED</name>
             <type>LIST</type>
+            <condition_statement>If not sensing motion</condition_statement>
             <description>Not sensing motion</description>
-            <label>not sensing motion</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -128,8 +270,8 @@
         <conditional>
             <name>MIC_MUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is muted</condition_statement>
             <description>Mic is muted</description>
-            <label>Mic is muted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -138,8 +280,8 @@
         <conditional>
             <name>MIC_UNMUTED</name>
             <type>LIST</type>
+            <condition_statement>If Mic is unmuted</condition_statement>
             <description>Mic is unmuted</description>
-            <label>Mic is unmuted</label>
             <items>
                 <item>True</item>
                 <item>False</item>
@@ -148,8 +290,8 @@
         <conditional>
             <name>SPEAKER_VOLUME</name>
             <type>LIST</type>
+            <condition_statement>If Speaker volume is</condition_statement>
             <description>Speaker volume is 1-10</description>
-            <label>Speaker volume is 1-10</label>
             <items>
                 <item>1</item>
                 <item>2</item>
@@ -164,46 +306,94 @@
             </items>
         </conditional>
         <conditional>
-            <name>TRACKING</name>
+            <name>BATTERY_LEVEL</name>
+            <type>NUMBER</type>
+            <condition_statement>If battery level is</condition_statement>
+            <description>Battery level</description>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+        </conditional>
+        <conditional>
+            <name>SENSITIVITY</name>
             <type>LIST</type>
-            <description>Tracking is on/off</description>
-            <label>tracking is</label>
+            <condition_statement>If Sensitivity is</condition_statement>
+            <description>Sensitivity level</description>
+            <items>
+                <item>1</item>
+                <item>2</item>
+                <item>3</item>
+                <item>4</item>
+                <item>5</item>
+                <item>6</item>
+                <item>7</item>
+                <item>8</item>
+                <item>9</item>
+                <item>10</item>
+            </items>
+        </conditional>
+        <conditional>
+            <name>STRANGER</name>
+            <type>LIST</type>
+            <condition_statement>If Stranger Detected</condition_statement>
+            <description>Stranger Detected</description>
             <items>
                 <item>True</item>
                 <item>False</item>
             </items>
         </conditional>
     </conditionals>
-
+    <search>
+        <search_type>slomins:lock</search_type>
+        <add_device_properties>
+            <property type="string" id="1" name="IP Address" network_address="true" />
+        </add_device_properties>
+        <add_connection_binding_address>
+            <connection_id>6001</connection_id>
+        </add_connection_binding_address>
+    </search>
+    <variables>
+        <variable>
+            <name>FaceKID</name>
+            <type>STRING</type>
+            <readonly>true</readonly>
+        </variable>
+    </variables>
+  <variables>
+        <variable>
+          <name>FaceName</name>
+            <type>STRING</type>
+            <readonly>true</readonly>
+        </variable>
+    </variables>
     <config>
-        <script file="driver.lua"/>
-        <documentation file="README.html">Slomins K15-SL Camera Documentation</documentation>
-       <properties>
+        <script file="driver.lua" />
+        <documentation file="README.html">Slomins DF511 Door Video lock Documentation</documentation>
+        <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.50</default>
-                <readonly>false</readonly>
+                <default></default>
+                <readonly>true</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d6rrkb6hg7rc73dvgr40</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>Device Name</name>
                 <type>STRING</type>
-                <default>PoE PTZ Camera </default>
+                <default>Video Lock(Wi-Fi)</default>
                 <readonly>false</readonly>
             </property>
-             <property>
+            <property>
                 <name>MAC Address</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>false</readonly>
             </property>
-             <property>
+            <property>
                 <name>Status</name>
                 <type>STRING</type>
                 <default></default>
@@ -212,7 +402,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>pyabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -255,99 +445,55 @@
                 <name>AppId</name>
                 <type>STRING</type>
                 <default></default>
-                <readonly>true</readonly>
+                <readonly>false</readonly>
             </property>
             <property>
                 <name>AppSecret</name>
                 <type>STRING</type>
-                <password>true</password>
+                <password>false</password>
                 <default></default>
-                <readonly>true</readonly>
+                <readonly>false</readonly>
             </property>
+
             <property>
                 <name>Camera Status</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
             </property>
+            <property>
+                <name>Battery Level</name>
+                <type>STRING</type>
+                <default>0</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Battery Recovery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>80</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Threshold (%)</name>
+                <type>RANGED_INTEGER</type>
+                <default>15</default>
+                <minimum>1</minimum>
+                <maximum>100</maximum>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Low Battery Alert Interval (Hours)</name>
+                <type>RANGED_INTEGER</type>
+                <default>6</default>
+                <minimum>1</minimum>
+                <maximum>24</maximum>
+                <readonly>false</readonly>
+            </property>
+
         </properties>
         <actions>
-             <action>
-                <name>Get Cloud Presets</name>
-                <command>GET_PRESETS_API</command>
-            </action>
-            <action>
-                <name>Go To Preset</name>
-                <command>PTZ_GOTO_PRESET</command>
-                <params>
-                    <param>
-                        <name>X</name>
-                        <type>INTEGER</type>
-                        <default>500</default>
-                    </param>
-                    <param>
-                        <name>Y</name>
-                        <type>INTEGER</type>
-                        <default>500</default>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Up</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>up</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Down</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>down</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Left</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>left</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
-            <action>
-                <name>PTZ Right</name>
-                <command>PTZ_MOVE</command>
-                <params>
-                    <param>
-                        <name>direction</name>
-                        <value>right</value>
-                    </param>
-                    <param>
-                        <name>speed</name>
-                        <value>1</value>
-                    </param>
-                </params>
-            </action>
             <action>
                 <name>Take Snapshot</name>
                 <command>TAKE_SNAPSHOT</command>
@@ -373,94 +519,44 @@
                 <command>SPEAKER_VOLUME_DOWN</command>
             </action>
             <action>
-                <name>Initialize</name>
-                <command>INITIALIZE_CAMERA</command>
+                <name>Sensitivity =</name>
+                <command>SET_SENSITIVITY</command>
+                <params>
+                    <param>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
+                        <default>5</default>
+                    </param>
+                </params>
             </action>
             <action>
-                <name>Login/Register</name>
-                <command>LOGIN_OR_REGISTER</command>
+                <name>Lock</name>
+                <description>Lock the device</description>
+                <command>LOCK_DOOR</command>
             </action>
             <action>
-                <name>Get Devices</name>
-                <command>GET_DEVICES</command>
-            </action>
-            <action>
-                <name>Discover Cameras (HTTP Scan)</name>
-                <command>DISCOVER_CAMERAS</command>
-            </action>
-            <action>
-                <name>Discover Cameras (SDDP)</name>
-                <command>DISCOVER_CAMERAS_SDDP</command>
-            </action>
-            <action>
-                <name>Set Device active (SDDP)</name>
-                <command>SET_DEVICE_PROPERTY</command>
+                <name>Unlock</name>
+                <description>Unlock the device</description>
+                <command>UNLOCK_DOOR</command>
             </action>
         </actions>
+        <variables>
+            <variable>
+                <name>BATTERY_LEVEL</name>
+                <type>STRING</type>
+                <default>-1</default>
+            </variable>
+        </variables>
         <commands>
             <command>
-                <name>GET_PRESETS_API</name>
-                <description>Fetch cloud preset spots from API</description>
-            </command>
-            <command>
-                <name>PTZ_GOTO_PRESET</name>
-                <description>Move camera to a preset using trace_point/ac_ptz sequence</description>
-                <params>
-                    <param>
-                        <name>X</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Y</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-        </command>
-            <command>
-                <name>PRESET</name>
-                <description>Move camera to a preset using ac_ptz sequence</description>
-                <params>
-                    <param>
-                        <name>INDEX</name>  <!-- Preset number -->
-                        <type>INTEGER</type>
-                    </param>
-                    <!-- Optional: override step counts per direction -->
-                    <param>
-                        <name>Right</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Up</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Left</name>
-                        <type>INTEGER</type>
-                    </param>
-                    <param>
-                        <name>Down</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
-            </command>
-            <command>
-                <name>SAVE_PRESET</name>
-                <parameter>
-                    <name>INDEX</name>
-                    <type>INTEGER</type>
-                </parameter>
-            </command>
-            <command>
-                <name>PTZ_CONT_STOP</name>
-                <description>Stop continuous PTZ movement</description>
+                <name>TAKE_SNAPSHOT</name>
+                <description>Take Snapshot</description>
             </command>
             <command>
                 <name>INITIALIZE_CAMERA</name>
                 <description>Initialize Camera</description>
-            </command>
-            <command>
-                <name>TAKE_SNAPSHOT</name>
-                <description>Take Snapshot</description>
             </command>
             <command>
                 <name>UNMUTE_MIC</name>
@@ -479,28 +575,55 @@
                 <description>Turn down speaker volume</description>
             </command>
             <command>
-                <name>PRESET_SAVE</name>
-                <description>Save current position as preset</description>
+                <name>SET_SENSITIVITY</name>
+                <description>Sensitivity =</description>
                 <params>
                     <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
+                        <name>LEVEL</name>
+                        <type>RANGED_INTEGER</type>
+                        <minimum>1</minimum>
+                        <maximum>10</maximum>
                     </param>
                 </params>
             </command>
             <command>
-                <name>PRESET_RECALL</name>
-                <description>Recall a saved preset</description>
+                <name>LOCK_DOOR</name>
+                <description>Lock door</description>
+            </command>
+            <command>
+                <name>UNLOCK_DOOR</name>
+                <description>Unlock door</description>
+            </command>
+            <command>
+                <name>CAMERA_LIVE_PREVIEW</name>
+                <description>Open live camera preview from WebView UI</description>
+            </command>
+            <command>
+                <name>SetLockUnlock</name>
+                <description>Send lock and unlock from control4</description>
+            </command>
+            <command>
+                <name>HandleSelect</name>
+                <description>Called when UI padlock is loaded to initialize state</description>
+            </command>
+            <command>
+                <name>SET_STATE</name>
+                <description>Update the lock state for UI</description>
                 <params>
                     <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
+                        <name>state</name>
+                        <type>STRING</type>
                     </param>
                 </params>
             </command>
             <command>
-                <name>SEND_NOTIFICATION</name>
-                <description>Send notification to control4 app</description>
+                <name>REQUEST_SETTINGS</name>
+            </command>
+            <command>
+                <name>REQUEST_CUSTOM_SETTINGS</name>
+            </command>
+            <command>
+                <name>SELECT</name>
             </command>
         </commands>
         <interfaces>
@@ -526,13 +649,45 @@
                     <classname>CAMERA</classname>
                 </class>
             </classes>
+            <hidden>True</hidden>
+        </connection>
+        <connection>
+            <id>5003</id>
+            <facing>6</facing>
+            <connectionname>UIBUTTON</connectionname>
+            <type>2</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>True</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>UIBUTTON</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
+            <id>5002</id>
+            <facing>6</facing>
+            <connectionname>LOCK</connectionname>
+            <type>2</type>
+            <consumer>false</consumer>
+            <audiosource>false</audiosource>
+            <videosource>false</videosource>
+            <linelevel>false</linelevel>
+            <classes>
+                <class>
+                    <classname>LOCK</classname>
+                </class>
+            </classes>
         </connection>
         <connection>
             <id>6001</id>
             <facing>1</facing>
             <connectionname>MQTT Proxy</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
                     <classname>GENERIC_PROXY</classname>
