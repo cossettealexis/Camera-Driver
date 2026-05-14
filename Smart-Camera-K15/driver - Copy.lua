@@ -8,21 +8,26 @@ local http               = require("CldBusApi.http")
 local auth               = require("CldBusApi.auth")
 local transport          = require("CldBusApi.transport_c4")
 local util               = require("CldBusApi.util")
+local MQTT               = require("mqtt_manager")
 
 -- Local state
-local LAST_EVENT_ID      = 0
-local NOTIFICATION_URLS  = {}
-local NOTIFICATION_QUEUE = {}
-PENDING_NOTIFICATION_URL = nil
-ACTIVE_NOTIFICATION_URL  = nil
-LAST_NOTIFY_ID           = LAST_NOTIFY_ID or nil
-MAX_TIME_DRIFT           = 600     -- seconds (acceptable drift)
+local LAST_EVENT_ID         = 0
+local NOTIFICATION_URLS     = {}
+local NOTIFICATION_QUEUE    = {}
+PENDING_NOTIFICATION_URL    = nil
+ACTIVE_NOTIFICATION_URL     = nil
+LAST_NOTIFY_ID              = LAST_NOTIFY_ID or nil
+MAX_TIME_DRIFT              = 600     -- seconds (acceptable drift)
 
-local MQTT               = require("mqtt_manager")
-local CAMERA_BINDING     = 5001
-local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 5000
-local last_ip_refresh    = 0
-local MIN_REFRESH_GAP    = 5
+local IMAGE_RETRY_COUNT     = tonumber(Properties["Image Retry Count"]) or 5
+local IMAGE_RETRY_DELAY     = tonumber(Properties["Image Retry Interval (ms)"]) or 300
+
+local CAMERA_BINDING        = 5001
+local EVENT_DELAY_MS        = tonumber(Properties["Event Interval (ms)"]) or 5000
+
+local last_ip_refresh       = 0
+local MIN_REFRESH_GAP       = 5
+
 local NOTIFY             = {
     ALERT = "ALERT",
     INFO  = "INFO"
@@ -60,11 +65,9 @@ GlobalObject.TCP_SERVER_PORT   = 8081
 GlobalObject.DeviceModel       = "k15" --K15
 GlobalObject.LnduTempToken     = nil
 GlobalObject.LnduExchangeToken = nil
-GlobalObject.ClientID          = nil
 GlobalObject.AES_KEY           = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
 GlobalObject.AES_IV            = "33rj6KNVN4kFvd0s"
 GlobalObject.ProductSubType    = "poe_camera" -- poe_camera K15
-GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -99,17 +102,20 @@ local EVENT = {
 
 }
 
-local mqtt_enabled = false
-
-local conditional_state = {
-    MOTION_DETECTED = false,
-    NOT_MOTION_DETECTED = true,
-    MIC_MUTED = false,
-    MIC_UNMUTED = true,
-    SPEAKER_VOLUME = 5,
-    BATTERY_LEVEL = 100,
-    SENSITIVITY = 5
+local EVENT_ID_MAP = {
+    ["Motion Detected"]     = 1,
+    ["Face Detected"]       = 2,
+    ["Stranger Detected"]   = 3,
+    ["Low Battery"]         = 4,
+    ["Camera Online"]       = 5,
+    ["Camera Offline"]      = 6,
+    ["Camera Restarted"]    = 7,
+    ["Doorbell Ring"]       = 8
+ 
 }
+
+local mqtt_enabled      = false
+local last_power_status = nil
 
 --Establishes a TCP connection to the configured server.
   
@@ -221,6 +227,34 @@ end
 function OnDriverDestroyed()
     print("=== K26 Driver Destroyed ===")
     MQTT.disconnect()
+end
+
+function OnDriverLateInit()
+    print("=== K15-SL Driver Late Init ===")
+    C4:UpdateProperty("Camera Status", "Unknown")
+    C4:UpdateProperty("Status", "Validating MAC address...")
+
+    local mac = C4:GetUniqueMAC()
+    if not mac or mac == "" then
+        print("[MAC] ERROR: Could not retrieve controller MAC")
+        C4:UpdateProperty("Status", "MAC retrieval failed")
+        return
+    end
+
+    print("[MAC] Validating with MAC: " .. mac)
+    C4:UpdateProperty("MAC Address", mac)   -- ensure property is correct
+    _props["MAC Address"] = mac
+
+    ValidateMacAddress(mac)
+
+    -- Initial proxy setup (helps with camera binding)
+    local ip = _props["IP Address"] or Properties["IP Address"] or ""
+    C4:SendToProxy(5001, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
+    C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
+    C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "True" })
+    C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
+
+    C4:UpdateProperty("Status", "Waiting for credentials and initialization...")
 end
 
 function ValidateMacAddress(mac)
@@ -352,25 +386,6 @@ function ValidateMacAddress(mac)
     )
 end
 
-function OnDriverLateInit()
-    print("=== K15-SL Driver Late Init ===")
-     C4:UpdateProperty("Camera Status", "Unknown")
-     ValidateMacAddress(C4:GetUniqueMAC())
-    -- Send camera configuration to Camera Proxy
-    local ip = _props["IP Address"]
-    local http_port = CameraDefaultProps.HTTPPort or "3333"
-    local rtsp_port = CameraDefaultProps.RTSPPort or "554"
-
-    if ip and ip ~= "" then
-        print("Sending camera configuration to Camera Proxy:")
-        print("  IP Address: " .. ip)
-        print("  HTTP Port: " .. http_port)
-        print("  RTSP Port: " .. rtsp_port)
-    end
-    C4:UpdateProperty("Status", "Driver ready - waiting for credentials")
-end
-
-
 
 local function update_prop(name, value)
     if not value then value = "" end
@@ -395,23 +410,25 @@ function OnPropertyChanged(strProperty)
     end
 
     if strProperty == "MAC Address" then
-        print("[MAC] MAC Address changed → Refreshing CldBus credentials")
         local macValue = Properties["MAC Address"] or C4:GetUniqueMAC()
-        _props["MAC Address"] = macValue
-        ValidateMacAddress(macValue)
+        if macValue and macValue ~= "" and macValue ~= _props["MAC Address"] then
+            print("[MAC] MAC Address changed → Refreshing credentials")
+            _props["MAC Address"] = macValue
+            ValidateMacAddress(macValue)
+        end
         return
     end
-    -- ===========================================================
 
-    -- Also keep triggering on IP Address change for convenience (optional but useful)
     if strProperty == "IP Address" then
-        print("[MAC] IP Address changed → Refreshing CldBus credentials")
-        _props[strProperty] = Properties[strProperty]
-        ValidateMacAddress(C4:GetUniqueMAC())
+        local new_ip = Properties["IP Address"]
+        if new_ip and new_ip ~= "" then
+            _props["IP Address"] = new_ip
+            SET_CAMERA_IP(new_ip)
+        end
         return
     end
 
-    --[[if strProperty == "Enable MQTT" then
+    if strProperty == "Enable MQTT" then
         mqtt_enabled = (Properties[strProperty] == "True")
 
         if mqtt_enabled then
@@ -425,31 +442,7 @@ function OnPropertyChanged(strProperty)
             MQTT.unsubscribe(vid)
         end
         return
-    end --]]
-
-    if strProperty == "Enable MQTT" then
-        local requested = (Properties[strProperty] == "True")
-
-        if not requested and _initializing then
-            print("[MQTT] Ignoring disable during initialization")
-            return
-        end
-
-        mqtt_enabled = requested
-
-        if mqtt_enabled then
-            print("[MQTT] Enabled by user")
-            update_prop("Status", "MQTT enabled - waiting for credentials...")
-            C4:SetTimer(1000, APPLY_MQTT_INFO)   -- give time for credentials
-        else
-            print("[MQTT] Disabled by user")
-            update_prop("Status", "MQTT disabled")
-            local vid = _props["VID"] or Properties["VID"]
-            if vid then MQTT.unsubscribe(vid) end
-        end
-        return
     end
-
     if strProperty == "Enable Alert Notifications" then
         user_settings.enable_alerts =
             (Properties[strProperty] == "True")
@@ -477,18 +470,14 @@ function OnPropertyChanged(strProperty)
     end
 
     if strProperty == "AppId" then
-        local newValue = Properties[strProperty] or ""
-        print("[PROP] AppId manually changed => " .. newValue)
-        _props["AppId"] = newValue
-        GlobalObject.CldBusAppId = newValue
+        print("[PROP] AppId manually changed => " .. tostring(Properties[strProperty]))
+        _props["AppId"] = Properties[strProperty]
         return
     end
 
     if strProperty == "AppSecret" then
-        local newValue = Properties[strProperty] or ""
         print("[PROP] AppSecret manually changed (hidden)")
-        _props["AppSecret"] = newValue
-        GlobalObject.CldBusSecret = newValue
+        _props["AppSecret"] = Properties[strProperty]
         return
     end
 end
@@ -533,11 +522,6 @@ function ExecuteCommand(strCommand, tParams)
     PTZ_GOTO_PRESET(tParams)
      return
     end
-
-    if strCommand == "GET_PRESETS_API" then ---v1.0.2
-        GET_PRESETS_API()
-        return
-    end
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -551,8 +535,6 @@ function InitializeCamera()
     print("                 INITIALIZE CAMERA CALLED                        ")
     print("================================================================")
     C4:UpdateProperty("Status", "InitializeCamera....")
-
-    GET_PRESETS_API()
     -- Generate a single ClientID for this session
     local client_id = util.uuid_v4()
     GlobalObject.ClientID = client_id
@@ -561,7 +543,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-     local appId, appSecret = GetCldBusCredentials()
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -654,10 +636,11 @@ function LoginOrRegister(country_code, account, public_key)
      local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
-        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        print("ERROR: CldBus credentials not loaded yet")
         C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
         return
     end
+
 
     local post_data_obj = { country_code = country_code, account = account }
     local post_data_json = json.encode(post_data_obj)
@@ -674,7 +657,7 @@ function LoginOrRegister(country_code, account, public_key)
         local post_data_hex = encrypted_data
         local message = string.format("client_id=%s&post_data=%s&request_id=%s&time=%s",
             client_id, post_data_hex, request_id, time)
-        local signature = util.hmac_sha256_hex(message, appSecret)
+        local signature = util.hmac_sha256_hex(message, appId)
 
         local body_tbl = {
             sign       = signature,
@@ -821,9 +804,6 @@ function SendTokenToNodeAPI(token)
         C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
         return
     end
-
-    print("[NodeAPI] Preparing to send token with AppId:", appId)
-
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
 
@@ -831,10 +811,10 @@ function SendTokenToNodeAPI(token)
             message = {
                 EventName   = "LnduUpdate",
                 Token       = token,
-                ClientID    = GlobalObject.ClientID or "",
+                ClientID    = GlobalObject.ClientID,
                 AppId       = appId,
                 AppSecret   = appSecret,
-                AccountName = GlobalObject.CustomerEmail or "",
+                AccountName = GlobalObject.AccountName,
                 C4UniqueMac = C4:GetUniqueMAC()
             }
         }
@@ -845,26 +825,22 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = appId          -- Correct: use the local appId variable
+                ["App-Name"]        = appId 
             },
             body = json.encode(body),
             timeout = 10
         }
 
-        print("[NodeAPI] Sending token, AppId and AppSecret to Node API...")
+        print("[NodeAPI] Sending token , App Id and App Secret to Node API...")
 
         transport.execute(req, function(code, resp, headers, err)
             if code == 200 then
                 print("[NodeAPI] SUCCESS: Token delivered!")
             else
-                print(string.format("[NodeAPI] Failed - Response: %s | Error: %s", tostring(code), tostring(err or "none")))
-                
+                print(string.format("[NodeAPI] Response: %s | Error: %s", tostring(code), tostring(err)))
                 if attempt < max_attempts then
                     attempt = attempt + 1
-                    print("[NodeAPI] Retrying... attempt " .. attempt)
                     C4:SetTimer(5000, SendTokenRetry)
-                else
-                    print("[NodeAPI] Max retries reached. Token delivery failed.")
                 end
             end
         end)
@@ -891,20 +867,20 @@ function GET_DEVICES(p_vid)
 
     print("Using bearer token: " .. auth_token)
 
-    local appId, appSecret = GetCldBusCredentials()
-
-    if appId == "" or appSecret == "" then
-        print("ERROR: CldBus credentials not loaded yet")
-        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
-        return
-    end
-
     -- Update status
     --C4:UpdateProperty("Status", "Getting devices...")
 
     -- Build request
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices-v2"
+
+     local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     local headers = {
         ["Content-Type"] = "application/json",
@@ -1105,43 +1081,41 @@ end
 
 function APPLY_MQTT_INFO()
     print("APPLY_MQTT_INFO called")
-
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    local vid = _props["VID"] or Properties["VID"] or Properties["Device ID"]
+    local vid = _props["Device ID"] or _props["VID"] or Properties["Device ID"] or Properties["VID"]
 
     if not auth_token or auth_token == "" then
         print("APPLY_MQTT_INFO: missing auth token")
         update_prop("Status", "MQTT info failed: no auth token")
         return
     end
-
     if not vid or vid == "" then
         print("APPLY_MQTT_INFO: missing VID")
         update_prop("Status", "MQTT info failed: no vid")
         return
     end
 
-    local appId, appSecret = GetCldBusCredentials()
+     local appId, appSecret = GetCldBusCredentials()
 
+    -- === CRITICAL FIX: Wait if credentials are not ready yet ===
     if appId == "" or appSecret == "" then
-        print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
+        print("[MQTT] CldBus credentials not ready yet → will retry in 2 seconds")
         update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
-        
+
         C4:SetTimer(2000, function()
             if Properties["Enable MQTT"] == "True" then
-                APPLY_MQTT_INFO()
+                APPLY_MQTT_INFO()   -- retry
             end
         end)
         return
     end
 
-    print("[MQTT] Using AppId:", appId)
     update_prop("Status", "Fetching MQTT info...")
-
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/apply-mqtt-info"
 
-    local body_json = json.encode({ vid = vid })
+    local body_tbl = { vid = vid }
+    local body_json = json.encode(body_tbl)
 
     local headers = {
         ["Content-Type"]  = "application/json",
@@ -1162,6 +1136,7 @@ function APPLY_MQTT_INFO()
 
                 local raw_host = d.mqtt_host or ""
                 local secure = false
+
                 if raw_host:match("^mqtts://") then
                     secure = true
                     raw_host = raw_host:gsub("^mqtts://", "")
@@ -1169,22 +1144,28 @@ function APPLY_MQTT_INFO()
                     raw_host = raw_host:gsub("^mqtt://", "")
                 end
 
-                local port = tonumber(d.mqtt_port) or (secure and 8884 or 1883)
+
+                local port = tonumber(d.mqtt_port)
+                if not port then
+                    port = secure and 8884 or 1883
+                end
+
 
                 if d.mqtt_host then update_prop(PROP_MQTT_HOST, raw_host) end
                 if d.mqtt_port then update_prop(PROP_MQTT_PORT, tostring(port)) end
                 if d.mqtt_client_id then update_prop(PROP_MQTT_CLIENT_ID, d.mqtt_client_id) end
                 if d.mqtt_client_secret then update_prop(PROP_MQTT_SECRET, d.mqtt_client_secret) end
 
+
                 _props.MQTT.host      = raw_host
-                _props.MQTT.port      = port
+                _props.MQTT.port      = d.mqtt_port
                 _props.MQTT.client_id = d.mqtt_client_id
                 _props.MQTT.secret    = d.mqtt_client_secret
                 _props.MQTT.secure    = secure
                 _props.MQTT.keepalive = 60
                 _props.MQTT.packet_id = 1
 
-                update_prop("Status", "MQTT info loaded successfully")
+                update_prop("Status", "MQTT info loaded")
 
                 MQTT_GET_PASSWORD(_props.MQTT.client_id, _props.MQTT.secret, function(username, pwd)
                     if not pwd or not username then
@@ -1195,26 +1176,27 @@ function APPLY_MQTT_INFO()
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
 
-                    print("[MQTT] ✅ Username:", username)
-                    print("[MQTT] ✅ Password received (len =", #pwd, ")")
+                    print("[MQTT] ✅ Username: " .. username)
+                    print("[MQTT] ✅ Password received (len = " .. #pwd .. ")")
+
+                    print("--------------------------------------------------")
+                    print("[MQTT] 🔍 FINAL CONNECTION DATA")
+                    print("[MQTT] Host:       " .. tostring(_props.MQTT.host))
+                    print("[MQTT] Port:       " .. tostring(_props.MQTT.port))
+                    print("[MQTT] Client ID:  " .. tostring(_props.MQTT.client_id))
+                    print("[MQTT] Username:   " .. tostring(_props.MQTT.username))
+                    print("[MQTT] Password:   " .. tostring(_props.MQTT.password))
+                    print("[MQTT] KeepAlive:  " .. tostring(_props.MQTT.keepalive))
+                    print("--------------------------------------------------")
 
                     MQTT.connect()
                 end)
 
-            else
-                update_prop("Status", "MQTT info parse error")
+                return
             end
-
+            update_prop("Status", "MQTT info parse error")
         else
-            print("[MQTT] Failed with code:", code)
-            update_prop("Status", "MQTT info failed: " .. tostring(code))
-            
-            -- Retry once more
-            C4:SetTimer(3000, function()
-                if Properties["Enable MQTT"] == "True" then
-                    APPLY_MQTT_INFO()
-                end
-            end)
+            update_prop("Status", "MQTT info failed: " .. tostring(err or code))
         end
     end)
 end
@@ -1303,7 +1285,7 @@ function ReceivedFromNetwork(id, port, data)
         print("[TCP] Token missing in payload")
     end
 
-    
+    - AppId
     if payload.AppId and payload.AppId ~= "" then
         GlobalObject.AppId = payload.AppId
         _props["AppId"] = payload.AppId
@@ -1311,7 +1293,7 @@ function ReceivedFromNetwork(id, port, data)
         print(string.format("[PROP] AppId updated => %s", payload.AppId))
     end
 
-    
+    -- AppSecret
     if payload.AppSecret and payload.AppSecret ~= "" then
         GlobalObject.AppSecret = payload.AppSecret
         _props["AppSecret"] = payload.AppSecret
@@ -1383,13 +1365,6 @@ function GetImageForEvent(extp, done)
     local vid   = Properties["VID"]
     local token = Properties["Auth Token"]
     local base  = Properties["Base API URL"] or "https://api.arpha-tech.com"
-    local appId, appSecret = GetCldBusCredentials()
-
-    if appId == "" or appSecret == "" then
-    print("ERROR: CldBus credentials not loaded yet")
-    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
-    return
-    end
 
     if not extp then
         return done(nil)
@@ -1398,6 +1373,14 @@ function GetImageForEvent(extp, done)
     local wanted_file = extp:match("([^/]+%.jpg)")
     if not wanted_file then
         return done(nil)
+    end
+
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+    print("ERROR: CldBus credentials not loaded yet")
+    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+    return
     end
 
     local url = base .. "/api/v3/openapi/notifications/query"
@@ -1506,10 +1489,6 @@ end
 
 local function handle_motion(filename, extp)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
-    
-    -- Update motion conditional states
-    UpdateConditional("MOTION_DETECTED", true)
-    UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
 local function handle_human(filename, extp)
@@ -3231,7 +3210,7 @@ end
 
 
 
---[[function PTZ_GOTO_PRESET(idBinding, tParams)
+function PTZ_GOTO_PRESET(idBinding, tParams)
     print("================================================================")
     print("              PTZ_GOTO_PRESET (REAL PRESET MODE)               ")
     print("================================================================")
@@ -3340,131 +3319,6 @@ end
             end
         end)
     end)
-end--]]
-
-function PTZ_GOTO_PRESET(idBinding, tParams)
-    print("================================================================")
-    print("              PTZ_GOTO_PRESET (DYNAMIC MODE)                  ")
-    print("================================================================")
-
-    local vid = _props["VID"] or Properties["VID"]
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-
-    if not vid or vid == "" then
-        print("ERROR: Missing VID")
-        return
-    end
-
-    if not auth_token or auth_token == "" then
-        print("ERROR: Missing Auth Token")
-        return
-    end
-
-    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Bearer " .. auth_token
-    }
-
-    local preset_index = tonumber(tParams and tParams.INDEX) or 1
-    print("Preset requested (INDEX):", preset_index)
-
-    ----------------------------------------------------------------
-    -- 🧠 GUARD: ensure presets are loaded
-    ----------------------------------------------------------------
-    if not PersistData.presets or #PersistData.presets == 0 then
-        print("ERROR: Presets not loaded. Run GET_PRESETS_API first.")
-        return
-    end
-
-    ----------------------------------------------------------------
-    -- 🧠 Resolve preset from API data
-    ----------------------------------------------------------------
-    local preset = PersistData.presets[preset_index]
-
-    if not preset then
-        print("ERROR: Invalid preset index:", preset_index)
-        return
-    end
-
-    print("Moving to preset:")
-    print("ID:", preset.id)
-    print("Name:", preset.name)
-    print("X:", preset.x)
-    print("Y:", preset.y)
-
-    ----------------------------------------------------------------
-    -- STEP 1: Disable humanoid tracking
-    ----------------------------------------------------------------
-    local body_disable_tracking = {
-        vid = vid,
-        data = json.encode({ humanoid_track = 0 })
-    }
-
-    transport.execute({
-        url = base_url .. "/api/v3/openapi/device/do-property",
-        method = "POST",
-        headers = headers,
-        body = json.encode(body_disable_tracking)
-    }, function(code, resp, _, err)
-
-        print("Tracking OFF response:", code, resp, err)
-
-        ----------------------------------------------------------------
-        -- STEP 2: Move camera using dynamic preset coordinates
-        ----------------------------------------------------------------
-        local body_preset = {
-            vid = vid,
-            data = json.encode({
-                ptz_location = {
-                    x_location = preset.x,
-                    y_location = preset.y
-                }
-            })
-        }
-
-        transport.execute({
-            url = base_url .. "/api/v3/openapi/device/do-property",
-            method = "POST",
-            headers = headers,
-            body = json.encode(body_preset)
-        }, function(code2, resp2, _, err2)
-
-            print("Preset move response:", code2, resp2, err2)
-
-            if code2 == 200 or code2 == 20000 then
-                print("✅ Successfully moved to preset:", preset.name)
-
-                C4:UpdateProperty(
-                    "Status",
-                    "Preset " .. tostring(preset_index) .. " (" .. preset.name .. ") executed"
-                )
-
-                ----------------------------------------------------------------
-                -- STEP 3: Re-enable humanoid tracking
-                ----------------------------------------------------------------
-                local body_enable_tracking = {
-                    vid = vid,
-                    data = json.encode({ humanoid_track = 1 })
-                }
-
-                transport.execute({
-                    url = base_url .. "/api/v3/openapi/device/do-property",
-                    method = "POST",
-                    headers = headers,
-                    body = json.encode(body_enable_tracking)
-                }, function(code3, resp3, _, err3)
-                    print("Tracking ON response:", code3, resp3, err3)
-                end)
-
-            else
-                print("❌ Preset move FAILED:", code2, err2)
-            end
-        end)
-    end)
-
-    print("================================================================")
 end
 
 function PTZ_SAVE_PRESET(idBinding, tParams)
@@ -3488,142 +3342,4 @@ function PTZ_SAVE_PRESET(idBinding, tParams)
     print("Saved preset:", preset_id, "X:", x, "Y:", y)
 
     C4:UpdateProperty("Status", "Preset " .. preset_id .. " saved")
-end
-
-function GET_PRESETS_API() -- v1.0.3
-    print("========== GET_PRESETS_API ==========")
-
-    local vid = _props["VID"] or Properties["VID"]
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-
-    if not vid or vid == "" then
-        print("ERROR: Missing VID")
-        return
-    end
-
-    local url = (Properties["Base API URL"] or "https://api.arpha-tech.com")
-        .. "/api/v3/openapi/device/preset-spot/list"
-
-    local body = json.encode({
-        vid = vid,
-        page = 1,
-        page_size = 20
-    })
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Bearer " .. (auth_token or "")
-    }
-
-    transport.execute({
-        url = url,
-        method = "POST",
-        headers = headers,
-        body = body
-    }, function(code, resp, _, err)
-
-        print("Preset API response code:", code)
-
-        if err then
-            print("ERROR:", err)
-            return
-        end
-
-        local ok, data = pcall(json.decode, resp)
-        if not ok or not data then
-            print("JSON decode failed")
-            return
-        end
-
-        if not data.data then
-            print("No presets found")
-            PersistData.presets = {}
-            return
-        end
-
-        ----------------------------------------------------------------
-        -- NORMALIZE + STORE
-        ----------------------------------------------------------------
-        PersistData.presets = {}
-
-        for _, p in ipairs(data.data) do
-            table.insert(PersistData.presets, {
-                id = p.id,
-                name = p.name,
-                x = p.x_location,
-                y = p.y_location,
-                img = p.img_url,
-                return_spot = p.is_return_spot
-            })
-        end
-
-        ----------------------------------------------------------------
-        -- DEBUG OUTPUT
-        ----------------------------------------------------------------
-        print("Loaded presets: " .. tostring(#PersistData.presets))
-
-        for i, p in ipairs(PersistData.presets) do
-            print(
-                i,
-                "ID:", p.id,
-                "Name:", p.name,
-                "X:", p.x,
-                "Y:", p.y,
-                "IMG:", p.img
-            )
-        end
-
-        C4:UpdateProperty("Status", "Presets loaded: " .. tostring(#PersistData.presets))
-    end)
-
-function UpdateConditional(cond_name, value)
-    if not cond_name then return end
-
-    -- Convert string booleans to actual booleans
-    if type(value) == "string" then
-        if value == "True" or value == "true" then
-            value = true
-        elseif value == "False" or value == "false" then
-            value = false
-        else
-            value = tonumber(value) or value
-        end
-    end
-
-    print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
-    
-    conditional_state[cond_name] = value
-end
-
-function TestCondition(condition_name, test_value)
-    print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
-
-    if not condition_name then 
-        print("[TESTCONDITION] No condition_name provided")
-        return false 
-    end
-
-    -- Convert test_value to proper type
-    local desired = true
-    if type(test_value) == "string" then
-        desired = (test_value == "True" or test_value == "true")
-    elseif type(test_value) == "boolean" then
-        desired = test_value
-    elseif type(test_value) == "number" then
-        desired = test_value
-    end
-
-    -- Check conditional state
-    local current_value = conditional_state[condition_name]
-    
-    if current_value == nil then
-        print("[TESTCONDITION] Condition not found: " .. condition_name)
-        return false
-    end
-
-    local result = (current_value == desired)
-    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
-    
-    return result
-end
 end
