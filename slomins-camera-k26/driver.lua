@@ -1,10 +1,13 @@
-local _props                   = {}
+
+			
+			
+			local _props                   = {}
 local json                     = require("CldBusApi.dkjson")
 local http                     = require("CldBusApi.http")
 local auth                     = require("CldBusApi.auth")
 local transport                = require("CldBusApi.transport_c4")
 local util                     = require("CldBusApi.util")
-
+local EventLogger              = require("event_logger")  
 -- Local state
 local LAST_EVENT_ID            = 0
 local NOTIFICATION_URLS        = {}
@@ -30,8 +33,6 @@ GlobalObject.AES_KEY           = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
 GlobalObject.AES_IV            = "33rj6KNVN4kFvd0s"
 GlobalObject.ProductSubType    = "solar_box_cam" -- solar_box_cam K26
 GlobalObject.BaseApi           = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
-GlobalObject.CldBusAppId       = "cldbus"
-GlobalObject.CldBusSecret      = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -208,12 +209,6 @@ function OnDriverInit()
         _props[k] = v
     end
 
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
     -- Initialize EVENT_DELAY_MS from properties
     EVENT_DELAY_MS = tonumber(Properties["Event Interval (ms)"]) or 5000
 
@@ -236,7 +231,24 @@ function OnDriverInit()
             HANDLE_JSON_EVENT(payload)
         end
     })
+ -- ── Initialise EventLogger ───────────────────────────────────────────────
+   EventLogger.init(
+    transport,
+    json,
+    function()
+        return {
+            BaseApi    = GlobalObject.BaseApi or "",
+            DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+            DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+            UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+            IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+            AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",  -- ← add this
+        }
+    end
+)
+    -- ────────────────────────────────────────────────────────────────────────
 end
+
 
 function OnDriverDestroyed()
     print("=== K26 Driver Destroyed ===")
@@ -376,12 +388,6 @@ function OnDriverLateInit()
 
     ValidateMacAddress(C4:GetUniqueMAC())
 
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
         if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
@@ -495,9 +501,10 @@ local function update_prop(name, value)
     _props[name] = tostring(value)
 end
 
+-- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId     = Properties["AppId"] or _props["AppId"] or "cldbus"
-    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
     return appId, appSecret
 end
 
@@ -661,6 +668,10 @@ function ExecuteCommand(strCommand, tParams)
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
+    if strCommand == "TEST_EVENT_LOGGER" then
+    EventLogger.test()
+    return
+end
     if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
         -- Check if volume is actually 0 before unmuting
@@ -762,9 +773,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    -- local appId, appSecret = GetCldBusCredentials()
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -857,10 +866,7 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1021,10 +1027,7 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1105,10 +1108,7 @@ function GET_DEVICES(p_vid)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices-v2"
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -1267,6 +1267,7 @@ local function HANDLE_BATTERY_LEVEL(pct)
 
     -- Fire alert
     _lastLowBatteryAlert = now
+    EventLogger.logLowBattery(pct)
     C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
     C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
 
@@ -1967,9 +1968,7 @@ function GetImageForEvent(extp, done)
     local token            = Properties["Auth Token"]
     local base             = GlobalObject.LnduBaseUrl
 
-    -- local appId, appSecret = GetCldBusCredentials()
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -2104,20 +2103,29 @@ local function handle_face(filename, extp, face_id, face_name)
     send_notification(NOTIFY.INFO, EVENT.REGISTERED_USER, "face", COOLDOWN.face, filename, extp, face_name)
 end
 
-local function handle_motion(filename, extp)
+local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp, nil)
+    EventLogger.logMotion(params)   -- ← pass full params
+
     
     -- Update motion conditional states
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
-local function handle_human(filename, extp)
+local function handle_human(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp, nil)
+    EventLogger.logHuman(params)    -- ← pass full params
+end
+
+local function handle_stranger(filename, extp, params)
+    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
+    EventLogger.logStranger(params) -- ← pass full params
 end
 
 local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart, nil, nil, nil)
+     EventLogger.logCameraRestarted()
 end
 
 
@@ -2155,6 +2163,7 @@ local function handle_online_status(new_online)
                 nil,
                 nil
             )
+            EventLogger.logCameraOnline()         -- Log online event
         else
             C4:UpdateProperty("Camera Status", "Offline")
             _props["Camera Status"] = "Offline"
@@ -2167,6 +2176,7 @@ local function handle_online_status(new_online)
                 nil,
                 nil
             )
+            EventLogger.logCameraOffline()    
         end
     end
 end
@@ -2224,12 +2234,12 @@ function HANDLE_JSON_EVENT(payload)
 
             print("[EVENT] filename =", filename)
             if params.type == 10021 then
-                handle_motion(filename, extp)
+                handle_motion(filename, extp, params)
                 return true
             end
 
             if params.type == 10022 then
-                handle_human(filename, extp)
+                handle_human(filename, extp, params)
                 return true
             end
 
@@ -2258,7 +2268,7 @@ function HANDLE_JSON_EVENT(payload)
                             handle_face(filename, extp, params.face_id, face_name)
                         else
                             print("[FACE] Unnamed stranger (auto-saved), faceName: '" .. tostring(face_name) .. "'")
-                            handle_stranger(filename, extp)
+                            handle_stranger(filename, extp, params)
                         end
                     end)
                 else

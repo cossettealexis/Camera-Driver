@@ -169,7 +169,8 @@
     <li><code>mqtt_manager.lua</code> — MQTT helper for connections and message handling.</li>
     <li><code>driver.xml</code> — driver manifest and properties.</li>
     <li><code>CldBusApi/*</code> — helper libs: <code>dkjson.lua</code>, <code>http.lua</code>,
-      <code>transport_c4.lua</code>, <code>util.lua</code>, <code>sha256.lua</code>, <code>auth.lua</code>.</li>
+      <code>transport_c4.lua</code>, <code>util.lua</code>, <code>sha256.lua</code>, <code>auth.lua</code>.
+    </li>
   </ul>
 
   <h2>Default Camera Settings</h2>
@@ -188,7 +189,8 @@
     <li><code>InitializeCamera()</code> calls the remote init endpoint to fetch the public key.</li>
     <li><code>LoginOrRegister()</code> encrypts credentials (RSA-OAEP via external helper) and stores tokens.</li>
     <li><code>OnDriverLateInit()</code> pushes camera IP/port/auth to Camera Proxy and generates
-      <code>Main Stream URL</code> / <code>Sub Stream URL</code> for the Control4 UI.</li>
+      <code>Main Stream URL</code> / <code>Sub Stream URL</code> for the Control4 UI.
+    </li>
   </ol>
 
   <h2>Notifications</h2>
@@ -209,7 +211,8 @@
   <h2>Maintainer Notes</h2>
   <ul>
     <li>Remove camera-specific properties from <code>driver.xml</code> if you want the driver to rely solely on
-      <code>CameraDefaultProps</code>.</li>
+      <code>CameraDefaultProps</code>.
+    </li>
     <li>Keep <code>transport.execute(req, callback)</code> usage consistent when editing network calls.</li>
     <li>Use <code>normalize_http_url()</code> when decoding signed/escaped URLs from API responses.</li>
   </ul>
@@ -482,7 +485,8 @@ Sub:  rtsp://[YOUR_CAMERA_IP]:8554/streamtype=0</code></pre>
   <ol>
     <li><strong>Initialize Camera:</strong> GET <code>/v1/init</code> → Retrieve RSA public key</li>
     <li><strong>Login/Register:</strong> Encrypt account with RSA-OAEP-SHA256 → POST
-      <code>/v1/LoginOrRegisterUser</code> → Get temporary token</li>
+      <code>/v1/LoginOrRegisterUser</code> → Get temporary token
+    </li>
     <li><strong>Get Temp Token:</strong> Generate HMAC-SHA256 signature → GET <code>/v1/TempTokenGet</code> → Verify
       temp token</li>
     <li><strong>Exchange Token:</strong> POST <code>/v1/TempTokenExchange</code> → Get exchange token</li>
@@ -674,14 +678,21 @@ Rename-Item "temp.zip" "Slomins-outdoor-K26.c4z"</code></pre>
 
   <h2>Version History</h2>
 
-  <h3>v2.0 (Current)</h3>
+  <h3>v3.0 (Current)</h3>
   <ul>
     <li>Added Face Detection: Distinguish between registered users and strangers</li>
     <li>Added "Registered User Detected" event (fires when a named face is detected)</li>
     <li>Fixed version display showing 0 in Control4 Manage Drivers interface</li>
   </ul>
 
-  <h3>v1.0.6</h3>
+  <h3>v1.0.7</h3>
+  <ul>
+    <li>Implemented functionality to store all incoming events in the database.</li>
+  </ul>
+
+  <h3>v1.0.6 </h3>
+
+  <h3>v1.0.6 (Current)</h3>
   <ul>
     <li>Fixed device specific conditionals labels not showing in Control4 Composer</li>
   </ul>
@@ -701,12 +712,12 @@ Rename-Item "temp.zip" "Slomins-outdoor-K26.c4z"</code></pre>
       If Speaker volume is 1-10, If battery is &lt;, &gt;, or =, Sensitivity =</li>
   </ul>
 
- <h3>v1.0.3</h3>
-<ul>
-  <li>Send Control4 notification marked as critical if battery percentage is less than 15%</li>
-  <li>Send notification every 4–6 hours (interval should be configurable in properties; default is 6 hours)</li>
-  <li>Disable the timer if battery level is greater than 80%</li>
-  <li>Enable the timer only when the first notification below 15% is received</li>
+  <h3>v1.0.3</h3>
+  <ul>
+    <li>Send Control4 notification marked as critical if battery percentage is less than 15%</li>
+    <li>Send notification every 4–6 hours (interval should be configurable in properties; default is 6 hours)</li>
+    <li>Disable the timer if battery level is greater than 80%</li>
+    <li>Enable the timer only when the first notification below 15% is received</li>
   </ul>
 
   <h3>v1.0.2</h3>
