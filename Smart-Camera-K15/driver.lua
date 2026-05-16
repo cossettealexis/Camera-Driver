@@ -538,6 +538,62 @@ function ExecuteCommand(strCommand, tParams)
         GET_PRESETS_API()
         return
     end
+
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        UpdateConditional("MIC_MUTED", true)
+        UpdateConditional("MIC_UNMUTED", false)
+        return
+    end
+
+    if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        UpdateConditional("MIC_MUTED", false)
+        UpdateConditional("MIC_UNMUTED", true)
+        return
+    end
+
+    if strCommand == "SPEAKER_VOLUME_UP" then
+        print("[COMMAND] Speaker Volume Up requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"]
+            if not current then
+                print("[ERROR] Cannot determine current volume - GET failed and no conditional state")
+                return
+            end
+            local new_vol = math.min(current + 1, 10)
+            print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
+            UPDATE_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
+
+    if strCommand == "SPEAKER_VOLUME_DOWN" then
+        print("[COMMAND] Speaker Volume Down requested")
+        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
+            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"]
+            if not current then
+                print("[ERROR] Cannot determine current volume - GET failed and no conditional state")
+                return
+            end
+            local new_vol = math.max(current - 1, 1)
+            print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
+            UPDATE_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
+                UpdateConditional("SPEAKER_VOLUME", new_vol)
+            end)
+        end)
+        return
+    end
+
+    if strCommand == "SET_SENSITIVITY" then
+        local level = (tParams and tParams.LEVEL)
+        print("[COMMAND] Set Sensitivity: " .. tostring(level))
+        UpdateConditional("SENSITIVITY", level)
+        return
+    end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -1951,6 +2007,249 @@ function PTZ_HOME(idBinding, tParams)
     -- You would call your camera's home position API here
     -- For now, this is a placeholder
 
+    print("================================================================")
+end
+
+function SET_DEVICE_PROPERTY(tParams)
+    print("================================================================")
+    print("              SET_DEVICE_PROPERTY CALLED                        ")
+    print("================================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available. Please run LoginOrRegister first.")
+        C4:UpdateProperty("Status", "Set property failed: No auth token")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+
+    if not vid or vid == "" then
+        print("ERROR: No VID available. Please set VID property.")
+        C4:UpdateProperty("Status", "Set property failed: No VID")
+        return
+    end
+
+    print("Using bearer token: " .. auth_token)
+    print("Using VID: " .. vid)
+
+    C4:UpdateProperty("Status", "Waking up camera...")
+
+    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/device/do-action"
+
+    local current_time = os.time()
+
+    local input_params = {
+        t = current_time,
+        type = 0
+    }
+
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        action_id = "ac_wakelocal",
+        input_params = json.encode(input_params),
+        check_t = 0,
+        is_async = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["App-Name"] = appId,
+        ["Authorization"] = "Bearer " .. auth_token
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("Sending request to: " .. url)
+    print("Method: POST")
+    print("Headers: " .. json.encode(headers))
+    print("Body: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+        if err then
+            print("Error: " .. tostring(err))
+        end
+        print("----------------------------------------------------------------")
+
+        if code == 200 or code == 20000 then
+            print("Wake-up camera command succeeded")
+            C4:UpdateProperty("Status", "Camera wake-up successful")
+
+            local rtsp_url = GetRtspUrl()
+            C4:SendToProxy(CAMERA_BINDING, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
+            C4:SendToProxy(CAMERA_BINDING, "RTSP_URL_PUSH", { URL = rtsp_url })
+        else
+            print("Wake-up camera command failed with code: " .. tostring(code))
+            C4:UpdateProperty("Status", "Wake-up failed: " .. tostring(err or code))
+        end
+    end)
+
+    print("================================================================")
+end
+
+function GET_DEVICE_PROPERTY(property_name, callback)
+    local appId, appSecret = GetCldBusCredentials()
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        if callback then callback(nil) end
+        return
+    end
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        if callback then callback(nil) end
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "GET",
+        headers = headers
+    }
+
+    print("[GET_DEVICE_PROPERTY] Fetching property: " .. property_name)
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code == 200 or code == 20000 then
+            local ok, parsed = pcall(json.decode, resp)
+            if ok and parsed and parsed.data and parsed.data.status then
+                for _, status_item in ipairs(parsed.data.status) do
+                    if status_item.name == property_name then
+                        print("[GET_DEVICE_PROPERTY] Found " .. property_name .. " = " .. tostring(status_item.value))
+                        if callback then callback(status_item.value) end
+                        return
+                    end
+                end
+                print("[GET_DEVICE_PROPERTY] Property " .. property_name .. " not found in status array")
+                if callback then callback(nil) end
+            else
+                print("[GET_DEVICE_PROPERTY] Failed to parse response")
+                if callback then callback(nil) end
+            end
+        else
+            print("[GET_DEVICE_PROPERTY] API call failed with code: " .. tostring(code))
+            if callback then callback(nil) end
+        end
+    end)
+end
+
+function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
+    print("================================================================")
+    print("           UPDATE_DEVICE_PROPERTY CALLED                        ")
+    print("================================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    print("Using bearer token: " .. auth_token)
+    print("Using VID: " .. vid)
+    print("Property data: " .. json.encode(property_data))
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/do-property"
+
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: No CldBus credentials available")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        data = json.encode(property_data)
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("[DEBUG] Request URL: " .. url)
+    print("[DEBUG] Request Body: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("----------------------------------------------------------------")
+        print("Response code: " .. tostring(code))
+        print("Response body: " .. tostring(resp))
+        if err then
+            print("Error: " .. tostring(err))
+        end
+        print("----------------------------------------------------------------")
+
+        if code == 200 or code == 20000 then
+            print("Property updated successfully")
+            C4:UpdateProperty("Status", "Property updated successfully")
+            if success_callback then
+                success_callback()
+            end
+        else
+            local error_msg = "Failed to update property"
+            if resp then
+                local ok, parsed = pcall(json.decode, resp)
+                if ok and parsed and parsed.message then
+                    error_msg = parsed.message
+                end
+            end
+            print("Failed to update property: " .. error_msg)
+            C4:UpdateProperty("Status", error_msg)
+        end
+    end)
     print("================================================================")
 end
 
@@ -3575,6 +3874,7 @@ function GET_PRESETS_API() -- v1.0.3
 
         C4:UpdateProperty("Status", "Presets loaded: " .. tostring(#PersistData.presets))
     end)
+end
 
 function UpdateConditional(cond_name, value)
     if not cond_name then return end
@@ -3625,5 +3925,4 @@ function TestCondition(condition_name, test_value)
     print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
     
     return result
-end
 end
