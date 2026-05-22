@@ -19,6 +19,11 @@ GlobalObject.AccountName = ""
 GlobalObject.AccessToken = ""
 GlobalObject.AppSecret = "hg4IwDpf6nwP5x2XGCIlNv8"
 
+-- BYPASS: Hardcoded credentials
+GlobalObject.CldBusAppId = "cldbus"
+GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.CustomerEmail = "cgabu@slomins.comw"
+
 local socket = require("socket")
 local udp = socket.udp()
 udp:settimeout(3)
@@ -445,8 +450,23 @@ function GenerateToken(GlobalObject, callback)
 end
 
 function ValidateMacAddress(mac, callback)
+    -- BYPASS: Skip validation and use hardcoded credentials
+    print("[BYPASS] ValidateMacAddress - Using hardcoded credentials")
+    
+    -- Set LNDU credentials from hardcoded values
+    GlobalObject.LNDU.app_id = GlobalObject.CldBusAppId
+    GlobalObject.LNDU.app_secret = GlobalObject.CldBusSecret
+    
+    C4:UpdateProperty("Status", "Using bypass credentials")
+    C4:UpdateProperty("Device Response", "Bypass mode - validation skipped")
+    
+    if callback then callback(true) end
+    return
+    
+    -- Original validation code below (disabled)
+    --[[
     local apiUrl = Properties["Validation API URL"] or "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress"
-    local requestBody = '{"MacAddress":"' .. mac .. '"}'
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'   
     local headers = {
         ["Content-Type"] = "application/json"
     }
@@ -589,6 +609,7 @@ function ValidateMacAddress(mac, callback)
             if callback then callback(false) end
         end
     end)
+    --]]
 end
 
 
