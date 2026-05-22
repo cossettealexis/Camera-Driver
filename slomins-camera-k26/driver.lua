@@ -51,6 +51,9 @@ local last_ip_refresh          = 0
 local MIN_REFRESH_GAP          = 5 -- seconds (small gap, not too strict)
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call          = true
+GlobalObject.CldBusAppId = "cldbus"
+GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.CustomerEmail = "cgabu@slomins.comw"
 
 
 local NOTIFY = {
@@ -386,11 +389,23 @@ function OnDriverLateInit()
     print("=== K26 Driver Late Init ===")
     C4:UpdateProperty("Camera Status", "false")
 
-    ValidateMacAddress(C4:GetUniqueMAC())
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
+    -- ValidateMacAddress(C4:GetUniqueMAC())
+
+    _props["AppId"] = "cldbus"
+    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    
+    GlobalObject.CldBusAppId = "cldbus"
+    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
-        if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
+        if true then
             InitializeCamera()
         else
             print("ERROR: MAC validation did not complete - credentials not loaded")
@@ -503,8 +518,9 @@ end
 
 -- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId     = Properties["AppId"] or _props["AppId"] or ""
-    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    -- Bypass: Try GlobalObject (from Node API) → Properties → Hardcoded fallback
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     return appId, appSecret
 end
 
@@ -773,7 +789,10 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -866,7 +885,9 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1027,7 +1048,10 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1108,7 +1132,10 @@ function GET_DEVICES(p_vid)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices-v2"
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -1517,7 +1544,11 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/device/do-property"
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
         return
@@ -1586,7 +1617,10 @@ function GET_DEVICE_PROPERTY(property_name, callback)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
         if callback then callback(nil) end
@@ -1675,7 +1709,9 @@ function APPLY_MQTT_INFO()
         return
     end
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
@@ -1968,7 +2004,9 @@ function GetImageForEvent(extp, done)
     local token            = Properties["Auth Token"]
     local base             = GlobalObject.LnduBaseUrl
 
-    local appId, appSecret = GetCldBusCredentials()
+    -- local appId, appSecret = GetCldBusCredentials()
+    local appId     = "cldbus"
+    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
