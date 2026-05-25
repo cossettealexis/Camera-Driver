@@ -1,0 +1,92 @@
+body {
+    font-family: Arial, sans-serif;
+    background: radial-gradient(rgb(140, 143, 149) 0%, rgb(0, 0, 0) 100%) center center no-repeat rgb(0, 0, 0);
+    width: 100%;
+    margin: 0;
+}
+
+.smartswitchui-outer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: white;
+    position: relative;
+}
+
+.switch-container {
+    text-align: center;
+}
+
+.power-button {
+    width: 180px;
+    height: 180px;
+    background: #2E304B;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    border: none;
+    cursor: pointer;
+    outline: none;
+    color: #ffffff;
+    transition: 0.3s;
+}
+
+.power-on {
+    background: linear-gradient(to bottom, #bada55 0%, rgb(121 203 47) 99%);
+}
+
+.power-off {
+    background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 99%);
+}
+
+.status-text {
+    font-size: 18px;
+}
+
+.bottom-buttons {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.btn {
+    background: #333;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.smartswitchui.switch-container {
+    position: relative;
+}
+
+.power-button {
+    position: absolute;
+    top: 86px;
+    left: 86px;
+    box-shadow: 0px 5px 12px 0px rgba(0, 0, 0, 0.7);
+}
+
+.header {
+    padding: 10px 15px;
+    text-align: center;
+    background: #1a2228;
+    margin-bottom: 10px;
+    position: fixed;
+    width: 100%;
+}
+
+.header img {
+    max-height: 40px;
+}
+
+.jqx-knob-label{
+    fill: #fff !important;
+    color: #fff !important;
+}

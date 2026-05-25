@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Smart Thermostat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+</head>
+
+<body>
+    <!--Loading start-->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="loading_wrap">
+            <div class="loading_inner">
+                <p>Loading....</p>
+                <div class="loading_spinner"></div>
+            </div>
+        </div>
+    </div>
+    <!--Loading end-->
+    <label id="lblMode" style="display: none;"></label>
+    <label id="lblHeatTemperature" style="display: none;"></label>
+    <label id="lblCoolTemperature" style="display: none;"></label>
+    <label id="lblCurrentTemperature" style="display: none;"></label>
+    <label id="lblCurrentHumidity" style="display: none;"></label>
+    <label id="lblTemperatureSet" style="display: none;"></label>
+    <label id="lblHeatTemperatureF" style="display: none;"></label>
+    <label id="lblCoolTemperatureF" style="display: none;"></label>
+    <label id="lblCurrentTemperatureF" style="display: none;"></label>
+    <label id="lblTemperatureSetF" style="display: none;"></label>
+    <label id="lblTemperatureUnitConvert" style="display: none;"></label>
+    <label id="lblFanMode" style="display: none;"></label>
+    <label id="lblSwitchEmerEnabled" style="display: none;"></label>
+    <label id="lblSwitchProgramEnabled" style="display: none;"></label>
+
+    <div class="overlay"></div>
+    <div class="thermostatUI">
+        <!--Header start-->
+        <header class="header">
+            <img src="images/slomins-logo-new-white.png" alt="Slomins" />
+        </header>
+        <!--Header end-->
+        <!--Top tabbing-->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="temp-tab" data-bs-toggle="tab" data-bs-target="#temp-tab-pane"
+                    type="button" role="tab" aria-controls="temp-tab-pane" aria-selected="true">Temperature</button>
+            </li>
+            <li class="nav-item" role="presentation" style="display:none;">
+                <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule-tab-pane"
+                    type="button" role="tab" aria-controls="schedule-tab-pane" aria-selected="false">Schedule</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="extras-tab" data-bs-toggle="tab" data-bs-target="#extras-tab-pane"
+                    type="button" role="tab" aria-controls="extras-tab-pane" aria-selected="false">Extras</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+
+            <div class="tab-pane fade show active" id="temp-tab-pane" role="tabpanel" aria-labelledby="temp-tab"
+                tabindex="0">
+
+
+                <div class="round-slider-parent">
+                    <round-slider min="41" max="90" low="41" high="90"
+                        style="--round-slider-low-handle-color: #E38683;--round-slider-low-bar-color: #E38683;--round-slider-high-handle-color: #8cbcfb;--round-slider-high-bar-color: #8cbcfb;"
+                        class="highlow" outside="true" handleSize="10"></round-slider>
+
+                    <round-slider min="41" max="90" value="41"
+                        style="--round-slider-handle-color: #E38683;--round-slider-bar-color: #E38683;" class="d-none"
+                        handleSize="10"></round-slider>
+
+                    <round-slider min="41" max="90" value="90"
+                        style="--round-slider-handle-color: #8cbcfb;--round-slider-bar-color: #8cbcfb;" class="d-none"
+                        handleSize="10"></round-slider>
+
+                    <div class="current_temp_blk">
+                        <span>
+                            <span id="current_temp">32</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="current_temp_humidity_blk">
+                    <!-- <div class="current_temp">
+                    <img src="images/night-icon.png" alt="icon" />
+                    <span id="current_temp">30°</span>
+                </div>  -->
+                    <div class="humidity">
+                        <img src="images/drop-icon.png" alt="icon" />
+                        <span>40%</span>
+                    </div>
+                </div>
+
+                <div class="thermostat_parent">
+                    <div class="thermostat_outer">
+                        <div class="thermostat_wrap" id="thermostat_wrap" data-tempmode="off_mode">
+                            <!--Up/Down arrow buttons-->
+                            <div class="buttons">
+                                <button id="decrease-temp"><svg xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 448 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+                                        <path
+                                            d="M201.4 374.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 306.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z" />
+                                    </svg>
+                                </button>
+                                <!--Display temperature-->
+                                <div id="temperature" class="temperature">
+                                    <span class="heat_temp">41</span>
+                                    <span class="dotted_line"></span>
+                                    <span class="cool_temp selected_mode">90</span>
+
+                                </div>
+                                <button id="increase-temp"><svg xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 448 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+                                        <path
+                                            d="M201.4 137.4c12.5-12.5 32.8-12.5 45.3 0l160 160c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L224 205.3 86.6 342.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l160-160z" />
+                                    </svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mode_wrap">
+                        <!--Mode, Fan and Off buttons start-->
+                        <div class="all_btns">
+                            <button class="mode_popup_btn all_mode_btn" data-id="1" data-activemode="off_mode">
+                                <div class="mode_icon">
+                                </div>
+                                <div class="mode_label">Mode</div>
+                            </button>
+                            <button class="mode_popup_btn fan_btn" data-id="2">
+                                <div class="mode_icon">
+                                    <img src="images/fan-icon.png" alt="icon" />
+                                </div>
+                                <div class="mode_label">Fan</div>
+                            </button>
+                            <button class="mode_popup_btn off_btn" data-id="3" style="display:none;">
+                                <div class="mode_icon">
+                                    <img src="images/off-icon.png" alt="icon" />
+                                </div>
+                                <div class="mode_label">Off</div>
+                            </button>
+                        </div>
+                        <!--Mode, Fan and Off buttons end-->
+                        <!--All mode popup start-->
+                        <div class="all_mode_items mode_popup_wrap close_popup">
+                            <div class="popup_title">Mode</div>
+                            <div class="mode_items hvacmodes">
+                                <ul>
+                                    <li class="active_mode">
+                                        <button data-mode="off_mode">
+                                            <span class="btn_lbl">Off</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button data-mode="heat_mode">
+                                            <span class="btn_lbl">Heat</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button data-mode="cool_mode">
+                                            <span class="btn_lbl">Cool</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button data-mode="auto_mode">
+                                            <span class="btn_lbl">Auto</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <!-- <li>
+                                    <button data-mode="emergency_heat_mode">
+                                        <span class="btn_lbl">Emergency Heat</span>
+                                        <span class="btn_icon"><img src="images/check-circle.png" alt="icon" /></span>
+                                    </button>
+                                </li> -->
+                                </ul>
+                            </div>
+                            <div class="cancel_btn_wrap">
+                                <button class="cancel_popup_btn">Cancel</button>
+                            </div>
+                        </div>
+                        <!--All mode popup end-->
+                        <!--Fan mode popup start-->
+                        <div class="fan_mode_items mode_popup_wrap close_popup">
+                            <div class="popup_title">Fan</div>
+                            <div class="mode_items fanmodes">
+                                <ul>
+                                    <li>
+                                        <button data-mode="fan_auto_mode">
+                                            <span class="btn_lbl">Auto</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button data-mode="fan_on_mode">
+                                            <span class="btn_lbl">On</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="cancel_btn_wrap">
+                                <button class="cancel_popup_btn">Cancel</button>
+                            </div>
+                        </div>
+                        <!--Fan mode popup end-->
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="schedule-tab-pane" role="tabpanel" aria-labelledby="schedule-tab"
+                tabindex="0" style="display:none;">
+                Coming soon...</div>
+            <div class="tab-pane fade" id="extras-tab-pane" role="tabpanel" aria-labelledby="extras-tab" tabindex="0">
+                <div class="temp_scale_blk">
+                    <div class="temp_scale_btn_blk">
+                        <button class="temp_scale_btn">
+                            <span class="btn_lbl">
+                                <span class="btn_title">Temperature Scale</span>
+                                <span class="temp_unit">Fahrenheit</span>
+                            </span>
+                            <span class="btn_icon"><svg xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 320 512"><!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+                                    <path
+                                        d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z" />
+                                </svg></span>
+                        </button>
+                    </div>
+                    <div class="mode_wrap">
+                        <!--Extras popup start-->
+                        <div class="temp_scale_items mode_popup_wrap close_popup">
+                            <div class="popup_title">Temperature Scale</div>
+                            <div class="mode_items tempmodes">
+                                <ul>
+                                    <li>
+                                        <button data-mode="fahrenheit_mode">
+                                            <span class="btn_lbl">Fahrenheit</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button data-mode="celsius_mode">
+                                            <span class="btn_lbl">Celsius</span>
+                                            <span class="btn_icon"><img src="images/check-circle.png"
+                                                    alt="icon" /></span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="cancel_btn_wrap">
+                                <button class="cancel_popup_btn">Cancel</button>
+                            </div>
+                        </div>
+                        <!--Extras popup end-->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jquery-3.7.1.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="js/round-slider.bundle.js" type="module"></script>
+    <script src="javascript/index.js"></script>
+    <script>
+        let sliderEle = document.querySelectorAll("round-slider");
+        let autoSlider = sliderEle[0];
+        let heatSlider = sliderEle[1];
+        let coolSlider = sliderEle[2];
+        //show/hide slider by mode
+        const enableSliderByMode = function (mode) {
+            autoSlider.classList.add('d-none');
+            heatSlider.classList.add('d-none');
+            coolSlider.classList.add('d-none');
+            if (mode == 'auto_mode') {
+                setOn();
+                autoSlider.classList.add('d-block');
+                autoSlider.classList.remove("d-none");
+            } else if (mode == 'heat_mode') {
+                setOn();
+                heatSlider.classList.add('d-block');
+                heatSlider.classList.remove("d-none");
+            } else if (mode == 'cool_mode') {
+                setOn();
+                coolSlider.classList.add('d-block');
+                coolSlider.classList.remove("d-none");
+            } else if (mode == 'off_mode') {
+                setOff();
+                autoSlider.classList.add('d-block');
+                autoSlider.classList.remove("d-none");
+            }
+            var heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var cool_temperature = parseFloat($(".temperature .cool_temp").text()); 
+            setTempOnSlider({ heat_temp: heat_temperature, cool_temp: cool_temperature });
+        };
+
+        const setTempOnSlider = function (params) {
+            console.log('setTempOnSlider', params);
+            console.log(params.cool_temp);
+            autoSlider.low = params.heat_temp;
+            autoSlider.high = params.cool_temp;
+            heatSlider.value = params.heat_temp;
+            coolSlider.value = params.cool_temp;
+        }
+
+        const setSliderMinMax = function (type) {
+            debugger;
+            if (type == 'c') {
+                console.log('setSliderMinMax for C', minTempC, maxTempC);
+                autoSlider.min = heatSlider.min = coolSlider.min = minTempC;
+                autoSlider.max = heatSlider.max = coolSlider.max = maxTempC;
+            } else if (type == 'f') {
+                console.log('csetSliderMinMax for F', minTempF, maxTempF);
+                autoSlider.min = heatSlider.min = coolSlider.min = minTempF;
+                autoSlider.max = heatSlider.max = coolSlider.max = maxTempF;
+            }
+        };
+
+        const setOff = function () {
+            document.querySelectorAll("round-slider").forEach(function (el) {
+                el.readonly = true;
+                el.disabled = true;
+            });
+        };
+        const setOn = function () {
+            document.querySelectorAll("round-slider").forEach(function (el) {
+                el.readonly = false;
+                el.disabled = false;
+            });
+        };
+
+        autoSlider.addEventListener("value-changing", function (ev) {
+            var current_heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var current_cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            var tempgap = (temp_unit_convert === "c") ? 1.5 : 3;
+            var step = (temp_unit_convert === "c") ? 0.5 : 1; // Set step based on unit
+
+            // Heat temprature changing
+            if (ev.detail.low !== undefined) {
+                let heat_temp = ev.detail.low;
+                //increasing tempratrue
+                if (heat_temp > current_heat_temperature) {
+                    let max_heat_temp = temp_unit_convert === "c" ? maxTempC - 2 : maxTempF - 4;
+                    console.log("increasing max_heat_temp", max_heat_temp);
+                    if (heat_temp > max_heat_temp) {
+                        autoSlider.low = max_heat_temp;
+                        return false;
+                    }
+                    $(".temperature .heat_temp").text(formatTemperature(heat_temp));
+                    if ((current_cool_temperature - heat_temp) <= tempgap) {
+                        current_cool_temperature += step; // Maintain 3-degree difference
+                        console.log("increasing Maintain 3-degree difference heat", current_cool_temperature);
+                        autoSlider.high = current_cool_temperature;
+                        coolSlider.value = current_cool_temperature;
+                        $(".temperature .cool_temp").text(formatTemperature(current_cool_temperature));
+                    }
+                } else if (heat_temp < current_heat_temperature) { //decreasing tempratrue 
+                    let min_heat_temp = temp_unit_convert === "c" ? minTempC : minTempF;
+                    console.log("decreasing min_heat_temp", min_heat_temp);
+                    if (heat_temp < min_heat_temp) {
+                        autoSlider.low = min_heat_temp;
+                        return false;
+                    }
+                    $(".temperature .heat_temp").text(formatTemperature(heat_temp));
+                    if ((current_cool_temperature - heat_temp) <= tempgap) {
+                        current_cool_temperature -= step; // Maintain 3-degree difference
+                        console.log("decreasing Maintain 3-degree difference heat", current_cool_temperature);
+                        autoSlider.high = current_cool_temperature;
+                        coolSlider.value = current_cool_temperature;
+                        $(".temperature .cool_temp").text(formatTemperature(current_cool_temperature));
+                    }
+                }
+            } if (ev.detail.high !== undefined) { // cool temprature changing
+                let cool_temp = ev.detail.high;
+                console.log('cool temoprature', cool_temp, ' current_cool_temperature', current_cool_temperature);
+                //increasing tempratrue
+                if (cool_temp > current_cool_temperature) {
+                    let max_cool_temp = temp_unit_convert === "c" ? maxTempC : maxTempF;
+                    console.log("increasing max_cool_temp", max_cool_temp);
+                    if (cool_temp > max_cool_temp) {
+                        autoSlider.high = max_cool_temp;
+                        return false;
+                    }
+                    $(".temperature .cool_temp").text(formatTemperature(cool_temp));
+                    if ((cool_temp - current_heat_temperature) <= tempgap) {
+                        current_heat_temperature += step; // Maintain 3-degree difference
+                        console.log("increasing Maintain 3-degree difference cool", current_heat_temperature);
+                        autoSlider.low = current_heat_temperature;
+                        heatSlider.value = current_heat_temperature;
+                        $(".temperature .heat_temp").text(formatTemperature(current_heat_temperature));
+                    }
+                } else if (cool_temp < current_cool_temperature) { //decreasing tempratrue  
+                    let min_cool_temp = temp_unit_convert === "c" ? minTempC + 2 : minTempF + 4;
+                    console.log("decreasing min_cool_temp", min_cool_temp);
+                    if (cool_temp < min_cool_temp) {
+                        autoSlider.high = min_cool_temp;
+                        return false;
+                    }
+                    $(".temperature .cool_temp").text(formatTemperature(cool_temp));
+                    if ((cool_temp - current_heat_temperature) <= tempgap) {
+                        current_heat_temperature -= step; // Maintain 3-degree difference
+                        console.log("decreasing Maintain 3-degree difference cool", current_heat_temperature);
+                        autoSlider.low = current_heat_temperature;
+                        heatSlider.value = current_heat_temperature;
+                        $(".temperature .heat_temp").text(formatTemperature(current_heat_temperature));
+                    }
+                }
+            }
+        });
+
+        autoSlider.addEventListener("value-changed", function (ev) {
+            if (ev.detail.low !== undefined) {
+                let heat_temp = ev.detail.low;
+                heatSlider.value = heat_temp;
+                $(".temperature .heat_temp").text(heat_temp);
+                console.log('heat_temp' + heat_temp);
+            } else if (ev.detail.high !== undefined) {
+                let cool_temp = ev.detail.high;
+                coolSlider.value = cool_temp;
+                console.log('cool_temp' + cool_temp);
+            }
+            var heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            //document.getElementById("loading").style.display = "block";
+            setTemperatureVar(heat_temperature, cool_temperature);
+        });
+
+        heatSlider.addEventListener("value-changing", function (ev) {
+            var current_heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var current_cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            var tempgap = (temp_unit_convert === "c") ? 1.5 : 3;
+            var step = (temp_unit_convert === "c") ? 0.5 : 1; // Set step based on unit
+            let heat_temp = ev.detail.value;
+            //increasing tempratrue
+            if (heat_temp > current_heat_temperature) {
+                let max_heat_temp = temp_unit_convert === "c" ? maxTempC - 2 : maxTempF - 4;
+                if (heat_temp > max_heat_temp) {
+                    heatSlider.value = max_heat_temp;
+                    return false;
+                }
+                $(".temperature .heat_temp").text(formatTemperature(heat_temp));
+                if ((current_cool_temperature - heat_temp) <= tempgap) {
+                    current_cool_temperature += step; // Maintain 3-degree difference
+                    console.log("increasing Maintain 3-degree difference heat", current_cool_temperature);
+                    autoSlider.high = current_cool_temperature;
+                    coolSlider.value = current_cool_temperature;
+                    $(".temperature .cool_temp").text(formatTemperature(current_cool_temperature));
+                }
+            } else if (heat_temp < current_heat_temperature) { //decreasing tempratrue 
+                let min_heat_temp = temp_unit_convert === "c" ? minTempC : minTempF;
+                if (heat_temp < min_heat_temp) {
+                    heatSlider.value = min_heat_temp;
+                    return false;
+                }
+                $(".temperature .heat_temp").text(formatTemperature(heat_temp));
+                if ((current_cool_temperature - heat_temp) <= tempgap) {
+                    current_cool_temperature -= step; // Maintain 3-degree difference
+                    console.log("decreasing Maintain 3-degree difference heat", current_cool_temperature);
+                    autoSlider.high = current_cool_temperature;
+                    coolSlider.value = current_cool_temperature;
+                    $(".temperature .cool_temp").text(formatTemperature(current_cool_temperature));
+                }
+            }
+        });
+
+        heatSlider.addEventListener("value-changed", function (ev) {
+            let heat_temp = ev.detail.value;
+            autoSlider.low = heat_temp;
+            console.log('heat_temp' + heat_temp);
+            var heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            //document.getElementById("loading").style.display = "block";
+            setTemperatureVar(heat_temperature, cool_temperature);
+        });
+
+        coolSlider.addEventListener("value-changing", function (ev) {
+            var current_heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var current_cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            var tempgap = (temp_unit_convert === "c") ? 1.5 : 3;
+            var step = (temp_unit_convert === "c") ? 0.5 : 1; // Set step based on unit
+            let cool_temp = ev.detail.value;
+            console.log('cool temoprature', cool_temp, ' current_cool_temperature', current_cool_temperature);
+            //increasing tempratrue
+            if (cool_temp > current_cool_temperature) {
+                let max_cool_temp = temp_unit_convert === "c" ? maxTempC : maxTempF;
+                if (cool_temp > max_cool_temp) {
+                    coolSlider.value = max_cool_temp;
+                    return false;
+                }
+                $(".temperature .cool_temp").text(formatTemperature(cool_temp));
+                if ((cool_temp - current_heat_temperature) <= tempgap) {
+                    current_heat_temperature += step; // Maintain 3-degree difference
+                    console.log("increasing Maintain 3-degree difference cool", current_heat_temperature);
+                    autoSlider.low = current_heat_temperature;
+                    heatSlider.value = current_heat_temperature;
+                    $(".temperature .heat_temp").text(formatTemperature(current_heat_temperature));
+                }
+            } else if (cool_temp < current_cool_temperature) { //decreasing tempratrue  
+                let min_cool_temp = temp_unit_convert === "c" ? minTempC + 2 : minTempF + 4;
+                if (cool_temp < min_cool_temp) {
+                    coolSlider.value = min_cool_temp;
+                    return false;
+                }
+                $(".temperature .cool_temp").text(formatTemperature(cool_temp));
+                if ((cool_temp - current_heat_temperature) <= tempgap) {
+                    current_heat_temperature -= step; // Maintain 3-degree difference
+                    console.log("decreasing Maintain 3-degree difference cool", current_heat_temperature);
+                    autoSlider.low = current_heat_temperature;
+                    heatSlider.value = current_heat_temperature;
+                    $(".temperature .heat_temp").text(formatTemperature(current_heat_temperature));
+                }
+            }
+        });
+
+        coolSlider.addEventListener("value-changed", function (ev) {
+            let cool_temp = ev.detail.value;
+            autoSlider.high = cool_temp;
+            coolSlider.value = cool_temp;
+            console.log('cool_temp' + cool_temp);
+            var heat_temperature = parseFloat($(".temperature .heat_temp").text());
+            var cool_temperature = parseFloat($(".temperature .cool_temp").text());
+            //document.getElementById("loading").style.display = "block";
+            setTemperatureVar(heat_temperature, cool_temperature);
+        }); 
+    </script>
+</body>
+
+</html>

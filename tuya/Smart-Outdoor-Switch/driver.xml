@@ -1,0 +1,208 @@
+<devicedata>
+  <copyright>2025 Slomins Inc. All rights reserved.</copyright>
+  <creator>Slomins</creator>
+  <manufacturer>Slomins</manufacturer>
+  <name>Smart Outdoor Switch</name>
+  <model>Smart Outdoor Switch</model>
+  <created>06/18/2025 07:52 PM</created>
+  <modified>08/20/2025 3:20 PM</modified>
+  <version>3</version>
+  <small>devices_sm\c4.gif</small>
+  <large>devices_lg\c4.gif</large>
+  <control>lua_gen</control>
+  <driver>DriverWorks</driver>
+  <composer_categories>
+    <category>Lights</category>
+  </composer_categories>
+  <proxies>
+    <proxy proxybindingid="5001" name="Smart Outdoor Switch" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
+    <proxy proxybindingid="5002" name="Smart Outdoor Switch Proxy">light_v2</proxy>
+  </proxies>
+  <config>
+    <documentation file="www/documentation/index.html">Smart Outdoor Switch</documentation>
+    <script file="driver.lua" encryption="2" />
+    <properties>
+      <property>
+        <name>ClientId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>ClientSecret</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>Contract</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>Enable</default>
+      </property>
+      <property>
+        <name>UserId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>DeviceId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>StateSwitch1</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>off</default>
+      </property>
+      <property>
+        <name>StateSwitch2</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>off</default>
+      </property>
+      <property>
+        <name>Debug Mode</name>
+        <type>LIST</type>
+        <items>
+          <item>Off</item>
+          <item>On</item>
+        </items>
+        <default>On</default>
+        <readonly>false</readonly>
+      </property>
+    </properties>
+    <commands>
+      <command>
+        <name>On</name>
+        <description>Power On</description>
+      </command>
+      <command>
+        <name>Off</name>
+        <description>Power Off</description>
+      </command>
+    </commands>
+    <actions>
+      <action>
+        <name>Switch1 Power On</name>
+        <description>Switch on the light</description>
+        <command>On1</command>
+      </action>
+      <action>
+        <name>Switch1 Power Off</name>
+        <description>Switch off the light</description>
+        <command>Off1</command>
+      </action>
+      <action>
+        <name>Switch2 Power On</name>
+        <description>Switch on the light</description>
+        <command>On2</command>
+      </action>
+      <action>
+        <name>Switch2 Power Off</name>
+        <description>Switch off the light</description>
+        <command>Off2</command>
+      </action>
+    </actions>
+  </config>
+  <capabilities>
+    <navigator_display_option proxybindingid="5001">
+      <display_icons>
+        <Icon width="70" height="70">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_70.png</Icon>
+        <Icon width="90" height="90">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_90.png</Icon>
+        <Icon width="300" height="300">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_300.png</Icon>
+        <state id="on">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_300.png</Icon>
+        </state>
+        <state id="off">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartOutdoorSwitch/icons/device/device_300.png</Icon>
+        </state>
+      </display_icons>
+    </navigator_display_option>
+    <web_view_url proxybindingid="5001">controller://driver/Slomins_SmartOutdoorSwitch/contents/index.html</web_view_url>
+    <mobile_web_view_enabled>true</mobile_web_view_enabled>
+    <dimmer>False</dimmer>
+    <set_level>True</set_level>
+    <ramp_level>True</ramp_level>
+    <on_off>True</on_off>
+    <min_max>True</min_max>
+    <click_rates>False</click_rates>
+    <hold_rates>False</hold_rates>
+    <cold_start>False</cold_start>
+    <has_leds>False</has_leds>
+    <supports_color_correlated_temperature>False</supports_color_correlated_temperature>
+    <supports_target>True</supports_target>
+    <supports_broadcast_scenes>False</supports_broadcast_scenes>
+    <supports_multichannel_scenes>False</supports_multichannel_scenes>
+    <hide_proxy_properties>true</hide_proxy_properties>
+    <hide_proxy_events>false</hide_proxy_events>
+    <reduced_als_support>False</reduced_als_support>
+    <advanced_scene_support>False</advanced_scene_support>
+    <load_group_support>False</load_group_support>
+    <buttons_are_virtual>True</buttons_are_virtual>
+  </capabilities>
+  <connections>
+    <connection>
+      <id>5001</id>
+      <facing>6</facing>
+      <connectionname>UIBUTTON</connectionname>
+      <type>2</type>
+      <consumer>False</consumer>
+      <audiosource>False</audiosource>
+      <videosource>False</videosource>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>UIBUTTON</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection>
+      <id>5002</id>
+      <facing>6</facing>
+      <connectionname>LIGHT</connectionname>
+      <type>2</type>
+      <consumer>false</consumer>
+      <audiosource>false</audiosource>
+      <videosource>false</videosource>
+      <linelevel>false</linelevel>
+      <classes>
+        <class>
+          <classname>LIGHT_V2</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection>
+      <id>6001</id>
+      <connectionname>TCP</connectionname>
+      <type>4</type>
+      <hidden>True</hidden>
+      <consumer>True</consumer>
+      <classes>
+        <class>
+          <classname>TCP</classname>
+          <ports>
+            <port>
+              <number>8081</number>
+              <suppress_connection_events>True</suppress_connection_events>
+              <auto_connect>True</auto_connect>
+              <monitor_connection>True</monitor_connection>
+              <keep_connection>True</keep_connection>
+              <keep_alive>True</keep_alive>
+              <delimiter>0d0a</delimiter>
+            </port>
+          </ports>
+        </class>
+      </classes>
+    </connection>
+  </connections>
+</devicedata>

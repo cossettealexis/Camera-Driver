@@ -1,0 +1,172 @@
+<devicedata>
+  <copyright>2025 Slomins Inc. All rights reserved.</copyright>
+  <creator>Slomins</creator>
+  <manufacturer>Slomins</manufacturer>
+  <name>Smart Lock</name>
+  <model>Smart Lock</model>
+  <created>04/09/2025 01:03 PM</created>
+  <modified>08/20/2025 4:20 PM</modified>
+  <version>74</version>
+  <small>devices_sm\c4.gif</small>
+  <large>devices_lg\c4.gif</large>
+  <control>lua_gen</control>
+  <driver>DriverWorks</driver>
+  <proxies>
+    <proxy proxybindingid="5001" name="Smart Lock" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
+    <proxy proxybindingid="5002" name="Smart Lock">lock</proxy>
+  </proxies>
+  <events>
+    <event>
+      <id>1</id>
+      <name>Lock</name>
+      <description>Triggered when the lock is locked</description>
+    </event>
+    <event>
+      <id>2</id>
+      <name>Unlock</name>
+      <description>Triggered when the lock is unlocked</description>
+    </event>
+  </events>
+  <config>
+    <documentation file="www/documentation/index.html">Smart Lock Document</documentation>
+    <script file="driver.lua" encryption="2" />
+    <properties>
+      <property>
+        <name>ClientId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>ClientSecret</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+        <password>true</password>
+      </property>
+      <property>
+        <name>Contract</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>Enable</default>
+      </property>
+      <property>
+        <name>UserId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>DeviceId</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>State</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>lock</default>
+      </property>
+    </properties>
+    <commands>
+      <command>
+        <name>Lock</name>
+        <description>Lock Command</description>
+      </command>
+      <command>
+        <name>Unlock</name>
+        <description>Unlock Command</description>
+      </command>
+    </commands>
+    <actions>
+      <action>
+        <name>Lock</name>
+        <description>Lock the device</description>
+        <command>Lock</command>
+      </action>
+      <action>
+        <name>Unlock</name>
+        <description>Unlock the device</description>
+        <command>Unlock</command>
+      </action>
+    </actions>
+  </config>
+  <capabilities>
+    <navigator_display_option proxybindingid="5001">
+      <display_icons>
+        <Icon width="70" height="70">controller://driver/Slomins_SmartLock/icons/device/lock_70.png</Icon>
+        <Icon width="90" height="90">controller://driver/Slomins_SmartLock/icons/device/lock_90.png</Icon>
+        <Icon width="300" height="300">controller://driver/Slomins_SmartLock/icons/device/lock_300.png</Icon>
+        <state id="lock">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartLock/icons/device/lock_70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartLock/icons/device/lock_90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartLock/icons/device/lock_300.png</Icon>
+        </state>
+        <state id="unlock">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartLock/icons/device/unlock_70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartLock/icons/device/unlock_90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartLock/icons/device/unlock_300.png</Icon>
+        </state>
+      </display_icons>
+    </navigator_display_option>
+    <web_view_url proxybindingid="5001">controller://driver/Slomins_SmartLock/contents/index.html</web_view_url>
+    <mobile_web_view_enabled>true</mobile_web_view_enabled>
+  </capabilities>
+  <connections>
+    <connection>
+      <id>5001</id>
+      <facing>6</facing>
+      <connectionname>UIBUTTON</connectionname>
+      <type>2</type>
+      <consumer>False</consumer>
+      <audiosource>False</audiosource>
+      <videosource>False</videosource>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>UIBUTTON</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection>
+      <id>5002</id>
+      <facing>6</facing>
+      <connectionname>LOCK</connectionname>
+      <type>2</type>
+      <consumer>false</consumer>
+      <audiosource>false</audiosource>
+      <videosource>false</videosource>
+      <linelevel>false</linelevel>
+      <classes>
+        <class>
+          <classname>LOCK</classname>
+        </class>
+      </classes>
+    </connection>
+    <connection>
+      <id>6001</id>
+      <connectionname>TCP</connectionname>
+      <type>4</type>
+      <hidden>True</hidden>
+      <consumer>True</consumer>
+      <classes>
+        <class>
+          <classname>TCP</classname>
+          <ports>
+            <port>
+              <number>8081</number>
+              <suppress_connection_events>True</suppress_connection_events>
+              <auto_connect>True</auto_connect>
+              <monitor_connection>True</monitor_connection>
+              <keep_connection>True</keep_connection>
+              <keep_alive>True</keep_alive>
+              <delimiter>0d0a</delimiter>
+            </port>
+          </ports>
+        </class>
+      </classes>
+    </connection>
+  </connections>
+</devicedata>
