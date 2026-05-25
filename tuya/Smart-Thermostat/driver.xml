@@ -6,14 +6,14 @@
   <name>Smart Thermostat</name>
   <model>Smart Thermostat</model>
   <created>04/28/2025 8:14 PM</created>
-  <modified>05/07/2026 3:20 PM</modified>
-  <version>63</version>
+  <modified>05/19/2025 3:20 PM</modified>
+  <version>69</version>
   <small>devices_sm\HVAC_16.gif</small>
   <large>devices_lg\HVAC_32.gif</large>
   <control>lua_gen</control>
   <controlmethod>ip</controlmethod>
   <driver>DriverWorks</driver>
-  <proxies qty="1" encrypted="2">
+  <proxies qty="1">
     <proxy proxybindingid="5001" name="Thermostat">thermostatV2</proxy>
     <!-- <proxy proxybindingid="5003" name="Thermostat">thermostat</proxy> -->
     <proxy proxybindingid="5002" name="Smart Thermostat" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
@@ -21,34 +21,34 @@
   <capabilities>
     <navigator_display_option proxybindingid="5002">
       <display_icons>
+        <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-70.png</Icon>
+        <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-90.png</Icon>
+        <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-300.png</Icon>
+        <state id="cold">
           <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-70.png</Icon>
           <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-90.png</Icon>
           <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-300.png</Icon>
-          <state id="cold">
-              <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-70.png</Icon>
-              <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-90.png</Icon>
-              <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/cooling/thermostat-cooling-icon-300.png</Icon>
-          </state>
-          <state id="heat">
-              <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-70.png</Icon>
-              <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-90.png</Icon>
-              <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-300.png</Icon>
-          </state>
-          <state id="auto">
-              <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-70.png</Icon>
-              <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-90.png</Icon>
-              <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-300.png</Icon>
-          </state>
+        </state>
+        <state id="heat">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/heating/thermostat-heating-icon-300.png</Icon>
+        </state>
+        <state id="auto">
+          <Icon width="70" height="70">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-70.png</Icon>
+          <Icon width="90" height="90">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-90.png</Icon>
+          <Icon width="300" height="300">controller://driver/Slomins_SmartThermostat/icons/device/auto/thermostat-auto-icon-300.png</Icon>
+        </state>
       </display_icons>
-  </navigator_display_option>
-  <web_view_url proxybindingid="5002">controller://driver/Slomins_SmartThermostat/contents/index.html</web_view_url>
-  <mobile_web_view_enabled>true</mobile_web_view_enabled>
+    </navigator_display_option>
+    <web_view_url proxybindingid="5002">controller://driver/Slomins_SmartThermostat/contents/index.html</web_view_url>
+    <mobile_web_view_enabled>true</mobile_web_view_enabled>
     <can_heat>true</can_heat>
     <can_cool>true</can_cool>
     <has_single_setpoint>false</has_single_setpoint>
     <can_do_auto>false</can_do_auto>
     <can_calibrate>true</can_calibrate>
-    <can_lock_buttons>true</can_lock_buttons>
+    <can_lock_buttons>false</can_lock_buttons>
     <can_change_scale>true</can_change_scale>
     <setpoint_heat_min_f>38</setpoint_heat_min_f>
     <setpoint_heat_min_c>4</setpoint_heat_min_c>
@@ -66,9 +66,8 @@
     <setpoint_single_min_c>6</setpoint_single_min_c>
     <setpoint_single_max_f>90</setpoint_single_max_f>
     <setpoint_single_max_c>32</setpoint_single_max_c>
-    <hvac_modes>Off,Heat,Cool,Auto</hvac_modes>
+    <hvac_modes>off,heat,cool,auto</hvac_modes>
     <fan_modes>Auto,On</fan_modes>
-    <hvac_states>Off,Heat,Cool,Heating,Stage 1 Cool</hvac_states>
     <fan_states>Auto,On</fan_states>
     <has_vacation_mode>false</has_vacation_mode>
     <has_remote_sensor>false</has_remote_sensor>
@@ -91,7 +90,7 @@
     <setpoint_dehumidify_max>100</setpoint_dehumidify_max>
     <setpoint_dehumidify_resolution>1</setpoint_dehumidify_resolution>
     <has_extras>false</has_extras>
-    <scheduling>false</scheduling>
+    <scheduling>true</scheduling>
     <schedule_default>
       <schedule_day_info Entries="6" DefaultHeat="200" DefaultCool="278">
         <schedule_entry Name="Wake" Time="360" Enabled="True" />
@@ -143,19 +142,19 @@
       </classes>
     </connection>
     <connection>
-        <id>5002</id>
-        <facing>6</facing>
-        <connectionname>UIBUTTON</connectionname>
-        <type>2</type>
-        <consumer>False</consumer>
-        <audiosource>False</audiosource>
-        <videosource>False</videosource>
-        <linelevel>False</linelevel>
-        <classes>
-            <class>
-                <classname>UIBUTTON</classname>
-            </class>
-        </classes>
+      <id>5002</id>
+      <facing>6</facing>
+      <connectionname>UIBUTTON</connectionname>
+      <type>2</type>
+      <consumer>False</consumer>
+      <audiosource>False</audiosource>
+      <videosource>False</videosource>
+      <linelevel>False</linelevel>
+      <classes>
+        <class>
+          <classname>UIBUTTON</classname>
+        </class>
+      </classes>
     </connection>
     <connection>
       <id>6001</id>
@@ -168,7 +167,7 @@
           <classname>TCP</classname>
           <ports>
             <port>
-              <number>8081</number>
+              <number>8080</number>
               <suppress_connection_events>True</suppress_connection_events>
               <auto_connect>True</auto_connect>
               <monitor_connection>True</monitor_connection>
@@ -183,8 +182,20 @@
   </connections>
   <config>
     <documentation file="www/documentation/index.html">Smart Thermostat Document</documentation>
-    <script file="driver.lua" />
+    <script file="driver.lua" encryption="2" />
     <properties>
+      <property>
+        <name>Tcp Port</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>8081</default>
+      </property>
+      <property>
+        <name>MacAddress</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default></default>
+      </property>
       <property>
         <name>Log Level</name>
         <type>LIST</type>
@@ -211,17 +222,17 @@
           <item>Print and Log</item>
         </items>
       </property>
-       <property>
+      <property>
         <name>ClientId</name>
         <type>STRING</type>
-        <readonly>false</readonly>
+        <readonly>true</readonly>
         <default></default>
         <password>true</password>
       </property>
       <property>
         <name>ClientSecret</name>
         <type>STRING</type>
-        <readonly>false</readonly>
+        <readonly>true</readonly>
         <default></default>
         <password>true</password>
       </property>
@@ -238,21 +249,21 @@
         <default></default>
       </property>
       <property>
-          <name>DeviceId</name>
-          <type>STRING</type>
-          <default></default>
-          <readonly>false</readonly>
+        <name>DeviceId</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>false</readonly>
       </property>
       <property>
         <name>Mode</name>
         <type>LIST</type>
         <items>
-            <item>off</item>
-            <item>heat</item>
-            <item>cool</item>
-            <item>auto</item>
+          <item>off</item>
+          <item>heat</item>
+          <item>cool</item>
+          <item>auto</item>
         </items>
-        <default>Off</default>
+        <default>off</default>
         <readonly>false</readonly>
       </property>
       <property>
@@ -261,7 +272,7 @@
         <readonly>false</readonly>
         <default>0</default>
         <minimum>0</minimum>
-        <maximum>33</maximum>
+        <maximum>100</maximum>
       </property>
       <property>
         <name>HeatTemp</name>
@@ -269,7 +280,7 @@
         <readonly>false</readonly>
         <default>0</default>
         <minimum>0</minimum>
-        <maximum>33</maximum>
+        <maximum>100</maximum>
       </property>
       <property>
         <name>CurrentTemp</name>
@@ -277,68 +288,83 @@
         <readonly>false</readonly>
         <default>0</default>
         <minimum>0</minimum>
-        <maximum>33</maximum>
+        <maximum>100</maximum>
+      </property>
+      <property>
+        <name>Device Response</name>
+        <type>STRING</type>
+        <readonly>true</readonly>
+        <default></default>
+      </property>
+      <property>
+        <name>TCP Connection</name>
+        <type>STRING</type>
+        <readonly>true</readonly>
+        <default>OFFLINE</default>
+      </property>
+      <property>
+        <name>Scale</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>true</readonly>
       </property>
     </properties>
     <commands>
-        <command>
-            <name>SetCurrentTemperature</name>
-            <description>Set the temperature to PARAM1</description>
-            <params>
-                <param>
-                    <name>temperature</name>
-                    <type>RANGED_INTEGER</type>
-                    <default></default>
-                    <minimum>0</minimum>
-                    <maximum>100</maximum>
-                </param>
-            </params>
-        </command>
-
-        <command>
-            <name>SetCoolTemperature</name>
-            <description>Set the cooling temperature to PARAM1</description>
-            <params>
-                <param>
-                    <name>cool_temp</name>
-                    <type>RANGED_INTEGER</type>
-                    <default></default>
-                    <minimum>0</minimum>
-                    <maximum>100</maximum>
-                </param>
-            </params>
-        </command>
-
-        <command>
-            <name>SetHeatTemperature</name>
-            <description>Set the heating temperature to PARAM1</description>
-            <params>
-                <param>
-                    <name>heat_temp</name>
-                    <type>RANGED_INTEGER</type>
-                    <default></default>
-                    <minimum>0</minimum>
-                    <maximum>100</maximum>
-                </param>
-            </params>
-        </command>
-
-        <command>
-            <name>SetMode</name>
-            <description>Set the thermostat mode to PARAM1</description>
-            <params>
-                <param>
-                    <name>mode</name>
-                    <type>LIST</type>
-                    <items>
-                        <item>off</item>
-                        <item>heat</item>
-                        <item>cold</item>
-                        <item>auto</item>
-                    </items>
-                </param>
-            </params>
-        </command>
+      <command>
+        <name>SetCurrentTemperature</name>
+        <description>Set the temperature to PARAM1</description>
+        <params>
+          <param>
+            <name>temperature</name>
+            <type>RANGED_INTEGER</type>
+            <default></default>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>SetCoolTemperature</name>
+        <description>Set the cooling temperature to PARAM1</description>
+        <params>
+          <param>
+            <name>cool_temp</name>
+            <type>RANGED_INTEGER</type>
+            <default></default>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>SetHeatTemperature</name>
+        <description>Set the heating temperature to PARAM1</description>
+        <params>
+          <param>
+            <name>heat_temp</name>
+            <type>RANGED_INTEGER</type>
+            <default></default>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>SetMode</name>
+        <description>Set the thermostat mode to PARAM1</description>
+        <params>
+          <param>
+            <name>mode</name>
+            <type>LIST</type>
+            <items>
+              <item>off</item>
+              <item>heat</item>
+              <item>cold</item>
+              <item>auto</item>
+            </items>
+          </param>
+        </params>
+      </command>
     </commands>
   </config>
   <composer_categories>

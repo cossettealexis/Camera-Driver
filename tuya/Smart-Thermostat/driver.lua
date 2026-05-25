@@ -375,11 +375,19 @@ function GetApiTemperature(accessToken, deviceId)
 
     C4:urlGet(apiUrl, headers, false, function(ticketId, response, statusCode, errorMsg)
         if statusCode == 200 then
-            print("Api Reponse : " .. response)
+            print("========== THERMOSTAT CAPABILITY TEST ==========")
+            print("Full API Response: " .. response)
             local data = C4:JsonDecode(response)
 
             if data and data.result then
                 extractedData = {}
+                
+                -- DEBUG: Print all fields in response
+                print("----- Fields in API Response -----")
+                for _, item in ipairs(data.result) do
+                    print("  " .. tostring(item.code) .. " = " .. tostring(item.value))
+                end
+                print("----------------------------------")
 
                 -- Mapping of codes to extractedData keys
                 local codeMapping = {
@@ -424,6 +432,23 @@ function GetApiTemperature(accessToken, deviceId)
                         end
                     end
                 end
+
+                -- DEBUG: Capability Detection
+                print("----- CAPABILITY DETECTION -----")
+                local hasHeat = (extractedData.heat_temp_set ~= nil)
+                local hasCool = (extractedData.cool_temp_set ~= nil)
+                print("  heat_temp_set present: " .. tostring(hasHeat))
+                print("  cool_temp_set present: " .. tostring(hasCool))
+                if hasHeat and hasCool then
+                    print("  RESULT: Device supports BOTH heating and cooling")
+                elseif hasHeat then
+                    print("  RESULT: Device is HEATING ONLY")
+                elseif hasCool then
+                    print("  RESULT: Device is COOLING ONLY")
+                else
+                    print("  WARNING: No temperature setpoints found!")
+                end
+                print("================================")
 
                 if extractedData.mode then
                     print("Extracted Mode: " .. extractedData.mode)
@@ -511,6 +536,7 @@ end
 
 -- Called when data is received from the network
 function ReceivedFromNetwork(idBinding, nPort, strData)
+    print("========== TCP DATA RECEIVED ==========")
     -- Remove trailing \r\n if present
     if string.sub(strData, -2) == "\r\n" then
         strData = string.sub(strData, 1, -3)
@@ -524,6 +550,35 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
         padding = true,
     }
     local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
+    
+    if (decrypted_data ~= nil) then
+        print("Decryption SUCCESS!")
+        print("Decrypted Data: " .. decrypted_data)
+        
+        local data = C4:JsonDecode(decrypted_data)
+        
+        if data then
+            print("JSON Decode SUCCESS!")
+            print("EventName: " .. tostring(data.EventName))
+            
+            if data.EventName == "ChangeGlobalKeys" then
+                print("*** CREDENTIALS RECEIVED! ***")
+                print("ClientId: " .. tostring(data.ClientId))
+                print("ClientSecret: " .. tostring(data.ClientSecret))
+                GlobalObject.ClientID = data.ClientId
+                GlobalObject.ClientSecret = data.ClientSecret
+                C4:UpdateProperty("ClientId", data.ClientId or "")
+                C4:UpdateProperty("ClientSecret", data.ClientSecret or "")
+                print("*** CREDENTIALS SAVED! ***")
+            end
+        else
+            print("ERROR: JSON decode failed!")
+        end
+    else
+        print("ERROR: Decryption failed!")
+        print("Error: " .. tostring(err))
+    end
+    
     if (decrypted_data ~= nil) then
         local data = C4:JsonDecode(decrypted_data)
         extractedData = {}

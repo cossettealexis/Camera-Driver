@@ -61,6 +61,8 @@ The content of this folder requires no modification by the driver developer. The
 ### Device Properties
 | Property Name     | Type           | Description                                 |
 |-------------------|----------------|---------------------------------------------|
+| `Tcp Port`        | String         | TCP server port used by the driver to establish the network connection. |
+| `MacAddress`      | String         | Control 4 Mac Address.                      |
 | `ClientId`        | String         | Tuya Cloud API client ID.                   |
 | `ClientSecret`    | String         | Tuya Cloud API client secret.               |
 | `Contract`        | String         | Enables/disables driver cloud operations.   |    
@@ -72,6 +74,7 @@ The content of this folder requires no modification by the driver developer. The
 | `CurrentTemp`     | Ranged Float   | Current indoor temperature (0-33 °C)        |
 | `Log Level`       | List           | Logging detail level                        |
 | `Log Mode`        | List           | Log output: off, print, log, or both        |
+| `Device Response` | String         | Mac Address Validation Message.             |
 
 
 ### Proxies
@@ -152,6 +155,24 @@ Logs auto-disable in 10 minutes using `gDebugTimer`.
 
 
 ### Change log
+**Version 69**  
+- SDH-1196 - Enable Temperature Correction Feature for Tuya Thermostat in Control4 Driver
+- SDH-1195 - Color change for Cooling (blue) and Heating (red)
+
+**Version 68**  
+- SDH-1156 - Thermostat - Ability to schedule temp changes
+
+**Version 67**  
+- SDH-1156 - Thermostat V66 Issue -Adjusting the heating temperature on the app also affects the cooling temperature, and vice versa
+
+**Version 66**  
+- SDH-1154 - Fetch Client ID & Client Secret directly from REST API (remove Node.js dependency)
+
+**Version 65**  
+- TCI-829 - Drivers establish TCP connections using multiple ports with the TCP Port property.
+
+**Version 64**  
+- TCI-356 - Client ID and Secret Solution -  Solution by entering MAC Address in Property Section and validate MAC
 
 **Version 63**  
 - TCI-303 - Add correct dates for Driver and Add proper naming convention for Drivers

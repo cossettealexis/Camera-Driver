@@ -30,10 +30,32 @@ end
 function OnPropertyChanged(sProperty)
 	local propertyValue = Properties[sProperty]
 
-    print("OnPropertyChange():", strName, Properties[strName])
-    if(strName == "DeviceId") then
-       C4:UpdateProperty("DeviceId", Properties[strName])
-       deviceId = Properties[strName]
+    print("OnPropertyChange():", sProperty, Properties[sProperty])
+    if(sProperty == "DeviceId") then
+       C4:UpdateProperty("DeviceId", Properties[sProperty])
+       deviceId = Properties[sProperty]
+       
+         GenerateToken(GlobalObject, function(accessToken)
+            if not accessToken then
+                print("Failed to retrieve access token.")
+                return
+            end
+            GetApiTemperature(accessToken, deviceId)
+        end)
+    end
+    if (sProperty == "MacAddress") then
+        C4:UpdateProperty("MacAddress", Properties[sProperty])
+        ValidateMacAddress(Properties[sProperty]);      
+    end
+    if (sProperty == "Tcp Port") then
+        print("========================================")
+        print("Tcp Port CHANGED: " .. Properties[sProperty])
+        print("========================================")
+        C4:UpdateProperty("Tcp Port", Properties[sProperty])
+        GlobalObject.TCP_SERVER_PORT = Properties[sProperty]
+        DisconnectTcp()
+        TcpConnection()
+	   ValidateMacAddress(Properties["MacAddress"])
     end
     
 	if (LOG ~= nil and type(LOG) == "table") then
@@ -55,6 +77,7 @@ function OnPropertyChanged(sProperty)
 		LogError("LUA_ERROR: " .. err)
 	end
 end
+
 
 --[[=============================================================================
     UpdateProperty(propertyName, propertyValue)

@@ -66,6 +66,7 @@ function ThermostatProxy:prx_SET_SETPOINT_HEAT(tParams)
 end
 
 function ThermostatProxy:prx_SET_SETPOINT_COOL(tParams)
+	print("prx_SET_SETPOINT_COOL: " .. tostring(tParams["CELSIUS"]) .. "c, " .. tostring(tParams["FAHRENHEIT"]) .. "")
 	local celsius = tParams["CELSIUS"]
 	local fahrenheit = tParams["FAHRENHEIT"]
 
@@ -216,8 +217,8 @@ function ThermostatProxy:prx_UPDATE_SCHEDULE_ENTRIES(tParams)
 --	LogTrace(entriesXML)
 	
 	local tEntries = C4:ParseXml(tParams["ENTRIES"])
---	LogTrace("tEntries: ************************")
---	LogTrace(tEntries)
+	print("tEntries: ************************")
+	print(tEntries)
 	
 	-- Get all the entries
 	for _, entry in pairs(tEntries.ChildNodes) do
@@ -237,7 +238,7 @@ function ThermostatProxy:prx_UPDATE_SCHEDULE_ENTRIES(tParams)
 		self._Schedule[sched.DayOfWeek][sched.EntryIndex].FahrenheitHeatSetpoint = FahrenheitHeatSetpoint
 		self._Schedule[sched.DayOfWeek][sched.EntryIndex].CelsiusCoolSetpoint = CelsiusCoolSetpoint
 		self._Schedule[sched.DayOfWeek][sched.EntryIndex].FahrenheitCoolSetpoint = FahrenheitCoolSetpoint
-		LogTrace("DayOfWeek: %s, EntryIndex: %s", sched.DayOfWeek, sched.EntryIndex)
+		print("DayOfWeek: %s, EntryIndex: %s", sched.DayOfWeek, sched.EntryIndex)
 		LogTrace(sched)
 		
 		if (string.sub(self._Scale, 1, 1) == "F") then
@@ -505,7 +506,7 @@ function ThermostatProxy:dev_ExtrasState(xml)
 end
 
 function ThermostatProxy:dev_ScheduleEntry(dayIndex, entryIndex, enabled, entryTime, heatSetpoint, coolSetpoint, scale)
-	LogTrace("ThermostatProxy:dev_ScheduleEntry(dayIndex = %s, entryIndex = %s, enabled = %s, entryTime = %s, heatSetpoint = %s, coolSetpoint = %s", dayIndex, entryIndex, enabled, entryTime, heatSetpoint, coolSetpoint)
+	print("ThermostatProxy:dev_ScheduleEntry(dayIndex = %s, entryIndex = %s, enabled = %s, entryTime = %s, heatSetpoint = %s, coolSetpoint = %s", dayIndex, entryIndex, enabled, entryTime, heatSetpoint, coolSetpoint)
 	
 	dayIndex = tonumber(dayIndex)
 	entryIndex = tonumber(entryIndex)
@@ -518,26 +519,62 @@ function ThermostatProxy:dev_ScheduleEntry(dayIndex, entryIndex, enabled, entryT
 	self._Schedule[dayIndex][entryIndex].IsEnabled = tostring(enabled)
 	self._Schedule[dayIndex][entryIndex].EntryTime = entryTime
 
-	if (string.sub(self._Scale, 1, 1) == "F") then
-		self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = heatSetpoint
-		self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = coolSetpoint
-		self._Schedule[dayIndex][entryIndex].HeatSetpoint = heatSetpoint*(50/9)+2553.72
-		self._Schedule[dayIndex][entryIndex].CoolSetpoint = coolSetpoint*(50/9)+2553.72
-		self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = round((self._Schedule[dayIndex][entryIndex].HeatSetpoint - 2731)/10)
-		self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = round((self._Schedule[dayIndex][entryIndex].CoolSetpoint - 2731)/10)
-	else
-		self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = heatSetpoint
-		self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = coolSetpoint
-		self._Schedule[dayIndex][entryIndex].HeatSetpoint = (heatSetpoint*10)+2731.5
-		self._Schedule[dayIndex][entryIndex].CoolSetpoint = (coolSetpoint*10)+2731.5
-		self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = round((self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint*9)/5+32)
-		self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = round((self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint*9)/5+32)
-	end
+	-- if (string.sub(self._Scale, 1, 1) == "F") then
+	-- 	self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = heatSetpoint
+	-- 	self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = coolSetpoint
+	-- 	self._Schedule[dayIndex][entryIndex].HeatSetpoint = heatSetpoint*(50/9)+2553.72
+	-- 	self._Schedule[dayIndex][entryIndex].CoolSetpoint = coolSetpoint*(50/9)+2553.72
+	-- 	self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = round((self._Schedule[dayIndex][entryIndex].HeatSetpoint - 2731)/10)
+	-- 	self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = round((self._Schedule[dayIndex][entryIndex].CoolSetpoint - 2731)/10)
+	-- else
+	-- 	self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = heatSetpoint
+	-- 	self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = coolSetpoint
+	-- 	self._Schedule[dayIndex][entryIndex].HeatSetpoint = (heatSetpoint*10)+2731.5
+	-- 	self._Schedule[dayIndex][entryIndex].CoolSetpoint = (coolSetpoint*10)+2731.5
+	-- 	self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = round((self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint*9)/5+32)
+	-- 	self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = round((self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint*9)/5+32)
+	-- end
+
+
+
+			if (string.sub(self._Scale, 1, 1) == "F") then
+
+				self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = heatSetpoint
+				self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = coolSetpoint
+
+				-- Internal (Kelvin * 10)
+				self._Schedule[dayIndex][entryIndex].HeatSetpoint = heatSetpoint * (50/9) + 2553.72
+				self._Schedule[dayIndex][entryIndex].CoolSetpoint = coolSetpoint * (50/9) + 2553.72
+
+				-- Convert to Celsius with 0.5 rounding ✅
+				local cHeat = (self._Schedule[dayIndex][entryIndex].HeatSetpoint - 2731) / 10
+				local cCool = (self._Schedule[dayIndex][entryIndex].CoolSetpoint - 2731) / 10
+
+				self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = roundToHalf(cHeat)
+				self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = roundToHalf(cCool)
+
+			else
+
+				self._Schedule[dayIndex][entryIndex].CelsiusHeatSetpoint = heatSetpoint
+				self._Schedule[dayIndex][entryIndex].CelsiusCoolSetpoint = coolSetpoint
+
+				-- Internal (Kelvin * 10)
+				self._Schedule[dayIndex][entryIndex].HeatSetpoint = (heatSetpoint * 10) + 2731.5
+				self._Schedule[dayIndex][entryIndex].CoolSetpoint = (coolSetpoint * 10) + 2731.5
+
+				-- Convert to Fahrenheit with rounding
+				local fHeat = (heatSetpoint * 9 / 5) + 32
+				local fCool = (coolSetpoint * 9 / 5) + 32
+
+				self._Schedule[dayIndex][entryIndex].FahrenheitHeatSetpoint = roundToHalf(fHeat)
+				self._Schedule[dayIndex][entryIndex].FahrenheitCoolSetpoint = roundToHalf(fCool)
+
+			end
 
 	if (scale == nil) then
 		scale = self._Scale
 	end
-	
+	print("scale: " .. scale)
 	local tParams =
 	{
 		Enabled = tostring(enabled),
@@ -546,8 +583,18 @@ function ThermostatProxy:dev_ScheduleEntry(dayIndex, entryIndex, enabled, entryT
 		CoolSetpoint = tostring(coolSetpoint),
 		Units = scale
 	}
+	print("tParams: ************************")
+    for k, v in pairs(tParams) do
+        print("%s: %s", k, v)
+    end
+	print("tParams End ************************")
+    print("xml type: " .. type(self._Schedule))
 
-	if (type(xml) == "string") then
+	--if (type(xml) == "string") then
 		NOTIFY.SCHEDULE_ENTRY_CHANGED(self._BindingID, dayIndex, entryIndex, tParams)
-	end
+	--end
+end
+
+function roundToHalf(num)
+    return math.floor(num * 2 + 0.5) / 2
 end

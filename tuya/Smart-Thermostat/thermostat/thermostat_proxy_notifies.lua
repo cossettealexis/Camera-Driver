@@ -280,4 +280,83 @@ function NOTIFY.SCHEDULE_ENTRY_CHANGED(bindingID, dayIndex, entryIndex, entryInf
 	}
 
 	SendNotify("SCHEDULE_ENTRY_CHANGED", tParams, bindingID)
+	StartScheduleTimer()
+end
+
+function StartScheduleTimer()
+
+    if gScheduleTimer ~= nil then
+        gScheduleTimer:KillTimer()
+        gScheduleTimer = nil
+    end
+
+    gScheduleTimer = CreateTimer("ScheduleChecker", 60, "SECONDS", CheckSchedule, true)
+    StartTimer(gScheduleTimer)
+
+    print("Schedule Timer Started")
+end
+
+
+function CheckSchedule()
+    local now = os.date("*t")
+    
+	local currentDay = now.wday - 1   -- 0 = Sunday
+    local currentMinutes = now.hour * 60 + now.min
+
+    print("Checking schedule:", currentDay, currentMinutes)
+
+    local daySchedule = gTStatProxy._Schedule[currentDay]
+
+    if daySchedule then
+        for index, entry in pairs(daySchedule) do
+            if entry.IsEnabled == "true" or entry.IsEnabled == true then
+                
+                if tonumber(entry.EntryTime) == currentMinutes then
+                    
+                    print("🔥 Schedule Matched!")
+
+                    -- Apply setpoints
+                    ApplySchedule(entry)
+                end
+            end
+        end
+    end
+end
+
+function ApplySchedule(entry)
+    print("Applying Schedule")
+
+    local scale = string.upper(Properties["Scale"] or "CELSIUS")
+    local tempValue
+    local heat
+    local cool
+
+    if scale == "FAHRENHEIT" then
+        tempValue = "f"
+		heat = tonumber(entry.FahrenheitHeatSetpoint or entry.HeatSetpoint)
+        cool = tonumber(entry.FahrenheitCoolSetpoint or entry.CoolSetpoint)
+    else
+        tempValue = "c"
+        heat = tonumber(entry.CelsiusHeatSetpoint or entry.HeatSetpoint)
+        cool = tonumber(entry.CelsiusCoolSetpoint or entry.CoolSetpoint)
+    end
+
+    print("Heat:", heat, "Cool:", cool, "Scale:", tempValue)
+
+	SET_SETPOINT_HEAT(heat, entry.FahrenheitHeatSetpoint)
+	
+	C4:SetTimer(500, function()
+		gTStatProxy:dev_HeatSetpoint(heat, tempValue)
+	end)
+	
+
+	-- Then delay COOL by 1 second (1000 ms)
+	C4:SetTimer(5000, function()
+        SET_SETPOINT_COOL(cool, entry.FahrenheitCoolSetpoint)
+	
+		C4:SetTimer(500, function()
+	     	gTStatProxy:dev_CoolSetpoint(cool, tempValue)
+	    end)
+   
+    end)
 end

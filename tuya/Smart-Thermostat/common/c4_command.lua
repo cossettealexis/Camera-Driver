@@ -181,6 +181,8 @@ end
 end
 
 function UIRequest(sRequest, tParams)
+    print("UIRequest " .. sRequest)
+
     local ret = ""
     local deviceId = Properties["DeviceId"];
     if Properties["Contract"] == "Enable" then 

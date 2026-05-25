@@ -13,6 +13,8 @@ var fan_mode = 0;
 var switch_emer_enabled = 0;
 var switch_program_enabled = 0;
 var modeAct = "off_mode";
+var relay_status = 0;
+var delay_time = 0;
 const modeMap = {
     "auto": "auto_mode",
     "heat": "heat_mode",
@@ -34,6 +36,8 @@ var maxTempC = 32.0;
 var minTempF = 41;
 var maxTempF = 90;
 var browserDebug = false;
+var timerStart = false;
+var countdownInterval = null;
 //onDataToUi(JSON.stringify({"cool_temp_set":24,"cool_temp_set_f":75,"fan_mode":"auto","heat_temp_set":13.5,"heat_temp_set_f":56,"humidity_current":32,"mode":"auto","switch_program_enabled":true,"temp_current":22.5,"temp_current_f":73,"temp_set":14.5,"temp_set_f":58,"temp_unit_convert":"f"}));
 //hideloader();
 
@@ -71,7 +75,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // C4.sendCommand("GetTemperature", "", false, false);
     try {
         C4.sendCommand("HandleSelect", "", false, false);
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable("LAST_ROOM_SELECTED");
         C4.subscribeToVariable("LAST_MENU_SELECTED");
     } catch (error) {
@@ -91,50 +95,71 @@ function onDataToUi(value) {
             }
         }
         //document.getElementById("loading").style.display = "none";
-        let jsonObject = JSON.parse(value);
-        console.log('jsonObject', jsonObject);
         let dataObject = {};
-        if (browserDebug) {
-            dataObject = JSON.parse(value); //for browser testing
-        } else {
-            dataObject = JSON.parse(jsonObject.C4Message.Data);
+        let jsonObject = JSON.parse(value);
+    
+        console.log('value icon_description 1234: ' + jsonObject.hasOwnProperty("icon_description"));
+        if (jsonObject.hasOwnProperty("icon_description")) {
+            console.log("hi 1");
+            console.log("icon_description", JSON.stringify(jsonObject.icon_description));
+            dataObject = JSON.parse(jsonObject.icon_description);
+            if(dataObject && dataObject.command == "UpdateTemperature"){
+                dataObject = JSON.parse(dataObject.data);
+            } 
+            
+        } 
+
+        if (jsonObject.hasOwnProperty("state") && jsonObject.state.icon_description) {
+            dataObject = JSON.parse(jsonObject.state.icon_description);
+            if(dataObject.C4Message && dataObject.C4Message.command == "UpdateTemperature"){
+                dataObject = JSON.parse(dataObject.C4Message.Data);
+            } 
+            console.log("iconDataObject", JSON.parse(jsonObject.state.icon_description));
         }
-        console.log('dataObject', dataObject);
+        if (browserDebug && dataObject) {
+            dataObject = JSON.parse(value); //for browser testing
+            if(dataObject.C4Message && dataObject.C4Message.command == "UpdateTemperature"){
+                dataObject = JSON.parse(dataObject.C4Message.Data);
+            } else if(dataObject.C4Message && dataObject.C4Message.command == "UpdateTemperatureCorrection"){   
+                dataObject = JSON.parse(dataObject.C4Message.Data);
+            }      
+        } else {
+            if(dataObject.C4Message && dataObject.C4Message.command == "UpdateTemperature"){
+                dataObject = JSON.parse(dataObject.C4Message.Data);
+            } else if(dataObject.C4Message && dataObject.C4Message.command == "UpdateTemperatureCorrection"){
+                dataObject = JSON.parse(dataObject.C4Message.Data);
+            }
+        }
         if (dataObject.mode) {
             mode = dataObject.mode;
             console.log("lblMode1 : " + mode);
         }
-
+        
+        if (dataObject.temp_unit_convert) {
+            temp_unit_convert = dataObject.temp_unit_convert;
+            console.log("lblTemperatureUnitConvert: " + temp_unit_convert);
+        } 
         if (dataObject.heat_temp_set) {
             heat_temp_set = dataObject.heat_temp_set;
             console.log("lblHeatTemperature : " + heat_temp_set);
         }
-
         if (dataObject.cool_temp_set) {
             cool_temp_set = dataObject.cool_temp_set;
             console.log("lblCoolTemperature : " + cool_temp_set);
         }
-
         if (dataObject.temp_current) {
             temp_current = dataObject.temp_current;
             console.log("lblCurrentTemperature : " + temp_current);
-        }
-
-        if (dataObject.humidity_current) {
-            humidity_current = dataObject.humidity_current;
-            console.log("lblCurrentHumidity: " + humidity_current);
         }
 
         if (dataObject.temp_set) {
             temp_set = dataObject.temp_set;
             console.log("lblTemperatureSet: " + temp_set);
         }
-
         if (dataObject.heat_temp_set_f) {
             heat_temp_set_f = dataObject.heat_temp_set_f;
             console.log("lblHeatTemperatureF: " + heat_temp_set_f);
         }
-
         if (dataObject.cool_temp_set_f) {
             cool_temp_set_f = dataObject.cool_temp_set_f;
             console.log("lblCoolTemperatureF: " + cool_temp_set_f);
@@ -149,18 +174,33 @@ function onDataToUi(value) {
             temp_set_f = dataObject.temp_set_f;
             console.log("lblTemperatureSetF: " + temp_set_f);
         }
-        if (dataObject.temp_unit_convert) {
-            temp_unit_convert = dataObject.temp_unit_convert;
-            console.log("lblTemperatureUnitConvert: " + temp_unit_convert);
+            
+        if (dataObject.humidity_current) {
+            humidity_current = dataObject.humidity_current;
+            console.log("lblCurrentHumidity: " + humidity_current);
         }
+      
         if (dataObject.fan_mode) {
             fan_mode = dataObject.fan_mode;
             console.log("lblFanMode: " + fan_mode);
         }
+        if (dataObject.relay_status !== undefined) {
+            relay_status = dataObject.relay_status;
+            console.log("lblRelayStatus: " + relay_status);
+        }
+         if (dataObject.delay_time) {
+            delay_time = dataObject.delay_time;
+            console.log("lblDelayTime: " + delay_time);
+        }
+        if(dataObject.temp_correction){  
+            temp_correction = dataObject.temp_correction;
+            console.log("lblTempCorrection: " + temp_correction);
+            document.getElementById("selectedValue").innerText = temp_correction;
+        }
         //switch_emer_enabled = dataObject.switch_emer_enabled;
         //switch_program_enabled = dataObject.switch_program_enabled;   
         setTemperatureMode(mode);
-
+        
         if (dataObject.temp_unit_convert) {
             //Temperature Modes Start
             var tempModeId = temp_unit_convert == "f" ? "fahrenheit_mode" : "celsius_mode";
@@ -182,7 +222,7 @@ function onDataToUi(value) {
             }
             //Temperature Modes End
         }
-
+        
         if (dataObject.mode) {
             //Hvac Mode Start
             modeAct = mode + "_mode";
@@ -205,7 +245,7 @@ function onDataToUi(value) {
             document.querySelector('.thermostat_wrap').setAttribute('data-tempmode', modeid);
             //Hvac Mode End
         }
-
+        
         if (dataObject.fan_mode) {
             //FanMode Mode Start
             var fanmodeid = fan_mode === "auto" ? "fan_auto_mode" : "fan_on_mode";
@@ -223,16 +263,117 @@ function onDataToUi(value) {
 
             //FanMode Mode End
         }
+        
         if (dataObject.temp_current) {
             document.querySelector('#current_temp').innerText = temp_current;
         }
+        
         if (dataObject.humidity_current) {
             document.querySelector('.humidity span').innerText = humidity_current + '%';
         }
+        
         if (dataObject.temp_unit_convert && dataObject.temp_unit_convert == "f" && dataObject.temp_current_f) {
             document.querySelector('#current_temp').innerText = dataObject.temp_current_f;
         }
+        
+        if (relay_status == 1025) {
+            console.log("Starting timer with relay_status: " + relay_status);
+            document.querySelector('#lblDelayTime').style.display = 'block';
+            if (dataObject.delay_time >= 1 && !timerStart) {
+                console.log("Starting timer with delay_time: " + dataObject.delay_time);
+                timerStart = true;
+                // delay_time = dataObject.delay_time;
 
+                // // Convert seconds to MM:SS
+                // let minutes = Math.floor(delay_time / 60);
+                // let seconds = delay_time % 60;
+
+                // // Add leading zero
+                // seconds = seconds.toString().padStart(2, '0');
+
+                // let formattedTime = minutes + ":" + seconds;
+
+                // document.querySelector('#lblDelayTime').style.display = 'block';
+                // document.querySelector('#lblDelayTime').innerText = "Start In : " + formattedTime;
+
+                let delay_time = dataObject.delay_time - 3;
+                document.querySelector('#lblDelayTime').style.display = 'block';
+
+                // clear old timer
+                clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+
+                    // Convert seconds to MM:SS
+                    let minutes = Math.floor(delay_time / 60);
+                    let seconds = delay_time % 60;
+
+                    // leading zero
+                    seconds = seconds.toString().padStart(2, '0');
+
+                    let formattedTime =
+                        minutes + ":" + seconds;
+
+                    document.querySelector('#lblDelayTime')
+                        .innerText =
+                        "Start In : " + formattedTime;
+
+                    delay_time--;
+
+                    // timer completed
+                    if (delay_time < 0) {
+
+                        clearInterval(countdownInterval);
+
+                        timerStart = false;
+
+                        document.querySelector('#lblDelayTime')
+                            .style.display = 'none';
+                    }
+
+                }, 1000);
+           }
+        }  
+        else {
+            timerStart = false;
+            document.querySelector('#lblDelayTime').style.display = 'none';
+        }
+        
+        if (relay_status == 0 || relay_status == 1025) {
+            document.querySelector('#lblRelayStatus').style.display = 'none';
+            document.querySelector('#current_temp').style.color = '#fff';
+        }  else {
+            document.querySelector('#lblRelayStatus').style.display = 'block';
+            if (mode === "heat" || mode === "emergency_heat") {
+                if(heat_temp_set > temp_current){
+                    document.querySelector('#lblRelayStatus').innerText = "Heating";
+                    document.querySelector('#lblRelayStatus').style.color = '#E38683';
+                    document.querySelector('#current_temp').style.color = '#E38683';
+                }
+            }
+             
+            if (mode === "cold") {
+                if(cool_temp_set < temp_current){ 
+                    document.querySelector('#lblRelayStatus').innerText = "Cooling";
+                    document.querySelector('#lblRelayStatus').style.color = '#8cbcfb';  
+                    document.querySelector('#current_temp').style.color = '#8cbcfb';
+                }
+            }
+            
+            if (mode === "auto") {
+                if(heat_temp_set > temp_current){
+                    document.querySelector('#lblRelayStatus').innerText = "Heating";
+                    document.querySelector('#lblRelayStatus').style.color = '#E38683';
+                    document.querySelector('#current_temp').style.color = '#E38683';       
+                }
+
+                if(cool_temp_set < temp_current){ 
+                    document.querySelector('#lblRelayStatus').innerText = "Cooling";
+                    document.querySelector('#lblRelayStatus').style.color = '#8cbcfb';  
+                    document.querySelector('#current_temp').style.color = '#8cbcfb';
+                }
+            }
+        }
     } catch (error) {
         console.error("Error parsing JSON:", error);
     }
@@ -451,6 +592,11 @@ $(document).ready(function () {
         $('.overlay').css('display', 'block');
         btnId = 0;
     });
+
+    $('.mode_popup_setting_btn').click(function () {
+      $('#mainPage').css('display', 'none');
+      $('.TempCorrectionScreen').css('display', 'block');
+    })
 });
 
 function setTemperatureMode(mode) {
@@ -577,3 +723,14 @@ function formatTemperature(value) {
     return (value % 1 === 0) ? value.toFixed(0) : value.toFixed(1);
 }
 
+function setTemperatureCorrection(value) {
+    let params = JSON.stringify({
+       temp_correction : value
+    });
+    console.log('setTemperatureCorrection ' + params);
+    try {
+        C4.sendCommand("setTemperatureCorrection", params, false, true);
+    } catch (error) {
+        console.log(error);
+    }
+}
