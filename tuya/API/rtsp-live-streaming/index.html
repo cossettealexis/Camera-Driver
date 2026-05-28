@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>RTSP via JSMpeg</title>
+    <!-- Include JSMpeg (download or use CDN). -->
+    <script src="jsmpeg.min.js"></script>
+</head>
+
+<body>
+    <!-- Canvas to render video -->
+    <canvas id="videoCanvas" width="600" height="400" style="max-width: 600px;"></canvas>
+    <button onclick="toggleAudio()">Toggle Audio</button>
+    <div>
+        <div>Streaming Speed: <span id="stream-speed">0 kB/s</span></div>
+        <select id="quality">
+            <option value="hd">HD</option>
+            <option value="sd">SD</option>
+        </select>
+        <label for="rtspUrl">Enter RTSP URL:</label>
+        <input type="text" id="rtspUrl" value="rtsp://your-default-url">
+        <button onclick="updateStream()">Update Stream</button>
+    </div>
+    <script>
+        var player;
+        let audioEnabled = true;
+        let totalBytes = 0;
+        let lastReportTime = Date.now();
+        function updateStream() {
+            const newUrl = document.getElementById('rtspUrl').value;
+            // Connect to the WebSocket server and play the stream. 
+            const encodedUrl = btoa(newUrl); // base64 encode the RTSP(S) URL
+            const quality = document.getElementById('quality').value;
+            const wsUrl = 'ws://localhost:3050/?url=' + encodedUrl + '&quality=' + quality;
+            console.log(newUrl);
+            const canvas = document.getElementById('videoCanvas');
+            player = new JSMpeg.Player(wsUrl, {
+                canvas: canvas,
+                autoplay: true,
+                audio: true,
+                loop: false,
+                onVideoDecode: () => {
+                    const now = Date.now();
+                    const elapsed = now - lastReportTime;
+
+                    if (elapsed >= 1000) { // every second
+                        const kbps = (totalBytes * 8) / 1000; // kilobits per second
+                        const kBps = totalBytes / 1024;       // kilobytes per second
+                        
+                        console.log(`Speed: ${kbps.toFixed(2)} kbps | ${kBps.toFixed(2)} kB/s`);
+
+                        // Optionally update UI
+                        document.getElementById('stream-speed').textContent = `${kBps.toFixed(2)} kB/s`;
+
+                        totalBytes = 0;
+                        lastReportTime = now;
+                    }
+                },
+                onSourceEstablished: (source) => {
+                    source.socket.binaryType = 'arraybuffer';
+                    source.socket.addEventListener('message', (event) => {
+                        totalBytes += event.data.byteLength;
+                    });
+                }
+            });
+        }
+
+
+        function toggleAudio() {
+            if (!player || !player.audioOut) return;
+
+            audioEnabled = !audioEnabled;
+
+            if (audioEnabled) {
+                alert('Audio enabled');
+                player.volume = 1; // resume audio 
+            } else {
+                alert('Audio muted');
+                player.volume = 0;  // mute audio
+            }
+
+            console.log("Audio " + (audioEnabled ? "enabled" : "muted"));
+        }
+    </script>
+</body>
+
+</html>

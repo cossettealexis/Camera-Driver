@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Temperature Control</title>
+    <script src="javascript/jsapidemo.js" type="text/javascript"></script>
+    <link rel="stylesheet" type="text/css" href="css/table.css">
+</head>
+
+<body>
+
+    <form>
+        <!-- Radio Buttons for Mode Selection -->
+        <input type="radio" id="auto" name="mode" value="Auto" onclick="onTemperatureSelected(this);">
+        <label for="auto">Auto</label>
+
+        <input type="radio" id="heat" name="mode" value="Heat" onclick="onHeatTempSelected(this);">
+        <label for="heat">Heat</label>
+
+        <input type="radio" id="cool" name="mode" value="Cold" onclick="onCoolTempSelected(this);">
+        <label for="Cold">Cool</label>
+
+        <input type="radio" id="off" name="mode" value="Off" onclick="onTemperatureSelected(this);">
+        <label for="off">Off</label>
+        
+        <table>
+            <tr>
+                <td>
+                    <label>Heat Temperature</label>
+                </td>
+                <td>
+                    <label id="heat_temp_display">0</label>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>Cool Temperature</label>
+                </td>
+                <td>
+                    <label id="cool_temp_display">0</label>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <label>Temperature</label>
+                </td>
+                <td>
+                    <label id="temp_display">0</label>
+                </td>
+            </tr>
+            <tr>
+                <td style="text-align: right;">
+                    <button type="button" onclick="increaseTemperature()">+</button>
+                </td>
+                <td>
+                    <button type="button" onclick="decreaseTemperature()">-</button>
+                </td>
+            </tr>
+        </table>
+        <div>
+            <input type="radio" id="fanauto" name="fanmode" value="auto" onclick="onFanModeSelected(this);">
+            <label for="fanauto">Auto</label>
+            
+            <input type="radio" id="fanon" name="fanmode" value="on" onclick="onFanModeSelected(this);">
+            <label for="auto">Auto</label>
+        </div>
+    </form>
+
+</body>
+</html>
