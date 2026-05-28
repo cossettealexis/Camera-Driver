@@ -1,6 +1,0 @@
-.eslintrc.js
-node_modules/
-dist/
-jest.config.js
-test/
-tuya.config.js
