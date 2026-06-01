@@ -6,6 +6,7 @@ local auth               = require("CldBusApi.auth")
 local transport          = require("CldBusApi.transport_c4")
 local util               = require("CldBusApi.util")
 local MQTT               = require("mqtt_manager")
+local EventLogger              = require("event_logger")  
 -- Local state
 local LAST_EVENT_ID      = 0
 local NOTIFICATION_URLS  = {}
@@ -65,15 +66,6 @@ GlobalObject.DeviceModel      = "p160"
 GlobalObject.ProductSubType   = "plugged_camera"
 GlobalObject.CustomerEmail    = ""
 GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
-GlobalObject.CldBusAppId      = "cldbus"
-GlobalObject.CldBusSecret     = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-GlobalObject.TCP_SERVER_PORT  = 8081
-GlobalObject.DeviceModel      = "p160"
-GlobalObject.ProductSubType   = "plugged_camera"
-GlobalObject.CustomerEmail    = ""
-GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
-GlobalObject.CldBusAppId      = "cldbus"
-GlobalObject.CldBusSecret     = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 _props.MQTT                   = {
     socket_ready = false,
     connected = false,
@@ -93,7 +85,6 @@ local EVENT = {
     MOTION           = "Motion Detected",
     CAMERA_ONLINE    = "Camera Online",
     CAMERA_OFFLINE   = "Camera Offline",
-    CAMERA_RESTARTED = "Camera Restarted",
     HUMAN            = "Human Detected",
     LOW_BATTERY      = "Low Battery",
     MEMORY_CARD_MISSING = "Memory Card Not Detected"
@@ -113,7 +104,7 @@ local conditional_state = {
     NOT_MOTION_DETECTED = true,
     MIC_MUTED = false,
     MIC_UNMUTED = true,
-    SPEAKER_VOLUME = 5
+    SPEAKER_VOLUME = 4
 }
 
 -- Volume tracking
@@ -166,6 +157,8 @@ function OnDriverInit()
     TcpConnection()
     print("=== P160-SL Driver Initialized ===")
     C4:UpdateProperty("Camera Status", "false")
+    --default speaker volume
+    C4:UpdateConditional("SPEAKER_VOLUME", "4")
     -- Initialize MQTT
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -173,13 +166,6 @@ function OnDriverInit()
         end
         _props[k] = v
     end
-
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -191,8 +177,24 @@ function OnDriverInit()
         end
     })
 
-    C4:UpdateProperty("Status", "Driver initialized")
+    C4:UpdateProperty("Status", "Driver initialized")-- ── Initialise EventLogger ───────────────────────────────────────────────
+   EventLogger.init(
+    transport,
+    json,
+    function()
+        return {
+            BaseApi    = GlobalObject.BaseApi or "",
+            DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+            DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+            UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+            IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+            AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",  -- ← add this
+        }
+    end
+)
+    -- ────────────────────────────────────────────────────────────────────────
 end
+
 
 function OnDriverDestroyed()
     print("=== K26 Driver Destroyed ===")
@@ -333,12 +335,6 @@ function OnDriverLateInit()
     C4:UpdateProperty("Status", "Ready")
     
     ValidateMacAddress(C4:GetUniqueMAC())
-
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
     
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
@@ -421,9 +417,8 @@ end
 
 -- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    -- Check GlobalObject first (set immediately by ValidateMacAddress)
-    local appId     = GlobalObject.CldBusAppId   or _props["AppId"]     or Properties["AppId"]     or "cldbus"
-    local appSecret = GlobalObject.CldBusSecret  or _props["AppSecret"] or Properties["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId     = Properties["AppId"]     or _props["AppId"]     or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
     return appId, appSecret
 end
 
@@ -807,7 +802,7 @@ function ExecuteCommand(strCommand, tParams)
             local new_vol = math.min(current + 1, 10)
             print("[COMMAND] Speaker Volume Up: " .. current .. " -> " .. new_vol)
             SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
-                UpdateConditional("SPEAKER_VOLUME", new_vol)
+                UpdateConditional("SPEAKER_VOLUME", tostring(new_vol))
             end)
         end)
         return
@@ -819,7 +814,7 @@ function ExecuteCommand(strCommand, tParams)
             local new_vol = math.max(current - 1, 1)
             print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
             SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
-                UpdateConditional("SPEAKER_VOLUME", new_vol)
+                UpdateConditional("SPEAKER_VOLUME", tostring(new_vol))
             end)
         end)
         return
@@ -852,9 +847,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    -- local appId, appSecret = GetCldBusCredentials()
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -1020,10 +1013,7 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1440,10 +1430,7 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -1519,10 +1506,7 @@ function GET_DEVICES(p_vid)
 
     print("Using bearer token: " .. auth_token)
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -2018,9 +2002,7 @@ function GetImageForEvent(extp, done)
         return done(nil)
     end
 
-    -- local appId, appSecret = GetCldBusCredentials()
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
     print("ERROR: CldBus credentials not loaded yet")
@@ -2137,29 +2119,24 @@ end
 
 
 
-local function handle_motion(filename, extp)
+
+local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
-    
-    -- Update motion conditional states
+    EventLogger.logMotion(params)   -- ← pass full params
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
-local function handle_human(filename, extp)
+local function handle_human(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
+    EventLogger.logHuman(params)    -- ← pass full params
 end
 
 
-local function handle_restart()
-    send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
-end
 
-local function handle_low_battery()
-    send_notification(NOTIFY.ALERT, EVENT.LOW_BATTERY, "battery", COOLDOWN.battery)
-end
-
-local function handle_memory_card_missing()
+local function handle_memory_card_missing(params)
     send_notification(NOTIFY.ALERT, EVENT.MEMORY_CARD_MISSING, "memory_card", COOLDOWN.memory_card)
+    EventLogger.logMemoryCardMissing(params)
 end
 
 
@@ -2194,6 +2171,7 @@ local function handle_online_status(new_online)
                 "online",
                 COOLDOWN.online
             )
+            EventLogger.logCameraOnline()  
         else
             C4:UpdateProperty("Camera Status", "Offline")
             _props["Camera Status"] = "Offline"
@@ -2203,11 +2181,12 @@ local function handle_online_status(new_online)
                 "offline",
                 COOLDOWN.offline
             )
+            EventLogger.logCameraOffline()  
         end
     end
 end
 
-local function handle_device_status(msg)
+--[[local function handle_device_status(msg)
     if not msg.status then return end
 
     for _, s in ipairs(msg.status) do
@@ -2215,6 +2194,25 @@ local function handle_device_status(msg)
             local is_online = (s.status_val == 1)
             handle_online_status(is_online)
             return
+        end
+    end
+end--]]
+
+
+local function handle_device_status(msg)
+    if not msg.status or type(msg.status) ~= "table" then
+        return
+    end
+
+    for _, s in ipairs(msg.status) do
+        -- Existing online handling
+        if s.status_key == "is_online" then
+            local is_online = (s.status_val == 1 or s.status_val == true)
+            handle_online_status(is_online)
+
+        -- ==================== NEW: SD CARD HANDLING ====================
+        elseif s.status_key == "stored" and (s.status_type == 2 or s.status_type == nil) then
+            HandleSDCardStatus(s.status_val)
         end
     end
 end
@@ -2247,12 +2245,12 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 10021 then
-                handle_motion(filename, extp)
+                handle_motion(filename, extp, params)
                 return true
             end
 
             if params.type == 10022 then
-                handle_human(filename, extp)
+                handle_human(filename, extp, params)
                 return true
             end
 
@@ -2263,10 +2261,7 @@ function HANDLE_JSON_EVENT(payload)
         -- 🚨 alarm_rec_v2 (Critical Alerts)
         ------------------------------------------------
         if id == "alarm_rec_v2" then
-            if params.type == 1 then
-                handle_low_battery()
-                return true
-            end
+          
 
             if params.type == 3 then
                 -- Offline alert comes here but still
@@ -2277,20 +2272,14 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 4 or params.type == 5 then
-                handle_memory_card_missing()
+                handle_memory_card_missing(params)
                 return true
             end
 
             return true
         end
 
-        ------------------------------------------------
-        -- 🔄 Camera Restart
-        ------------------------------------------------
-        if id == "stored_reset" then
-            handle_restart()
-            return true
-        end
+        
 
         return true
     end
@@ -2354,7 +2343,6 @@ function SEND_TEST_NOTIFICATION()
     -- Informational notifications
     send_notification(NOTIFY.INFO, EVENT.MOTION, "test_motion", 0)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "test_human", 0)
-    send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "test_restart", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_OFFLINE, "test_offline", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_ONLINE, "test_online", 0)
     print("[TEST] ✅ Test notifications fired")
@@ -3864,4 +3852,79 @@ function GET_BATTERY_LEVEL()
             _props["Camera Status"] = status
         end
     end)
+end
+
+
+-- ================================================
+-- SD CARD STATUS HANDLER (P160 V3) - NEW
+-- ================================================
+function HandleSDCardStatus(status_val)
+    print("[SD CARD] Raw status_val:", type(status_val) == "string" and status_val or json.encode(status_val or {}))
+
+    local status_obj = status_val
+
+    -- CH Team warned: status_val may come as string → convert to table
+    if type(status_val) == "string" then
+        local ok, parsed = pcall(json.decode, status_val)
+        if ok and parsed then
+            status_obj = parsed
+        end
+    end
+
+    if type(status_obj) ~= "table" or status_obj.status == nil then
+        print("[SD CARD] Invalid status format received")
+        return
+    end
+
+    local sd_status = tonumber(status_obj.status)
+
+    if sd_status == 1 then
+        -- SD Card Missing / Removed
+        print("[SD CARD] ❌ Memory Card Not Detected")
+        TriggerMemoryCardEvent(false)
+
+    elseif sd_status == 0 then
+        -- SD Card Inserted and Normal
+        print("[SD CARD] ✅ Memory Card Inserted")
+        TriggerMemoryCardEvent(true)
+
+    elseif sd_status == 2 then
+        -- Filesystem not initialized
+        print("[SD CARD] ⚠️ Filesystem not initialized")
+        TriggerMemoryCardEvent(false)
+    else
+        print("[SD CARD] Unknown status code:", sd_status)
+    end
+end
+
+
+-- ================================================
+-- TRIGGER MEMORY CARD EVENT
+-- ================================================
+function TriggerMemoryCardEvent(is_present)
+    if is_present then
+        -- Memory Card Inserted
+        C4:FireEvent("Memory Card Inserted")           -- You may want to add this event in XML too
+        C4:UpdateProperty("Memory Card Status", "Inserted")
+
+        if user_settings.enable_info then
+            SEND_NOTIFICATION({
+                title = "Camera Info",
+                message = "Memory Card Inserted",
+                event_type = NOTIFY.INFO
+            })
+        end
+    else
+        -- Memory Card Not Detected (already exists in your XML)
+        C4:FireEvent("Memory Card not detected")
+        C4:UpdateProperty("Memory Card Status", "Not Detected")
+
+        if user_settings.enable_alerts then
+            SEND_NOTIFICATION({
+                title = "Camera Alert",
+                message = "Memory Card Not Detected",
+                event_type = NOTIFY.ALERT
+            })
+        end
+    end
 end

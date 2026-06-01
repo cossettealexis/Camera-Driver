@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>2</version>
+    <version>4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>05/13/2026 12:00 AM</modified>
+    <modified>05/27/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -89,11 +89,6 @@
             <id>4</id>
             <name>Camera Offline</name>
             <description>When NAME goes offline</description>
-        </event>
-        <event>
-            <id>5</id>
-            <name>Camera Restarted</name>
-            <description>When NAME restarts</description>
         </event>
         <event>
             <id>6</id>
@@ -210,7 +205,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>cgabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -266,6 +261,12 @@
                 <name>Camera Status</name>
                 <type>STRING</type>
                 <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Memory Card Status</name>
+                <type>STRING</type>
+                <default>Not Detected</default>
                 <readonly>true</readonly>
             </property>
         </properties>
