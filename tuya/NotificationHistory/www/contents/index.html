@@ -485,29 +485,77 @@
         var json = JSON.parse(value);
         addDiag('Parsed OK! Has: ' + Object.keys(json).join(', '), '0,200,255');
         
+        var finalData = null;
+        
+        // Handle devicecommand format (Control4 wrapper)
+        if (json.devicecommand) {
+          addDiag('🔵 devicecommand format detected!', '0,150,255');
+          var params = json.devicecommand.params || {};
+          var paramArray = params.param || [];
+          
+          // Look for our data in the params
+          for (var i = 0; i < paramArray.length; i++) {
+            if (paramArray[i].value && paramArray[i].value.static) {
+              var dataStr = paramArray[i].value.static;
+              addDiag('Found param data: ' + dataStr.substring(0, 50) + '...', '0,200,255');
+              try {
+                finalData = JSON.parse(dataStr);
+                addDiag('✅ Parsed param data!', '0,255,0');
+                break;
+              } catch(e) {
+                addDiag('Param not JSON: ' + e.message, '255,100,0');
+              }
+            }
+          }
+        }
+        
         // Check for icon_description wrapper
         if (json.icon_description) {
           addDiag('Found icon_description!', '0,200,255');
           var inner = JSON.parse(json.icon_description);
           if (inner.command === "UpdateData") {
             addDiag('Found UpdateData wrapper!', '0,200,255');
-            json = JSON.parse(inner.data);
+            finalData = JSON.parse(inner.data);
           } else {
-            json = inner;
+            finalData = inner;
           }
         }
         
-        if (json.type) {
-          addDiag('Type: ' + json.type, '0,255,255');
+        // Use original if no wrapper
+        if (!finalData && json.type) {
+          finalData = json;
         }
         
-        // Show history count
-        if (json.history && json.history.length) {
-          addDiag('📦 HISTORY: ' + json.history.length + ' items!', '0,255,0');
-          var list = document.getElementById('historyList');
-          if (list) {
-            list.innerHTML = '<div style="color:white;padding:20px;">SUCCESS! Received ' + json.history.length + ' notifications!</div>';
+        if (finalData) {
+          addDiag('✅ Final data type: ' + (finalData.type || 'unknown'), '0,255,100');
+          
+          // Show history count
+          if (finalData.history && finalData.history.length) {
+            addDiag('📦📦📦 HISTORY: ' + finalData.history.length + ' items!', '0,255,0');
+            var list = document.getElementById('historyList');
+            if (list) {
+              var html = '<div style="color:white;padding:20px;"><h2>SUCCESS!</h2><p>Received ' + finalData.history.length + ' notifications!</p><ul>';
+              for (var i = 0; i < Math.min(5, finalData.history.length); i++) {
+                var item = finalData.history[i];
+                html += '<li>' + item.device_name + ' - ' + item.message_type + ' at ' + new Date(item.time * 1000).toLocaleString() + '</li>';
+              }
+              html += '</ul></div>';
+              list.innerHTML = html;
+            }
           }
+          
+          // Show device list
+          if (finalData.devices) {
+            var devCount = finalData.devices.length || Object.keys(finalData.devices).length;
+            addDiag('📷 DEVICES: ' + devCount + ' cameras!', '0,255,0');
+          }
+          
+          // Show auth token
+          if (finalData.token) {
+            addDiag('🔑 AUTH TOKEN received!', '0,255,0');
+          }
+        } else {
+          addDiag('⚠️ Could not extract final data', '255,165,0');
         }
         
       } catch(e) {
