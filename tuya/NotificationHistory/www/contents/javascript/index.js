@@ -15,7 +15,14 @@ let historyContainer;
 let mediaModal;
 let mediaContainer;
 let closeModalBtn;
- let totalCount;
+let totalCount;
+
+// Navigation state for swipe gestures
+let currentClips = []; // All available clips
+let currentClipIndex = 0; // Current clip being viewed
+let touchStartX = 0;
+let touchStartY = 0;
+let isSwiping = false;
 
 function onTileActive() {
     try {
@@ -70,22 +77,55 @@ function onDataToUi(value) {
        
         console.log("Data from driver:", value);
         const json = JSON.parse(value);
-        if (!json.devicecommand) return;
-        const params = json.devicecommand?.params?.param || [];
-        const nameParam = params.find(p => p.name === "Name");
-        const valueParam = params.find(p => p.name === "Value");
-        if (nameParam?.value?.static === "Auth Token") {
-
-            const token = valueParam?.value?.static;
-
-            if (!token) return;
-
-            window.AccessToken = token;
-
-            console.log("Auth Token received");
-
-            startSystem();
-
+        
+        // Handle new message format with type field
+        if (json.type) {
+            console.log("Message type:", json.type);
+            
+            if (json.type === "auth_token") {
+                // Auth token message
+                const token = json.token;
+                if (token) {
+                    window.AccessToken = token;
+                    console.log("Auth Token received via new format");
+                    startSystem();
+                }
+                return;
+            }
+            
+            if (json.type === "device_list") {
+                // Device list message
+                console.log("Device list received:", json.devices);
+                allDevices = json.devices || [];
+                allVids = allDevices.map(d => d.vid);
+                populateDevices(allDevices);
+                return;
+            }
+            
+            if (json.type === "history") {
+                // Notification history message
+                console.log("History received:", json.history?.length || 0, "items");
+                renderHistory(json.history || []);
+                updateNotificationCount((json.history || []).length);
+                return;
+            }
+        }
+        
+        // Handle old devicecommand format (for backwards compatibility)
+        if (json.devicecommand) {
+            const params = json.devicecommand?.params?.param || [];
+            const nameParam = params.find(p => p.name === "Name");
+            const valueParam = params.find(p => p.name === "Value");
+            
+            if (nameParam?.value?.static === "Auth Token") {
+                const token = valueParam?.value?.static;
+                if (token) {
+                    window.AccessToken = token;
+                    console.log("Auth Token received via old format");
+                    startSystem();
+                }
+            }
+            return;
         }
 
     } catch (err) {
@@ -106,7 +146,9 @@ async function startSystem() {
     if (window.devicesLoaded) return;
 
     window.devicesLoaded = true;
-    await getDevices(); // uses window.AccessToken
+    console.log("System started - waiting for device list from driver");
+    // Driver will send device_list and history messages automatically
+    // No need to fetch here - just wait for messages via onDataToUi
 }
 
 /* =========================
@@ -353,12 +395,16 @@ function renderHistory(list) {
     if (!list.length) {
         historyContainer.innerHTML =
             `<div class="empty-state">No notifications</div>`;
+        currentClips = [];
         return;
     }
 
+    // Store clips for navigation
+    currentClips = list;
+
     historyContainer.innerHTML = "";
 
-    list.forEach(item => {
+    list.forEach((item, index) => {
 
         const time = item.time
             ? new Date(item.time * 1000).toLocaleString()
@@ -414,39 +460,186 @@ function renderHistory(list) {
         </div>
         `;
 
-        card.onclick = () => openMedia(item);
+        card.onclick = () => openMediaWithNavigation(index);
 
-        historyContainer.appendChild(card);
-    });
-}
+/* =========================
+   OPEN MEDIA WITH NAVIGATION
+========================= */
 
-window.openMedia = function (item) {
+window.openMediaWithNavigation = function(index) {
+    if (!currentClips || currentClips.length === 0) return;
+    
+    currentClipIndex = index;
+    showCurrentClip();
+    mediaModal.style.display = "block";
+};
 
+function showCurrentClip() {
     if (!mediaModal || !mediaContainer) return;
+    if (currentClipIndex < 0 || currentClipIndex >= currentClips.length) return;
 
+    const item = currentClips[currentClipIndex];
     const hasVideo = item.video_url?.trim() && item.video_sec > 0;
     const hasImage = item.image_url?.trim();
 
-    if (hasVideo) {
+    const time = item.time ? new Date(item.time * 1000).toLocaleString() : "";
+    const position = `${currentClipIndex + 1} of ${currentClips.length}`;
 
-        mediaContainer.innerHTML = `
-        <video controls autoplay style="max-width:100%">
+    let mediaHtml = '';
+
+    if (hasVideo) {
+        mediaHtml = `
+        <video controls autoplay style="max-width:100%;max-height:70vh;border-radius:8px;">
             <source src="${item.video_url}" type="video/mp4">
         </video>`;
-
     } 
     else if (hasImage) {
-
-        mediaContainer.innerHTML =
-            `<img src="${item.image_url}" style="max-width:100%">`;
-
+        mediaHtml = `
+        <img src="${item.image_url}" 
+             style="max-width:100%;max-height:70vh;border-radius:8px;" 
+             onerror="this.src='../icons/nomedia.png'">`;
     } 
     else {
+        mediaHtml = `
+        <div style="padding:60px;text-align:center;color:#999;font-size:18px;">
+        closeModalBtn.onclick = () => {
+            mediaModal.style.display = "none";
+        };
+    }
 
-        mediaContainer.innerHTML =
-            `<div style="padding:40px;text-align:center;color:#999;font-size:16px;">
-                 No media available
-            </div>`;
+    if (deviceSelect) {
+        deviceSelect.addEventListener("change", async function () {
+            const vid = this.value;
+
+            if (vid === "all") {
+                await fetchNotificationHistory(allVids);
+            } else {
+                await fetchNotificationHistory([vid]);
+            }
+        });
+    }
+
+    // Setup swipe gestures on modal
+    setupSwipeGestures();
+    
+    // Setup keyboard navigation
+    setupKeyboardNavigation();
+}
+
+/* =========================
+   SWIPE GESTURE SUPPORT
+========================= */
+
+function setupSwipeGestures() {
+    if (!mediaModal) return;
+
+    mediaModal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    mediaModal.addEventListener('touchmove', handleTouchMove, { passive: true });
+    mediaModal.addEventListener('touchend', handleTouchEnd, { passive: true });
+}
+
+function handleTouchStart(e) {
+    if (e.target.closest('#closeModal') || e.target.closest('.nav-btn')) {
+        return; // Don't interfere with button clicks
+    }
+
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    isSwiping = false;
+}
+
+function handleTouchMove(e) {
+    if (!touchStartX || !touchStartY) return;
+
+    const touchEndX = e.touches[0].clientX;
+    const touchEndY = e.touches[0].clientY;
+
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Determine if this is a horizontal swipe (not vertical scroll)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+        isSwiping = true;
+    }
+}
+
+function handleTouchEnd(e) {
+    if (!isSwiping || !touchStartX) {
+        touchStartX = 0;
+        touchStartY = 0;
+        isSwiping = false;
+        return;
+    }
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchEndX - touchStartX;
+
+    const swipeThreshold = 50; // Minimum distance for a swipe
+
+    if (Math.abs(deltaX) > swipeThreshold) {
+        if (deltaX > 0) {
+            // Swipe right - go to previous clip
+            navigatePrevClip();
+        } else {
+            // Swipe left - go to next clip
+            navigateNextClip();
+        }
+    }
+
+    touchStartX = 0;
+    touchStartY = 0;
+    isSwiping = false;
+}
+
+/* =========================
+   KEYBOARD NAVIGATION
+========================= */
+
+function setupKeyboardNavigation() {
+    document.addEventListener('keydown', (e) => {
+        // Only handle keys when modal is visible
+        if (mediaModal.style.display !== 'block') return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigatePrevClip();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigateNextClip();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            mediaModal.style.display = "none";
+        }
+    });                </button>
+            </div>
+        </div>
+    `;
+}
+
+/* =========================
+   NAVIGATION FUNCTIONS
+========================= */
+
+window.navigatePrevClip = function() {
+    if (currentClipIndex > 0) {
+        currentClipIndex--;
+        showCurrentClip();
+    }
+};
+
+window.navigateNextClip = function() {
+    if (currentClipIndex < currentClips.length - 1) {
+        currentClipIndex++;
+        showCurrentClip();
+    }
+};
+
+// Legacy support for old openMedia calls
+window.openMedia = function(item) {
+    const index = currentClips.findIndex(clip => clip === item);
+    if (index >= 0) {
+        openMediaWithNavigation(index);
+    }
 
     }
 

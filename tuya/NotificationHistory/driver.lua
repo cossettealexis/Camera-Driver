@@ -288,7 +288,7 @@ function GET_DEVICES()
         print("Total devices fetched:", #ALL_DEVICES)
 
         -- Send devices to UI now that we have them
-        SendDevicesToUI()
+        SendDevicesToUI(ALL_DEVICES)
 
         -- Fetch history for these devices
         _currentFilterVids = nil
@@ -360,11 +360,14 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
                 vid          = n.vid or "",
                 time         = n.notify_time or 0,
                 image_url    = n.image_url or "",
+                video_url    = n.video_url or "",
+                video_sec    = n.video_sec or 0,
                 message_type = n.message_type or ""
             })
         end
 
-        --SendHistoryToUI(cleaned)
+        print("Sending", #cleaned, "notifications to UI")
+        SendHistoryToUI(cleaned)
         return clear()
     end)
 end
@@ -374,7 +377,7 @@ end
 -- Send list of devices to the WebView UI
 function SendDevicesToUI(devices)
     LAST_DEVICES = devices or LAST_DEVICES or {}
-    print("SendDevicesToUI CALLED")
+    print("SendDevicesToUI CALLED with", #LAST_DEVICES, "devices")
     
     local payload = {
         type = "device_list",
@@ -389,6 +392,7 @@ function SendDevicesToUI(devices)
 
     print("========================================")
     print("Sending to Proxy 5001 -> WEBVIEW_MESSAGE")
+    print("Payload:", json.encode(payload))
     C4:SendToProxy(5001, "WEBVIEW_MESSAGE", tParams) 
     print("========================================")
 end
@@ -399,6 +403,8 @@ end
 --------------------------------------------------
 function SendHistoryToUI(list)
     LAST_HISTORY = list or LAST_HISTORY or {}
+    print("SendHistoryToUI CALLED with", #LAST_HISTORY, "items")
+    
     local payload = {
         type = "history",
         history = LAST_HISTORY
@@ -409,6 +415,7 @@ function SendHistoryToUI(list)
         MESSAGE = json.encode(payload)
     }
 
+    print("Sending history payload:", json.encode(payload))
     C4:SendToProxy(5001, "WEBVIEW_MESSAGE", tParams)
 end
 
