@@ -48,12 +48,21 @@ document.addEventListener("DOMContentLoaded", () => {
     mediaContainer = document.getElementById("mediaContainer");
     closeModalBtn = document.getElementById("closeModal");
     totalCount = document.getElementById("totalCount");
+    
+    // Test: Change loading message to confirm JS is running
+    if (historyContainer) {
+        historyContainer.innerHTML = '<div class="empty-state"><p>JavaScript loaded - waiting for data from driver...</p></div>';
+    }
+    
     try {
        
         C4.subscribeToDataToUi(true);
          C4.sendCommand("HandleSelect", "", false, false);
     } catch (e) {
         console.warn("Control4 not available (browser test mode)");
+        if (historyContainer) {
+            historyContainer.innerHTML = '<div class="empty-state"><p>Control4 not available - browser test mode</p></div>';
+        }
     }
 
     setupUI();
@@ -73,10 +82,34 @@ function updateNotificationCount(count) {
 
 function onDataToUi(value) {
 
+    console.log("=== onDataToUi CALLED ===");
+    console.log("Raw value:", value);
+    console.log("Value type:", typeof value);
+
     try {
        
         console.log("Data from driver:", value);
-        const json = JSON.parse(value);
+        let json = JSON.parse(value);
+        
+        console.log("Parsed JSON:", json);
+        
+        // Check for icon_description (uibutton proxy pattern - matches Smart-Thermostat)
+        if (json.hasOwnProperty("icon_description")) {
+            console.log("Found icon_description, parsing...");
+            let dataObject = JSON.parse(json.icon_description);
+            console.log("Parsed icon_description:", dataObject);
+            
+            // Check if wrapped in command/data structure (like Smart-Thermostat)
+            if (dataObject && dataObject.command === "UpdateData") {
+                console.log("Found UpdateData command, parsing data field...");
+                json = JSON.parse(dataObject.data);
+                console.log("Parsed data from wrapper:", json);
+            } else {
+                json = dataObject;
+            }
+        }
+        
+        console.log("JSON type field:", json.type);
         
         // Handle new message format with type field
         if (json.type) {
@@ -87,7 +120,7 @@ function onDataToUi(value) {
                 const token = json.token;
                 if (token) {
                     window.AccessToken = token;
-                    console.log("Auth Token received via new format");
+                    console.log("✅ Auth Token received via new format");
                     startSystem();
                 }
                 return;
@@ -95,7 +128,7 @@ function onDataToUi(value) {
             
             if (json.type === "device_list") {
                 // Device list message
-                console.log("Device list received:", json.devices);
+                console.log("✅ Device list received:", json.devices);
                 allDevices = json.devices || [];
                 allVids = allDevices.map(d => d.vid);
                 populateDevices(allDevices);
@@ -104,7 +137,7 @@ function onDataToUi(value) {
             
             if (json.type === "history") {
                 // Notification history message
-                console.log("History received:", json.history?.length || 0, "items");
+                console.log("✅ History received:", json.history?.length || 0, "items");
                 renderHistory(json.history || []);
                 updateNotificationCount((json.history || []).length);
                 return;
@@ -121,16 +154,19 @@ function onDataToUi(value) {
                 const token = valueParam?.value?.static;
                 if (token) {
                     window.AccessToken = token;
-                    console.log("Auth Token received via old format");
+                    console.log("✅ Auth Token received via old format");
                     startSystem();
                 }
             }
             return;
         }
+        
+        console.warn("⚠️ Unrecognized message format:", json);
 
     } catch (err) {
 
-        console.error("Token parse failed:", err);
+        console.error("❌ Token parse failed:", err);
+        console.error("Failed value:", value);
 
     }
 

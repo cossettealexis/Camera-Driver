@@ -43,9 +43,17 @@ local extractedData = {}
 
 
 function SendUpdate(data)
-    local msg = json.encode(data)
-    -- 5001 is your UI_PROXY_ID defined in driver.xml
-    C4:SendToProxy(5001, "WEBVIEW_MESSAGE", { message = "test connect" })
+    local jsonPayload = C4:JsonEncode(data)
+    print("SendUpdate - sending to WebView:", jsonPayload)
+    
+    -- Wrap in command/data structure like Smart-Thermostat
+    local wrapper = {
+        command = "UpdateData",
+        data = jsonPayload
+    }
+    
+    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
+    C4:SendToProxy(5001, "UPDATE_UI", {})
 end
 
 function OnDriverInit()
@@ -293,7 +301,11 @@ function GET_DEVICES()
         -- Fetch history for these devices
         _currentFilterVids = nil
         FETCH_NOTIFICATION_HISTORY(ALL_VIDS, function()
-            StartPolling()
+            -- Start polling after initial fetch
+            if not POLL_TIMER then
+                POLL_TIMER = C4:SetTimer(POLL_INTERVAL, PollTick, true)
+                print("Polling timer started")
+            end
         end)
     end)
 end
@@ -384,17 +396,20 @@ function SendDevicesToUI(devices)
         devices = LAST_DEVICES
     }
 
-    -- THIS IS THE CRITICAL CHANGE:
-    -- We must wrap the JSON in a table with the key "MESSAGE"
-    local tParams = {
-        MESSAGE = json.encode(payload)
+    local jsonPayload = C4:JsonEncode(payload)
+    print("========================================")
+    print("Sending to WebView - device_list")
+    print("Payload:", jsonPayload)
+    print("========================================")
+    
+    -- Wrap in command/data structure like Smart-Thermostat
+    local wrapper = {
+        command = "UpdateData",
+        data = jsonPayload
     }
-
-    print("========================================")
-    print("Sending to Proxy 5001 -> WEBVIEW_MESSAGE")
-    print("Payload:", json.encode(payload))
-    C4:SendToProxy(5001, "WEBVIEW_MESSAGE", tParams) 
-    print("========================================")
+    
+    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
+    C4:SendToProxy(5001, "UPDATE_UI", {})
 end
 
 
@@ -410,15 +425,36 @@ function SendHistoryToUI(list)
         history = LAST_HISTORY
     }
 
-    -- Wrap the JSON string in a table with the key "MESSAGE"
-    local tParams = {
-        MESSAGE = json.encode(payload)
+    local jsonPayload = C4:JsonEncode(payload)
+    print("Sending history to WebView:", #LAST_HISTORY, "items")
+    
+    -- Wrap in command/data structure like Smart-Thermostat
+    local wrapper = {
+        command = "UpdateData",
+        data = jsonPayload
     }
-
-    print("Sending history payload:", json.encode(payload))
-    C4:SendToProxy(5001, "WEBVIEW_MESSAGE", tParams)
+    
+    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
+    C4:SendToProxy(5001, "UPDATE_UI", {})
 end
 
+
+
+function UIRequest(strCommand, tParams)
+    print("================================================")
+    print("UIRequest called")
+    print("Command:", strCommand)
+    print("Params:", C4:JsonEncode(tParams or {}))
+    print("================================================")
+    
+    if strCommand == "HandleSelect" then
+        print("WebView opened (HandleSelect via UIRequest)")
+        InitializeCamera()
+        return
+    end
+    
+    return nil
+end
 
 
 function ReceivedFromProxy(idBinding, strCommand, tParams)
@@ -504,22 +540,6 @@ end
 
     end
 
-end
-
-_pollingTimer = nil
-function StartPolling()
-    if _pollingTimer then return end
-
-    _pollingTimer = C4:SetTimer(5000, function()
-        print("Polling notifications...")
-        -- Example: generate fake history
-        local t = os.time()
-        LAST_HISTORY = {
-            { device_name="Front Door", message_type="Motion Detected", time=t, image_url="https://via.placeholder.com/400x300" },
-            { device_name="Garage", message_type="Door Opened", time=t-60, image_url="https://via.placeholder.com/400x300" }
-        }
-        SendHistoryToUI(LAST_HISTORY)
-    end, true)
 end
 
 -- Manual refresh command
