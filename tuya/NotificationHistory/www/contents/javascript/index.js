@@ -3,6 +3,11 @@ window.C4 = window.C4 || {};
 window.AccessToken = null;
 window.devicesLoaded = false;
 
+// DIAGNOSTIC OVERLAY
+if (typeof addDiag === 'function') {
+  addDiag('🔵 4. External index.js loaded!', '0,0,255');
+}
+
 const BASE_URL = "https://api.arpha-tech.com/api/v3/openapi";
 const PAGE_SIZE = 20;
 
@@ -40,6 +45,10 @@ function onTileActive() {
 
 document.addEventListener("DOMContentLoaded", () => {
    
+    if (typeof addDiag === 'function') {
+      addDiag('🟣 5. index.js DOMContentLoaded', '128,0,128');
+    }
+    
     console.log("UI Loaded");
 
     deviceSelect = document.getElementById("cameraFilter");
@@ -58,10 +67,17 @@ document.addEventListener("DOMContentLoaded", () => {
        
         C4.subscribeToDataToUi(true);
          C4.sendCommand("HandleSelect", "", false, false);
+         
+        if (typeof addDiag === 'function') {
+          addDiag('🟢 6. C4 commands sent', '0,200,0');
+        }
     } catch (e) {
         console.warn("Control4 not available (browser test mode)");
         if (historyContainer) {
             historyContainer.innerHTML = '<div class="empty-state"><p>Control4 not available - browser test mode</p></div>';
+        }
+        if (typeof addDiag === 'function') {
+          addDiag('🔴 6. C4 ERROR: ' + e.message, '200,0,0');
         }
     }
 
@@ -71,7 +87,12 @@ document.addEventListener("DOMContentLoaded", () => {
 function updateNotificationCount(count) {
 
     if (!totalCount) return;
+if (typeof addDiag === 'function') {
+      addDiag('🟢 7. onDataToUi CALLED!', '0,255,0');
+      addDiag('📦 Data: ' + (value ? value.substring(0, 100) : 'null'), '0,255,0');
+    }
 
+    
     totalCount.textContent = count;
 
 }

@@ -436,6 +436,11 @@
       <span id="statusText">Loading notifications...</span>
     </div>
 
+    <!-- DIAGNOSTIC OVERLAY - VISIBLE ON SCREEN -->
+    <div id="diagnostic" style="position: fixed; top: 0; left: 0; right: 0; background: rgba(255,0,0,0.9); color: white; padding: 20px; z-index: 99999; font-size: 16px; font-family: monospace; line-height: 1.8;">
+      <div id="diagStatus">🔍 DIAGNOSTIC MODE</div>
+    </div>
+
     <!-- LIST -->
     <div id="historyList">
       <div class="empty-state">
@@ -455,7 +460,82 @@
 
   <script src="js/jquery-3.7.1.js"></script>
 
-  <script src="javascript/index.js"></script>
+  <script>
+    // DIAGNOSTIC - VISIBLE ON SCREEN
+    var diagDiv = null;
+    var diagLog = [];
+    
+    function addDiag(msg, color) {
+      diagLog.push(msg);
+      if (!diagDiv) diagDiv = document.getElementById('diagStatus');
+      if (diagDiv) {
+        diagDiv.innerHTML = diagLog.join('<br>');
+        if (color) diagDiv.parentElement.style.background = 'rgba(' + color + ',0.95)';
+      }
+    }
+    
+    addDiag('🔴 1. Inline script started', '255,0,0');
+    
+    // MINIMAL onDataToUi INLINE - This will receive the data!
+    window.onDataToUi = function(value) {
+      addDiag('🟢🟢🟢 DATA RECEIVED!', '0,255,0');
+      addDiag('Length: ' + (value ? value.length : 0) + ' chars', '0,255,0');
+      
+      try {
+        var json = JSON.parse(value);
+        addDiag('Parsed OK! Has: ' + Object.keys(json).join(', '), '0,200,255');
+        
+        // Check for icon_description wrapper
+        if (json.icon_description) {
+          addDiag('Found icon_description!', '0,200,255');
+          var inner = JSON.parse(json.icon_description);
+          if (inner.command === "UpdateData") {
+            addDiag('Found UpdateData wrapper!', '0,200,255');
+            json = JSON.parse(inner.data);
+          } else {
+            json = inner;
+          }
+        }
+        
+        if (json.type) {
+          addDiag('Type: ' + json.type, '0,255,255');
+        }
+        
+        // Show history count
+        if (json.history && json.history.length) {
+          addDiag('📦 HISTORY: ' + json.history.length + ' items!', '0,255,0');
+          var list = document.getElementById('historyList');
+          if (list) {
+            list.innerHTML = '<div style="color:white;padding:20px;">SUCCESS! Received ' + json.history.length + ' notifications!</div>';
+          }
+        }
+        
+      } catch(e) {
+        addDiag('Parse error: ' + e.message, '255,0,0');
+      }
+    };
+    
+    // Subscribe to Control4 data
+    window.C4 = window.C4 || {};
+    
+    document.addEventListener("DOMContentLoaded", function() {
+      addDiag('🟡 2. DOM loaded', '255,165,0');
+      
+      try {
+        C4.subscribeToDataToUi(true);
+        C4.sendCommand("HandleSelect", "", false, false);
+        addDiag('🟢 3. C4 subscribed!', '0,255,0');
+      } catch(e) {
+        addDiag('🔴 C4 Error: ' + e.message, '255,0,0');
+      }
+      
+      setTimeout(function() {
+        addDiag('🔵 4. Waiting for data...', '0,0,255');
+      }, 100);
+    });
+  </script>
+
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
  
