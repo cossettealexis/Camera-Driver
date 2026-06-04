@@ -65,6 +65,7 @@ end
 
 function ON_DRIVER_LATEINIT.main()
     --C4:urlSetTimeout (20)
+    print("TEST test test!")
     SetThermostatUI()
     -- C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
     ValidateMacAddress(Properties["MacAddress"])
@@ -488,7 +489,8 @@ function GetApiTemperature(accessToken, deviceId)
                     switch_program_enabled = "switch_program_enabled",
                     relay_status = "relay_status",
                     delay_time = "delay_time",
-                    setting = "setting"
+                    setting = "setting",
+                    system_type_bit = "system_type_bit"
                 }
 
                 -- List of keys that need to be divided by 100
@@ -515,6 +517,38 @@ function GetApiTemperature(accessToken, deviceId)
                             end
                         end
                     end
+                end
+
+                print("[DEBUG] Extraction complete. Checking system_type_bit...")
+                print("[DEBUG] extractedData.system_type_bit = " .. tostring(extractedData.system_type_bit))
+
+                -- Apply capability filtering based on system_type_bit
+                if extractedData.system_type_bit then
+                    local systemType = extractedData.system_type_bit
+                    local coolStages = systemType & 0x03
+                    local heatStages = (systemType >> 2) & 0x03
+                    
+                    print("[CAPABILITY] system_type_bit: " .. systemType)
+                    print("[CAPABILITY] Cool stages: " .. coolStages .. ", Heat stages: " .. heatStages)
+                    
+                    local canHeat = (heatStages > 0)
+                    local canCool = (coolStages > 0)
+                    
+                    local allowedModes = "Off"
+                    if canHeat then allowedModes = allowedModes .. ",Heat" end
+                    if canCool then allowedModes = allowedModes .. ",Cool" end
+                    if canHeat and canCool then allowedModes = allowedModes .. ",Auto" end
+                    
+                    print("[CAPABILITY] Allowed modes: " .. allowedModes)
+                    
+                    if gTStatProxy then
+                        gTStatProxy:dev_AllowedHVACModes(allowedModes, canHeat, canCool, false)
+                        print("[CAPABILITY] UI filtering applied")
+                    else
+                        print("[CAPABILITY] ERROR: gTStatProxy is nil!")
+                    end
+                else
+                    print("[CAPABILITY] WARNING: system_type_bit not found in API response")
                 end
 
                 if extractedData.mode then
@@ -773,7 +807,8 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
                     switch_program_enabled = "switch_program_enabled",
                     relay_status = "relay_status",
                     delay_time = "delay_time",
-                    setting = "setting"
+                    setting = "setting",
+                    system_type_bit = "system_type_bit"
                 }
 
                 -- List of keys that need to be divided by 100
@@ -805,6 +840,37 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
                 end
 
                 if not isEmptyExtractData then
+                    print("[DEBUG TCP] Extraction complete. Checking system_type_bit...")
+                    print("[DEBUG TCP] extractedData.system_type_bit = " .. tostring(extractedData.system_type_bit))
+                    
+                    -- Apply capability filtering based on system_type_bit
+                    if extractedData.system_type_bit then
+                        local systemType = extractedData.system_type_bit
+                        local coolStages = systemType & 0x03
+                        local heatStages = (systemType >> 2) & 0x03
+                        
+                        print("[CAPABILITY TCP] system_type_bit: " .. systemType)
+                        print("[CAPABILITY TCP] Cool stages: " .. coolStages .. ", Heat stages: " .. heatStages)
+                        
+                        local canHeat = (heatStages > 0)
+                        local canCool = (coolStages > 0)
+                        
+                        local allowedModes = "Off"
+                        if canHeat then allowedModes = allowedModes .. ",Heat" end
+                        if canCool then allowedModes = allowedModes .. ",Cool" end
+                        if canHeat and canCool then allowedModes = allowedModes .. ",Auto" end
+                        
+                        print("[CAPABILITY TCP] Allowed modes: " .. allowedModes)
+                        
+                        if gTStatProxy then
+                            gTStatProxy:dev_AllowedHVACModes(allowedModes, canHeat, canCool, false)
+                            print("[CAPABILITY TCP] UI filtering applied")
+                        else
+                            print("[CAPABILITY TCP] ERROR: gTStatProxy is nil!")
+                        end
+                    else
+                        print("[CAPABILITY TCP] WARNING: system_type_bit not found in TCP message")
+                    end
                     
                     -- Determine scale FIRST
                     local unit = (string.upper(Properties["Scale"] or "CELSIUS") == "FAHRENHEIT") and "f" or "c"

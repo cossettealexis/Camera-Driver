@@ -194,7 +194,7 @@
         <name>MacAddress</name>
         <type>STRING</type>
         <readonly>false</readonly>
-        <default></default>
+        <default>000FFF534902</default>
       </property>
       <property>
         <name>Log Level</name>
@@ -225,16 +225,14 @@
       <property>
         <name>ClientId</name>
         <type>STRING</type>
-        <readonly>true</readonly>
+        <readonly>false</readonly>
         <default></default>
-        <password>true</password>
       </property>
       <property>
         <name>ClientSecret</name>
         <type>STRING</type>
-        <readonly>true</readonly>
+        <readonly>false</readonly>
         <default></default>
-        <password>true</password>
       </property>
       <property>
         <name>Contract</name>
