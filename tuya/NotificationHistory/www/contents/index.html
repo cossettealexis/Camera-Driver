@@ -1,592 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Notification History</title>
-
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
-
   <style>
-    :root {
-      --bg: #0a0a0c;
-      --surface: #111114;
-      --card: #18181d;
-      --border: #2a2a32;
-      --text: #e8e8f0;
-      --muted: #6b6b80;
-      --accent: #6c5ce7;
-      --accent2: #00cec9;
-      --danger: #e17055;
-      --warning: #fdcb6e;
-      --success: #00b894;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-
-
-
-    /* ── HEADER ── */
-    .app-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(10, 10, 12, 0.92);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .app-header .logo {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    .app-header h1 {
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: -0.2px;
-      flex: 1;
-      margin-top: 10px;
-    }
-
-    .badge-count {
-      background: var(--accent);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-family: 'DM Mono', monospace;
-    }
-
-    /* ── FILTER BAR ── */
-    .filter-bar {
-      padding: 12px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .filter-bar i {
-      color: var(--muted);
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-
-    #cameraFilter {
-      flex: 1;
-      background: var(--card);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-      font-family: 'DM Sans', sans-serif;
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      cursor: pointer;
-    }
-
-    #cameraFilter:focus {
-      border-color: var(--accent);
-    }
-
-    /* ── MAIN CONTENT ── */
-    .main {
-      padding: 16px;
-    }
-
-    /* ── STATUS BAR ── */
-    #statusBar {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      margin-bottom: 14px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    #statusBar.visible {
-      display: flex;
-    }
-
-    #statusBar .spinner {
-      width: 14px;
-      height: 14px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      flex-shrink: 0;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    /* ── HISTORY CARDS ── */
-    #historyList {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .history-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: border-color 0.2s, transform 0.15s;
-      animation: fadeUp 0.3s ease both;
-      margin-bottom: 2px !important;
-    }
-
-    .history-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-1px);
-    }
-
-    .history-card:active {
-      transform: scale(0.98);
-    }
-
-    @keyframes fadeUp {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-
-
-    .history-card:hover {
-      background: #2a2a2d;
-    }
-
-    .history-image {
-      width: 60px;
-      height: 60px;
-      border-radius: 8px;
-      object-fit: cover;
-      margin-right: 12px;
-      border: 1px solid #2c2c2e;
-      flex-shrink: 0;
-    }
-
-    .history-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .history-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .history-message {
-      font-size: 13px;
-      color: #ccc;
-      margin-top: 2px;
-    }
-
-    .history-time {
-      font-size: 12px;
-      color: #aaa;
-      margin-top: 4px;
-    }
-
-    .empty-state {
-      text-align: center;
-      margin-top: 30px;
-      color: #777;
-    }
-
-    /* Modal */
-    #mediaModal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.95);
-      z-index: 9999;
-      padding: 20px;
-    }
-
-    .clip-viewer {
-      max-width: 1200px;
-      margin: 0 auto;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .clip-media {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-    }
-
-    .clip-media img,
-    .clip-media video {
-      max-width: 100%;
-      max-height: 70vh;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    }
-
-    .clip-info {
-      background: rgba(24, 24, 29, 0.95);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 24px;
-      text-align: center;
-      min-width: 300px;
-    }
-
-    .clip-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .clip-time {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .clip-nav-controls {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      background: rgba(24, 24, 29, 0.95);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--border);
-      border-radius: 50px;
-      padding: 12px 24px;
-    }
-
-    .nav-btn {
-      background: var(--accent);
-      border: none;
-      color: white;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 20px;
-      transition: all 0.2s;
-      outline: none;
-    }
-
-    .nav-btn:hover:not(:disabled) {
-      background: var(--accent2);
-      transform: scale(1.1);
-    }
-
-    .nav-btn:active:not(:disabled) {
-      transform: scale(0.95);
-    }
-
-    .nav-btn:disabled {
-      background: var(--border);
-      color: var(--muted);
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-
-    .clip-position {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      min-width: 80px;
-      text-align: center;
-      font-family: 'DM Mono', monospace;
-    }
-
-    #closeModal {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      font-size: 28px;
-      color: #fff;
-      cursor: pointer;
-      background: rgba(24, 24, 29, 0.8);
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      z-index: 10000;
-    }
-
-    #closeModal:hover {
-      background: var(--danger);
-      transform: rotate(90deg) scale(1.1);
-    }
-
-    /* Swipe hint animation */
-    @keyframes swipeHint {
-      0%, 100% { transform: translateX(0); }
-      50% { transform: translateX(10px); }
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .clip-nav-controls {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-      }
-      
-      .clip-info {
-        position: fixed;
-        top: 80px;
-        left: 20px;
-        right: 20px;
-        min-width: auto;
-      }
-      
-      #closeModal {
-        top: 10px;
-        right: 10px;
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-      }
-    }
+    body { background: #0a0a0c; color: #e8e8f0; font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    .header { background: #111; padding: 15px 20px; border-bottom: 1px solid #333; }
+    .header h1 { font-size: 20px; margin: 0; color: white; }
+    #historyList { padding: 20px; }
+    .history-card { background: #1a1a1d; margin: 10px 0; padding: 15px; border-radius: 12px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+    .history-card:hover { border-color: #6c5ce7; transform: translateY(-2px); }
+    .history-card.active { border-color: #00ff00; }
+    .card-content { display: flex; align-items: center; gap: 15px; }
+    .card-thumbnail { width: 120px; height: 80px; background: #333; border-radius: 8px; object-fit: cover; }
+    .card-info { flex: 1; }
+    .card-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .card-type { color: #aaa; font-size: 14px; margin-bottom: 3px; }
+    .card-time { color: #777; font-size: 13px; }
+    .card-icon { font-size: 32px; }
+    
+    #mediaModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100000; }
+    #mediaModal.show { display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal-content { textAlign: center; max-width: 800px; width: 100%; }
+    .modal-image { max-width: 100%; border-radius: 12px; margin: 20px 0; }
+    .modal-controls { display: flex; gap: 15px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+    .modal-controls button { padding: 15px 35px; font-size: 18px; background: #333; color: white; border: 2px solid white; border-radius: 10px; cursor: pointer; }
+    .modal-controls button:hover { background: #6c5ce7; }
+    .modal-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+    #closeModal { position: absolute; top: 20px; right: 20px; font-size: 36px; color: white; cursor: pointer; background: rgba(0,0,0,0.7); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    #closeModal:hover { background: #e17055; transform: rotate(90deg); }
   </style>
 </head>
-
 <body>
-  <div class="app-header">
-    <div class="logo"><i class="bi bi-bell-fill" style="color:#fff;font-size:14px;"></i></div>
-    <h1>Notification History</h1>
-    <span class="badge-count" id="totalCount">0</span>
+  <div class="header">
+    <h1>📱 Notification History - UI DEMO</h1>
   </div>
-
-
-
-  <!-- FILTER BAR -->
-  <div class="filter-bar">
-    <i class="bi bi-camera-video"></i>
-    <select id="cameraFilter">
-      <option value="all">All Cameras</option>
-    </select>
-  </div>
-
-  <div class="main">
-    <!-- STATUS -->
-    <div id="statusBar">
-      <div class="spinner"></div>
-      <span id="statusText">Loading notifications...</span>
-    </div>
-
-    <!-- DIAGNOSTIC OVERLAY - VISIBLE ON SCREEN -->
-    <div id="diagnostic" style="position: fixed; top: 0; left: 0; right: 0; background: rgba(255,0,0,0.9); color: white; padding: 20px; z-index: 99999; font-size: 16px; font-family: monospace; line-height: 1.8;">
-      <div id="diagStatus">🔍 DIAGNOSTIC MODE</div>
-    </div>
-
-    <!-- LIST -->
-    <div id="historyList">
-      <div class="empty-state">
-        <i class="bi bi-hourglass-split"></i>
-        <p>Connecting to driver...</p>
-      </div>
-    </div>
-  </div>
-
-
-
-  <!-- MODAL -->
+  
+  <div id="historyList"></div>
+  
   <div id="mediaModal">
-    <i class="bi bi-x-lg" id="closeModal"></i>
-    <div id="mediaContainer"></div>
+    <div id="closeModal">✖</div>
+    <div class="modal-content" id="modalContent"></div>
   </div>
-
-  <script src="js/jquery-3.7.1.js"></script>
 
   <script>
-    // DIAGNOSTIC - VISIBLE ON SCREEN
-    var diagDiv = null;
-    var diagLog = [];
+    // FAKE DATA - NO BACKEND
+    var NOTIFICATIONS = [
+      { device_name: "Front Door Camera", message_type: "Doorbell Pressed", time: Date.now()/1000 - 3600, image_url: "https://via.placeholder.com/400x300/4a90e2/ffffff?text=Front+Door" },
+      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 7200, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+1" },
+      { device_name: "Front Door Camera", message_type: "Doorbell Pressed", time: Date.now()/1000 - 10800, image_url: "https://via.placeholder.com/400x300/4a90e2/ffffff?text=Front+Door" },
+      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 14400, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+2" },
+      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 18000, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+3" },
+      { device_name: "Back Yard Camera", message_type: "Person Detected", time: Date.now()/1000 - 21600, image_url: "https://via.placeholder.com/400x300/f39c12/ffffff?text=Person" },
+      { device_name: "Front Door Camera", message_type: "Package Delivery", time: Date.now()/1000 - 25200, image_url: "https://via.placeholder.com/400x300/27ae60/ffffff?text=Package" },
+      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 28800, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+4" }
+    ];
     
-    function addDiag(msg, color) {
-      diagLog.push(msg);
-      if (!diagDiv) diagDiv = document.getElementById('diagStatus');
-      if (diagDiv) {
-        diagDiv.innerHTML = diagLog.join('<br>');
-        if (color) diagDiv.parentElement.style.background = 'rgba(' + color + ',0.95)';
+    var currentIndex = 0;
+    
+    function renderList() {
+      var html = '';
+      for (var i = 0; i < NOTIFICATIONS.length; i++) {
+        var n = NOTIFICATIONS[i];
+        var date = new Date(n.time * 1000);
+        var active = i === currentIndex ? 'active' : '';
+        html += '<div class="history-card ' + active + '" onclick="openClip(' + i + ')">';
+        html += '<div class="card-content">';
+        html += '<img src="' + n.image_url + '" class="card-thumbnail">';
+        html += '<div class="card-info">';
+        html += '<div class="card-title">' + n.device_name + '</div>';
+        html += '<div class="card-type">' + n.message_type + '</div>';
+        html += '<div class="card-time">' + date.toLocaleString() + '</div>';
+        html += '</div>';
+        html += '<div class="card-icon">▶️</div>';
+        html += '</div>';
+        html += '</div>';
       }
+      document.getElementById('historyList').innerHTML = html;
     }
     
-    addDiag('🔴 1. Inline script started', '255,0,0');
-    
-    // MINIMAL onDataToUi INLINE - This will receive the data!
-    window.onDataToUi = function(value) {
-      addDiag('🟢🟢🟢 DATA RECEIVED!', '0,255,0');
-      addDiag('Length: ' + (value ? value.length : 0) + ' chars', '0,255,0');
+    function openClip(index) {
+      currentIndex = index;
+      var n = NOTIFICATIONS[index];
+      var date = new Date(n.time * 1000);
       
-      try {
-        var json = JSON.parse(value);
-        addDiag('Parsed OK! Has: ' + Object.keys(json).join(', '), '0,200,255');
-        
-        var finalData = null;
-        
-        // Handle devicecommand format (Control4 wrapper)
-        if (json.devicecommand) {
-          addDiag('🔵 devicecommand format detected!', '0,150,255');
-          var params = json.devicecommand.params || {};
-          var paramArray = params.param || [];
-          
-          // Look for our data in the params
-          for (var i = 0; i < paramArray.length; i++) {
-            if (paramArray[i].value && paramArray[i].value.static) {
-              var dataStr = paramArray[i].value.static;
-              addDiag('Found param data: ' + dataStr.substring(0, 50) + '...', '0,200,255');
-              try {
-                finalData = JSON.parse(dataStr);
-                addDiag('✅ Parsed param data!', '0,255,0');
-                break;
-              } catch(e) {
-                addDiag('Param not JSON: ' + e.message, '255,100,0');
-              }
-            }
-          }
-        }
-        
-        // Check for icon_description wrapper
-        if (json.icon_description) {
-          addDiag('Found icon_description!', '0,200,255');
-          var inner = JSON.parse(json.icon_description);
-          if (inner.command === "UpdateData") {
-            addDiag('Found UpdateData wrapper!', '0,200,255');
-            finalData = JSON.parse(inner.data);
-          } else {
-            finalData = inner;
-          }
-        }
-        
-        // Use original if no wrapper
-        if (!finalData && json.type) {
-          finalData = json;
-        }
-        
-        if (finalData) {
-          addDiag('✅ Final data type: ' + (finalData.type || 'unknown'), '0,255,100');
-          
-          // Show history count
-          if (finalData.history && finalData.history.length) {
-            addDiag('📦📦📦 HISTORY: ' + finalData.history.length + ' items!', '0,255,0');
-            var list = document.getElementById('historyList');
-            if (list) {
-              var html = '<div style="color:white;padding:20px;"><h2>SUCCESS!</h2><p>Received ' + finalData.history.length + ' notifications!</p><ul>';
-              for (var i = 0; i < Math.min(5, finalData.history.length); i++) {
-                var item = finalData.history[i];
-                html += '<li>' + item.device_name + ' - ' + item.message_type + ' at ' + new Date(item.time * 1000).toLocaleString() + '</li>';
-              }
-              html += '</ul></div>';
-              list.innerHTML = html;
-            }
-          }
-          
-          // Show device list
-          if (finalData.devices) {
-            var devCount = finalData.devices.length || Object.keys(finalData.devices).length;
-            addDiag('📷 DEVICES: ' + devCount + ' cameras!', '0,255,0');
-          }
-          
-          // Show auth token
-          if (finalData.token) {
-            addDiag('🔑 AUTH TOKEN received!', '0,255,0');
-          }
-        } else {
-          addDiag('⚠️ Could not extract final data', '255,165,0');
-        }
-        
-      } catch(e) {
-        addDiag('Parse error: ' + e.message, '255,0,0');
+      var html = '<div style="color:white;">';
+      html += '<h2 style="margin-bottom:10px;">' + n.device_name + '</h2>';
+      html += '<p style="color:#aaa;margin-bottom:20px;">' + n.message_type + ' - ' + date.toLocaleString() + '</p>';
+      html += '<img src="' + n.image_url + '" class="modal-image">';
+      html += '<div style="font-size:28px;font-weight:bold;margin-top:20px;">' + (index + 1) + ' of ' + NOTIFICATIONS.length + '</div>';
+      html += '<div style="color:#888;margin-top:10px;">← Swipe or use arrow keys →</div>';
+      html += '<div class="modal-controls">';
+      html += '<button onclick="prevClip()" ' + (index === 0 ? 'disabled' : '') + '>⬅️ PREV</button>';
+      html += '<button onclick="closeModal()" style="background:#666;">✖️ CLOSE</button>';
+      html += '<button onclick="nextClip()" ' + (index === NOTIFICATIONS.length - 1 ? 'disabled' : '') + '>NEXT ➡️</button>';
+      html += '</div>';
+      html += '</div>';
+      
+      document.getElementById('modalContent').innerHTML = html;
+      document.getElementById('mediaModal').classList.add('show');
+      renderList();
+    }
+    
+    function closeModal() {
+      document.getElementById('mediaModal').classList.remove('show');
+    }
+    
+    function nextClip() {
+      if (currentIndex < NOTIFICATIONS.length - 1) openClip(currentIndex + 1);
+    }
+    
+    function prevClip() {
+      if (currentIndex > 0) openClip(currentIndex - 1);
+    }
+    
+    // KEYBOARD
+    document.addEventListener('keydown', function(e) {
+      if (document.getElementById('mediaModal').classList.contains('show')) {
+        if (e.key === 'ArrowRight') nextClip();
+        if (e.key === 'ArrowLeft') prevClip();
+        if (e.key === 'Escape') closeModal();
       }
-    };
-    
-    // Subscribe to Control4 data
-    window.C4 = window.C4 || {};
-    
-    document.addEventListener("DOMContentLoaded", function() {
-      addDiag('🟡 2. DOM loaded', '255,165,0');
-      
-      try {
-        C4.subscribeToDataToUi(true);
-        C4.sendCommand("HandleSelect", "", false, false);
-        addDiag('🟢 3. C4 subscribed!', '0,255,0');
-      } catch(e) {
-        addDiag('🔴 C4 Error: ' + e.message, '255,0,0');
-      }
-      
-      setTimeout(function() {
-        addDiag('🔵 4. Waiting for data...', '0,0,255');
-      }, 100);
     });
+    
+    // SWIPE
+    var touchStartX = 0;
+    document.getElementById('mediaModal').addEventListener('touchstart', function(e) {
+      touchStartX = e.touches[0].clientX;
+    });
+    document.getElementById('mediaModal').addEventListener('touchend', function(e) {
+      var touchEndX = e.changedTouches[0].clientX;
+      if (touchStartX - touchEndX > 50) nextClip(); // Swipe left
+      if (touchEndX - touchStartX > 50) prevClip(); // Swipe right
+    });
+    
+    // CLOSE BUTTON
+    document.getElementById('closeModal').onclick = closeModal;
+    
+    // RENDER ON LOAD
+    renderList();
   </script>
-
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
- 
 </body>
-
 </html>

@@ -46,14 +46,9 @@ function SendUpdate(data)
     local jsonPayload = C4:JsonEncode(data)
     print("SendUpdate - sending to WebView:", jsonPayload)
     
-    -- Wrap in command/data structure like Smart-Thermostat
-    local wrapper = {
-        command = "UpdateData",
-        data = jsonPayload
-    }
-    
-    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
-    C4:SendToProxy(5001, "UPDATE_UI", {})
+    -- USE VARIABLE INSTEAD OF SENDTOPROXY
+    C4:SetVariable("NOTIFICATION_DATA", jsonPayload)
+    print("✅ Variable NOTIFICATION_DATA set (auth_token)")
 end
 
 function OnDriverInit()
@@ -402,14 +397,9 @@ function SendDevicesToUI(devices)
     print("Payload:", jsonPayload)
     print("========================================")
     
-    -- Wrap in command/data structure like Smart-Thermostat
-    local wrapper = {
-        command = "UpdateData",
-        data = jsonPayload
-    }
-    
-    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
-    C4:SendToProxy(5001, "UPDATE_UI", {})
+    -- USE VARIABLE INSTEAD OF SENDTOPROXY
+    C4:SetVariable("NOTIFICATION_DATA", jsonPayload)
+    print("✅ Variable NOTIFICATION_DATA set (device_list)")
 end
 
 
@@ -418,7 +408,9 @@ end
 --------------------------------------------------
 function SendHistoryToUI(list)
     LAST_HISTORY = list or LAST_HISTORY or {}
+    print("================================================================")
     print("SendHistoryToUI CALLED with", #LAST_HISTORY, "items")
+    print("================================================================")
     
     local payload = {
         type = "history",
@@ -426,16 +418,16 @@ function SendHistoryToUI(list)
     }
 
     local jsonPayload = C4:JsonEncode(payload)
+    print("JSON Payload Length:", string.len(jsonPayload))
     print("Sending history to WebView:", #LAST_HISTORY, "items")
     
-    -- Wrap in command/data structure like Smart-Thermostat
-    local wrapper = {
-        command = "UpdateData",
-        data = jsonPayload
-    }
+    -- USE VARIABLE INSTEAD OF SENDTOPROXY (like Smart-Thermostat)
+    C4:SetVariable("NOTIFICATION_DATA", jsonPayload)
+    print("✅ Variable NOTIFICATION_DATA set with", string.len(jsonPayload), "chars")
     
-    C4:SendToProxy(5001, "ICON_CHANGED", { icon = "notification", icon_description = C4:JsonEncode(wrapper) })
-    C4:SendToProxy(5001, "UPDATE_UI", {})
+    print("================================================================")
+    print("SetVariable call completed")
+    print("================================================================")
 end
 
 
