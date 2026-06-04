@@ -2483,107 +2483,7 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
     print("================================================================")
 end
 
--- PTZ Commands
-function PTZ_COMMAND(idBinding, strCommand, tParams)
-    print("================================================================")
-    print("              PTZ_COMMAND: " .. strCommand .. "                ")
-    print("================================================================")
-
-    -- Get VID and auth token for API calls
-    local vid = _props["VID"] or Properties["VID"]
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-
-    if not vid or vid == "" then
-        print("ERROR: No VID available")
-        return
-    end
-
-    if not auth_token or auth_token == "" then
-        print("ERROR: No auth token available")
-        return
-    end
-
-    -- Map Control4 commands to camera PTZ directions
-    local direction_map = {
-        PAN_LEFT = "left",
-        PAN_RIGHT = "right",
-        TILT_UP = "up",
-        TILT_DOWN = "down",
-        ZOOM_IN = "zoom_in",
-        ZOOM_OUT = "zoom_out"
-    }
-
-    local direction = direction_map[strCommand]
-    if not direction then
-        print("Unknown PTZ command: " .. strCommand)
-        return
-    end
-
-    local speed = (tParams and tonumber(tParams.SPEED)) or 1
-
-    print("PTZ Direction: " .. direction)
-    print("PTZ Speed: " .. speed)
-
-    -- Build API request for PTZ control
-    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
-    local url = base_url .. "/api/v3/openapi/device/do-action"
-
-    local input_params = {
-        dir = direction,
-        speed = speed
-    }
-
-    local body = {
-        vid = vid,
-        action_id = "ac_ptz",
-        input_params = json.encode(input_params),
-        check_t = 0,
-        is_async = 0
-    }
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Bearer " .. auth_token
-    }
-
-    local req = {
-        url = url,
-        method = "POST",
-        headers = headers,
-        body = json.encode(body)
-    }
-
-    print("Sending PTZ command to API...")
-
-    transport.execute(req, function(code, resp, resp_headers, err)
-        if code == 200 or code == 20000 then
-            print("PTZ command successful")
-            C4:UpdateProperty("Status", "PTZ " .. direction)
-        else
-            print("PTZ command failed: " .. tostring(code))
-            if err then
-                print("Error: " .. err)
-            end
-        end
-    end)
-
-    print("================================================================")
-end
-
-function PTZ_HOME(idBinding, tParams)
-    print("================================================================")
-    print("                  PTZ_HOME CALLED                               ")
-    print("================================================================")
-
-    -- Return camera to home position
-    print("Returning camera to home position...")
-    C4:UpdateProperty("Status", "PTZ Home")
-
-    -- You would call your camera's home position API here
-    -- For now, this is a placeholder
-
-    print("================================================================")
-end
+-- PTZ Commands - REMOVED (P160 is a fixed camera, no PTZ support)
 
 -- Get Current Camera Properties (for external requests)
 function GET_CAMERA_PROPERTIES()
@@ -3286,12 +3186,6 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         URL_GET(idBinding, tParams)
     elseif strCommand == "RTSP_URL_PUSH" then
         RTSP_URL_PUSH(idBinding, tParams)
-    elseif strCommand == "PAN_LEFT" or strCommand == "PAN_RIGHT" or
-        strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
-        strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
-        PTZ_COMMAND(idBinding, strCommand, tParams)
-    elseif strCommand == "HOME" then
-        PTZ_HOME(idBinding, tParams)
     else
         print("Unknown command from proxy: " .. strCommand)
     end

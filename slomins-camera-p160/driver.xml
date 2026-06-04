@@ -2,7 +2,7 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>4</version>
+    <version>5</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
@@ -40,6 +40,7 @@
         <has_tilt>false</has_tilt>
         <has_zoom>false</has_zoom>
         <number_presets>0</number_presets>
+        <can_ptz>false</can_ptz>
         <has_audio_output>true</has_audio_output>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
