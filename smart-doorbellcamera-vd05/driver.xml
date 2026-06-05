@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>2</version>
+    <version>4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>05/13/2026 12:00 AM</modified>
+    <modified>05/27/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -254,7 +254,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>cgabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>

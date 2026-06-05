@@ -5,6 +5,8 @@ local auth               = require("CldBusApi.auth")
 local transport          = require("CldBusApi.transport_c4")
 local util               = require("CldBusApi.util")
 local MQTT               = require("mqtt_manager")
+local EventLogger        = require("event_logger")  
+
 -- Local state
 local LAST_EVENT_ID      = 0
 local NOTIFICATION_URLS  = {}
@@ -45,7 +47,9 @@ local COOLDOWN              = {
     online   = 10,
     offline  = 10,
     restart  = 30,
-    stranger = 0
+    stranger = 0,
+    registered_user   = 5,
+    antipry  = 10
 
 }
 
@@ -70,8 +74,8 @@ GlobalObject.TCP_SERVER_IP   = 'tuyadev.slomins.net'
 GlobalObject.TCP_SERVER_PORT = 8081
 GlobalObject.DeviceModel     = "vd05"
 GlobalObject.ProductSubType  = "video_bell"
-GlobalObject.CldBusAppId     = "cldbus"
-GlobalObject.CldBusSecret    = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+GlobalObject.CldBusAppId     = ""
+GlobalObject.CldBusSecret    = ""
 GlobalObject.CustomerEmail   = ""
 GlobalObject.BaseApi         = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
@@ -107,7 +111,9 @@ local EVENT = {
     CAMERA_RESTARTED = "Camera Restarted",
     HUMAN            = "Human Detected",
     LOW_BATTERY      = "Low Battery",
-    STRANGER         = "Stranger Detected"
+    STRANGER         = "Stranger Detected",
+    REGISTERED_USER   = "Registered User Detected",
+    ANTIPRY          = "Anti Pry alarm is triggered"
 }
 
 -- Conditional state storage
@@ -116,7 +122,7 @@ local conditional_state = {
     NOT_MOTION_DETECTED = true,
     MIC_MUTED = false,
     MIC_UNMUTED = true,
-    SPEAKER_VOLUME = 5,
+    SPEAKER_VOLUME = 4,
     BATTERY_LEVEL = 100,
     SENSITIVITY = 5
 }
@@ -136,6 +142,10 @@ local _batteryPollTimer    = nil
 local _batteryPollVid      = nil
 local _batteryAlertTimer   = nil
 -- Wake Camera with Retry and stop retry after retry attempts
+
+local handle_face_event
+
+
 function WakeCamera(retry)
     retry = retry or 1
     local attempt = 0
@@ -214,6 +224,7 @@ function OnDriverInit()
     TcpConnection()
     print("=== VD05 Driver Initialized ===")
     C4:UpdateProperty("Camera Status", "Unknown")
+     C4:UpdateConditional("SPEAKER_VOLUME", "4")
     -- Initialize properties
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -222,11 +233,63 @@ function OnDriverInit()
         _props[k] = v
     end
 
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    -- Sync IP Address property with Camera Proxy
+    local ip_address = Properties["IP Address"]
+    if ip_address and ip_address ~= "" and ip_address ~= "127.0.0.1" then
+        print("[INIT] Setting Camera Proxy IP to: " .. ip_address)
+        C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_address })
+    else
+        print("[INIT] No valid IP Address set, keeping default")
+    end
+
+    -- Initialize MQTT manager (but don't connect yet)
+    MQTT.init(_props, {
+        on_connected = function()
+            print("[MQTT] Connected successfully!")
+            local vid = _props["VID"] or Properties["VID"]
+            if vid and vid ~= "" then
+                MQTT.subscribe(vid)
+            end
+        end,
+
+        on_message = function(topic, payload)
+            HANDLE_JSON_EVENT(payload)
+        end,
+
+        on_disconnected = function()
+            print("[MQTT] Disconnected")
+        end
+    })
+
+    C4:UpdateProperty("Status", "Driver initialized")
+
+    -- Initialise EventLogger
+    EventLogger.init(
+        transport, json,
+        function()
+            return {
+                BaseApi    = GlobalObject.BaseApi or "",
+                DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+                DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+                UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+                IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+                AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",
+            }
+        end
+    )
+end
+--[[function OnDriverInit()
+    --Call TCP upon driver initialization
+    TcpConnection()
+    print("=== VD05 Driver Initialized ===")
+    C4:UpdateProperty("Camera Status", "Unknown")
+    -- Initialize properties
+    for k, v in pairs(Properties) do
+        if k ~= "Password" then
+            print("Property [" .. k .. "] = " .. tostring(v))
+        end
+        _props[k] = v
+    end
 
     -- Sync IP Address property with Camera Proxy
     local ip_address = Properties["IP Address"]
@@ -249,7 +312,24 @@ function OnDriverInit()
     })
 
     C4:UpdateProperty("Status", "Driver initialized")
-end
+
+     -- Initialise EventLogger
+   EventLogger.init(
+    transport,
+    json,
+    function()
+        return {
+            BaseApi    = GlobalObject.BaseApi or "",
+            DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+            DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+            UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+            IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+            AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",  -- ← add this
+        }
+    end
+)
+
+end --]]
 
 function OnDriverDestroyed()
     print("=== VD05 Driver Destroyed ===")
@@ -341,12 +421,6 @@ function OnDriverLateInit()
 
     ValidateMacAddress(C4:GetUniqueMAC())
 
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
         if GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusSecret ~= "" then
@@ -380,6 +454,7 @@ function OnDriverLateInit()
 
         print("Camera Proxy configuration complete!")
     end
+    C4:UpdateConditional("SPEAKER_VOLUME", 4)
 end
 
 local function update_prop(name, value)
@@ -660,10 +735,7 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/device/do-property"
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
@@ -731,10 +803,7 @@ function GET_DEVICE_PROPERTY(property_name, callback)
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
 
-    -- local appId, appSecret = GetCldBusCredentials()
-
-    local appId     = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
@@ -1285,6 +1354,7 @@ local function HANDLE_BATTERY_LEVEL(pct)
 
     -- Fire alert
     _lastLowBatteryAlert = now
+    EventLogger.logLowBattery(pct)
     C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
     C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
 
@@ -1829,6 +1899,8 @@ local function normalize_http_url(url)
     url = url:gsub("^%s+", ""):gsub("%s+$", "")
     return url
 end
+
+
 function GetImageForEvent(extp, done)
     local vid   = Properties["VID"]
     local token = Properties["Auth Token"]
@@ -1908,7 +1980,7 @@ end
 local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
-    if not can_notify(cooldown_key, cooldown_sec) then return end
+   -- if not can_notify(cooldown_key, cooldown_sec) then return end
 
     local tries = 0
 
@@ -1944,28 +2016,39 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
 
     fetch()
 end
-local function handle_stranger(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
-end
-local function handle_motion(filename, extp)
+local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
-    
-    -- Update motion conditional states
+    EventLogger.logMotion(params)   -- ← pass full params
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
-local function handle_human(filename, extp)
+local function handle_human(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
-end
-local function handle_doorbell(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
+    EventLogger.logHuman(params)    -- ← pass full params
 end
 
+local function handle_stranger(filename, extp, params)
+    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
+    EventLogger.logStranger(params) -- ← pass full params
+end
+
+--registerd user
+local function handle_registered_user(filename, extp, params)
+    -- ⚠️ now ONLY used if you later add real identity DB
+    send_notification(NOTIFY.INFO, EVENT.REGISTERED_USER, "registered_user", COOLDOWN.stranger, filename, extp)
+    EventLogger.logRegisteredUser(params)
+end
 
 local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
+     EventLogger.logCameraRestarted()
 end
+local function handle_doorbell(filename, extp, params)
+    send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
+    EventLogger.logDoorbell(params) -- ← pass full params
+end
+
 
 
 
@@ -2000,6 +2083,7 @@ local function handle_online_status(new_online)
                 "online",
                 COOLDOWN.online
             )
+              EventLogger.logCameraOnline() 
         else
             C4:UpdateProperty("Camera Status", "Offline")
             _props["Camera Status"] = "Offline"
@@ -2009,9 +2093,153 @@ local function handle_online_status(new_online)
                 "offline",
                 COOLDOWN.offline
             )
+                EventLogger.logCameraOffline()
         end
     end
 end
+
+
+local function normalize_event(params)
+    return {
+        face_id = params.face_id,
+        type = tonumber(params.type),
+        ext_p = params.ext_p,
+        timestamp = params.t,
+        raw = params
+    }
+end
+
+local function resolve_identity(face_id)
+    if not face_id or face_id == "" then
+        print("[FACE] No face_id → Stranger")
+        return { is_known = false, name = nil }
+    end
+
+    -- For now, we do a simple local cache or always treat as known if face_id exists
+
+    -- Option A: Simple local cache (recommended)
+    if not _G.FACE_NAME_CACHE then
+        _G.FACE_NAME_CACHE = {}
+    end
+
+    local name = _G.FACE_NAME_CACHE[face_id]
+
+    if not name then
+        -- You can hardcode known faces here for testing:
+        if face_id == "4d1fcb57da0ee13c4d84d26e0ae5d90c" then
+            name = "Masan"          -- ← Change to your name
+        elseif face_id == "another_face_id_here" then
+            name = "Family Member"
+        else
+            name = nil   -- treat as stranger
+        end
+
+        _G.FACE_NAME_CACHE[face_id] = name
+    end
+
+    print("[FACE] face_id:", face_id, "| Name:", name or "Stranger")
+
+    return {
+        is_known = name ~= nil and name ~= "",
+        name = name
+    }
+end
+
+local function classify_event(event, identity)
+    if identity.is_known then
+        return {
+            category = "KNOWN_FACE",
+            label = identity.name,
+            event_type = "FaceRecognized"
+        }
+    end
+
+    return {
+        category = "UNKNOWN_FACE",
+        label = "Stranger",
+        event_type = "StrangerDetected"
+    }
+end
+
+local function handle_camera_event(params)
+    print("==================================================")
+    print("[FACE EVENT] Face detection received!")
+    print("[FACE EVENT] face_id =", params.face_id or "nil")
+
+    local event = normalize_event(params)
+    local identity = resolve_identity(event.face_id)
+
+    local result = classify_event(event, identity)
+
+    print("[PIPELINE]", result.category, "→", result.label)
+
+    local final_event = event.raw
+    final_event.EventType = result.event_type
+    final_event.EventDescription = result.label .. " Detected"
+
+    if result.category == "KNOWN_FACE" then
+        print("[FACE EVENT] ✅ Known Person:", result.label)
+
+        send_notification(
+            NOTIFY.INFO,
+            EVENT.REGISTERED_USER,
+            result.label .. " detected",
+            COOLDOWN.registered_user or 5,
+            event.raw.ext_p,
+            event.raw.ext_p
+        )
+
+        if EventLogger.logFaceRecognized then
+            EventLogger.logFaceRecognized(final_event, result.label)
+        end
+
+    else
+        print("[FACE EVENT] 👤 Stranger detected")
+        send_notification(
+            NOTIFY.INFO,
+            EVENT.STRANGER,
+            "Stranger detected",
+            COOLDOWN.stranger,
+            event.raw.ext_p,
+            event.raw.ext_p
+        )
+
+        if EventLogger.logStranger then
+            EventLogger.logStranger(final_event)
+        end
+    end
+    print("==================================================")
+end
+
+local function handle_human(filename, extp, params)
+    send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
+    EventLogger.logHuman(params)    -- ← pass full params
+end
+
+local function handle_antipry(filename, extp, params)
+    print("[ANTIPRY] ✅ Anti-Pry Alarm Triggered - Handling notification")
+
+    send_notification(
+        NOTIFY.ALERT,                    -- Use ALERT (more urgent)
+        EVENT.ANTIPRY, 
+        "antipry", 
+        COOLDOWN.antipry or 10, 
+        filename, 
+        extp
+    )
+
+    -- Use existing logger or safe fallback
+    if EventLogger.logAntiPry then
+        EventLogger.logAntiPry(params)
+    else
+        print("[EVENTLOGGER] logAntiPry not implemented - using generic log")
+        EventLogger.logEvent("AntiPry", params)  -- fallback
+    end
+
+    print("[ANTIPRY] Notification sent successfully")
+end
+
+
 
 local function handle_device_status(msg)
     if not msg.status then return end
@@ -2053,6 +2281,17 @@ function HANDLE_JSON_EVENT(payload)
         local id     = msg.event.identifier or ""
         local params = msg.event.params or {}
 
+        if params.type == 5 then
+            local filename = nil
+            local extp = params.ext_p
+            if extp then
+                filename = extp:match("([^/]+%.jpg)")
+            end
+
+            handle_antipry(filename, extp, params)
+            return true
+        end
+
         ------------------------------------------------
         -- 🎥 log_rec (Motion / Human / Doorbell)
         ------------------------------------------------
@@ -2063,18 +2302,24 @@ function HANDLE_JSON_EVENT(payload)
             if extp then
                 filename = extp:match("([^/]+%.jpg)")
             end
+
             if params.type == 10021 then
-                handle_motion(filename, extp)
+                handle_motion(filename, extp, params)
+                return true
+            end
+
+            if params.type == 10021 then
+                handle_motion(filename, extp, params)
                 return true
             end
 
             if params.type == 10022 then
-                handle_human(filename, extp)
+                handle_human(filename, extp, params)
                 return true
             end
 
             if params.type == 10024 then
-                handle_doorbell(filename, extp)
+                handle_doorbell(filename, extp, params)
                 return true
             end
 
@@ -2083,16 +2328,36 @@ function HANDLE_JSON_EVENT(payload)
         end
 
         ------------------------------------------------
+        -- 🚨 alarm_rec  (Anti-Pry etc.)
+        ------------------------------------------------
+        if id == "alarm_rec" then
+            local extp = params.ext_p
+            local filename = extp and extp:match("([^/]+%.jpg)")
+
+            if params.type == 5 then
+                handle_antipry(filename, extp, params)
+                return true
+            end
+            return true
+        end
+        ------------------------------------------------
         -- 🚨 alarm_rec_v2 (Critical Alerts)
         ------------------------------------------------
         if id == "alarm_rec_v2" then
             local extp = params.ext_p
             local filename = extp and extp:match("([^/]+%.jpg)")
             local t = tonumber(params.type)
-            if params.type == 21 then
-                handle_stranger(filename, extp)
+
+            if t == 5 then
+                print("[ALARM_V2] Anti-Pry detected")
+                handle_antipry(filename, extp, params)
                 return true
             end
+            
+           if params.type == 21 then
+                handle_camera_event(params)
+                return true
+             end
 
             if params.type == 1 then
                 local pct = tonumber(params.battery) or tonumber(params.battery_level) or
@@ -3244,3 +3509,5 @@ function TestCondition(condition_name, test_value)
     
     return result
 end
+
+
