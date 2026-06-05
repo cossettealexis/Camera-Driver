@@ -155,9 +155,10 @@
     streaming, RTSP video streaming, doorbell functionality, and two-way audio support.</p>
   <ul>
     <li><strong>Model:</strong> VD05</li>
-    <li><strong>Version:</strong> 2</li>
+    <li><strong>Version:</strong> 4</li>
     <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
     <li><strong>Device Type:</strong> Video Doorbell with Camera</li>
+    <li><strong>Last Updated:</strong> June 5, 2026</li>
   </ul>
 
   <hr>
@@ -231,8 +232,6 @@
     <li>Alert and info notifications (enable/disable)</li>
     <li>MQTT auto-connect and reconnection</li>
     <li>HTTP polling mode (alternative to MQTT)</li>
-    <li>PTZ support (Pan/Tilt/Zoom) — Note: VD05 has limited PTZ</li>
-    <li>Preset management (8 presets)</li>
     <li>Custom authentication types: BASIC, DIGEST, NONE</li>
   </ul>
 
@@ -324,7 +323,6 @@
     <li><strong>RTSP Port:</strong> Default 8554</li>
     <li><strong>Authentication Type:</strong> BASIC (default), DIGEST, or NONE</li>
     <li><strong>Username/Password:</strong> If authentication required (default: SystemConnect/123456)</li>
-    <li><strong>PTZ Enabled:</strong> Yes/No (default: Yes, limited on VD05)</li>
     <li><strong>Enable MQTT:</strong> True/False (default: False, enable for real-time doorbell events)</li>
     <li><strong>Enable Alert Notifications:</strong> True/False (default: True)</li>
     <li><strong>Enable Info Notifications:</strong> True/False (default: True)</li>
@@ -464,14 +462,6 @@
   <p>Or use dynamic snapshot action: Action: <strong>Test Snapshot</strong> — Checks <strong>Last Snapshot URL</strong>
     property for result.</p>
 
-  <h3>PTZ Control (Limited)</h3>
-  <p>VD05 has limited PTZ functionality:</p>
-  <ul>
-    <li>Digital zoom only (no mechanical pan/tilt)</li>
-    <li>Preset positions not available on doorbell</li>
-    <li>Use PTZ actions for zoom control only</li>
-  </ul>
-
   <hr>
 
   <h2>Properties Reference</h2>
@@ -592,12 +582,6 @@
         <td>LIST</td>
         <td>1280x720</td>
         <td>640x480, 1280x720, 1920x1080</td>
-      </tr>
-      <tr>
-        <td>PTZ Enabled</td>
-        <td>LIST</td>
-        <td>Yes</td>
-        <td>Enable PTZ controls (limited on VD05)</td>
       </tr>
     </tbody>
   </table>
@@ -1450,7 +1434,12 @@ Rename-Item "temp.zip" "Slomins-doorbell-VD05.c4z"</code></pre>
 
   <h2>Version History</h2>
 
-  <h3>v3(Current)</h3>
+  <h3>v4.0 (Current)</h3>
+  <ul>
+    <li>Removed PTZ capabilities</li>
+  </ul>
+
+  <h3>v3.0</h3>
   <ul>
     <li>Implemented functionality to store all incoming events in the database.</li>
   </ul>

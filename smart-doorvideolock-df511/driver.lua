@@ -6,6 +6,7 @@ local auth               = require("CldBusApi.auth")
 local transport          = require("CldBusApi.transport_c4")
 local util               = require("CldBusApi.util")
 local MQTT               = require("mqtt_manager")
+local EventLogger        = require("event_logger")
 
 -- Local state
 local LAST_EVENT_ID      = 0
@@ -31,8 +32,6 @@ local MIN_REFRESH_GAP   = 5
 
 GlobalObject                 = {}
 GlobalObject.LnduBaseUrl     = "https://api.arpha-tech.com"
-GlobalObject.CldBusAppId     = "cldbus"
-GlobalObject.CldBusSecret    = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 GlobalObject.ClientID        = ""
 GlobalObject.ClientSecret    = ""
 GlobalObject.AES_KEY         = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG" -- 32 bytes = AES-256
@@ -122,22 +121,35 @@ local EVENT                   = {
     LOCK_EVENT          = "Lock Event",
     LOCK_REMOTE         = "Remote Lock",
     LOCKING_STARTED     = "Locking Started",
-    LOCKED_OUTSIDE      = "Locked Outside"
+    LOCKED_OUTSIDE      = "Locked Outside",
+    SYSTEM_LOCKED       = "System Is Locked"   
 }
 
 
 local EVENT_ID_MAP = {
-    ["Motion Detected"]   = 1,
-    ["Face Detected"]     = 2,
-    ["Stranger Detected"] = 3,
-    ["Low Battery"]       = 4,
-    ["Camera Online"]     = 5,
-    ["Camera Offline"]    = 6,
-    ["Camera Restarted"]  = 7,
-    ["Doorbell Ring"]     = 8
-
+    ["Motion Detected"]          = 1,
+    ["Face Detected"]            = 2,
+    ["Stranger Detected"]        = 3,
+    ["Low Battery"]              = 4,
+    ["Camera Online"]            = 5,
+    ["Camera Offline"]           = 6,
+    ["Camera Restarted"]         = 7,
+    ["Doorbell Ring"]            = 8,
+    ["Unlock with Password"]     = 9,
+    ["Offline Password Unlock"]  = 10,
+    ["Duress Unlock"]            = 11,
+    ["Face Recognition Unlock"]  = 12,
+    ["NFC Unlock"]               = 13,
+    ["App Unlock"]               = 14,
+    ["One-Click Unlock"]         = 15,
+    ["Key Unlock"]               = 16,
+    ["One-Touch Lock"]           = 17,
+    ["Lock Event"]               = 18,
+    ["Remote Lock"]              = 19,
+    ["Locking Started"]          = 20,
+    ["Locked Outside"]           = 21,
+    ["System Is Locked"]         = 22,  
 }
-
 
 --conditional state
 local conditional_state = {
@@ -149,8 +161,8 @@ local conditional_state = {
     NOT_MOTION_DETECTED = true,
     MIC_MUTED = false,
     MIC_UNMUTED = true,
-    SPEAKER_VOLUME = 5,
-    BATTERY_LEVEL = 100,
+    SPEAKER_VOLUME = 4,
+    BATTERY_LEVEL = 0,
     SENSITIVITY = 5
 }
 
@@ -185,6 +197,13 @@ local _lastLowBatteryAlert = 0
 local _batteryPollTimer    = nil
 local _batteryPollVid      = nil
 local _batteryAlertTimer   = nil
+
+
+local last_log_rec_time = 0
+
+
+
+
 function IsTokenValid()
     local token = _props["Auth Token"] or Properties["Auth Token"] or ""
     return token ~= "" and #token > 30
@@ -326,18 +345,11 @@ function SET_CAMERA_IP(ip)
     })
 end
 
-function OnDriverInit()
-    -- Hardcoded credentials for testing (bypass)
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
+--[[function OnDriverInit()
     TcpConnection()
     print("=== DF511 Driver Initialized ===")
-    C4:AddVariable("FaceKID", "", "STRING", true, false)
-    C4:AddVariable("FaceName", "", "STRING", true, false)
-    C4:UpdateProperty("Camera Status", "false")
+  
+    
     -- Initialize properties
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -357,7 +369,95 @@ function OnDriverInit()
     })
 
     C4:UpdateProperty("Status", "Driver initialized")
+    
+    -- Initialise EventLogger 
+    EventLogger.init(
+        transport,
+        json,
+        function()
+            return {
+                BaseApi    = GlobalObject.BaseApi or "",
+                DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+                DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+                UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+                IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+                AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "", -- ← add this
+            }
+        end
+    )
+
+    C4:UpdateProperty("Camera Status", "false")
+    C4:AddVariable("FaceKID", "", "STRING", true, false)
+    C4:AddVariable("FaceName", "", "STRING", true, false)
+end--]]
+
+function OnDriverInit()
+    TcpConnection()
+
+    print("=== DF511 Driver Initialized ===")
+
+    -- Initialize property cache
+    _props = _props or {}
+
+    for k, v in pairs(Properties) do
+        if k ~= "Password" then
+            print("Property [" .. k .. "] = " .. tostring(v))
+        end
+        _props[k] = v
+    end
+
+    -- Ensure MQTT table exists
+    _props.MQTT = _props.MQTT or {}
+
+    print("[MQTT] Initializing MQTT Manager")
+    print("[MQTT] _props =", tostring(_props))
+    print("[MQTT] _props.MQTT =", tostring(_props.MQTT))
+
+    MQTT.init(_props, {
+        on_connected = function()
+            local vid = _props["VID"] or Properties["VID"]
+
+            print("[MQTT] Connected")
+            print("[MQTT] Subscribing VID:", tostring(vid))
+
+            if vid and vid ~= "" then
+                MQTT.subscribe(vid)
+            else
+                print("[MQTT] WARNING: No VID available")
+            end
+        end,
+
+        on_message = function(topic, payload)
+            print("[MQTT] Message received:", tostring(topic))
+            HANDLE_JSON_EVENT(payload)
+        end
+    })
+
+    print("[MQTT] MQTT.init completed")
+
+    C4:UpdateProperty("Status", "Driver initialized")
+
+    EventLogger.init(
+        transport,
+        json,
+        function()
+            return {
+                BaseApi    = GlobalObject.BaseApi or "",
+                DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+                DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+                UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+                IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+                AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or ""
+            }
+        end
+    )
+
+    C4:UpdateProperty("Camera Status", "false")
+    C4:AddVariable("FaceKID", "", "STRING", true, false)
+    C4:AddVariable("FaceName", "", "STRING", true, false)
+    C4:UpdateConditional("SPEAKER_VOLUME", "4")
 end
+
 
 function OnDriverDestroyed()
     print("=== DF511 Driver Destroyed ===")
@@ -492,18 +592,9 @@ end
 
 function OnDriverLateInit()
     print("=== DF511 Driver Late Init ===")
-
-    -- Re-apply hardcoded credentials after MAC validation
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
     C4:UpdateProperty("Status", "Ready")
 
     ValidateMacAddress(C4:GetUniqueMAC())
-
-
     -- Define variables for use inside the timer
     local ip = _props["IP Address"] or Properties["IP Address"]
     local http_port = Properties["HTTP Port"] or "3333"
@@ -585,8 +676,8 @@ end
 
 -- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId = "cldbus"
-    local appSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
     return appId, appSecret
 end
 
@@ -1154,6 +1245,12 @@ function InitializeCamera()
 
     local appId, appSecret = GetCldBusCredentials()
 
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
     -- Prepare message and signature
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
         client_id, request_id, time, version)
@@ -1302,6 +1399,11 @@ function SendTokenToNodeAPI(token)
     end
 
     local appId, appSecret = GetCldBusCredentials()
+    if appId == "" or appSecret == "" then
+        print("[NodeAPI] ERROR: No CldBus AppId/AppSecret yet")
+        C4:UpdateProperty("Status", "Token send failed: missing credentials")
+        return
+    end
 
     print("[NodeAPI] Sending token... AppId=" .. appId)
 
@@ -1379,6 +1481,12 @@ function LoginOrRegister(country_code, account, public_key)
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     local post_data_obj = { country_code = country_code, account = account }
     local post_data_json = json.encode(post_data_obj)
@@ -1484,6 +1592,12 @@ function GET_DEVICES(p_vid)
     print("Using bearer token: " .. auth_token)
 
     local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
 
     -- Build request
     local base_url = GlobalObject.LnduBaseUrl
@@ -1650,6 +1764,7 @@ local function HANDLE_BATTERY_LEVEL(pct)
 
     -- Fire alert
     _lastLowBatteryAlert = now
+    EventLogger.logLowBattery(pct)
     C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
     C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
 
@@ -1729,19 +1844,18 @@ function GET_BATTERY_LEVEL()
     print("URL:", url)
 
     C4:urlGet(url, headers, false, function(_, response, statusCode)
-        print("Response:", response)
         if statusCode ~= 200 then
-            print("API Failed")
+            print("API Failed. Status:", statusCode)
             return
         end
 
         local data = C4:JsonDecode(response)
         if not data or type(data.data) ~= "table" then
-            print("[BATTERY] Parse error")
+            print("JSON Parse Error")
             return
         end
 
-        -- Find device by VID from either list, fallback to first
+        -- Find device
         local function find(list)
             if type(list) ~= "table" then return nil end
             for _, d in ipairs(list) do
@@ -1752,49 +1866,74 @@ function GET_BATTERY_LEVEL()
 
         local device = find(data.data.devices) or find(data.data.share_devices)
         if not device then
-            print("[BATTERY] No device found")
+            print("No device data found")
             return
         end
 
         print("[BATTERY DEBUG] Raw power:", tostring(device.power))
+        print("[BATTERY DEBUG] is_online:", tostring(device.is_online))
+        print("[BATTERY DEBUG] charging/charge_status:", tostring(device.charging or device.charge_status))
         print("[BATTERY DEBUG] Full device:", C4:JsonEncode(device))
 
-        -- Online status
+        -- === Online Status ===
         local status = (device.is_online == 1 or device.is_online == true) and "Online" or "Offline"
         if _props["Camera Status"] ~= status then
             C4:UpdateProperty("Camera Status", status)
             _props["Camera Status"] = status
         end
 
-        -- Battery level
+        -- === IMPROVED BATTERY LOGIC ===
         if not device.power then
-            print("Battery not found")
+            print("Battery field missing")
+            C4:UpdateProperty("Battery Level", "Unknown")
             return
         end
 
-        local power = device.power
-        print("🔋 Battery:", power)
-        C4:SetVariable("BATTERY_LEVEL", tostring(power))
-        C4:UpdateProperty("Battery Level", tostring(power))
+        local power = tonumber(device.power) or 0
+        local isCharging = false
 
-        -- Push immediately AND after a short delay (catches late WebView subscriptions)
-        local battJson = json.encode({ battery = power })
+        -- Common charging indicators in Tuya/OEM video locks
+        if device.charging == 1 or 
+           device.charge_status == 1 or 
+           device.charge == 1 or
+           (device.power == 100 and device.is_online == 1) then  -- extra heuristic
+            isCharging = true
+        end
+
+        local displayValue
+        if isCharging then
+            displayValue = "Charging (" .. power .. "%)"
+            print("CHARGING detected → Showing: " .. displayValue)
+        else
+            displayValue = tostring(power) .. "%"
+            print("Battery Level:", displayValue)
+        end
+
+        -- Update everything
+        C4:SetVariable("BATTERY_LEVEL", tostring(power))
+        C4:UpdateProperty("Battery Level", displayValue)
+
+        -- Push to WebView UI
+        local battJson = json.encode({ 
+            battery = power,
+            charging = isCharging,
+            display = displayValue 
+        })
         C4:SendDataToUI(battJson)
         C4:SetTimer(1500, function() C4:SendDataToUI(battJson) end)
         C4:SetTimer(4000, function() C4:SendDataToUI(battJson) end)
 
-
-        -- Write battery.json to driver path
+        -- Write to file for WebView
         local paths = {
-            "/mnt/internal/c4z/Slomins-doorvideolock-DF511/www/contents/",
-            "/mnt/internal/c4z/smart-doorvideolock-df511/www/contents/",
+            "/driver/Slomins-doorvideolock-DF511/www/contents/",
+            "/driver/smart-doorvideolock-df511/www/contents/",
         }
         for _, path in ipairs(paths) do
             local f = io.open(path .. "battery.json", "w")
             if f then
-                f:write('{"battery":' .. device.power .. '}')
+                f:write('{"battery":' .. power .. ',"charging":' .. tostring(isCharging) .. '}')
                 f:close()
-                print("[BATTERY] Wrote battery.json:", device.power)
+                print("[BATTERY] Wrote battery.json")
                 break
             end
         end
@@ -1869,6 +2008,12 @@ function SET_DEVICE_PROPERTY(tParams)
 
     local appId, appSecret = GetCldBusCredentials()
 
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
+    end
+
     -- Build request body for wake-up action
     local body = {
         vid = vid,
@@ -1924,6 +2069,7 @@ function SET_DEVICE_PROPERTY(tParams)
 end
 
 function GET_DEVICE_PROPERTY(property_name, callback)
+    local appId, appSecret = GetCldBusCredentials()
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
         print("ERROR: No auth token available")
@@ -1940,13 +2086,6 @@ function GET_DEVICE_PROPERTY(property_name, callback)
 
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/devices?vid=" .. vid
-
-    local appId, appSecret = GetCldBusCredentials()
-    if appId == "" or appSecret == "" then
-        print("ERROR: No CldBus credentials available")
-        if callback then callback(nil) end
-        return
-    end
 
     local headers = {
         ["Content-Type"] = "application/json",
@@ -1986,6 +2125,7 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
     print("           UPDATE_DEVICE_PROPERTY CALLED                        ")
     print("================================================================")
 
+    local appId, appSecret = GetCldBusCredentials()
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
         print("ERROR: No auth token available")
@@ -2004,8 +2144,6 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
 
     local base_url = GlobalObject.LnduBaseUrl
     local url = base_url .. "/api/v3/openapi/device/do-property"
-
-    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
@@ -2100,16 +2238,14 @@ end
 
 function APPLY_MQTT_INFO()
     print("APPLY_MQTT_INFO called")
-
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    local vid        = _props["VID"] or Properties["VID"] or Properties["Device ID"]
+    local vid = _props["Device ID"] or _props["VID"] or Properties["Device ID"] or Properties["VID"]
 
     if not auth_token or auth_token == "" then
         print("APPLY_MQTT_INFO: missing auth token")
         update_prop("Status", "MQTT info failed: no auth token")
         return
     end
-
     if not vid or vid == "" then
         print("APPLY_MQTT_INFO: missing VID")
         update_prop("Status", "MQTT info failed: no vid")
@@ -2118,40 +2254,32 @@ function APPLY_MQTT_INFO()
 
     local appId, appSecret = GetCldBusCredentials()
 
-    -- === CRITICAL FIX: Wait if credentials are not ready yet ===
     if appId == "" or appSecret == "" then
-        print("[MQTT] CldBus credentials not ready yet → will retry in 2 seconds")
+        print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
         update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
-
+        
         C4:SetTimer(2000, function()
             if Properties["Enable MQTT"] == "True" then
-                APPLY_MQTT_INFO() -- retry
+                APPLY_MQTT_INFO()
             end
         end)
         return
     end
 
-    print("[MQTT] Using AppId:", appId)
     update_prop("Status", "Fetching MQTT info...")
+    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/apply-mqtt-info"
 
-    local base_url  = Properties["Base API URL"] or "https://api.arpha-tech.com"
-    local url       = base_url .. "/api/v3/openapi/apply-mqtt-info"
-
-    local body_tbl  = { vid = vid }
+    local body_tbl = { vid = vid }
     local body_json = json.encode(body_tbl)
 
-    local headers   = {
+    local headers = {
         ["Content-Type"]  = "application/json",
         ["Authorization"] = "Bearer " .. auth_token,
         ["App-Name"]      = appId
     }
 
-    local req       = {
-        url = url,
-        method = "POST",
-        headers = headers,
-        body = body_json
-    }
+    local req = { url = url, method = "POST", headers = headers, body = body_json }
 
     transport.execute(req, function(code, resp, resp_headers, err)
         print("APPLY_MQTT_INFO response code:", tostring(code))
@@ -2193,20 +2321,25 @@ function APPLY_MQTT_INFO()
                         update_prop("Status", "MQTT credentials error")
                         return
                     end
+
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
+
                     print("[MQTT] ✅ Username:", username)
                     print("[MQTT] ✅ Password received (len =", #pwd, ")")
+
                     MQTT.connect()
                 end)
+
             else
                 update_prop("Status", "MQTT info parse error")
             end
+
         else
             print("[MQTT] Failed with code:", code)
             update_prop("Status", "MQTT info failed: " .. tostring(code))
-
-            -- Final retry
+            
+            -- Retry once more
             C4:SetTimer(3000, function()
                 if Properties["Enable MQTT"] == "True" then
                     APPLY_MQTT_INFO()
@@ -2370,7 +2503,7 @@ end
 
 
 function GetNotificationData(extp, event_ts, done)
-    event_ts = tonumber(event_ts) or 0  -- ← FIX: default nil to 0
+    event_ts               = tonumber(event_ts) or 0 -- ← FIX: default nil to 0
 
     local vid              = Properties["VID"]
     local token            = Properties["Auth Token"]
@@ -2415,7 +2548,7 @@ function GetNotificationData(extp, event_ts, done)
             local img      = normalize_http_url(n.image_url or "")
             local faceName = n.note or n.face_note or ""
 
-            local n_ts = tonumber(n.notify_time) or 0
+            local n_ts     = tonumber(n.notify_time) or 0
             if n_ts > 1e10 then n_ts = math.floor(n_ts / 1000) end
 
             -- CASE 1: match by filename (extp present)
@@ -2427,7 +2560,7 @@ function GetNotificationData(extp, event_ts, done)
                     return done(img ~= "" and img or nil, faceName)
                 end
 
-            -- CASE 2: match by timestamp (no extp, but timestamp given)
+                -- CASE 2: match by timestamp (no extp, but timestamp given)
             elseif event_ts > 0 then
                 local diff = math.abs(n_ts - event_ts)
 
@@ -2479,12 +2612,20 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
     if not can_notify(cooldown_key, cooldown_sec) then return end
 
-    -- If no ext_p and no timestamp, fire directly — nothing to look up
+   -- Timestamp Support
+    local safe_ts = event_ts or os.time()
+    local formatted_time = FormatEventTimestamp(safe_ts)
+
+    C4:SetVariable("EventTimestamp", formatted_time)
+    C4:SetVariable("LastEventTime", formatted_time)
+    -- ==============================================================
+
+    -- If no image and no timestamp, fire directly
     if (not extp or extp == "") and (not event_ts or event_ts == 0) then
-        print("[NOTIFY] no ext_p, no timestamp → firing directly")
         record_history(
             category == NOTIFY.ALERT and "Critical" or "Info",
-            event_name, "IP Camera"
+            event_name .. " at " .. formatted_time,
+            "IP Camera"
         )
         C4:FireEvent(event_name, CAMERA_BINDING)
         return
@@ -2513,8 +2654,19 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
 
             record_history(
                 category == NOTIFY.ALERT and "Critical" or "Info",
-                event_name, "IP Camera"
+                event_name .. " at " .. formatted_time,     -- ← Changed
+                "IP Camera"
             )
+
+            -- Push timestamp + data to WebView (Important!)
+            local notify_data = {
+                event = event_name,
+                time  = formatted_time,
+                timestamp = safe_ts,
+                image = img_url or ""
+            }
+            C4:SendDataToUI(json.encode(notify_data))
+            
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
             end)
@@ -2524,55 +2676,41 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     fetch()
 end
 
-local function handle_stranger(filename, extp)
-    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
-end
-
-local function handle_motion(filename, extp)
+local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
-    C4:FireEvent(1)
-
-    -- Update motion conditional states
+    EventLogger.logMotion(params) -- ← pass full params
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
-local function handle_doorbell(filename, extp)
+
+local function handle_stranger(filename, extp, params)
+    send_notification(NOTIFY.INFO, EVENT.STRANGER, "stranger", COOLDOWN.stranger, filename, extp)
+    EventLogger.logStranger(params) -- ← pass full params
+end
+
+
+local function handle_doorbell(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
+    EventLogger.logDoorbell(params) -- ← pass full params
 end
 
-
-local function handle_unlock(event_name, filename, extp, event_ts)
+local function handle_unlock(event_name, filename, extp, event_ts, params)
     print("[LOCK EVENT] Unlock detected:", event_name)
-
+    last_log_rec_time = os.time() -- ✅ stamp
     updateLockState("UNLOCKED")
-
-    send_notification(
-        NOTIFY.INFO,
-        event_name,
-        "unlock",
-        5,
-        filename,
-        extp,
-        event_ts
-    )
+    EventLogger.logUnlock(event_name, params)
+    send_notification(NOTIFY.INFO, event_name, "unlock", 5, filename, extp, event_ts)
 end
 
-
-local function handle_lock(event_name, filename, extp)
+local function handle_lock(event_name, filename, extp, params)
     print("[LOCK EVENT] Lock detected:", event_name)
-
+    last_log_rec_time = os.time() -- ✅ stamp
     updateLockState("LOCKED")
-
-    send_notification(
-        NOTIFY.INFO,
-        event_name,
-        "lock",
-        5,
-        filename,
-        extp
-    )
+    EventLogger.logLock(event_name, params)
+    send_notification(NOTIFY.INFO, event_name, "lock", 5, filename, extp)
 end
+
 
 local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
@@ -2609,6 +2747,7 @@ local function handle_online_status(new_online)
                 "online",
                 COOLDOWN.online
             )
+            EventLogger.logCameraOnline()
         else
             C4:UpdateProperty("Camera Status", "Offline")
             _props["Camera Status"] = "Offline"
@@ -2618,6 +2757,7 @@ local function handle_online_status(new_online)
                 "offline",
                 COOLDOWN.offline
             )
+            EventLogger.logCameraOffline()
         end
     end
 end
@@ -2648,43 +2788,56 @@ local function handle_device_status(msg)
         -- LOCK STATE
         ------------------------------------------------
         if s.status_type == 2 and s.status_key == "d_s" then
-            local state = tonumber(s.status_val)
+            local state          = tonumber(s.status_val)
+            local now            = os.time()
 
-            ------------------------------------------------
-            -- UNLOCKED
-            ------------------------------------------------
+            -- Was this already handled by a log_rec event within last 5 seconds?
+            local already_logged = (now - last_log_rec_time) <= 5
+
             if state == 1 then
                 print("[STATE] Lock = UNLOCKED (d_s=1)")
                 updateLockState("UNLOCKED")
 
-                local now = os.time()
+                -- Check for offline password derive (e=97)
                 local is_recent_error = (now - (last_error_time or 0)) <= 3
-
                 if is_recent_error and last_error_code == 97 then
                     print("[DERIVE] 🔐 Offline Password Unlock (e=97)")
-
-                    handle_unlock(EVENT.UNLOCK_OFFLINE_PASS, nil, nil)
-
+                    handle_unlock(EVENT.UNLOCK_OFFLINE_PASS, nil, nil, nil, nil) -- ✅ fixed args
                     if user_settings.enable_alerts then
                         send_notification(NOTIFY.ALERT, EVENT.UNLOCK_OFFLINE_PASS, "offline_pass", 0)
                     end
-
-                    -- clear after use
                     last_error_code = nil
                     last_error_time = 0
-
                     return true
+                end
+
+                -- ✅ Log hardware-confirmed unlock only if log_rec didn't already handle it
+                if not already_logged then
+                    print("[STATE] Logging hardware-confirmed Unlock (no recent log_rec)")
+                    EventLogger.logUnlock("Unlock with Password", nil)
+                    -- ↑ Falls back to XML id=9 as closest generic unlock
+                else
+                    print("[STATE] Skipping status Unlock log (log_rec handled it "
+                        .. tostring(now - last_log_rec_time) .. "s ago)")
                 end
 
                 return true
             end
 
-            ------------------------------------------------
-            -- LOCKED
-            ------------------------------------------------
             if state == 0 then
                 print("[STATE] Lock = LOCKED (d_s=0)")
                 updateLockState("LOCKED")
+
+                -- ✅ Log hardware-confirmed lock only if log_rec didn't already handle it
+                if not already_logged then
+                    print("[STATE] Logging hardware-confirmed Lock (no recent log_rec)")
+                    EventLogger.logLock("Lock Event", nil)
+                    -- ↑ Falls back to XML id=18 as closest generic lock
+                else
+                    print("[STATE] Skipping status Lock log (log_rec handled it "
+                        .. tostring(now - last_log_rec_time) .. "s ago)")
+                end
+
                 return true
             end
 
@@ -2708,11 +2861,24 @@ function HANDLE_JSON_EVENT(payload)
     ------------------------------------------------
     -- DEVICE EVENTS
     ------------------------------------------------
-    if msg.method == "deviceEvent" and msg.event then
+    --[[if msg.method == "deviceEvent" and msg.event then
         local id              = msg.event.identifier or ""
         local mstype          = msg.event.type or ""
         local params          = msg.event.params or {}
         local event_timestamp = tonumber(msg.event.timestamp) or (params.t and params.t * 1000)
+        local safe_timestamp = event_timestamp or os.time()
+        local formatted_ts = FormatEventTimestamp(safe_timestamp)
+
+
+       -- ====================== TIMESTAMP SUPPORT ======================
+        local safe_timestamp = event_timestamp or os.time()
+        local formatted_ts   = FormatEventTimestamp(safe_timestamp)
+
+        C4:SetVariable("EventTimestamp", formatted_ts)
+        C4:SetVariable("LastEventTime", formatted_ts)
+
+        print("[TIMESTAMP] Event:", formatted_ts, "(raw:", safe_timestamp, ")")
+        -- ===============================================================
         ------------------------------------------------
         -- 🎥 log_rec (Motion / Human / Doorbell)
         ------------------------------------------------
@@ -2732,57 +2898,57 @@ function HANDLE_JSON_EVENT(payload)
             end
             local t = tonumber(params.type)
             if t == 10021 then
-                handle_motion(filename, extp)
+                handle_motion(filename, extp, params)
                 return true
             end
 
             if t == 10024 then
                 --handle_doorbell(filename, extp)
-                handle_doorbell(nil, nil)
+                handle_doorbell(nil, nil, params)
                 print("[EVENT] Doorbell Ring fired immediately")
                 return true
             end
 
             -- Unlock Events
             if t == 10004 then
-                handle_unlock(EVENT.UNLOCK_PASSWORD, filename, extp)
+                handle_unlock(EVENT.UNLOCK_PASSWORD, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10026 then
-                handle_unlock(EVENT.UNLOCK_OFFLINE_PASS, filename, extp)
+                handle_unlock(EVENT.UNLOCK_OFFLINE_PASS, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10005 then
-                handle_unlock(EVENT.UNLOCK_PASSWORD, filename, extp)
+                handle_unlock(EVENT.UNLOCK_PASSWORD, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10001 then
-                handle_unlock(EVENT.UNLOCK_FACE, filename, extp, event_timestamp)
+                handle_unlock(EVENT.UNLOCK_FACE, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10002 then
-                handle_unlock(EVENT.UNLOCK_NFC, filename, extp)
+                handle_unlock(EVENT.UNLOCK_NFC, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10006 then
                 if params.u_id and params.u_id ~= "" then
                     print("[APP UNLOCK] Valid (u_id present)")
 
-                    handle_unlock(EVENT.UNLOCK_APP, filename, extp)
+                    handle_unlock(EVENT.UNLOCK_APP, filename, extp, event_timestamp, params)
                     return true
                 else
                     print("[APP UNLOCK] Ignored (no u_id, likely UI/state sync)")
                 end
             end
             if t == 10009 then
-                handle_unlock(EVENT.UNLOCK_ONE_CLICK, filename, extp)
+                handle_unlock(EVENT.UNLOCK_ONE_CLICK, filename, extp, event_timestamp, params)
                 return true
             end
 
             if t == 10010 then
                 -- PHYSICAL KEY UNLOCK
                 print("[KEY UNLOCK] Physical Key Unlock (type " .. t .. ") received")
-                handle_unlock(EVENT.UNLOCK_KEY, filename, extp)
+                handle_unlock(EVENT.UNLOCK_KEY, filename, extp, event_timestamp, params)
                 C4:FireEvent("Key Unlock")
                 updateLockState("UNLOCKED")
                 print("[EVENT] Key Unlock fired IMMEDIATELY")
@@ -2791,23 +2957,23 @@ function HANDLE_JSON_EVENT(payload)
 
             -- Lock Events
             if t == 10007 then
-                handle_lock(EVENT.LOCK_ONE_TOUCH, filename, extp)
+                handle_lock(EVENT.LOCK_ONE_TOUCH, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10008 then
-                handle_lock(EVENT.LOCK_EVENT, filename, extp)
+                handle_lock(EVENT.LOCK_EVENT, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10025 then
-                handle_lock(EVENT.LOCK_REMOTE, filename, extp)
+                handle_lock(EVENT.LOCK_REMOTE, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10028 then
-                handle_lock(EVENT.LOCKING_STARTED, filename, extp)
+                handle_lock(EVENT.LOCKING_STARTED, filename, extp, event_timestamp, params)
                 return true
             end
             if t == 10029 then
-                handle_lock(EVENT.LOCKED_OUTSIDE, filename, extp)
+                handle_lock(EVENT.LOCKED_OUTSIDE, filename, extp, event_timestamp, params)
 
                 if user_settings.enable_alerts then
                     send_notification(NOTIFY.ALERT, EVENT.LOCKED_OUTSIDE, "locked_outside", 0)
@@ -2839,7 +3005,7 @@ function HANDLE_JSON_EVENT(payload)
 
             if t == 24 or t == 10024 then
                 print("[ALARM_REC_V2] doorbell → delayed fetch")
-                handle_doorbell(filename, extp)
+                handle_doorbell(filename, extp, params)
                 return true
             end
             if t == 3 then
@@ -2879,6 +3045,7 @@ function HANDLE_JSON_EVENT(payload)
                 local face_label = (k_id ~= "") and ("Face " .. k_id) or "Face Unknown"
                 print("[FACE] k_id stored: '" .. k_id .. "' → Notifying as: " .. face_label)
                 if user_settings.enable_alerts then
+                    EventLogger.logFace(params)
                     send_notification(NOTIFY.ALERT, EVENT.FACE, "face", 0)
                 end
 
@@ -2889,7 +3056,7 @@ function HANDLE_JSON_EVENT(payload)
                 end
 
                 if handle_stranger then
-                    handle_stranger(filename, extp)
+                    handle_stranger(filename, extp, params)
                 end
 
                 print("[STRANGER] Conditional forced to TRUE")
@@ -2911,6 +3078,178 @@ function HANDLE_JSON_EVENT(payload)
         -- 🔄 Camera Restart
         ------------------------------------------------
         if id == "stored_reset" then
+            EventLogger.logCameraRestarted()
+            handle_restart()
+            return true
+        end
+
+        return true
+    end--]]
+
+    if msg.method == "deviceEvent" and msg.event then
+        local id              = msg.event.identifier or ""
+        local mstype          = msg.event.type or ""
+        local params          = msg.event.params or {}
+        local event_timestamp = tonumber(msg.event.timestamp) or (params.t and params.t * 1000)
+        
+        -- ====================== TIMESTAMP SUPPORT ======================
+        local safe_timestamp = event_timestamp or os.time()
+        local formatted_ts   = FormatEventTimestamp(safe_timestamp)
+
+        -- Update variables for Composer and WebView
+        C4:SetVariable("EventTimestamp", formatted_ts)
+        C4:SetVariable("LastEventTime", formatted_ts)
+
+        print("[TIMESTAMP] Event processed:", formatted_ts, "(raw:", safe_timestamp, ")")
+        -- ==============================================================
+
+        ------------------------------------------------
+        -- 🎥 log_rec (Motion / Human / Doorbell / Locks)
+        ------------------------------------------------
+        if id == "log_rec" then
+            local filename = nil
+            local extp = params.ext_p
+            local k_id = params.k_id or ""
+
+            C4:SetVariable("FaceKID", k_id)
+
+            local face_label = (k_id ~= "") and ("Face " .. k_id) or "Face Unknown"
+            print("[FACE] k_id stored: '" .. k_id .. "' → Notifying as: " .. face_label)
+
+            if extp then
+                filename = extp:match("([^/]+%.jpg)")
+            end
+
+            local t = tonumber(params.type)
+
+            if t == 10021 then
+                handle_motion(filename, extp, params)
+                return true
+            end
+
+            if t == 10024 then
+                handle_doorbell(nil, nil, params)
+                print("[EVENT] Doorbell Ring fired immediately")
+                return true
+            end
+
+            -- Unlock Events
+            if t == 10004 or t == 10005 then
+                handle_unlock(EVENT.UNLOCK_PASSWORD, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10026 then
+                handle_unlock(EVENT.UNLOCK_OFFLINE_PASS, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10001 then
+                handle_unlock(EVENT.UNLOCK_FACE, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10002 then
+                handle_unlock(EVENT.UNLOCK_NFC, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10006 then
+                if params.u_id and params.u_id ~= "" then
+                    handle_unlock(EVENT.UNLOCK_APP, filename, extp, safe_timestamp, params)
+                end
+                return true
+            end
+            if t == 10009 then
+                handle_unlock(EVENT.UNLOCK_ONE_CLICK, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10010 then
+                handle_unlock(EVENT.UNLOCK_KEY, filename, extp, safe_timestamp, params)
+                C4:FireEvent("Key Unlock")
+                updateLockState("UNLOCKED")
+                return true
+            end
+
+            -- Lock Events
+            if t == 10007 then
+                handle_lock(EVENT.LOCK_ONE_TOUCH, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10008 then
+                handle_lock(EVENT.LOCK_EVENT, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10025 then
+                handle_lock(EVENT.LOCK_REMOTE, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10028 then
+                handle_lock(EVENT.LOCKING_STARTED, filename, extp, safe_timestamp, params)
+                return true
+            end
+            if t == 10029 then
+                handle_lock(EVENT.LOCKED_OUTSIDE, filename, extp, safe_timestamp, params)
+                if user_settings.enable_alerts then
+                    send_notification(NOTIFY.ALERT, EVENT.LOCKED_OUTSIDE, "locked_outside", 0, nil, nil, safe_timestamp)
+                end
+                return true
+            end
+
+            return true
+        end
+
+        ------------------------------------------------
+        -- 🚨 alarm_rec_v2
+        ------------------------------------------------
+        if id == "alarm_rec_v2" then
+            local extp = params.ext_p
+            local filename = extp and extp:match("([^/]+%.jpg)")
+            local t = tonumber(params.type)
+            local k_id = params.k_id or ""
+
+            if t == 1 then
+                local pct = tonumber(params.status_val) or (tonumber(Properties["Low Battery Threshold (%)"]) - 1)
+                HANDLE_BATTERY_LEVEL(pct)
+                return true
+            end
+
+            if t == 24 or t == 10024 then
+                handle_doorbell(filename, extp, params)
+                return true
+            end
+
+            if t == 21 and mstype == "alert" then
+                print("[EVENT] 🔥 Stranger Detected")
+
+                conditional_state.STRANGER = true
+                UpdateConditional("STRANGER", true)
+
+                if user_settings.enable_alerts then
+                    EventLogger.logFace(params)
+                    send_notification(NOTIFY.ALERT, EVENT.STRANGER, "stranger", 0, nil, extp, safe_timestamp)
+                end
+
+                if extp and extp ~= "" then
+                    local image_url = "https://istr-private.s3-accelerate.amazonaws.com/" .. extp
+                    C4:SendToProxy(5001, "SNAPSHOT_URL_PUSH", { URL = image_url })
+                end
+
+                if handle_stranger then
+                    handle_stranger(filename, extp, params)
+                end
+
+                C4:SetTimer(10000, function()
+                    conditional_state.STRANGER = false
+                    UpdateConditional("STRANGER", false)
+                end)
+                return true
+            end
+
+            return true
+        end
+
+        ------------------------------------------------
+        -- 🔄 Camera Restart
+        ------------------------------------------------
+        if id == "stored_reset" then
+            EventLogger.logCameraRestarted()
             handle_restart()
             return true
         end
@@ -4605,4 +4944,17 @@ function ProcessPendingTCPToken()
     end
 
     print("[TCP] No pending token at this check")
+end
+
+
+function FormatEventTimestamp(ts)
+    if not ts or ts == 0 then
+        return os.date("%Y-%m-%d %H:%M:%S")
+    end
+
+    -- Convert ms to seconds if needed
+    if ts > 10000000000 then
+        ts = math.floor(ts / 1000)
+    end
+    return os.date("%Y-%m-%d %H:%M:%S", ts)
 end

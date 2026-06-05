@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>05/27/2026 12:00 AM</modified>
+    <modified>06/05/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -36,10 +36,10 @@
         <requires_dynamic_stream_urls>false</requires_dynamic_stream_urls>
         <snapshot_cache_enabled>true</snapshot_cache_enabled>
         <snapshot_cache_duration>5</snapshot_cache_duration>
-        <has_pan>true</has_pan>
-        <has_tilt>true</has_tilt>
-        <has_zoom>true</has_zoom>
-        <number_presets>8</number_presets>
+        <has_pan>false</has_pan>
+        <has_tilt>false</has_tilt>
+        <has_zoom>false</has_zoom>
+        <number_presets>0</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
         <supports_streaming>true</supports_streaming>

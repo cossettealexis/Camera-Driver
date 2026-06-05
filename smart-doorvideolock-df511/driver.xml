@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins DF511 Door Video Lock</name>
-    <version>2</version>
+    <version>4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>DF511</model>
     <created>01/27/2025 12:00 AM</created>
-    <modified>05/13/2026 12:00 AM</modified>
+    <modified>06/02/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -18,9 +18,10 @@
         <category>Locks</category>
     </composer_categories>
     <proxies>
-        <proxy proxybindingid="5003" name="DF511 Door Lock">uibutton</proxy>
+        <proxy proxybindingid="5003" name="DF511 Preview">uibutton</proxy>
         <proxy proxybindingid="5002" name="Door Lock">lock</proxy>
-        <proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>
+        <!--<proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>-->
+        <proxy proxybindingid="5005" name="DF511 Door Lock">uibutton</proxy>
     </proxies>
     <OnlineCategory>Security</OnlineCategory>
     <capabilities>
@@ -74,8 +75,18 @@
                 </state>
             </display_icons>
         </navigator_display_option>
-        <web_view_url proxybindingid="5003">
-            controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
+        <web_view_url proxybindingid="5003">controller://driver/Slomins-doorvideolock-DF511/contents/index.html</web_view_url>
+        <navigator_display_option proxybindingid="5005">
+            <display_icons>
+                <Icon width="70" height="70">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/preview_70.png</Icon>
+                <Icon width="90" height="90">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/preview_90.png</Icon>
+                <Icon width="300" height="300">
+                    controller://driver/Slomins-doorvideolock-DF511/icons/device/preview_300.png</Icon>
+            </display_icons>
+        </navigator_display_option>
+        <web_view_url proxybindingid="5005">controller://driver/Slomins-doorvideolock-DF511/contents/live_preview.html</web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
         <network>true</network>
         <address_required>true</address_required>
@@ -365,6 +376,20 @@
             <readonly>true</readonly>
         </variable>
     </variables>
+    <variables>
+        <variable>
+            <name>EventTimestamp</name>
+            <type>STRING</type>
+            <readonly>true</readonly>
+        </variable>
+    </variables>
+    <variables>
+        <variable>
+            <name>LastEventTime</name>
+            <type>STRING</type>
+            <readonly>true</readonly>
+        </variable>
+    </variables>
     <config>
         <script file="driver.lua" />
         <documentation file="README.html">Slomins DF511 Door Video lock Documentation</documentation>
@@ -650,6 +675,21 @@
                 </class>
             </classes>
             <hidden>True</hidden>
+        </connection>
+        <connection>
+            <id>5005</id>
+            <facing>6</facing>
+            <connectionname>UIBUTTON</connectionname>
+            <type>2</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>True</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>UIBUTTON</classname>
+                </class>
+            </classes>
         </connection>
         <connection>
             <id>5003</id>

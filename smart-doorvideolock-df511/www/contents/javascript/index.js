@@ -84,42 +84,6 @@ function pollBatteryFile() {
         .catch(function () {});
 }
 
-// ── Init ─────────────────────────────────────────────
-// document.addEventListener('DOMContentLoaded', function () {
-//     try {
-//         // Load lock state from file
-//         fetch('lockstate.json?t=' + Date.now())
-//             .then(function (r) { return r.json(); })
-//             .then(function (data) {
-//                 if (data.state && data.state !== 'unknown') {
-//                     applyLockState(data.state);
-//                     window._lastKnownState = data.state;
-//                 }
-//             })
-//             .catch(function () {});
-
-//         startStatePolling();
-//         startBatteryPolling();
-
-//         // Subscribe to real-time pushes from Lua
-//         C4.subscribeToDataToUi(true);
-//         C4.subscribeToVariable('LAST_ROOM_SELECTED');
-//         C4.subscribeToVariable('LAST_MENU_SELECTED');
-//         C4.sendCommand('sendCameraPreviewCommand', '', false, false);
-
-//         setTimeout(function () {
-//             C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-//         }, 300);
-
-//         // Staggered battery re-requests — catches cases where Lua pushes
-//         // before the WebView subscription is ready
-//         setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 1000);
-//         setTimeout(function () { C4.sendCommand('REQUEST_SETTINGS', '', false, false); }, 3000);
-
-//     } catch (e) {
-//         dbg('INIT ERR: ' + e.message);
-//     }
-// });
 
 document.addEventListener('DOMContentLoaded', function () {
     try {
@@ -159,10 +123,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-// // Show UI after 1 s regardless (safety net)
-// document.addEventListener('DOMContentLoaded', function () {
-//     setTimeout(showUI, 1000);
-// });
+
 
 // ── Main data receiver ───────────────────────────────
 function onDataToUi(value) {
@@ -176,6 +137,11 @@ function onDataToUi(value) {
         if (obj.battery !== undefined) {
             updateBatteryUI(obj.battery);
             return;
+        }
+
+        // ── NEW: Timestamp Support ──
+        if (obj.time || obj.event) {
+            updateLastEventTime(obj);
         }
 
         // ── Stream info ──
@@ -270,6 +236,8 @@ $.fn.extend({
         return this;
     }
 });
+
+
 
 // ── Battery UI renderer ──────────────────────────────
 function updateBatteryUI(power) {
