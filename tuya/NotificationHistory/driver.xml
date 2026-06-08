@@ -29,8 +29,26 @@
     </capabilities>
     <config>
          <script file="driver.lua"/>
-        <documentation file="README.md">Slomins UI Notification Documentation</documentation>
+        <documentation file="README.html">Slomins Notification History Documentation</documentation>
         <properties>
+            <property>
+                <name>MacAddress</name>
+                <type>STRING</type>
+                <readonly>false</readonly>
+                <default></default>
+            </property>
+            <property>
+                <name>Shieldlink Account Email</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Validation API URL</name>
+                <type>STRING</type>
+                <default>https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress</default>
+                <readonly>false</readonly>
+            </property>
             <property>
                 <name>Base API URL</name>
                 <type>STRING</type>
@@ -87,10 +105,20 @@
                 <readonly>true</readonly>
             </property>
         </properties>
+        <actions>
+            <action>
+                <name>Test: Fetch Clips</name>
+                <command>TEST_FETCH_CLIPS</command>
+            </action>
+        </actions>
         <commands>
     <command>
         <name>AuthTokenUpdate</name>
         <description>Send auth token to WebView</description>
+    </command>
+    <command>
+        <name>TEST_FETCH_CLIPS</name>
+        <description>Test: Fetch notification clips from API</description>
     </command>
 </commands>
 

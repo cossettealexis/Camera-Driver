@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slomins Notification History — Control4 Driver Documentation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      color: #24292e;
+      background: #fff;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    h1 {
+      font-size: 32px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 10px;
+      margin: 0 0 16px;
+    }
+
+    h2 {
+      font-size: 24px;
+      border-bottom: 1px solid #e1e4e8;
+      padding-bottom: 6px;
+      margin: 40px 0 14px;
+    }
+
+    h3 {
+      font-size: 18px;
+      margin: 28px 0 10px;
+    }
+
+    h4 {
+      font-size: 15px;
+      margin: 20px 0 8px;
+      color: #444;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: #444;
+    }
+
+    a {
+      color: #0366d6;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    ul,
+    ol {
+      padding-left: 24px;
+      margin: 0 0 14px;
+      color: #444;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    strong {
+      color: #24292e;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 3px;
+      padding: 2px 5px;
+      color: #e36209;
+    }
+
+    pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin: 12px 0 20px;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #24292e;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 12px 0 20px;
+    }
+
+    th {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      border: 1px solid #e1e4e8;
+      padding: 8px 12px;
+      color: #444;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    blockquote {
+      border-left: 4px solid #dfe2e5;
+      margin: 0 0 14px;
+      padding: 4px 16px;
+      color: #6a737d;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e1e4e8;
+      margin: 36px 0;
+    }
+
+    img {
+      max-width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Slomins Notification History — Control4 Driver</h1>
+
+  <h2>Overview</h2>
+  <p>Complete Control4 driver for viewing notification history from all Slomins devices with CldBus API integration,
+    video playback, device filtering, and automatic refresh.</p>
+
+  <p><strong>Version:</strong> 1.7.0<br>
+    <strong>Package:</strong> NotificationHistory.c4z<br>
+    <strong>Minimum Control4 OS:</strong> 3.3.2+<br>
+    <strong>Last Updated:</strong> June 8, 2026
+  </p>
+
+  <h2>Purpose</h2>
+  <p>This driver provides a centralized notification history viewer in Control4, allowing users to:</p>
+  <ul>
+    <li>View notification history from all Slomins devices (cameras, locks, doorbells, etc.)</li>
+    <li>Play back video clips directly in the Control4 interface</li>
+    <li>Filter notifications by specific devices</li>
+    <li>Auto-refresh every 10 seconds with latest events</li>
+    <li>MAC address validation for secure account access</li>
+  </ul>
+
+  <h2>Key Features</h2>
+
+  <h3>✅ Notification History</h3>
+  <ul>
+    <li>View up to 20 most recent notifications across all devices</li>
+    <li>Display device name, event type, timestamp, and thumbnail</li>
+    <li>Automatic polling every 10 seconds for new events</li>
+    <li>Formatted timestamps (e.g., "6/5/2026, 2:30 PM")</li>
+  </ul>
+
+  <h3>✅ Video Playback</h3>
+  <ul>
+    <li>HTML5 video player with full controls</li>
+    <li>Play/pause, seek, volume control</li>
+    <li>AWS S3 pre-signed URLs (15-minute validity)</li>
+    <li>Automatic URL refresh on polling</li>
+  </ul>
+
+  <h3>✅ Device Filtering</h3>
+  <ul>
+    <li>Dropdown to filter notifications by device</li>
+    <li>Shows device name and type (e.g., "Outdoor Camera(Solar)")</li>
+    <li>"All Devices" option to view complete history</li>
+    <li>Filter persists during automatic updates</li>
+  </ul>
+
+  <h3>✅ MAC Address Validation</h3>
+  <ul>
+    <li>Validates Control4 MAC address against Slomins API</li>
+    <li>Secures account access to authorized systems only</li>
+    <li>Auto-sets MAC on driver installation</li>
+    <li>Re-authenticates when MAC or email changes</li>
+  </ul>
+
+  <h3>✅ Modern UI</h3>
+  <ul>
+    <li>Dark theme matching Control4 interface</li>
+    <li>Responsive design for touch panels and mobile</li>
+    <li>Thumbnail preview for each notification</li>
+    <li>Video duration display</li>
+  </ul>
+
+  <h2>Key Files</h2>
+  <ul>
+    <li><code>driver.lua</code> — Main driver: initialization, authentication, API calls, device management, polling.
+    </li>
+    <li><code>driver.xml</code> — Driver manifest, properties, and actions.</li>
+    <li><code>www/contents/index.html</code> — WebView UI with video player and device filtering.</li>
+    <li><code>CldBusApi/*</code> — Helper libraries:
+      <ul>
+        <li><code>dkjson.lua</code> — JSON encoding/decoding</li>
+        <li><code>http.lua</code> — HTTP request builder</li>
+        <li><code>transport_c4.lua</code> — C4 network transport</li>
+        <li><code>util.lua</code> — UUID generation, HMAC signatures</li>
+        <li><code>auth.lua</code> — Authentication helpers</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>Driver Properties</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Type</th>
+        <th>Default</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>MacAddress</td>
+        <td>STRING</td>
+        <td>Auto-set</td>
+        <td>Control4 system MAC address (validated on startup)</td>
+      </tr>
+      <tr>
+        <td>Shieldlink Account Email</td>
+        <td>STRING</td>
+        <td>Empty</td>
+        <td>User's Slomins account email (triggers re-auth on change)</td>
+      </tr>
+      <tr>
+        <td>Validation API URL</td>
+        <td>STRING</td>
+        <td>qa2.slomins.com/QA/.../IsValidControl4MacAddress</td>
+        <td>API endpoint for MAC validation</td>
+      </tr>
+      <tr>
+        <td>Base API URL</td>
+        <td>STRING</td>
+        <td>https://api.arpha-tech.com</td>
+        <td>CldBus API base URL</td>
+      </tr>
+      <tr>
+        <td>Account</td>
+        <td>STRING</td>
+        <td>cgabu@slomins.com</td>
+        <td>Account email for API authentication</td>
+      </tr>
+      <tr>
+        <td>ClientID</td>
+        <td>STRING</td>
+        <td>Auto-generated</td>
+        <td>UUID for this driver instance</td>
+      </tr>
+      <tr>
+        <td>Public Key</td>
+        <td>STRING</td>
+        <td>Empty</td>
+        <td>RSA public key from init API (for encryption)</td>
+      </tr>
+      <tr>
+        <td>Auth Token</td>
+        <td>STRING</td>
+        <td>Empty</td>
+        <td>Bearer token for API requests (secured)</td>
+      </tr>
+      <tr>
+        <td>AppId</td>
+        <td>STRING</td>
+        <td>cldbus</td>
+        <td>Application identifier</td>
+      </tr>
+      <tr>
+        <td>AppSecret</td>
+        <td>STRING</td>
+        <td>Secured</td>
+        <td>Application secret (password protected)</td>
+      </tr>
+      <tr>
+        <td>Status</td>
+        <td>STRING</td>
+        <td>Initializing...</td>
+        <td>Current driver status (read-only)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Initialization Flow</h2>
+  <ol>
+    <li><strong>OnDriverInit()</strong>
+      <ul>
+        <li>Loads properties into <code>_props</code> table</li>
+        <li>Establishes TCP connection to tuyadev.slomins.net:8081</li>
+        <li>Schedules <code>InitializeCamera()</code> after 2 seconds</li>
+      </ul>
+    </li>
+    <li><strong>OnDriverLateInit()</strong>
+      <ul>
+        <li>Sets <code>MacAddress</code> property using <code>C4:GetUniqueMAC()</code></li>
+        <li>Validates MAC address via API</li>
+        <li>Clears device list if validation fails</li>
+      </ul>
+    </li>
+    <li><strong>InitializeCamera()</strong>
+      <ul>
+        <li>Generates new ClientID (UUID v4)</li>
+        <li>Creates HMAC-SHA256 signature</li>
+        <li>Calls <code>/api/v3/openapi/init</code> to retrieve public key</li>
+        <li>On success, proceeds to <code>LoginOrRegister()</code></li>
+      </ul>
+    </li>
+    <li><strong>LoginOrRegister()</strong>
+      <ul>
+        <li>Encrypts account email using RSA-OAEP-SHA256 (external API)</li>
+        <li>Calls <code>/api/v3/openapi/auth/login-or-register</code></li>
+        <li>Stores auth token in properties</li>
+        <li>Sends token to Node API for distribution</li>
+      </ul>
+    </li>
+    <li><strong>TCP Receive (LnduUpdate Event)</strong>
+      <ul>
+        <li>Receives encrypted message from TCP server</li>
+        <li>Decrypts using AES-256-CBC</li>
+        <li>Extracts Token, AppId, AppSecret</li>
+        <li>Updates properties and calls <code>UpdateAuthToken()</code></li>
+      </ul>
+    </li>
+    <li><strong>UpdateAuthToken()</strong>
+      <ul>
+        <li>Stores auth token</li>
+        <li>Calls <code>GET_DEVICES()</code> to fetch device list</li>
+      </ul>
+    </li>
+    <li><strong>GET_DEVICES()</strong>
+      <ul>
+        <li>Fetches all devices from <code>/api/v3/openapi/devices-v2</code></li>
+        <li>Builds <code>ALL_DEVICES</code> and <code>ALL_VIDS</code> arrays</li>
+        <li>Sends device list to UI via <code>SendDevicesToUI()</code></li>
+        <li>Fetches notification history via <code>FETCH_NOTIFICATION_HISTORY()</code></li>
+        <li>Starts 10-second polling timer</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>API Endpoints Used</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Endpoint</th>
+        <th>Method</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>/api/v3/openapi/init</td>
+        <td>POST</td>
+        <td>Retrieve RSA public key for encryption</td>
+      </tr>
+      <tr>
+        <td>/api/v3/openapi/auth/login-or-register</td>
+        <td>POST</td>
+        <td>Authenticate user and get auth token</td>
+      </tr>
+      <tr>
+        <td>/api/v3/openapi/devices-v2</td>
+        <td>GET</td>
+        <td>List all devices for the account</td>
+      </tr>
+      <tr>
+        <td>/api/v3/openapi/notifications/query</td>
+        <td>POST</td>
+        <td>Fetch notification history (20 items, paginated)</td>
+      </tr>
+      <tr>
+        <td>http://54.90.205.243:5000/lndu-encrypt</td>
+        <td>POST</td>
+        <td>External RSA-OAEP encryption service</td>
+      </tr>
+      <tr>
+        <td>http://54.90.205.243:3000/send-to-control4</td>
+        <td>POST</td>
+        <td>Send token to Node API for distribution</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Notification Data Structure</h2>
+  <p>Each notification contains:</p>
+  <pre><code>{
+  device_name: "Outdoor Camera(Solar)",
+  vid: "ebfb1d2c3a4b5c6d7e8f",
+  time: 1717612800,  // Unix timestamp
+  image_url: "https://s3.amazonaws.com/...",
+  video_url: "https://s3.amazonaws.com/...",
+  video_sec: 15,  // Duration in seconds
+  message_type: "motion_detected"
+}</code></pre>
+
+  <h2>UI Communication Pattern</h2>
+  <p>The driver uses Control4's WebView communication pattern discovered from Smart-Lock driver:</p>
+
+  <h3>Driver → UI (Data Push)</h3>
+  <pre><code>-- Send notification history
+local payload = { type = "history", history = LAST_HISTORY }
+local jsonPayload = C4:JsonEncode(payload)
+C4:SendToProxy(5001, "ICON_CHANGED", { icon_description = jsonPayload })
+C4:SendToProxy(5001, "UPDATE_UI", {})
+
+-- Send device list
+local payload = { type = "device_list", devices = LAST_DEVICES }
+local jsonPayload = C4:JsonEncode(payload)
+C4:SendToProxy(5001, "ICON_CHANGED", { icon_description = jsonPayload })
+C4:SendToProxy(5001, "UPDATE_UI", {})</code></pre>
+
+  <h3>UI → Driver (Subscription)</h3>
+  <pre><code>// Subscribe to driver data updates
+C4.subscribeToDataToUi(false);
+
+// Receive data from driver
+function onDataToUi(value) {
+  var parsed = JSON.parse(value);
+  var data = JSON.parse(parsed.icon_description);
+  
+  if (data.type === 'history') {
+    // Handle notification history
+    ALL_NOTIFICATIONS = convertToArray(data.history);
+    applyFilter();
+  }
+  
+  if (data.type === 'device_list') {
+    // Handle device list
+    DEVICES = convertToArray(data.devices);
+    populateDeviceFilter();
+  }
+}</code></pre>
+
+  <h3>Lua JSON Quirk (Object-to-Array)</h3>
+  <p>Lua's <code>table.insert()</code> creates 1-indexed tables, which <code>dkjson</code> encodes as objects:</p>
+  <pre><code>-- Lua output
+{"1": {...}, "2": {...}, "3": {...}}
+
+-- JavaScript expects
+[{...}, {...}, {...}]</code></pre>
+  <p><strong>Solution:</strong> JavaScript converts objects to arrays:</p>
+  <pre><code>function convertToArray(obj) {
+  if (Array.isArray(obj)) return obj;
+  var arr = [];
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      arr.push(obj[key]);
+    }
+  }
+  return arr;
+}</code></pre>
+
+  <h2>Device Filtering</h2>
+  <p>The UI maintains two notification arrays:</p>
+  <ul>
+    <li><code>ALL_NOTIFICATIONS</code> — Unfiltered list (all 20 notifications)</li>
+    <li><code>NOTIFICATIONS</code> — Filtered subset based on device selection</li>
+  </ul>
+
+  <h3>Filter Logic</h3>
+  <pre><code>function applyFilter() {
+  if (!selectedDeviceVid || selectedDeviceVid === '') {
+    // Show all devices
+    NOTIFICATIONS = ALL_NOTIFICATIONS;
+  } else {
+    // Filter by VID
+    NOTIFICATIONS = ALL_NOTIFICATIONS.filter(function(n) {
+      return n.vid === selectedDeviceVid;
+    });
+  }
+  renderList();
+}</code></pre>
+
+  <h3>Filter Persistence</h3>
+  <p>When new data arrives every 10 seconds, the filter re-applies automatically:</p>
+  <pre><code>if (data.type === 'history') {
+  ALL_NOTIFICATIONS = convertToArray(data.history);
+  applyFilter();  // Maintains current filter
+}</code></pre>
+
+  <h2>Property Change Handlers</h2>
+
+  <h3>MacAddress Changed</h3>
+  <pre><code>if strName == "MacAddress" then
+  C4:UpdateProperty("MacAddress", Properties[strName])
+  ClearDeviceList()
+  ValidateMacAddress(Properties["MacAddress"], function(isValid)
+    if isValid then
+      InitializeCamera()
+    end
+  end)
+end</code></pre>
+
+  <h3>Shieldlink Account Email Changed</h3>
+  <pre><code>if strName == "Shieldlink Account Email" then
+  local email = Properties["Shieldlink Account Email"]
+  ClearDeviceList()
+  
+  if email == "" then
+    C4:UpdateProperty("Status", "Enter email")
+    return
+  end
+  
+  ValidateMacAddress(Properties["MacAddress"], function(isValid)
+    if isValid then
+      C4:UpdateProperty("Account", email)
+      InitializeCamera()
+    end
+  end)
+end</code></pre>
+
+  <h2>Actions</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Command</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Test: Fetch Clips</td>
+        <td>TEST_FETCH_CLIPS</td>
+        <td>Manually fetch notification history (debug/testing)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>No Notifications Showing</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>MAC address is validated (<strong>Status</strong> property shows "MAC address validated")</li>
+    <li>Account email is correct in <strong>Account</strong> or <strong>Shieldlink Account Email</strong></li>
+    <li><strong>Auth Token</strong> property is populated</li>
+    <li>At least one device exists in your account</li>
+    <li>Network can reach <code>api.arpha-tech.com</code></li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Check Composer logs for: <code>📹 VIDEO CLIPS FOUND: X</code></li>
+    <li>Run <strong>Test: Fetch Clips</strong> action</li>
+    <li>Verify <strong>Total devices fetched: X</strong> in logs</li>
+    <li>Check if devices have recent motion events</li>
+  </ol>
+
+  <h3>MAC Validation Failed</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>MacAddress</strong> property contains valid MAC</li>
+    <li>Validation API URL is accessible</li>
+    <li>MAC is registered in Slomins system</li>
+    <li>Network firewall allows HTTPS to qa2.slomins.com</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Verify MAC address in Composer properties</li>
+    <li>Check logs for validation error messages</li>
+    <li>Contact Slomins support to register MAC</li>
+    <li>Try manual MAC entry if auto-detection fails</li>
+  </ol>
+
+  <h3>Device Filter Not Populating</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Auth Token</strong> is valid</li>
+    <li><code>GET_DEVICES()</code> was called (check logs)</li>
+    <li>Devices exist in account</li>
+    <li>WebView received device list data</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Reload the notification history UI</li>
+    <li>Check logs for: <code>Total devices fetched: X</code></li>
+    <li>Verify: <code>✅ Sent device list to UI via ICON_CHANGED</code></li>
+    <li>Check browser console for JavaScript errors</li>
+  </ol>
+
+  <h3>Video Won't Play</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Video URL is valid (15-minute S3 signed URL)</li>
+    <li>URL hasn't expired (check timestamp)</li>
+    <li>Network can reach AWS S3</li>
+    <li>Video file exists for that notification</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Wait for next polling cycle (10 seconds) to refresh URLs</li>
+    <li>Check if thumbnail loads (image_url)</li>
+    <li>Test video URL directly in browser</li>
+    <li>Verify notification has <code>video_url</code> field</li>
+  </ol>
+
+  <h3>Polling Stopped</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Driver didn't crash (check logs for errors)</li>
+    <li>Auth token is still valid</li>
+    <li>Network connection to API is stable</li>
+    <li><code>POLL_TIMER</code> is running</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Reload driver in Composer</li>
+    <li>Check logs for: <code>Polling notifications...</code> every 10 seconds</li>
+    <li>Verify no API errors in logs</li>
+    <li>Re-initialize if auth token expired</li>
+  </ol>
+
+  <h3>Authentication Failures</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li><strong>Account</strong> email is valid Slomins account</li>
+    <li><strong>Public Key</strong> was retrieved from init API</li>
+    <li>Encryption API (port 5000) is accessible</li>
+    <li>Network can reach external encryption service</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Check logs for: <code>Camera initialized successfully</code></li>
+    <li>Verify: <code>Public key received: [KEY]</code></li>
+    <li>Check: <code>Login succeeded</code> in logs</li>
+    <li>Verify <strong>Auth Token</strong> property is filled</li>
+  </ol>
+
+  <h3>Data Not Updating</h3>
+  <p><strong>Check:</strong></p>
+  <ol>
+    <li>Polling is active (10-second timer)</li>
+    <li>No <code>Poll skipped (in-flight)</code> messages</li>
+    <li>API responses are successful (code 200)</li>
+    <li>WebView is subscribed to data updates</li>
+  </ol>
+  <p><strong>Action:</strong></p>
+  <ol>
+    <li>Close and reopen notification history UI</li>
+    <li>Check logs for data transmission: <code>Sending X notifications to UI</code></li>
+    <li>Verify: <code>✅ Sent notification data to UI via UPDATE_UI</code></li>
+    <li>Reload driver if polling stopped</li>
+  </ol>
+
+  <hr>
+
+  <h2>Technical Notes</h2>
+
+  <h3>Video URL Expiration</h3>
+  <p>AWS S3 pre-signed URLs are valid for 15 minutes only. The driver refreshes URLs automatically:</p>
+  <ul>
+    <li>Polling every 10 seconds fetches new notification data</li>
+    <li>Each poll regenerates S3 signed URLs</li>
+    <li>UI updates automatically with fresh URLs</li>
+    <li>Video remains playable continuously due to frequent updates</li>
+  </ul>
+
+  <h3>Polling Strategy</h3>
+  <pre><code>-- 10-second timer with in-flight protection
+local function PollTick()
+  if _pollingInFlight then
+    print("Poll skipped (in-flight)")
+  else
+    _pollingInFlight = true
+    FETCH_NOTIFICATION_HISTORY(vids, function()
+      _pollingInFlight = false
+    end)
+  end
+  POLL_TIMER = C4:SetTimer(POLL_INTERVAL, PollTick)
+end</code></pre>
+
+  <h3>TCP Configuration</h3>
+  <ul>
+    <li><strong>Server:</strong> tuyadev.slomins.net</li>
+    <li><strong>Port:</strong> 8081</li>
+    <li><strong>Protocol:</strong> TCP with AES-256-CBC encryption</li>
+    <li><strong>Purpose:</strong> Receive auth tokens and app secrets from central server</li>
+    <li><strong>Delimiter:</strong> <code>0d0a</code> (CRLF)</li>
+  </ul>
+
+  <h3>AES Decryption</h3>
+  <pre><code>local decrypted = C4:Decrypt(
+  "AES-256-CBC",
+  "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG",  -- 32-byte key
+  "33rj6KNVN4kFvd0s",                   -- 16-byte IV
+  data,
+  {
+    return_encoding = "NONE",
+    key_encoding = "NONE",
+    iv_encoding = "NONE",
+    data_encoding = "BASE64",
+    padding = true
+  }
+)</code></pre>
+
+  <h3>HMAC Signature Generation</h3>
+  <pre><code>local message = string.format(
+  "client_id=%s&request_id=%s&time=%s&version=%s",
+  client_id, request_id, time, version
+)
+local signature = util.hmac_sha256_hex(message, app_secret)</code></pre>
+
+  <hr>
+
+  <h2>Developer Notes</h2>
+
+  <h3>Adding New Notification Types</h3>
+  <p>To display new event types, update the UI message type mapping:</p>
+  <pre><code>// In index.html
+function getEventTypeLabel(type) {
+  var types = {
+    'motion_detected': 'Motion Detected',
+    'human_detected': 'Person Detected',
+    'doorbell': 'Doorbell Pressed',
+    'lock_opened': 'Door Unlocked',
+    // Add new types here
+  };
+  return types[type] || type;
+}</code></pre>
+
+  <h3>Adjusting Polling Interval</h3>
+  <pre><code>-- In driver.lua (line ~237)
+local POLL_INTERVAL = 10000  -- Change to 5000 for 5 seconds, 30000 for 30 seconds</code></pre>
+
+  <h3>Increasing Notification Count</h3>
+  <pre><code>-- In FETCH_NOTIFICATION_HISTORY() (line ~314)
+local body = {
+  page = 1,
+  page_size = 20,  -- Change to 50 for more notifications
+  vids = vids
+}</code></pre>
+
+  <h3>Debugging Tips</h3>
+  <ul>
+    <li>Check Composer Lua Output for detailed logs</li>
+    <li>Look for: <code>📹 VIDEO CLIPS FOUND: X</code> to verify API responses</li>
+    <li>Monitor: <code>✅ Sent notification data to UI</code> for data transmission</li>
+    <li>Use browser Developer Tools (F12) for WebView JavaScript debugging</li>
+    <li>Check <code>onDataToUi</code> console logs for received data</li>
+  </ul>
+
+  <hr>
+
+  <p><strong>© 2026 Slomins, LLC. All Rights Reserved.</strong></p>
+
+</body>
+
+</html>

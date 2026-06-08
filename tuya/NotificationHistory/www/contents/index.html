@@ -26,18 +26,31 @@
     #mediaModal.show { display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-content { textAlign: center; max-width: 800px; width: 100%; }
     .modal-image { max-width: 100%; border-radius: 12px; margin: 20px 0; }
+    .modal-video { max-width: 100%; max-height: 60vh; border-radius: 12px; margin: 20px 0; background: #000; }
     .modal-controls { display: flex; gap: 15px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
     .modal-controls button { padding: 15px 35px; font-size: 18px; background: #333; color: white; border: 2px solid white; border-radius: 10px; cursor: pointer; }
     .modal-controls button:hover { background: #6c5ce7; }
     .modal-controls button:disabled { opacity: 0.3; cursor: not-allowed; }
     #closeModal { position: absolute; top: 20px; right: 20px; font-size: 36px; color: white; cursor: pointer; background: rgba(0,0,0,0.7); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
     #closeModal:hover { background: #e17055; transform: rotate(90deg); }
+    .no-media { color: #888; font-size: 18px; margin: 40px 0; }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>📱 Notification History - UI DEMO</h1>
   </div>
+  
+  <!-- DEVICE FILTER -->
+  <div style="background: #1a1a1d; padding: 15px 20px; border-bottom: 1px solid #333;">
+    <label style="color: #aaa; margin-right: 10px; font-size: 14px;">Filter by Device:</label>
+    <select id="deviceFilter" style="background: #333; color: white; border: 1px solid #555; padding: 8px 15px; border-radius: 6px; font-size: 14px; cursor: pointer; min-width: 200px;">
+      <option value="">All Devices</option>
+    </select>
+  </div>
+  
+  <!-- DEBUG (hidden in production) -->
+  <div id="debugPanel" style="display: none;"></div>
   
   <div id="historyList"></div>
   
@@ -47,50 +60,193 @@
   </div>
 
   <script>
-    // FAKE DATA - NO BACKEND
-    var NOTIFICATIONS = [
-      { device_name: "Front Door Camera", message_type: "Doorbell Pressed", time: Date.now()/1000 - 3600, image_url: "https://via.placeholder.com/400x300/4a90e2/ffffff?text=Front+Door" },
-      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 7200, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+1" },
-      { device_name: "Front Door Camera", message_type: "Doorbell Pressed", time: Date.now()/1000 - 10800, image_url: "https://via.placeholder.com/400x300/4a90e2/ffffff?text=Front+Door" },
-      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 14400, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+2" },
-      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 18000, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+3" },
-      { device_name: "Back Yard Camera", message_type: "Person Detected", time: Date.now()/1000 - 21600, image_url: "https://via.placeholder.com/400x300/f39c12/ffffff?text=Person" },
-      { device_name: "Front Door Camera", message_type: "Package Delivery", time: Date.now()/1000 - 25200, image_url: "https://via.placeholder.com/400x300/27ae60/ffffff?text=Package" },
-      { device_name: "Outdoor Camera (Solar)", message_type: "Motion Detected", time: Date.now()/1000 - 28800, image_url: "https://via.placeholder.com/400x300/e74c3c/ffffff?text=Motion+4" }
-    ];
-    
+    var NOTIFICATIONS = [];
+    var ALL_NOTIFICATIONS = []; // Unfiltered notifications
+    var DEVICES = []; // Device list for filter
     var currentIndex = 0;
+    var lastDataHash = '';
+    var selectedDeviceVid = ''; // Current filter
     
+    console.log("=== NOTIFICATION HISTORY UI LOADED ===");
+    console.log("C4 object available:", typeof C4 !== 'undefined');
+    
+    // DEBUG LOGGING TO UI
+    function debugLog(msg) {
+      var panel = document.getElementById('debugPanel');
+      if (panel) {
+        panel.innerHTML += msg + '<br>';
+      }
+      console.log(msg);
+    }
+    
+    // RECEIVE DATA FROM DRIVER (onDataToUi callback pattern)
+    function onDataToUi(value) {
+      
+      try {
+        var jsonObject = JSON.parse(value);
+        debugLog('Parsed JSON object');
+        
+        if (jsonObject.hasOwnProperty('icon_description')) {
+          var data = JSON.parse(jsonObject.icon_description);
+          
+          // Handle notification history data
+          if (data.type === 'history' && data.history) {
+            // Convert object to array if needed (Lua sends {"1": {...}, "2": {...}})
+            if (!Array.isArray(data.history)) {
+              var arr = [];
+              for (var key in data.history) {
+                if (data.history.hasOwnProperty(key)) {
+                  arr.push(data.history[key]);
+                }
+              }
+              ALL_NOTIFICATIONS = arr;
+            } else {
+              ALL_NOTIFICATIONS = data.history;
+            }
+            
+            applyFilter();
+            return;
+          }
+          
+          // Handle device list data
+          if (data.type === 'device_list' && data.devices) {
+            // Convert object to array if needed
+            if (!Array.isArray(data.devices)) {
+              var arr = [];
+              for (var key in data.devices) {
+                if (data.devices.hasOwnProperty(key)) {
+                  arr.push(data.devices[key]);
+                }
+              }
+              DEVICES = arr;
+            } else {
+              DEVICES = data.devices;
+            }
+            
+            console.log('Received', DEVICES.length, 'devices');
+            populateDeviceFilter();
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+      
+      renderList();
+    }
+    
+    // Populate device filter dropdown
+    function populateDeviceFilter() {
+      var select = document.getElementById('deviceFilter');
+      // Keep "All Devices" option
+      select.innerHTML = '<option value="">All Devices</option>';
+      
+      // Add each device
+      for (var i = 0; i < DEVICES.length; i++) {
+        var option = document.createElement('option');
+        option.value = DEVICES[i].vid || '';
+        option.textContent = DEVICES[i].name || DEVICES[i].vid || 'Unknown Device';
+        select.appendChild(option);
+      }
+      
+      console.log('Device filter populated with', DEVICES.length, 'devices');
+    }
+    
+    // Apply device filter to notifications
+    function applyFilter() {
+      if (!selectedDeviceVid || selectedDeviceVid === '') {
+        // Show all notifications
+        NOTIFICATIONS = ALL_NOTIFICATIONS;
+      } else {
+        // Filter by selected device VID
+        NOTIFICATIONS = ALL_NOTIFICATIONS.filter(function(n) {
+          return n.vid === selectedDeviceVid;
+        });
+      }
+      
+      console.log('Filtered to', NOTIFICATIONS.length, 'notifications');
+      renderList();
+    }
+    
+    // Device filter change handler
+    document.getElementById('deviceFilter').addEventListener('change', function(e) {
+      selectedDeviceVid = e.target.value;
+      console.log('Filter changed to:', selectedDeviceVid || 'All Devices');
+      applyFilter();
+    });
+    
+    // RENDER LIST FUNCTION
     function renderList() {
+      console.log("renderList called with", NOTIFICATIONS.length, "items");
+      
+      if (!NOTIFICATIONS || NOTIFICATIONS.length === 0) {
+        console.warn("NO NOTIFICATIONS TO DISPLAY");
+        document.getElementById('historyList').innerHTML = '<div style="text-align:center;padding:60px;color:#777;"><h2>No notifications yet</h2><p>Notifications will appear here when events are detected</p></div>';
+        return;
+      }
+      
       var html = '';
       for (var i = 0; i < NOTIFICATIONS.length; i++) {
         var n = NOTIFICATIONS[i];
         var date = new Date(n.time * 1000);
         var active = i === currentIndex ? 'active' : '';
+        var hasVideo = n.video_url && n.video_url !== '';
+        var hasImage = n.image_url && n.image_url !== '';
+        var thumbnailUrl = hasImage ? n.image_url : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="80" fill="%23555"%3E%3Crect width="120" height="80" fill="%23333"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" fill="%23777" font-size="14" dy=".3em"%3ENo Image%3C/text%3E%3C/svg%3E';
+        
         html += '<div class="history-card ' + active + '" onclick="openClip(' + i + ')">';
         html += '<div class="card-content">';
-        html += '<img src="' + n.image_url + '" class="card-thumbnail">';
+        html += '<img src="' + thumbnailUrl + '" class="card-thumbnail" onerror="this.src=\'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"80\"%3E%3Crect width=\"120\" height=\"80\" fill=\"%23333\"/%3E%3C/svg%3E\'">';
         html += '<div class="card-info">';
-        html += '<div class="card-title">' + n.device_name + '</div>';
-        html += '<div class="card-type">' + n.message_type + '</div>';
-        html += '<div class="card-time">' + date.toLocaleString() + '</div>';
+        html += '<div class="card-title">' + (n.device_name || 'Unknown Device') + '</div>';
+        html += '<div class="card-type">' + (n.message_type || 'Event') + (hasVideo ? ' 🎥' : '') + '</div>';
+        html += '<div class="card-time">' + date.toLocaleString() + (n.video_sec > 0 ? ' (' + n.video_sec + 's)' : '') + '</div>';
         html += '</div>';
-        html += '<div class="card-icon">▶️</div>';
+        html += '<div class="card-icon">' + (hasVideo ? '▶️' : '📷') + '</div>';
         html += '</div>';
         html += '</div>';
       }
       document.getElementById('historyList').innerHTML = html;
     }
     
+    // Subscribe to driver updates on page load
+    try {
+      if (typeof C4 !== 'undefined') {
+        C4.subscribeToDataToUi(false);
+        C4.sendCommand('HandleSelect', '', false, false);
+      }
+    } catch (e) {
+      console.error('Error subscribing:', e);
+    }
+    
+    // Initial render
+    renderList();
+    
     function openClip(index) {
       currentIndex = index;
       var n = NOTIFICATIONS[index];
       var date = new Date(n.time * 1000);
       
+      var hasVideo = n.video_url && n.video_url !== '';
+      var hasImage = n.image_url && n.image_url !== '';
+      
       var html = '<div style="color:white;">';
-      html += '<h2 style="margin-bottom:10px;">' + n.device_name + '</h2>';
-      html += '<p style="color:#aaa;margin-bottom:20px;">' + n.message_type + ' - ' + date.toLocaleString() + '</p>';
-      html += '<img src="' + n.image_url + '" class="modal-image">';
+      html += '<h2 style="margin-bottom:10px;">' + (n.device_name || 'Unknown Device') + '</h2>';
+      html += '<p style="color:#aaa;margin-bottom:20px;">' + (n.message_type || 'Event') + ' - ' + date.toLocaleString() + '</p>';
+      
+      // Display video if available, otherwise image
+      if (hasVideo) {
+        html += '<video class="modal-video" controls autoplay preload="auto">';
+        html += '<source src="' + n.video_url + '" type="video/mp4">';
+        html += 'Your browser does not support video playback.';
+        html += '</video>';
+        html += '<div style="color:#6c5ce7;font-size:14px;margin-top:-10px;margin-bottom:10px;">🎥 Video Duration: ' + (n.video_sec || 0) + ' seconds</div>';
+      } else if (hasImage) {
+        html += '<img src="' + n.image_url + '" class="modal-image" onerror="this.style.display=\'none\'">';
+      } else {
+        html += '<div class="no-media">📷 No media available for this event</div>';
+      }
+      
       html += '<div style="font-size:28px;font-weight:bold;margin-top:20px;">' + (index + 1) + ' of ' + NOTIFICATIONS.length + '</div>';
       html += '<div style="color:#888;margin-top:10px;">← Swipe or use arrow keys →</div>';
       html += '<div class="modal-controls">';
@@ -139,9 +295,6 @@
     
     // CLOSE BUTTON
     document.getElementById('closeModal').onclick = closeModal;
-    
-    // RENDER ON LOAD
-    renderList();
   </script>
 </body>
 </html>

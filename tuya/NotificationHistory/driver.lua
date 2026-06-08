@@ -62,18 +62,125 @@ function OnDriverInit()
 
     TcpConnection()
 
-    -- 🔥 TEMP TEST: run after 5 seconds
-    C4:SetTimer(5000, function()
-
-        print("TEST: running GET_DEVICES")
-
-        if _props["Auth Token"] and _props["Auth Token"] ~= "" then
-            GET_DEVICES()
-        else
-            print("No auth token yet — waiting for TCP push")
-        end
-
+    -- Start authentication flow after TCP connection
+    C4:SetTimer(2000, function()
+        print("Starting authentication flow...")
+        InitializeCamera()
     end)
+end
+
+--------------------------------------------------
+-- LATE INIT (SET MAC ADDRESS)
+--------------------------------------------------
+function OnDriverLateInit()
+    C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
+    
+    ValidateMacAddress(Properties["MacAddress"], function(isValid)
+        if not isValid then
+            ClearDeviceList()
+        end
+    end)
+end
+
+--------------------------------------------------
+-- PROPERTY CHANGED HANDLER
+--------------------------------------------------
+function OnPropertyChanged(strName)
+    print("OnPropertyChange():", strName, Properties[strName])
+    
+    if strName == "MacAddress" then
+        C4:UpdateProperty("MacAddress", Properties[strName])
+        
+        ClearDeviceList()
+        ValidateMacAddress(Properties["MacAddress"], function(isValid)
+            if isValid then
+                InitializeCamera()
+            end
+        end)
+    end
+    
+    if strName == "Shieldlink Account Email" then
+        local email = Properties["Shieldlink Account Email"]
+        
+        ClearDeviceList()
+        if email == "" then
+            C4:UpdateProperty("Status", "Enter email")
+            return
+        end
+        
+        ValidateMacAddress(Properties["MacAddress"], function(isValid)
+            if isValid then
+                -- Update the Account property with the email
+                C4:UpdateProperty("Account", email)
+                InitializeCamera()
+            end
+        end)
+    end
+end
+
+--------------------------------------------------
+-- CLEAR DEVICE LIST
+--------------------------------------------------
+function ClearDeviceList()
+    print("Clearing device list...")
+    ALL_DEVICES = {}
+    ALL_VIDS = {}
+    LAST_DEVICES = {}
+    LAST_HISTORY = {}
+    
+    C4:UpdateProperty("Status", "Devices cleared")
+    
+    -- Send empty data to UI
+    SendDevicesToUI({})
+    SendHistoryToUI({})
+end
+
+--------------------------------------------------
+-- VALIDATE MAC ADDRESS
+--------------------------------------------------
+function ValidateMacAddress(mac, callback)
+    local apiUrl = Properties["Validation API URL"] or "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress"
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'
+    local headers = {
+        ["Content-Type"] = "application/json"
+    }
+    
+    C4:UpdateProperty("Status", "Validating MAC address...")
+    
+    C4:urlPost(apiUrl, requestBody, headers, true,
+        function(ticketId, strData, responseCode, tHeaders, strError)
+            
+            if strError ~= nil and strError ~= "" then
+                print("[ValidateMacAddress] Error calling API: " .. strError)
+                C4:UpdateProperty("Status", "Validation error: " .. strError)
+                if callback then callback(false) end
+                return
+            end
+            
+            if responseCode ~= 200 then
+                print("[ValidateMacAddress] HTTP Error: " .. tostring(responseCode))
+                C4:UpdateProperty("Status", "Validation failed: " .. tostring(responseCode))
+                if callback then callback(false) end
+                return
+            end
+            
+            local response = C4:JsonDecode(strData)
+            if response then
+                print("[ValidateMacAddress] IsValidMacAddress: " .. tostring(response.IsValidMacAddress))
+                
+                if response.IsValidMacAddress == true then
+                    C4:UpdateProperty("Status", "MAC address validated")
+                    if callback then callback(true) end
+                else
+                    C4:UpdateProperty("Status", "Invalid MAC address")
+                    if callback then callback(false) end
+                end
+            else
+                print("[ValidateMacAddress] Failed to parse response")
+                C4:UpdateProperty("Status", "Validation failed: Invalid response")
+                if callback then callback(false) end
+            end
+        end)
 end
 --------------------------------------------------
 -- TCP CONNECTION (REUSED)
@@ -361,7 +468,11 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
         local raw = parsed.data.notifications or {}
         local cleaned = {}
 
-        for _, n in ipairs(raw) do
+        print("========================================")
+        print("📹 VIDEO CLIPS FOUND:", #raw)
+        print("========================================")
+
+        for i, n in ipairs(raw) do
             table.insert(cleaned, {
                 device_name  = n.device_name or "",
                 vid          = n.vid or "",
@@ -371,8 +482,19 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
                 video_sec    = n.video_sec or 0,
                 message_type = n.message_type or ""
             })
+            
+            -- Print each video URL
+            if n.video_url and n.video_url ~= "" then
+                print(string.format("[Clip %d] %s", i, n.device_name or "Unknown"))
+                print("  Time:", n.notify_time or 0)
+                print("  Type:", n.message_type or "N/A")
+                print("  Duration:", n.video_sec or 0, "sec")
+                print("  VIDEO URL:", n.video_url)
+                print("----------------------------------------")
+            end
         end
 
+        print("========================================")
         print("Sending", #cleaned, "notifications to UI")
         SendHistoryToUI(cleaned)
         return clear()
@@ -397,9 +519,10 @@ function SendDevicesToUI(devices)
     print("Payload:", jsonPayload)
     print("========================================")
     
-    -- USE VARIABLE INSTEAD OF SENDTOPROXY
-    C4:SetVariable("NOTIFICATION_DATA", jsonPayload)
-    print("✅ Variable NOTIFICATION_DATA set (device_list)")
+    -- Send via ICON_CHANGED pattern (same as notification history)
+    C4:SendToProxy(5001, "ICON_CHANGED", { icon_description = jsonPayload })
+    C4:SendToProxy(5001, "UPDATE_UI", {})
+    print("✅ Sent device list to UI via ICON_CHANGED")
 end
 
 
@@ -421,32 +544,16 @@ function SendHistoryToUI(list)
     print("JSON Payload Length:", string.len(jsonPayload))
     print("Sending history to WebView:", #LAST_HISTORY, "items")
     
-    -- USE VARIABLE INSTEAD OF SENDTOPROXY (like Smart-Thermostat)
-    C4:SetVariable("NOTIFICATION_DATA", jsonPayload)
-    print("✅ Variable NOTIFICATION_DATA set with", string.len(jsonPayload), "chars")
+    -- Use ICON_CHANGED + UPDATE_UI pattern like Smart-Lock driver
+    C4:SendToProxy(5001, "ICON_CHANGED", { icon_description = jsonPayload })
+    C4:SendToProxy(5001, "UPDATE_UI", {})
+    print("✅ Sent notification data to UI via UPDATE_UI")
     
     print("================================================================")
-    print("SetVariable call completed")
+    print("SendHistoryToUI completed")
     print("================================================================")
 end
 
-
-
-function UIRequest(strCommand, tParams)
-    print("================================================")
-    print("UIRequest called")
-    print("Command:", strCommand)
-    print("Params:", C4:JsonEncode(tParams or {}))
-    print("================================================")
-    
-    if strCommand == "HandleSelect" then
-        print("WebView opened (HandleSelect via UIRequest)")
-        InitializeCamera()
-        return
-    end
-    
-    return nil
-end
 
 
 function ReceivedFromProxy(idBinding, strCommand, tParams)
@@ -455,22 +562,10 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     print("Command:", strCommand)
     print("================================================")
 
-    -- If Lua sees nil, handle SELECT as a fallback for debug
+    -- When WebView is opened, send already-fetched notification data
     if strCommand == "SELECT" then
-        --[[print("Notification tile selected")
-
-        local extractedData = {
-            type = "auth_token",
-            token = _props["Auth Token"],
-            appId = _props["AppId"],
-            appSecret = _props["AppSecret"]
-        }
-
-        print("Sending stored token to UI")
-
-        SendUpdate(extractedData)
-        --]]
-        InitializeCamera()
+        print("Notification tile selected - sending cached history")
+        SendHistoryToUI()
         return
     end
 
@@ -861,4 +956,129 @@ function SendTokenToNodeAPI(token)
     end
 
     SendTokenRetry()
+end
+
+--------------------------------------------------
+-- EXECUTE COMMAND
+--------------------------------------------------
+function ExecuteCommand(strCommand, tParams)
+    print("ExecuteCommand called: " .. strCommand)
+    
+    if strCommand == "TEST_FETCH_CLIPS" or strCommand == "LUA_ACTION" then
+        TEST_FETCH_CLIPS()
+        return
+    end
+end
+
+--------------------------------------------------
+-- TEST: FETCH CLIPS FROM API
+--------------------------------------------------
+function TEST_FETCH_CLIPS()
+    print("========================================")
+    print("TEST_FETCH_CLIPS: Starting test...")
+    print("========================================")
+    
+    local auth_token = _props["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("❌ ERROR: No auth token found. Please login first.")
+        print("   Auth Token property is empty.")
+        return
+    end
+    
+    print("✅ Auth token found:", auth_token:sub(1, 20) .. "...")
+    
+    -- Check if we have devices
+    if not ALL_VIDS or #ALL_VIDS == 0 then
+        print("❌ ERROR: No devices found. Fetching devices first...")
+        GET_DEVICES()
+        C4:SetTimer(3000, function()
+            TEST_FETCH_CLIPS()  -- Retry after devices are loaded
+        end)
+        return
+    end
+    
+    print("✅ Devices found:", #ALL_VIDS, "devices")
+    print("   VIDs:", table.concat(ALL_VIDS, ", "))
+    
+    -- Use first 3 VIDs or all if less than 3
+    local test_vids = {}
+    for i = 1, math.min(3, #ALL_VIDS) do
+        table.insert(test_vids, ALL_VIDS[i])
+    end
+    
+    print("📡 Fetching clips for", #test_vids, "devices...")
+    
+    local body = {
+        page = 1,
+        page_size = 20,
+        vids = test_vids
+    }
+    
+    local req = {
+        url = (Properties["Base API URL"] or "https://api.arpha-tech.com")
+            .. "/api/v3/openapi/notifications/query",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"] = "cldbus"
+        },
+        body = json.encode(body)
+    }
+    
+    print("📤 Request URL:", req.url)
+    print("📤 Request Body:", json.encode(body))
+    
+    transport.execute(req, function(code, resp)
+        print("========================================")
+        print("TEST_FETCH_CLIPS: Response received")
+        print("========================================")
+        print("📥 Response Code:", code)
+        
+        if code ~= 200 and code ~= 20000 then
+            print("❌ ERROR: API failed with code", code)
+            print("   Response:", resp or "nil")
+            return
+        end
+        
+        local ok, parsed = pcall(json.decode, resp or "")
+        if not ok or not parsed then
+            print("❌ ERROR: Failed to parse JSON response")
+            print("   Raw response:", resp or "nil")
+            return
+        end
+        
+        if not parsed.data or not parsed.data.notifications then
+            print("❌ ERROR: No notifications data in response")
+            print("   Response structure:", json.encode(parsed))
+            return
+        end
+        
+        local notifications = parsed.data.notifications
+        print("✅ SUCCESS: Found", #notifications, "notifications")
+        print("========================================")
+        
+        if #notifications == 0 then
+            print("ℹ️  No clips found for these devices")
+            print("   This might mean no motion events recorded recently")
+        else
+            print("📹 CLIP DETAILS:")
+            print("========================================")
+            for i, n in ipairs(notifications) do
+                print(string.format("\n[Clip %d]", i))
+                print("  Device Name:", n.device_name or "N/A")
+                print("  VID:", n.vid or "N/A")
+                print("  Time:", n.notify_time or 0)
+                print("  Message Type:", n.message_type or "N/A")
+                print("  Video Duration:", n.video_sec or 0, "seconds")
+                print("  Video URL:", n.video_url or "N/A")
+                print("  Image URL:", n.image_url or "N/A")
+                print("----------------------------------------")
+            end
+        end
+        
+        print("========================================")
+        print("TEST COMPLETED SUCCESSFULLY")
+        print("========================================")
+    end)
 end
