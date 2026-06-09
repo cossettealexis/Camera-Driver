@@ -4,10 +4,10 @@
 
 Complete Control4 driver for viewing notification history from all Slomins devices (cameras, locks, doorbells, etc.) with video playback, device filtering, and automatic updates.
 
-**Version:** 1.7.0  
+**Version:** 1  
 **Package:** NotificationHistory.c4z  
 **Minimum Control4 OS:** 3.3.2+  
-**Last Updated:** June 8, 2026
+**Created:** June 8, 2026
 
 ---
 
@@ -476,12 +476,14 @@ For issues or questions:
 
 ## Version History
 
-**1.7.0** (June 8, 2026)
-- Added MAC address validation
-- Added device filtering dropdown
-- Added re-authentication on property change
-- Improved UI with video player controls
+**1** (June 8, 2026)
+- Initial release
+- MAC address validation with Slomins API
+- Device filtering dropdown
+- Video playback with HTML5 player
 - Auto-refresh every 10 seconds
+- View up to 20 notifications across all devices
+- Re-authentication on property change
 
 ---
 

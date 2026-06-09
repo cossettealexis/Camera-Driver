@@ -76,7 +76,9 @@ function OnDriverLateInit()
     C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
     
     ValidateMacAddress(Properties["MacAddress"], function(isValid)
-        if not isValid then
+        if isValid then
+            InitializeCamera()
+        else
             ClearDeviceList()
         end
     end)
@@ -99,8 +101,8 @@ function OnPropertyChanged(strName)
         end)
     end
     
-    if strName == "Shieldlink Account Email" then
-        local email = Properties["Shieldlink Account Email"]
+    if strName == "Account" then
+        local email = Properties["Account"]
         
         ClearDeviceList()
         if email == "" then
@@ -110,8 +112,6 @@ function OnPropertyChanged(strName)
         
         ValidateMacAddress(Properties["MacAddress"], function(isValid)
             if isValid then
-                -- Update the Account property with the email
-                C4:UpdateProperty("Account", email)
                 InitializeCamera()
             end
         end)

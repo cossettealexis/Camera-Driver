@@ -1,12 +1,12 @@
 <devicedata>
-    <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
+    <copyright>Copyright © 2026 Slomins. All Rights Reserved.</copyright>
     <name>Notification History</name>
-    <version>1.7.0</version>
+    <version>1</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>NotificationHistory</model>
-    <created>2026-02-26</created>
-    <modified>2026-06-03</modified>
+    <created>2026-06-08</created>
+    <modified>2026-06-08</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <auto_update>true</auto_update>
@@ -38,12 +38,6 @@
                 <default></default>
             </property>
             <property>
-                <name>Shieldlink Account Email</name>
-                <type>STRING</type>
-                <default></default>
-                <readonly>false</readonly>
-            </property>
-            <property>
                 <name>Validation API URL</name>
                 <type>STRING</type>
                 <default>https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress</default>
@@ -58,7 +52,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>cgabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
