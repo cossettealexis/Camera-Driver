@@ -19,11 +19,6 @@ GlobalObject.AccountName = ""
 GlobalObject.AccessToken = ""
 GlobalObject.AppSecret = "hg4IwDpf6nwP5x2XGCIlNv8"
 
--- BYPASS: Hardcoded credentials
-GlobalObject.CldBusAppId = "cldbus"
-GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-GlobalObject.CustomerEmail = "cgabu@slomins.comw"
-
 local socket = require("socket")
 local udp = socket.udp()
 udp:settimeout(3)
@@ -40,6 +35,8 @@ local TCP_BINDING_ID = 6001
 -- LNDU (ISOLATED)
 -- ==========================
 GlobalObject.LNDU = {
+    app_id = "",
+    app_secret = "",
     ClientID = "",
     ClientSecret = "",
     AccessToken = "",
@@ -226,8 +223,12 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
                 print("ReceivedFromNetwork() UpdateClientSecretId", idBinding, nPort, strData)
                 GlobalObject.ClientID = data.ClientId
                 GlobalObject.ClientSecret = data.SecretId
+                GlobalObject.LNDU.app_id = data.message.CldBusAppId or ""
+                GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""
                 C4:UpdateProperty("Tuya ClientId", data.ClientId or "")
                 C4:UpdateProperty("Tuya ClientSecret", data.SecretId or "")
+                C4:UpdateProperty("LNDU_AppID", data.message.CldBusAppId or "")
+                C4:UpdateProperty("LNDU_AppSecret", data.message.CldBusSecret or "")
             end
             if data and data.EventName == "ChangeGlobalKeys" then
                 GlobalObject.ClientID = data.ClientId
@@ -450,23 +451,8 @@ function GenerateToken(GlobalObject, callback)
 end
 
 function ValidateMacAddress(mac, callback)
-    -- BYPASS: Skip validation and use hardcoded credentials
-    print("[BYPASS] ValidateMacAddress - Using hardcoded credentials")
-    
-    -- Set LNDU credentials from hardcoded values
-    GlobalObject.LNDU.app_id = GlobalObject.CldBusAppId
-    GlobalObject.LNDU.app_secret = GlobalObject.CldBusSecret
-    
-    C4:UpdateProperty("Status", "Using bypass credentials")
-    C4:UpdateProperty("Device Response", "Bypass mode - validation skipped")
-    
-    if callback then callback(true) end
-    return
-    
-    -- Original validation code below (disabled)
-    --[[
     local apiUrl = Properties["Validation API URL"] or "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech/IsValidControl4MacAddress"
-    local requestBody = '{"MacAddress":"' .. mac .. '"}'   
+    local requestBody = '{"MacAddress":"' .. mac .. '"}'
     local headers = {
         ["Content-Type"] = "application/json"
     }
@@ -576,9 +562,9 @@ function ValidateMacAddress(mac, callback)
                         
                         -- Store LNDU credentials separately
                         GlobalObject.LNDU.app_id = data.message.CldBusAppId or ""
-                        GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""
-                        C4:UpdateProperty("LNDU_ClientSecret", "***")
-                        
+                        GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""                        
+                        C4:UpdateProperty("LNDU_AppID", data.message.CldBusAppId or "")    
+                        C4:UpdateProperty("LNDU_AppSecret", data.message.CldBusSecret)            
                         if callback then callback(true) end
                     else
                         print("[ValidateMacAddress] Email mismatch")
@@ -609,7 +595,6 @@ function ValidateMacAddress(mac, callback)
             if callback then callback(false) end
         end
     end)
-    --]]
 end
 
 
@@ -656,7 +641,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_secret = GlobalObject.LNDU.app_secret 
 
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s", client_id, request_id, time, version)
     local signature = util.hmac_sha256_hex(message, app_secret)
@@ -674,7 +659,7 @@ function InitializeCamera()
     transport.execute({
         url = url,
         method = "POST",
-        headers = { ["Content-Type"] = "application/json", ["App-Name"] = "cldbus" },
+        headers = { ["Content-Type"] = "application/json", ["App-Name"] = GlobalObject.LNDU.app_id },
         body = json.encode(body_tbl)
     }, function(code, resp)
         if code == 200 then
@@ -745,7 +730,7 @@ function LoginOrRegister(country_code)
 
         local request_id = util.uuid_v4()
         local time = tostring(os.time())
-        local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+        local app_secret = GlobalObject.LNDU.app_secret or ""
 
         local message = string.format(
             "client_id=%s&post_data=%s&request_id=%s&time=%s",
@@ -771,7 +756,7 @@ function LoginOrRegister(country_code)
             headers = { 
                 ["Content-Type"] = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"] = "cldbus"
+                ["App-Name"] = GlobalObject.LNDU.app_id
             },
             body = json.encode(body_tbl)
         }, function(code, resp)
@@ -807,7 +792,7 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-     local app_secret = GlobalObject.LNDU.app_secret or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+     local app_secret = GlobalObject.LNDU.app_secret or ""
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
         
@@ -816,7 +801,7 @@ function SendTokenToNodeAPI(token)
                 EventName = "LnduUpdate",
                 Token = token,
                 ClientID = GlobalObject.LNDU.ClientID, 
-                AppId       = "cldbus",       
+                AppId       = GlobalObject.LNDU.app_id,       
                 AppSecret   = app_secret,   
                 AccountName = GlobalObject.AccountName,
                 C4UniqueMac = Properties["MacAddress"] or ""

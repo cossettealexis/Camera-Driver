@@ -6,8 +6,8 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>4/25/2026 3:20 PM</modified>
-  <version>5</version>
+  <modified>4/29/2026 3:20 PM</modified>
+  <version>6.0.4</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
   <auto_update>true</auto_update>
@@ -83,10 +83,16 @@
         <readonly>false</readonly>
       </property>
       <property>
-        <name>LNDU_ClientSecret</name>
+        <name>LNDU_AppID</name>
         <type>STRING</type>
         <default></default>
         <readonly>false</readonly>
+      </property>
+      <property>
+        <name>LNDU_AppSecret</name>
+        <type>STRING</type>
+        <default></default>
+        <readonly>true</readonly>
       </property>
       <property>
         <name>Public Key</name>
