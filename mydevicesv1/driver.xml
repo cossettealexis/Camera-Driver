@@ -73,7 +73,7 @@
       <property>
         <name>Shieldlink Account Email</name>
         <type>STRING</type>
-        <default></default>
+        <default>ajang@slomins.com</default>
         <readonly>false</readonly>
       </property>
       <property>
@@ -114,146 +114,6 @@
         <readonly>true</readonly>
       </property>
       <property>
-        <persist>true</persist>
-        <name>1</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>2</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>3</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>4</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>5</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>6</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>7</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>8</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>9</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>10</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>11</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>12</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>13</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>14</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>15</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>16</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>17</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>18</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>19</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
-        <persist>true</persist>
-        <name>20</name>
-        <type>STRING</type>
-        <readonly>false</readonly>
-        <default></default>
-      </property>
-      <property>
         <name>Device Response</name>
         <type>STRING</type>
         <readonly>true</readonly>
@@ -266,11 +126,32 @@
         <command>DISCOVER_DEVICES</command>
         <description>Make LNDU devices discoverable</description>
       </action>
+      <action>
+        <name>Browse Devices</name>
+        <command>BROWSE_DEVICES</command>
+        <description>Browse all available devices (LNDU + Tuya)</description>
+        <params>
+          <param>
+            <name>Device</name>
+            <type>CUSTOM_SELECT:GetDeviceList</type>
+          </param>
+        </params>
+      </action>
     </actions>
     <commands>
       <command>
         <name>DISCOVER_DEVICES</name>
         <description>Discover Devices</description>
+      </command>
+      <command>
+        <name>BROWSE_DEVICES</name>
+        <description>Browse Devices</description>
+        <params>
+          <param>
+            <name>Device</name>
+            <type>STRING</type>
+          </param>
+        </params>
       </command>
     </commands>
   </config>
