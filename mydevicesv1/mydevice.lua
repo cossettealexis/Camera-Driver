@@ -843,19 +843,42 @@ end
 -- ==========================
 function ClearDeviceList()
     for i = 1, 20 do C4:UpdateProperty(tostring(i), "") end
+    C4:UpdateProperty("Remaining Devices", "No remaining devices")
 end
 
 function UpdateDeviceProperties(devices)
-    --ClearDeviceList()
+    ClearDeviceList()
+    local remaining = {}
     for i, device in ipairs(devices) do
-        if i <= 20 then
+        if i <= 2 then  -- Limit to standard 20 slots
             local info = string.format("%s | Name: %s | IP: %s | VID: %s",
                 device.prefix or "",
                 device.device_name or device.name or "Unknown",
                 device.local_ip or "N/A",
                 device.vid or device.id or "N/A")
             C4:UpdateProperty(tostring(i), info)
+        else
+            local itemStr
+            if device.prefix == "[LNDU]" then
+                itemStr = string.format("[LNDU] | Name: %s | IP: %s | VID: %s",
+                    device.device_name or "Unknown",
+                    device.local_ip or "N/A",
+                    device.vid or "N/A")
+            else
+                itemStr = string.format("[TUYA] | Name: %s | IP: N/A | VID: %s",
+                    device.name or "Unknown",
+                    device.id or "N/A")
+            end
+            table.insert(remaining, itemStr)
         end
+    end
+    
+    if #remaining > 0 then
+        -- Join using standard Windows breaks (\r\n) with an extra newline (\n) after each row
+        local remainingStr = table.concat(remaining, "\n\n")
+        C4:UpdateProperty("Remaining Devices", remainingStr)
+    else
+        C4:UpdateProperty("Remaining Devices", "No remaining devices")
     end
 end
 

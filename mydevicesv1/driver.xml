@@ -6,7 +6,7 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>4/29/2026 3:20 PM</modified>
+  <modified>06/15/2026 3:20 PM</modified>
   <version>6.0.4</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
@@ -252,6 +252,13 @@
         <type>STRING</type>
         <readonly>false</readonly>
         <default></default>
+      </property>
+      <property>
+        <persist>true</persist>
+        <name>Remaining Devices</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>No remaining devices&#13;&#10;Run Discover Devices first</default>
       </property>
       <property>
         <name>Device Response</name>
