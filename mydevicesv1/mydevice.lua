@@ -31,9 +31,6 @@ local _pendingAuthToken = nil
 local _tcpConnected = false
 local TCP_BINDING_ID = 6001
 
--- Device cache for CUSTOM_SELECT
-local _cachedDevices = {}
-
 -- ==========================
 -- LNDU (ISOLATED)
 -- ==========================
@@ -77,7 +74,7 @@ function OnDriverLateInit()
     
      ValidateMacAddress(Properties["MacAddress"], function(isValid)
         if not isValid then
-            -- Devices will be empty until validation succeeds
+            ClearDeviceList()
         end
     end)    
 end
@@ -87,6 +84,7 @@ function OnPropertyChanged(strName)
     if (strName == "MacAddress") then
         C4:UpdateProperty("MacAddress", Properties[strName])
 
+        ClearDeviceList()
         ValidateMacAddress(Properties["MacAddress"], function(isValid)
              if isValid then
                 InitializeCamera()
@@ -95,6 +93,7 @@ function OnPropertyChanged(strName)
     end
 
     if (strName == "UserId") then
+        ClearDeviceList()
         ValidateMacAddress(Properties["MacAddress"], function(isValid)
              if isValid then
                 InitializeCamera()
@@ -113,7 +112,7 @@ function OnPropertyChanged(strName)
         
          ValidateMacAddress(Properties["MacAddress"], function(isValid)
             if not isValid then
-                -- Devices will be empty
+                ClearDeviceList()
             end
         end)    
     end
@@ -121,6 +120,7 @@ function OnPropertyChanged(strName)
     if strName == "Shieldlink Account Email" then
         local email = Properties["Shieldlink Account Email"]
 
+        ClearDeviceList()
         if email == "" then
             C4:UpdateProperty("Status", "Enter email")
             return
@@ -223,17 +223,12 @@ function ReceivedFromNetwork(idBinding, nPort, strData)
                 print("ReceivedFromNetwork() UpdateClientSecretId", idBinding, nPort, strData)
                 GlobalObject.ClientID = data.ClientId
                 GlobalObject.ClientSecret = data.SecretId
-                
-                -- Safely handle message field
-                if data.message then
-                    GlobalObject.LNDU.app_id = data.message.CldBusAppId or ""
-                    GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""
-                    C4:UpdateProperty("LNDU_AppID", data.message.CldBusAppId or "")
-                    C4:UpdateProperty("LNDU_AppSecret", data.message.CldBusSecret or "")
-                end
-                
+                GlobalObject.LNDU.app_id = data.message.CldBusAppId or ""
+                GlobalObject.LNDU.app_secret = data.message.CldBusSecret or ""
                 C4:UpdateProperty("Tuya ClientId", data.ClientId or "")
                 C4:UpdateProperty("Tuya ClientSecret", data.SecretId or "")
+                C4:UpdateProperty("LNDU_AppID", data.message.CldBusAppId or "")
+                C4:UpdateProperty("LNDU_AppSecret", data.message.CldBusSecret or "")
             end
             if data and data.EventName == "ChangeGlobalKeys" then
                 GlobalObject.ClientID = data.ClientId
@@ -254,14 +249,6 @@ end
 function ExecuteCommand(command, tParams)
     print("ExecuteCommand command: " .. command .. " tParams: " .. tostring(tParams)) -- Debugging
 
-    -- Check for BROWSE_DEVICES first (CUSTOM_SELECT uses LUA_ACTION)
-    if command == "BROWSE_DEVICES" or (command == "LUA_ACTION" and tParams["ACTION"] == "BROWSE_DEVICES") then
-        local selectedDevice = tParams["Device"] or ""
-        print("[BROWSE_DEVICES] User selected device: " .. selectedDevice)
-        C4:UpdateProperty("Status", "Selected: " .. selectedDevice)
-        return
-    end
-
     if command == "DISCOVER_DEVICES" or tParams["ACTION"] == "DISCOVER_DEVICES" then
         print("[DISCOVER_DEVICES] Button pressed - Validating credentials first...")
         C4:UpdateProperty("Status", "Validating credentials...")
@@ -272,6 +259,7 @@ function ExecuteCommand(command, tParams)
                 print("[DISCOVER_DEVICES] Credentials refreshed - Waking and fetching devices...")
                 GET_DEVICES({}, true)
             else
+                ClearDeviceList()
                 print("[DISCOVER_DEVICES] Validation failed - credentials not updated")
                 C4:UpdateProperty("Status", "Discovery failed: Invalid credentials")
             end
@@ -281,18 +269,92 @@ function ExecuteCommand(command, tParams)
 
     if Properties["Contract"] == "Enable" then
         if command == "LUA_ACTION" then
-            print("LUA_ACTION with unknown ACTION: " .. tostring(tParams["ACTION"]))
-            return
+            -- Extract action from tParams
+            local action = tParams["ACTION"] or ""        
+            --local uid = tParams["UID"]
+            local uid = Properties["UserId"]
+        
+        
+            local body = ""
+
+            local props = Properties        
+            for name, value in pairs(props) do
+                if name ~= "UserId" and name ~= "Tuya ClientId" and name ~= "Tuya ClientSecret" and  name ~= "Contract" and name ~= "MacAddress" 
+                  and name ~= "Tcp Port"   
+                  and name ~= "Device Response" then 
+                    C4:UpdateProperty(name, "")
+                end
+            end
+
+            --print("LUA_ACTION triggered with action: " .. action) -- Debugging
+
+            -- Fetch the access token before executing the action
+        
+            GenerateToken(GlobalObject, function(accessToken)
+                if not accessToken then
+                    print("Failed to retrieve access token.")
+                    return
+                end
+                SendCommand(accessToken, uid, body)
+                
+            end)
+                    
         else
-            print("Unknown command: " .. command)
+            print("Unknown command: " .. command) -- Helps debug issues
         end
     end
 end
 
--- Legacy SendCommand function - replaced by GET_DEVICES
--- function SendCommand(accessToken, uid, body)
---     ... (removed - see GET_DEVICES for current implementation)
--- end
+function SendCommand(accessToken, uid, body)
+    --print("Reacthing at SendCommand") -- Debugging
+    -- reset all properties
+    
+    local apiUrl = GlobalObject.BaseUrl .. "/v1.0/users/" .. uid .. "/devices"
+
+    local nonce = "" -- Can be left empty unless required
+    local method = "GET"
+    
+    -- Generate string to sign
+    local signString, url = StringToSign(method, body,"/v1.0/users/" .. uid .. "/devices")
+
+    -- Calculate signature
+    local timestamp = GetTimestamp()
+    local sign = CalculateSignatureWithAccessToken(GlobalObject.ClientID, accessToken, timestamp, nonce, signString, GlobalObject.ClientSecret)
+
+    local headers = {
+        ["client_id"] = GlobalObject.ClientID,
+        ["access_token"] = accessToken,
+        ["sign"] = sign,
+        ["t"] = timestamp,
+        ["sign_method"] = "HMAC-SHA256",
+        ["Content-Type"] = "application/json"
+    }
+    --local payloadBody = Json.encode(body)
+    C4:urlGet(apiUrl, headers, false, function(ticketId, response, statusCode, errorMsg)
+        
+        
+        if statusCode == 200 then           
+            local response_json = C4:JsonDecode(response)
+            --print("| Device ID       | Product Name                  | Name         |")
+            --print("-----------------------------------")
+            local deviceList = ""
+            local index = 1
+            for _, device in ipairs(response_json.result) do
+                --print("| " .. device.id .. " | " .. device.product_name .. " |".. device.name .. " |")
+                deviceList = deviceList .. device.id .. " - " .. device.name .. "\n"                
+                C4:UpdateProperty(tostring(index), device.name .. " - " .. device.product_name .. " - " .. device.id .. "")
+                index = index+1
+            end
+            --print("-----------------------------------")           
+            
+
+        else
+            print("No devices found.")
+
+            C4:UpdateProperty("1", "No devices found.")
+        end
+    end)    
+end
 
 -- Function to get current timestamp in milliseconds
 function GetTimestamp()
@@ -779,46 +841,22 @@ end
 -- ==========================
 -- Combined Device Fetch
 -- ==========================
--- Combined Device Fetch
--- ==========================
+function ClearDeviceList()
+    for i = 1, 20 do C4:UpdateProperty(tostring(i), "") end
+end
 
--- GetDeviceList for CUSTOM_SELECT - Returns ALL devices from cache
-function GetDeviceList(tParams)
-    print("[GetDeviceList] Returning " .. #_cachedDevices .. " devices from cache")
-    
-    local deviceList = {}
-    
-    if #_cachedDevices == 0 then
-        table.insert(deviceList, {
-            text = "⚠️ No devices - run 'Discover Devices' first",
-            value = "",
-            folder = ""
-        })
-        return deviceList
-    end
-    
-    for _, device in ipairs(_cachedDevices) do
-        local displayText = ""
-        local folder = ""
-        
-        if device.prefix == "[LNDU]" then
-            displayText = string.format("[LNDU] %s (%s)", 
-                device.device_name or "Unknown",
-                device.local_ip or "No IP")
-            folder = "LNDU Cameras"
-        else
-            displayText = string.format("[TUYA] %s", device.name or "Unknown")
-            folder = "Tuya Devices"
+function UpdateDeviceProperties(devices)
+    --ClearDeviceList()
+    for i, device in ipairs(devices) do
+        if i <= 20 then
+            local info = string.format("%s | Name: %s | IP: %s | VID: %s",
+                device.prefix or "",
+                device.device_name or device.name or "Unknown",
+                device.local_ip or "N/A",
+                device.vid or device.id or "N/A")
+            C4:UpdateProperty(tostring(i), info)
         end
-        
-        table.insert(deviceList, {
-            text = displayText,
-            value = device.vid or device.id or "",
-            folder = folder
-        })
     end
-    
-    return deviceList
 end
 
 
@@ -937,6 +975,7 @@ function GET_DEVICES(tParams, do_awake)
         return
     end
 
+    ClearDeviceList()
     C4:UpdateProperty("Status", "Device list loading...")
 
     print("LNDU token OK - Fetching LNDU cameras...")
@@ -995,9 +1034,8 @@ function GET_DEVICES(tParams, do_awake)
                     })
                 end
 
-                -- Store ALL devices in cache for CUSTOM_SELECT (unlimited)
-                _cachedDevices = combined
-                print("[CACHE] Stored " .. #_cachedDevices .. " devices for GetDeviceList")
+                -- Final update
+                UpdateDeviceProperties(combined)
 
                 C4:UpdateProperty("Status", "Updated: " .. tostring(#combined) .. " total devices (LNDU + TUYA)")
                 print("[COMBINED] Total devices processed:", #combined)
