@@ -167,14 +167,104 @@ function ValidateMacAddress(mac, callback)
             local response = C4:JsonDecode(strData)
             if response then
                 print("[ValidateMacAddress] IsValidMacAddress: " .. tostring(response.IsValidMacAddress))
-                
-                if response.IsValidMacAddress == true then
-                    C4:UpdateProperty("Status", "MAC address validated")
-                    if callback then callback(true) end
-                else
+
+                if response.IsValidMacAddress ~= true then
                     C4:UpdateProperty("Status", "Invalid MAC address")
                     if callback then callback(false) end
+                    return
                 end
+
+                -- MAC is valid. Now we MUST verify the entered email actually
+                -- belongs to this account, otherwise a random email would still
+                -- "log in" (the login endpoint auto-registers unknown emails).
+                local encryptedMsg = response.EncryptMsg
+                if not encryptedMsg or encryptedMsg == "" then
+                    print("[ValidateMacAddress] No EncryptMsg in response")
+                    C4:UpdateProperty("Status", "Validation failed: no credentials")
+                    if callback then callback(false) end
+                    return
+                end
+
+                -- Strip trailing CRLF if present
+                if string.sub(encryptedMsg, -2) == "\r\n" then
+                    encryptedMsg = string.sub(encryptedMsg, 1, -3)
+                end
+
+                local cipher = 'AES-256-CBC'
+                local options = {
+                    return_encoding = 'NONE',
+                    key_encoding    = 'NONE',
+                    iv_encoding     = 'NONE',
+                    data_encoding   = 'BASE64',
+                    padding         = true,
+                }
+
+                local decrypted_data, decErr =
+                    C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg, options)
+
+                if not decrypted_data then
+                    print("[ValidateMacAddress] Decryption failed: " .. tostring(decErr))
+                    C4:UpdateProperty("Status", "Validation failed: decryption error")
+                    if callback then callback(false) end
+                    return
+                end
+
+                local data = C4:JsonDecode(decrypted_data)
+                if not data or not data.message then
+                    print("[ValidateMacAddress] Failed to parse decrypted data")
+                    C4:UpdateProperty("Status", "Validation failed: invalid payload")
+                    if callback then callback(false) end
+                    return
+                end
+
+                -- Normalize MACs for a tolerant comparison (strip separators, upper-case)
+                local normalizedMac  = (mac or ""):gsub("[:%-]", ""):upper()
+                local responseMac    = (data.message.MacAddress or ""):gsub("[:%-]", ""):upper()
+
+                if data.message.EventName ~= "UpdateClientSecretId" or responseMac ~= normalizedMac then
+                    print("[ValidateMacAddress] Invalid event or MAC mismatch")
+                    C4:UpdateProperty("Status", "Validation failed: invalid response")
+                    if callback then callback(false) end
+                    return
+                end
+
+                local customerEmail = data.message.CustomerEmail or ""
+                local enteredEmail  = Properties["Account"] or ""
+                print("[ValidateMacAddress] CustomerEmail (registered): " .. customerEmail)
+                print("[ValidateMacAddress] Account (entered): " .. enteredEmail)
+
+                if enteredEmail == "" then
+                    print("[ValidateMacAddress] No email entered yet")
+                    C4:UpdateProperty("Status", "Enter email")
+                    if callback then callback(false) end
+                    return
+                end
+
+                if customerEmail:lower() ~= enteredEmail:lower() then
+                    print("[ValidateMacAddress] Email does NOT match registered account")
+                    C4:UpdateProperty("Status", "Email not registered to this account")
+                    if callback then callback(false) end
+                    return
+                end
+
+                -- Email verified. Load the brand-specific credentials so the
+                -- correct devices are returned by the API.
+                local appId     = data.message.CldBusAppId or "cldbus"
+                local appSecret = data.message.CldBusSecret or data.message.SecretId or ""
+
+                GlobalObject.AccountName  = customerEmail
+                GlobalObject.CldBusAppId  = appId
+                GlobalObject.CldBusSecret = appSecret
+
+                _props["AppId"]     = appId
+                _props["AppSecret"] = appSecret
+
+                C4:UpdateProperty("AppId", appId)
+                C4:UpdateProperty("AppSecret", appSecret)
+                C4:UpdateProperty("Status", "MAC and Email validated")
+
+                print("[ValidateMacAddress] ✅ Email verified for: " .. customerEmail)
+                if callback then callback(true) end
             else
                 print("[ValidateMacAddress] Failed to parse response")
                 C4:UpdateProperty("Status", "Validation failed: Invalid response")
