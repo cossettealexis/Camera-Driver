@@ -114,6 +114,14 @@
         <name>TEST_FETCH_CLIPS</name>
         <description>Test: Fetch notification clips from API</description>
     </command>
+    <command>
+        <name>HISTORY_NEXT_PAGE</name>
+        <description>Load next (older) page of notification history</description>
+    </command>
+    <command>
+        <name>HISTORY_PREV_PAGE</name>
+        <description>Load previous (newer) page of notification history</description>
+    </command>
 </commands>
 
         <variables>

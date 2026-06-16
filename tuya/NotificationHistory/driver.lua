@@ -33,6 +33,13 @@ local UI_PROXY_ID = 5001
 -- Add near your globals
 local LAST_HISTORY = {}
 local LAST_DEVICES = {}
+local HISTORY_POLL_MS = 30000
+local HISTORY_PAGE_SIZE = 20
+local _historyPollTimer = nil
+local _historyFetchInFlight = false
+local _lastHistorySignature = ""
+local _currentHistoryPage = 1
+local _hasMoreHistory = false
 
 local extractedData = {}
 _authInProgress = false
@@ -126,6 +133,14 @@ function ClearDeviceList()
     ALL_VIDS = {}
     LAST_DEVICES = {}
     LAST_HISTORY = {}
+    _lastHistorySignature = ""
+    _currentHistoryPage = 1
+    _hasMoreHistory = false
+
+    if _historyPollTimer then
+        C4:KillTimer(_historyPollTimer)
+        _historyPollTimer = nil
+    end
 
     -- Wipe stored credentials so a wrong MAC/email cannot keep using the
     -- previously authenticated account. A successful validation + login
@@ -436,12 +451,52 @@ function UpdateAuthToken(token)
     
     GET_DEVICES()
 end
---------------------------------------------------
--- (POLLING REMOVED)
---------------------------------------------------
--- Notification history is fetched once after login (and on demand). No
--- repeating poll timer runs anymore.
+
+
 local _currentFilterVids = nil -- nil = ALL_VIDS
+
+local function StripQuery(url)
+    if not url or url == "" then return "" end
+    return (tostring(url):gsub("%?.*$", ""))
+end
+
+local function BuildHistorySignature(list)
+    local parts = {}
+    for _, n in ipairs(list or {}) do
+        -- Use only stable fields so expiring pre-signed URL query params
+        -- don't trigger false "new data" detections.
+        table.insert(parts, table.concat({
+            tostring(n.vid or ""),
+            tostring(n.time or 0),
+            tostring(n.message_type or ""),
+            tostring(n.video_sec or 0),
+            StripQuery(n.video_url),
+            StripQuery(n.image_url)
+        }, "|"))
+    end
+
+    return table.concat(parts, "\n")
+end
+
+local function StartHistoryPolling()
+    if _historyPollTimer then
+        return
+    end
+
+    print("[History Poll] Starting every", HISTORY_POLL_MS, "ms")
+    _historyPollTimer = C4:SetTimer(HISTORY_POLL_MS, function()
+        local vids = _currentFilterVids
+        if not vids or #vids == 0 then
+            vids = ALL_VIDS
+        end
+
+        if not vids or #vids == 0 then
+            return
+        end
+
+        FETCH_NOTIFICATION_HISTORY(vids)
+    end, true)
+end
 
 
 
@@ -490,20 +545,28 @@ function GET_DEVICES()
         -- Send devices to UI now that we have them
         SendDevicesToUI(ALL_DEVICES)
 
-        -- Fetch history for these devices (one-time, no polling)
+        -- Fetch history for these devices and start guarded background refresh.
         _currentFilterVids = nil
+        _currentHistoryPage = 1
         FETCH_NOTIFICATION_HISTORY(ALL_VIDS, function()
             print("Initial notification history fetch complete")
-        end)
+            StartHistoryPolling()
+        end, _currentHistoryPage)
     end)
 end
 --------------------------------------------------
 -- OP07 HISTORY API CALL
 --------------------------------------------------
 
-function FETCH_NOTIFICATION_HISTORY(vids, done)
+function FETCH_NOTIFICATION_HISTORY(vids, done, page, forcePush)
     print("FETCH_NOTIFICATION_HISTORY called")
     print("VID COUNT:", vids and #vids or 0)
+
+    if _historyFetchInFlight then
+        print("History fetch skipped: request already in flight")
+        if done then done() end
+        return
+    end
 
     local auth_token = _props["Auth Token"]
     if not auth_token then 
@@ -517,9 +580,13 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
         return
     end
 
+    _historyFetchInFlight = true
+
+    local requestPage = tonumber(page) or _currentHistoryPage or 1
+
     local body = {
-        page = 1,
-        page_size = 20,
+        page = requestPage,
+        page_size = HISTORY_PAGE_SIZE,
         vids = vids
     }
 
@@ -537,7 +604,10 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
     transport.execute(req, function(code, resp)
         print("NOTIF CODE:", code)
         -- Always clear in-flight before any early return
-        local clear = function() if done then done() end end
+        local clear = function()
+            _historyFetchInFlight = false
+            if done then done() end
+        end
 
         if code ~= 200 and code ~= 20000 then
             print("Notif API failed")
@@ -552,6 +622,7 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
 
         local raw = parsed.data.notifications or {}
         local cleaned = {}
+        local hasMore = (#raw >= HISTORY_PAGE_SIZE)
 
         print("========================================")
         print("📹 VIDEO CLIPS FOUND:", #raw)
@@ -581,7 +652,21 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
 
         print("========================================")
         print("Sending", #cleaned, "notifications to UI")
-        SendHistoryToUI(cleaned)
+
+        local newSignature = tostring(requestPage) .. ":" .. BuildHistorySignature(cleaned)
+        if newSignature ~= _lastHistorySignature or forcePush == true then
+            _lastHistorySignature = newSignature
+            _currentHistoryPage = requestPage
+            _hasMoreHistory = hasMore
+            SendHistoryToUI(cleaned, _currentHistoryPage, _hasMoreHistory)
+            print("[History Poll] New data detected and pushed to UI")
+        else
+            LAST_HISTORY = cleaned
+            _currentHistoryPage = requestPage
+            _hasMoreHistory = hasMore
+            print("[History Poll] No new notifications, UI not updated")
+        end
+
         return clear()
     end)
 end
@@ -614,15 +699,27 @@ end
 --------------------------------------------------
 -- Send notification history list to UI
 --------------------------------------------------
-function SendHistoryToUI(list)
+function SendHistoryToUI(list, page, has_more)
     LAST_HISTORY = list or LAST_HISTORY or {}
+
+    if page ~= nil then
+        _currentHistoryPage = tonumber(page) or _currentHistoryPage
+    end
+
+    if has_more ~= nil then
+        _hasMoreHistory = has_more and true or false
+    end
+
     print("================================================================")
     print("SendHistoryToUI CALLED with", #LAST_HISTORY, "items")
     print("================================================================")
     
     local payload = {
         type = "history",
-        history = LAST_HISTORY
+        history = LAST_HISTORY,
+        page = _currentHistoryPage,
+        page_size = HISTORY_PAGE_SIZE,
+        has_more = _hasMoreHistory
     }
 
     local jsonPayload = C4:JsonEncode(payload)
@@ -685,6 +782,40 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         return
     end
 
+    if strCommand == "HISTORY_NEXT_PAGE" then
+        if not _hasMoreHistory then
+            print("No more history pages available")
+            return
+        end
+
+        local vids = _currentFilterVids
+        if not vids or #vids == 0 then
+            vids = ALL_VIDS
+        end
+
+        if vids and #vids > 0 then
+            FETCH_NOTIFICATION_HISTORY(vids, nil, (_currentHistoryPage or 1) + 1, true)
+        end
+        return
+    end
+
+    if strCommand == "HISTORY_PREV_PAGE" then
+        if (_currentHistoryPage or 1) <= 1 then
+            print("Already at first history page")
+            return
+        end
+
+        local vids = _currentFilterVids
+        if not vids or #vids == 0 then
+            vids = ALL_VIDS
+        end
+
+        if vids and #vids > 0 then
+            FETCH_NOTIFICATION_HISTORY(vids, nil, (_currentHistoryPage or 1) - 1, true)
+        end
+        return
+    end
+
 
     if idBinding ~= UI_PROXY_ID then return end
     if strCommand ~= "WEBVIEW_MESSAGE" then return end
@@ -719,7 +850,16 @@ end
 -- Manual refresh command
 function REFRESH_HISTORY()
     print("Manual refresh triggered")
-    SendHistoryToUI(LAST_HISTORY)
+    local vids = _currentFilterVids
+    if not vids or #vids == 0 then
+        vids = ALL_VIDS
+    end
+
+    if vids and #vids > 0 then
+        FETCH_NOTIFICATION_HISTORY(vids, nil, _currentHistoryPage, true)
+    else
+        SendHistoryToUI(LAST_HISTORY)
+    end
 end
 
 
@@ -1120,7 +1260,7 @@ function TEST_FETCH_CLIPS()
     
     local body = {
         page = 1,
-        page_size = 20,
+        page_size = HISTORY_PAGE_SIZE,
         vids = test_vids
     }
     

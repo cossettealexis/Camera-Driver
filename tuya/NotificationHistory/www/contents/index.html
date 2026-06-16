@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Notification History</title>
+  <title>Slomins Notification History</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
   <style>
@@ -21,12 +21,81 @@
     .card-type { color: #aaa; font-size: 14px; margin-bottom: 3px; }
     .card-time { color: #777; font-size: 13px; }
     .card-icon { font-size: 32px; }
+    .history-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px 20px 20px;
+    }
+    .history-pagination button {
+      border: 1px solid #5a5f69;
+      background: #1d2229;
+      color: #f1f3f7;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      min-width: 92px;
+    }
+    .history-pagination button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .history-page-label {
+      color: #aeb5c0;
+      font-size: 13px;
+      min-width: 72px;
+      text-align: center;
+    }
+    .list-loading {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100001;
+      background: rgba(24, 24, 29, 0.92);
+      color: #f3f3f9;
+      border: 1px solid #4f5b6b;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    }
+    .list-loading.hidden { display: none; }
     
     #mediaModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100000; }
     #mediaModal.show { display: flex; align-items: center; justify-content: center; padding: 20px; }
     .modal-content { textAlign: center; max-width: 800px; width: 100%; }
     .modal-image { max-width: 100%; border-radius: 12px; margin: 20px 0; }
     .modal-video { max-width: 100%; max-height: 60vh; border-radius: 12px; margin: 20px 0; background: #000; }
+    .video-frame { position: relative; margin: 20px 0; }
+    .video-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #d8d8df;
+      font-size: 16px;
+      z-index: 2;
+    }
+    .video-loading.hidden { display: none; }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .modal-controls { display: flex; gap: 15px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
     .modal-controls button { padding: 15px 35px; font-size: 18px; background: #333; color: white; border: 2px solid white; border-radius: 10px; cursor: pointer; }
     .modal-controls button:hover { background: #6c5ce7; }
@@ -37,8 +106,10 @@
   </style>
 </head>
 <body>
+  <div id="refreshIndicator" class="list-loading hidden">Refreshing notifications...</div>
+
   <div class="header">
-    <h1>📱 Notification History - UI DEMO</h1>
+    <h1>📱 Notification History</h1>
   </div>
   
   <!-- DEVICE FILTER -->
@@ -63,6 +134,11 @@
     var NOTIFICATIONS = [];
     var ALL_NOTIFICATIONS = []; // Unfiltered notifications
     var DEVICES = []; // Device list for filter
+    var historyLoaded = false; // True after first history payload from driver
+    var refreshIndicatorTimer = null;
+    var lastHistorySignature = '';
+    var currentHistoryPage = 1;
+    var hasMoreHistory = false;
     var currentIndex = 0;
     var lastDataHash = '';
     var selectedDeviceVid = ''; // Current filter
@@ -92,6 +168,7 @@
           // Handle notification history data
           if (data.type === 'history' && data.history) {
             // Convert object to array if needed (Lua sends {"1": {...}, "2": {...}})
+            var incomingHistory;
             if (!Array.isArray(data.history)) {
               var arr = [];
               for (var key in data.history) {
@@ -99,12 +176,28 @@
                   arr.push(data.history[key]);
                 }
               }
-              ALL_NOTIFICATIONS = arr;
+              incomingHistory = arr;
             } else {
-              ALL_NOTIFICATIONS = data.history;
+              incomingHistory = data.history;
             }
+
+            var incomingSignature = buildHistorySignature(incomingHistory);
+            var hasRealChange = historyLoaded && incomingSignature !== lastHistorySignature;
+
+            if (hasRealChange) {
+              showRefreshIndicator('Refreshing notifications...');
+            }
+
+            historyLoaded = true;
+            lastHistorySignature = incomingSignature;
+            currentHistoryPage = Number(data.page || 1);
+            hasMoreHistory = !!data.has_more;
+            ALL_NOTIFICATIONS = incomingHistory;
             
             applyFilter();
+            if (hasRealChange) {
+              hideRefreshIndicatorSoon();
+            }
             return;
           }
           
@@ -133,6 +226,48 @@
       }
       
       renderList();
+    }
+
+    function stripQuery(url) {
+      if (!url) return '';
+      return String(url).replace(/\?.*$/, '');
+    }
+
+    function buildHistorySignature(list) {
+      var parts = [];
+      for (var i = 0; i < (list || []).length; i++) {
+        var n = list[i] || {};
+        parts.push([
+          n.vid || '',
+          n.time || 0,
+          n.message_type || '',
+          n.video_sec || 0,
+          stripQuery(n.video_url || ''),
+          stripQuery(n.image_url || '')
+        ].join('|'));
+      }
+      return parts.join('\n');
+    }
+
+    function showRefreshIndicator(text) {
+      var indicator = document.getElementById('refreshIndicator');
+      if (!indicator) return;
+
+      indicator.textContent = text || 'Refreshing notifications...';
+      indicator.classList.remove('hidden');
+    }
+
+    function hideRefreshIndicatorSoon() {
+      var indicator = document.getElementById('refreshIndicator');
+      if (!indicator) return;
+
+      if (refreshIndicatorTimer) {
+        clearTimeout(refreshIndicatorTimer);
+      }
+
+      refreshIndicatorTimer = setTimeout(function() {
+        indicator.classList.add('hidden');
+      }, 650);
     }
     
     // Populate device filter dropdown
@@ -185,6 +320,11 @@
       console.log("renderList called with", NOTIFICATIONS.length, "items");
       
       if (!NOTIFICATIONS || NOTIFICATIONS.length === 0) {
+        if (!historyLoaded) {
+          document.getElementById('historyList').innerHTML = '<div style="text-align:center;padding:60px;color:#9aa0a6;"><h2>Loading notifications...</h2><p>Fetching your latest device events</p></div>';
+          return;
+        }
+
         console.warn("NO NOTIFICATIONS TO DISPLAY");
         document.getElementById('historyList').innerHTML = '<div style="text-align:center;padding:60px;color:#777;"><h2>No notifications yet</h2><p>Notifications will appear here when events are detected</p></div>';
         return;
@@ -211,7 +351,38 @@
         html += '</div>';
         html += '</div>';
       }
+
+      html += '<div class="history-pagination">';
+      html += '<button onclick="requestPrevHistoryPage()" ' + (currentHistoryPage <= 1 ? 'disabled' : '') + '>← Newer</button>';
+      html += '<div class="history-page-label">Page ' + currentHistoryPage + '</div>';
+      html += '<button onclick="requestNextHistoryPage()" ' + (!hasMoreHistory ? 'disabled' : '') + '>Older →</button>';
+      html += '</div>';
+
       document.getElementById('historyList').innerHTML = html;
+    }
+
+    function requestNextHistoryPage() {
+      if (!hasMoreHistory) return;
+      showRefreshIndicator('Loading older notifications...');
+      try {
+        if (typeof C4 !== 'undefined') {
+          C4.sendCommand('HISTORY_NEXT_PAGE', '', false, false);
+        }
+      } catch (e) {
+        console.error('Failed to request next history page:', e);
+      }
+    }
+
+    function requestPrevHistoryPage() {
+      if (currentHistoryPage <= 1) return;
+      showRefreshIndicator('Loading newer notifications...');
+      try {
+        if (typeof C4 !== 'undefined') {
+          C4.sendCommand('HISTORY_PREV_PAGE', '', false, false);
+        }
+      } catch (e) {
+        console.error('Failed to request previous history page:', e);
+      }
     }
     
     // Subscribe to driver updates on page load
@@ -241,10 +412,16 @@
       
       // Display video if available, otherwise image
       if (hasVideo) {
-        html += '<video class="modal-video" controls autoplay preload="auto">';
+        html += '<div class="video-frame">';
+        html += '<div id="videoLoading" class="video-loading">';
+        html += '<div class="spinner"></div>';
+        html += '<div>Loading video...</div>';
+        html += '</div>';
+        html += '<video id="clipVideo" class="modal-video" controls autoplay preload="auto">';
         html += '<source src="' + n.video_url + '" type="video/mp4">';
         html += 'Your browser does not support video playback.';
         html += '</video>';
+        html += '</div>';
         html += '<div style="color:#6c5ce7;font-size:14px;margin-top:-10px;margin-bottom:10px;">🎥 Video Duration: ' + (n.video_sec || 0) + ' seconds</div>';
       } else if (hasImage) {
         html += '<img src="' + n.image_url + '" class="modal-image" onerror="this.style.display=\'none\'">';
@@ -263,7 +440,43 @@
       
       document.getElementById('modalContent').innerHTML = html;
       document.getElementById('mediaModal').classList.add('show');
+
+      if (hasVideo) {
+        bindVideoLoadingState();
+      }
+
       renderList();
+    }
+
+    function bindVideoLoadingState() {
+      var video = document.getElementById('clipVideo');
+      var loading = document.getElementById('videoLoading');
+
+      if (!video || !loading) return;
+
+      var hideLoading = function() {
+        loading.classList.add('hidden');
+      };
+
+      var showError = function() {
+        loading.classList.remove('hidden');
+        loading.innerHTML = '<div style="font-size:15px;">Video unavailable. Please try another clip.</div>';
+      };
+
+      if (video.readyState >= 2) {
+        hideLoading();
+      }
+
+      video.addEventListener('loadeddata', hideLoading, { once: true });
+      video.addEventListener('canplay', hideLoading, { once: true });
+      video.addEventListener('error', showError, { once: true });
+      video.addEventListener('stalled', function() {
+        loading.classList.remove('hidden');
+      });
+      video.addEventListener('waiting', function() {
+        loading.classList.remove('hidden');
+      });
+      video.addEventListener('playing', hideLoading);
     }
     
     function closeModal() {
