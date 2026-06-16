@@ -4,10 +4,17 @@
 
 Complete Control4 driver for viewing notification history from all Slomins devices (cameras, locks, doorbells, etc.) with video playback, device filtering, and automatic updates.
 
-**Version:** 1  
+**Version:** 2  
 **Package:** NotificationHistory.c4z  
 **Minimum Control4 OS:** 3.3.2+  
-**Created:** June 8, 2026
+**Created:** June 8, 2026  
+**Modified:** June 16, 2026
+
+## Change History
+
+### Version 2 - June 16, 2026
+- Fixed an issue where entering a random email could still show "Login Successful," but no devices or data were retrieved afterward.
+- Fixed an issue where devices could temporarily disappear.
 
 ---
 
