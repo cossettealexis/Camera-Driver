@@ -41,6 +41,34 @@ local _lastHistorySignature = ""
 local _currentHistoryPage = 1
 local _hasMoreHistory = false
 
+local function StopHistoryPolling()
+    if _historyPollTimer == nil then
+        return
+    end
+
+    local timerId = nil
+    if type(_historyPollTimer) == "number" then
+        timerId = _historyPollTimer
+    elseif type(_historyPollTimer) == "string" then
+        timerId = tonumber(_historyPollTimer)
+    elseif type(_historyPollTimer) == "table" then
+        timerId = tonumber(_historyPollTimer.id or _historyPollTimer.timerId)
+    end
+
+    if timerId then
+        local ok, err = pcall(function()
+            C4:KillTimer(timerId)
+        end)
+        if not ok then
+            print("[History Poll] Failed to stop timer:", tostring(err))
+        end
+    else
+        print("[History Poll] Skipping KillTimer: unexpected timer handle type:", type(_historyPollTimer))
+    end
+
+    _historyPollTimer = nil
+end
+
 local extractedData = {}
 _authInProgress = false
 --------------------------------------------------
@@ -136,11 +164,9 @@ function ClearDeviceList()
     _lastHistorySignature = ""
     _currentHistoryPage = 1
     _hasMoreHistory = false
+    _historyFetchInFlight = false
 
-    if _historyPollTimer then
-        C4:KillTimer(_historyPollTimer)
-        _historyPollTimer = nil
-    end
+    StopHistoryPolling()
 
     -- Wipe stored credentials so a wrong MAC/email cannot keep using the
     -- previously authenticated account. A successful validation + login
@@ -496,6 +522,10 @@ local function StartHistoryPolling()
 
         FETCH_NOTIFICATION_HISTORY(vids)
     end, true)
+
+    if _historyPollTimer == nil then
+        print("[History Poll] Failed to start timer: SetTimer returned nil")
+    end
 end
 
 
