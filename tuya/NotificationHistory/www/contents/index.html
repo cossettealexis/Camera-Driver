@@ -173,6 +173,11 @@
       selectedDeviceVid = e.target.value;
       console.log('Filter changed to:', selectedDeviceVid || 'All Devices');
       applyFilter();
+
+      // Control4 WebView can keep select focused after choice; force blur so it can be reopened immediately.
+      setTimeout(function() {
+        e.target.blur();
+      }, 0);
     });
     
     // RENDER LIST FUNCTION

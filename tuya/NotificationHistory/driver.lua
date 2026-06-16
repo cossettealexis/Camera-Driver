@@ -34,9 +34,8 @@ local UI_PROXY_ID = 5001
 local LAST_HISTORY = {}
 local LAST_DEVICES = {}
 
-local POLL_TIMER = nil
-local POLL_INTERVAL = 10000 -- 30 seconds
 local extractedData = {}
+_authInProgress = false
 --------------------------------------------------
 -- INIT
 --------------------------------------------------
@@ -62,11 +61,11 @@ function OnDriverInit()
 
     TcpConnection()
 
-    -- Start authentication flow after TCP connection
-    C4:SetTimer(2000, function()
-        print("Starting authentication flow...")
-        InitializeCamera()
-    end)
+    -- NOTE: Authentication is started ONLY from the validated path
+    -- (OnDriverLateInit -> ValidateMacAddress -> InitializeCamera).
+    -- We must NOT call InitializeCamera() here unconditionally, otherwise
+    -- it would log in (and possibly auto-register an empty account) before
+    -- the MAC/email have been verified, leaving the dropdown with no devices.
 end
 
 --------------------------------------------------
@@ -133,8 +132,6 @@ function ClearDeviceList()
     -- repopulates these.
     ClearCredentials()
 
-    C4:UpdateProperty("Status", "Devices cleared")
-    
     -- Send empty data to UI
     SendDevicesToUI({})
     SendHistoryToUI({})
@@ -274,7 +271,14 @@ function ValidateMacAddress(mac, callback)
                 -- Email verified. Load the brand-specific credentials so the
                 -- correct devices are returned by the API.
                 local appId     = data.message.CldBusAppId or "cldbus"
-                local appSecret = data.message.CldBusSecret or data.message.SecretId or ""
+                local appSecret = data.message.CldBusSecret or ""
+
+                if appSecret == "" then
+                    print("[ValidateMacAddress] Missing CldBusSecret for validated account")
+                    C4:UpdateProperty("Status", "Validation failed: missing app secret")
+                    if callback then callback(false) end
+                    return
+                end
 
                 GlobalObject.AccountName  = customerEmail
                 GlobalObject.CldBusAppId  = appId
@@ -433,40 +437,11 @@ function UpdateAuthToken(token)
     GET_DEVICES()
 end
 --------------------------------------------------
--- POLLING
+-- (POLLING REMOVED)
 --------------------------------------------------
-local POLL_TIMER = nil
-local POLL_INTERVAL = 10000 -- 10 seconds
-local _pollingInFlight = false
+-- Notification history is fetched once after login (and on demand). No
+-- repeating poll timer runs anymore.
 local _currentFilterVids = nil -- nil = ALL_VIDS
-
-local function PollTick()
-    -- Defensive: Don't overlap network calls
-    if _pollingInFlight then
-        print("Poll skipped (in-flight)")
-    else
-        _pollingInFlight = true
-        print("Polling notifications...")
-
-        local vids = _currentFilterVids
-        if (not vids or #vids == 0) then
-            vids = ALL_VIDS
-        end
-
-        if vids and #vids > 0 then
-            FETCH_NOTIFICATION_HISTORY(vids, function()
-                -- callback to clear in-flight
-                _pollingInFlight = false
-            end)
-        else
-            print("Poll: No VIDs to fetch")
-            _pollingInFlight = false
-        end
-    end
-
-    -- Reschedule cleanly
-    POLL_TIMER = C4:SetTimer(POLL_INTERVAL, PollTick)
-end
 
 
 
@@ -481,9 +456,10 @@ function GET_DEVICES()
         url = (Properties["Base API URL"] or "https://api.arpha-tech.com") .. "/api/v3/openapi/devices-v2",
         method = "GET",
         headers = {
-            ["Content-Type"] = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["App-Name"] = "cldbus"
+            -- IMPORTANT: only send Authorization. Adding ["App-Name"] = "cldbus"
+            -- here filters the result to a different app namespace and returns
+            -- ZERO devices. The working MyDevices driver sends Authorization only.
+            ["Authorization"] = "Bearer " .. auth_token
         }
     }
 
@@ -514,14 +490,10 @@ function GET_DEVICES()
         -- Send devices to UI now that we have them
         SendDevicesToUI(ALL_DEVICES)
 
-        -- Fetch history for these devices
+        -- Fetch history for these devices (one-time, no polling)
         _currentFilterVids = nil
         FETCH_NOTIFICATION_HISTORY(ALL_VIDS, function()
-            -- Start polling after initial fetch
-            if not POLL_TIMER then
-                POLL_TIMER = C4:SetTimer(POLL_INTERVAL, PollTick, true)
-                print("Polling timer started")
-            end
+            print("Initial notification history fetch complete")
         end)
     end)
 end
@@ -557,8 +529,7 @@ function FETCH_NOTIFICATION_HISTORY(vids, done)
         method = "POST",
         headers = {
             ["Content-Type"] = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["App-Name"] = "cldbus"
+            ["Authorization"] = "Bearer " .. auth_token
         },
         body = json.encode(body)
     }
@@ -684,33 +655,35 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     end
 
     if strCommand == "HandleSelect" then
-    print("WebView opened (HandleSelect)")
+        print("WebView opened (HandleSelect)")
 
-    -- Build the same raw Control4 devicecommand format
-    --[[local extractedData = {
-        devicecommand = {
-            params = {
-                param = {
-                    {
-                        name = "Name",
-                        value = { static = "Auth Token" }
-                    },
-                    {
-                        name = "Value",
-                        value = { static = _props["Auth Token"] }
-                    }
-                }
-            }
-        }
-    }
-
-    local jsonString = C4:JsonEncode(extractedData)
-    print("JSON to UI: " .. jsonString)
-
-    SendUpdate(extractedData) --]]
-    InitializeCamera() 
-    return
-end
+        -- Push the already-cached device list + history straight to the UI so
+        -- the dropdown populates instantly and we do NOT refresh/re-fetch.
+        if LAST_DEVICES and #LAST_DEVICES > 0 then
+            print("Sending cached devices to UI:", #LAST_DEVICES)
+            SendDevicesToUI(LAST_DEVICES)
+            SendHistoryToUI(LAST_HISTORY)
+        else
+            -- Nothing cached yet (e.g. first load) — authenticate ONCE through
+            -- the validated path so we log in with the email that is actually
+            -- registered to this controller's MAC (not a raw/typed address).
+            if _authInProgress then
+                print("Auth already in progress — not re-triggering")
+            else
+                _authInProgress = true
+                print("No cached devices — validating + initializing once")
+                ValidateMacAddress(Properties["MacAddress"], function(isValid)
+                    if isValid then
+                        InitializeCamera()
+                    else
+                        ClearDeviceList()
+                    end
+                    _authInProgress = false
+                end)
+            end
+        end
+        return
+    end
 
 
     if idBinding ~= UI_PROXY_ID then return end
@@ -766,7 +739,11 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    -- Use the per-account credentials returned by MAC validation. Using the
+    -- hardcoded "cldbus" app logs into the wrong namespace -> 0 devices.
+    local app_name   = (GlobalObject.CldBusAppId and GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusAppId) or _props["AppId"] or "cldbus"
+    local app_secret = (GlobalObject.CldBusSecret and GlobalObject.CldBusSecret ~= "" and GlobalObject.CldBusSecret) or _props["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    print("[Camera Init] Using App-Name:", app_name)
     
     -- Prepare message and signature
     local message = string.format("client_id=%s&request_id=%s&time=%s&version=%s",
@@ -791,7 +768,7 @@ function InitializeCamera()
     
     local headers = {
         ["Content-Type"] = "application/json",
-        ["App-Name"] = "cldbus"
+        ["App-Name"] = app_name
     }
     
     local req = {
@@ -820,7 +797,7 @@ function InitializeCamera()
                 print("[Camera Init] Public key received:", public_key)
                 
                 local country_code = "N"
-                local account = Properties["Account"] or "pyabu@slomins.com"
+                local account = Properties["Account"] or ""
                 
                 if account == "" then
                     print("ERROR: Account is required for login")
@@ -933,7 +910,10 @@ function LoginOrRegister(country_code, account)
     
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-    local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    -- Per-account credentials from MAC validation (NOT hardcoded cldbus).
+    local app_name   = (GlobalObject.CldBusAppId and GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusAppId) or _props["AppId"] or "cldbus"
+    local app_secret = (GlobalObject.CldBusSecret and GlobalObject.CldBusSecret ~= "" and GlobalObject.CldBusSecret) or _props["AppSecret"] or "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    print("[Login] Using App-Name:", app_name)
     
     local post_data_obj = { country_code = country_code, account = account }
     local post_data_json = json.encode(post_data_obj)
@@ -969,7 +949,7 @@ function LoginOrRegister(country_code, account)
         local headers = {
             ["Content-Type"] = "application/json",
             ["Accept-Language"] = "en",
-            ["App-Name"] = "cldbus"
+            ["App-Name"] = app_name
         }
         
         local req = {
@@ -999,6 +979,11 @@ function LoginOrRegister(country_code, account)
                         GlobalObject.AccessToken = token
                         C4:UpdateProperty("Auth Token", token)
                         print("[Login] Auth token stored:", token)
+
+                        -- Fetch devices immediately from the successful login token.
+                        -- This avoids waiting for an external TCP/Node round-trip that
+                        -- can return stale namespace credentials.
+                        GET_DEVICES()
                         
                         -- Send token + ClientID to NODE API
                         SendTokenToNodeAPI(token)
@@ -1027,7 +1012,18 @@ function SendTokenToNodeAPI(token)
     local attempt = 1
     local max_attempts = 5
 
-     local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
+    local app_id = (GlobalObject.CldBusAppId and GlobalObject.CldBusAppId ~= "" and GlobalObject.CldBusAppId)
+        or _props["AppId"]
+        or "cldbus"
+    local app_secret = (GlobalObject.CldBusSecret and GlobalObject.CldBusSecret ~= "" and GlobalObject.CldBusSecret)
+        or _props["AppSecret"]
+        or ""
+
+    if app_secret == "" then
+        print("[NodeAPI] Skipping token push: missing AppSecret")
+        return
+    end
+
     local function SendTokenRetry()
         local url = "http://54.90.205.243:3000/send-to-control4"
         
@@ -1036,7 +1032,7 @@ function SendTokenToNodeAPI(token)
                 EventName = "LnduUpdate",
                 Token = token,
                 ClientID = GlobalObject.ClientID, 
-                AppId       = "cldbus",       
+                AppId       = app_id,
                 AppSecret   = app_secret,   
                 AccountName = GlobalObject.AccountName
             }
@@ -1048,7 +1044,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = GlobalObject.AppId  -- <<< cldbus
+                ["App-Name"]        = app_id
             },
             body = json.encode(body),
             timeout = 10
