@@ -127,12 +127,36 @@ function ClearDeviceList()
     ALL_VIDS = {}
     LAST_DEVICES = {}
     LAST_HISTORY = {}
-    
+
+    -- Wipe stored credentials so a wrong MAC/email cannot keep using the
+    -- previously authenticated account. A successful validation + login
+    -- repopulates these.
+    ClearCredentials()
+
     C4:UpdateProperty("Status", "Devices cleared")
     
     -- Send empty data to UI
     SendDevicesToUI({})
     SendHistoryToUI({})
+end
+
+--------------------------------------------------
+-- CLEAR CREDENTIALS
+--------------------------------------------------
+function ClearCredentials()
+    print("Clearing stored credentials...")
+
+    _props["Auth Token"] = ""
+    _props["AppId"]      = ""
+    _props["AppSecret"]  = ""
+
+    GlobalObject.AccountName  = nil
+    GlobalObject.CldBusAppId  = nil
+    GlobalObject.CldBusSecret = nil
+
+    C4:UpdateProperty("Auth Token", "")
+    C4:UpdateProperty("AppId", "")
+    C4:UpdateProperty("AppSecret", "")
 end
 
 --------------------------------------------------
