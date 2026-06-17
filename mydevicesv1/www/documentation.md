@@ -35,6 +35,9 @@ It allows show all devices of user base on userid.
 
 ### Change log
 
+**Version 7 (June 17, 2026)**  
+- Fixed device list only showing 20. Filled slots 1-20 first, moved only overflow devices to the Remaining Devices dynamic list, and added Selected Remaining Device Detail.
+
 **Version 5**  
 - TCI-829 - Drivers establish TCP connections using multiple ports with the TCP Port property.
 

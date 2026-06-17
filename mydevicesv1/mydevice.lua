@@ -132,6 +132,15 @@ function OnPropertyChanged(strName)
             end
         end)
     end
+
+    if strName == "Remaining Devices" then
+        local selected = Properties["Remaining Devices"] or ""
+        if selected == "" or selected == "No remaining devices" then
+            C4:UpdateProperty("Selected Remaining Device Detail", "Select an item from Remaining Devices")
+        else
+            C4:UpdateProperty("Selected Remaining Device Detail", selected)
+        end
+    end
 end
 
 function DisconnectTcp()
@@ -841,45 +850,88 @@ end
 -- ==========================
 -- Combined Device Fetch
 -- ==========================
+local function UpdateRemainingDevicesList(items)
+    local options = items or {}
+    if #options == 0 then
+        options = { "No remaining devices" }
+    end
+
+    local ok = pcall(function()
+        C4:UpdatePropertyList("Remaining Devices", options)
+    end)
+
+    if not ok then
+        local csv = table.concat(options, ",")
+        pcall(function()
+            C4:UpdatePropertyList("Remaining Devices", csv)
+        end)
+    end
+
+    local current = tostring(Properties["Remaining Devices"] or "")
+    local selected = ""
+
+    for _, option in ipairs(options) do
+        if option == current then
+            selected = current
+            break
+        end
+    end
+
+    if selected == "" then
+        if #options == 1 and options[1] == "No remaining devices" then
+            selected = options[1]
+        else
+            -- Keep dropdown unselected when multiple choices exist.
+            selected = ""
+        end
+    end
+
+    C4:UpdateProperty("Remaining Devices", selected)
+
+    if selected == "" or selected == "No remaining devices" then
+        C4:UpdateProperty("Selected Remaining Device Detail", "Select an item from Remaining Devices")
+    else
+        C4:UpdateProperty("Selected Remaining Device Detail", selected)
+    end
+end
+
 function ClearDeviceList()
     for i = 1, 20 do C4:UpdateProperty(tostring(i), "") end
-    C4:UpdateProperty("Remaining Devices", "No remaining devices")
+    UpdateRemainingDevicesList({})
+end
+
+local function FormatDeviceLine(device)
+    local prefix = device.prefix or "[UNKNOWN]"
+    local name = device.device_name or device.name or "Unknown"
+    local ip = device.local_ip or "N/A"
+    local vid = device.vid or device.id or "N/A"
+    return string.format("%s | Name: %s | IP: %s | VID: %s", prefix, name, ip, vid)
 end
 
 function UpdateDeviceProperties(devices)
     ClearDeviceList()
     local remaining = {}
+    local filledSlots = 0
+
     for i, device in ipairs(devices) do
-        if i <= 2 then  -- Limit to standard 20 slots
-            local info = string.format("%s | Name: %s | IP: %s | VID: %s",
-                device.prefix or "",
-                device.device_name or device.name or "Unknown",
-                device.local_ip or "N/A",
-                device.vid or device.id or "N/A")
-            C4:UpdateProperty(tostring(i), info)
+        local line = FormatDeviceLine(device)
+
+        -- Fill visible slots 1..20 first.
+        if i <= 20 then
+            C4:UpdateProperty(tostring(i), line)
+            filledSlots = i
         else
-            local itemStr
-            if device.prefix == "[LNDU]" then
-                itemStr = string.format("[LNDU] | Name: %s | IP: %s | VID: %s",
-                    device.device_name or "Unknown",
-                    device.local_ip or "N/A",
-                    device.vid or "N/A")
-            else
-                itemStr = string.format("[TUYA] | Name: %s | IP: N/A | VID: %s",
-                    device.name or "Unknown",
-                    device.id or "N/A")
-            end
-            table.insert(remaining, itemStr)
+            -- Only overflow devices should appear in Remaining Devices.
+            table.insert(remaining, line)
         end
     end
-    
-    if #remaining > 0 then
-        -- Join using standard Windows breaks (\r\n) with an extra newline (\n) after each row
-        local remainingStr = table.concat(remaining, "\n\n")
-        C4:UpdateProperty("Remaining Devices", remainingStr)
-    else
-        C4:UpdateProperty("Remaining Devices", "No remaining devices")
+
+    -- Fill any unused visible slots so the list does not look broken/skipped.
+    for i = filledSlots + 1, 20 do
+        C4:UpdateProperty(tostring(i), "")
     end
+    
+    UpdateRemainingDevicesList(remaining)
 end
 
 

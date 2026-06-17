@@ -6,8 +6,8 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>06/15/2026 3:20 PM</modified>
-  <version>6.0.4</version>
+  <modified>06/17/2026 9:00 AM</modified>
+  <version>7</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
   <auto_update>true</auto_update>
@@ -256,9 +256,16 @@
       <property>
         <persist>true</persist>
         <name>Remaining Devices</name>
+        <type>DYNAMIC_LIST</type>
+        <readonly>false</readonly>
+        <tooltip>Dynamic remaining devices list</tooltip>
+      </property>
+      <property>
+        <name>Selected Remaining Device Detail</name>
         <type>STRING</type>
         <readonly>false</readonly>
-        <default>No remaining devices&#13;&#10;Run Discover Devices first</default>
+        <default>Select an item from Remaining Devices</default>
+        <tooltip>Shows the currently selected Remaining Devices entry for copy/paste</tooltip>
       </property>
       <property>
         <name>Device Response</name>
