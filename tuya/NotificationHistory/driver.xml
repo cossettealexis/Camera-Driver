@@ -1,12 +1,12 @@
 <devicedata>
     <copyright>Copyright © 2026 Slomins. All Rights Reserved.</copyright>
     <name>Notification History</name>
-    <version>2</version>
+    <version>3</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>NotificationHistory</model>
     <created>2026-06-08</created>
-    <modified>2026-06-16</modified>
+    <modified>2026-06-19</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <auto_update>true</auto_update>
@@ -22,9 +22,7 @@
         <Icon width="300" height="300">controller://driver/NotificationHistory/icons/device/notif_300.png</Icon>
       </display_icons>
     </navigator_display_option>
-        <web_view_url proxybindingid="5001">
-            controller://driver/NotificationHistory/contents/index.html
-        </web_view_url>
+        <web_view_url proxybindingid="5001">controller://driver/NotificationHistory/contents/index.html</web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
     </capabilities>
     <config>
