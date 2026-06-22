@@ -120,8 +120,6 @@ local EVENT = {
 local conditional_state = {
     MOTION_DETECTED = false,
     NOT_MOTION_DETECTED = true,
-    MIC_MUTED = false,
-    MIC_UNMUTED = true,
     SPEAKER_VOLUME = 4,
     BATTERY_LEVEL = 100,
     SENSITIVITY = 5
@@ -144,6 +142,9 @@ local _batteryAlertTimer   = nil
 -- Wake Camera with Retry and stop retry after retry attempts
 
 local handle_face_event
+
+conditional_state.MIC_MUTED   = true      -- default muted for safety
+conditional_state.MIC_UNMUTED = false
 
 
 function WakeCamera(retry)
@@ -169,12 +170,8 @@ function WakeCamera(retry)
     try_wake()
 end
 
---[[
-    Establishes a TCP connection to the configured server.
-    Creates the network connection, applies TCP port options
-    (auto-connect, keep-alive, monitoring, etc.), and initiates
-    the connection using the global server IP and port.
-]]
+--Establishes a TCP connection to the configured server.
+
 
 function TcpConnection()
     print("TcpConnection established")
@@ -224,7 +221,7 @@ function OnDriverInit()
     TcpConnection()
     print("=== VD05 Driver Initialized ===")
     C4:UpdateProperty("Camera Status", "Unknown")
-     C4:UpdateConditional("SPEAKER_VOLUME", "4")
+    
     -- Initialize properties
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -277,59 +274,9 @@ function OnDriverInit()
             }
         end
     )
+
+    C4:UpdateConditional("SPEAKER_VOLUME", "4")
 end
---[[function OnDriverInit()
-    --Call TCP upon driver initialization
-    TcpConnection()
-    print("=== VD05 Driver Initialized ===")
-    C4:UpdateProperty("Camera Status", "Unknown")
-    -- Initialize properties
-    for k, v in pairs(Properties) do
-        if k ~= "Password" then
-            print("Property [" .. k .. "] = " .. tostring(v))
-        end
-        _props[k] = v
-    end
-
-    -- Sync IP Address property with Camera Proxy
-    local ip_address = Properties["IP Address"]
-    if ip_address and ip_address ~= "" and ip_address ~= "127.0.0.1" then
-        print("[INIT] Setting Camera Proxy IP to: " .. ip_address)
-        C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip_address })
-    else
-        print("[INIT] No valid IP Address set, keeping default")
-    end
-
-    MQTT.init(_props, {
-        on_connected = function()
-            local vid = _props["VID"] or Properties["VID"]
-            MQTT.subscribe(vid)
-        end,
-
-        on_message = function(topic, payload)
-            HANDLE_JSON_EVENT(payload)
-        end
-    })
-
-    C4:UpdateProperty("Status", "Driver initialized")
-
-     -- Initialise EventLogger
-   EventLogger.init(
-    transport,
-    json,
-    function()
-        return {
-            BaseApi    = GlobalObject.BaseApi or "",
-            DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
-            DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
-            UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
-            IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
-            AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",  -- ← add this
-        }
-    end
-)
-
-end --]]
 
 function OnDriverDestroyed()
     print("=== VD05 Driver Destroyed ===")
@@ -461,6 +408,12 @@ local function update_prop(name, value)
     if not value then value = "" end
     pcall(function() C4:UpdateProperty(name, tostring(value)) end)
     _props[name] = tostring(value)
+end
+
+local function GetCldBusCredentials()
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    return appId, appSecret
 end
 
 function OnPropertyChanged(strProperty)
@@ -650,6 +603,19 @@ function ExecuteCommand(strCommand, tParams)
         SEND_TEST_NOTIFICATION()
         return
     end
+
+    --[[if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        SET_MIC_STATE(false)          
+        return
+    end
+
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        SET_MIC_STATE(true)          
+        return
+    end--]]
+
     if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
         UpdateConditional("MIC_MUTED", false)
@@ -699,6 +665,13 @@ function ExecuteCommand(strCommand, tParams)
     end
     if strCommand == "UPDATE_UI_PROPERTIES" then
         SendUpdateCameraProp()
+        return
+    end
+
+    if strCommand == "SET_ANTI_PRY" then
+
+        print("[COMMAND] Anti-Pry toggle requested")
+        SET_ANTI_PRY_STATE(tParams)
         return
     end
 
@@ -2256,6 +2229,24 @@ local function handle_device_status(msg)
         if s.status_key == "e" then
             battery_pct = tonumber(s.status_val)
         end
+
+
+         -- ====================== MICROPHONE STATUS ======================
+        if s.status_key == "mic_on" or 
+           s.status_key == "talk_on" or 
+           s.status_key == "microphone" or 
+           s.status_key == "ac_talk" then
+            
+            local micOn = (tonumber(s.status_val) == 1)
+            conditional_state.MIC_MUTED   = not micOn
+            conditional_state.MIC_UNMUTED = micOn
+            
+            print("[MIC] State updated from cloud:", micOn and "ON" or "OFF")
+            
+            -- Push to WebView
+            PushMicStateToUI()
+        end
+
     end
 
     if battery_pct then
@@ -3511,3 +3502,263 @@ function TestCondition(condition_name, test_value)
 end
 
 
+-- ====================== MICROPHONE CONTROL ======================
+
+-- Main function to call the cloud API
+function SET_MIC_STATE(isMuted)
+    print("[MIC] Setting microphone to:", isMuted and "MUTED" or "UNMUTED")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("[MIC] ❌ Missing VID")
+        return false
+    end
+    if not token or token == "" then
+        print("[MIC] ❌ Missing Auth Token")
+        return false
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local on_off = isMuted and 0 or 1   -- 0 = Off (Mute), 1 = On (Unmute)
+
+    local input_params = json.encode({
+        t      = os.time() * 1000,   -- current timestamp in ms
+        on_off = on_off
+    })
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_talk",
+        input_params = input_params,
+        check_t      = 0,
+        is_async     = 0
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[MIC] Sending ac_talk command → on_off =", on_off)
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        print("[MIC] API Response Code:", code)
+        if resp then 
+            print("[MIC] Response Body:", resp) 
+        end
+
+        if code == 200 or code == 20000 then
+            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            
+            -- Update local state
+            conditional_state.MIC_MUTED    = isMuted
+            conditional_state.MIC_UNMUTED  = not isMuted
+
+            -- Push to WebView UI
+            PushMicStateToUI()
+            
+            C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+        else
+            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            C4:UpdateProperty("Status", "Mic command failed")
+        end
+    end)
+
+    return true
+end
+
+-- Push current mic state to WebView
+function PushMicStateToUI()
+    local payload = json.encode({
+        mic_muted = conditional_state.MIC_MUTED
+    })
+    
+    C4:SendDataToUI(payload)
+    
+    -- Extra push for reliability
+    C4:SetTimer(600, function()
+        C4:SendDataToUI(payload)
+    end)
+end
+
+
+-- =====================================================
+-- ANTI-PRY STATE (VD05) - CLEAN FINAL VERSION
+-- =====================================================
+
+function SET_ANTI_PRY_STATE(tParams)
+
+    print("[ANTI-PRY] Toggle requested")
+
+    -- =========================
+    -- DEFAULT RAW VALUE
+    -- =========================
+    local raw = false
+
+    -- =========================
+    -- SAFE PARAM PARSING
+    -- =========================
+    if type(tParams) == "string" then
+
+        local ok, data = pcall(function()
+            return json.decode(tParams)
+        end)
+
+        if ok and data then
+            raw = data.state
+        end
+
+    elseif type(tParams) == "table" then
+
+        raw = tParams.state
+
+    elseif type(tParams) == "boolean" or type(tParams) == "number" then
+
+        raw = tParams
+    end
+
+    -- =========================
+    -- FORCE STRICT 0 / 1
+    -- =========================
+    local tamper_swt = 0
+
+    if raw == true or raw == 1 or raw == "1" or raw == "true" then
+        tamper_swt = 1
+    end
+
+    print("[ANTI-PRY] RAW =", raw)
+    print("[ANTI-PRY] FINAL tamper_swt =", tamper_swt)
+
+    -- =========================
+    -- VALIDATE DEVICE INFO
+    -- =========================
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("[ANTI-PRY] ❌ Missing VID")
+        return false
+    end
+
+    if not token or token == "" then
+        print("[ANTI-PRY] ❌ Missing Auth Token")
+        return false
+    end
+
+    -- =========================
+    -- API URL
+    -- =========================
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-property"
+
+    -- =========================
+    -- REQUIRED API FORMAT
+    -- data MUST be stringified JSON
+    -- =========================
+    local body = {
+        vid = vid,
+        data = json.encode({
+            tamper_swt = tamper_swt
+        })
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[ANTI-PRY] Sending request:", json.encode(body))
+
+    -- =========================
+    -- REQUEST
+    -- =========================
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+
+        print("[ANTI-PRY] Response code:", code)
+
+        if resp then
+            print("[ANTI-PRY] Response:", resp)
+        end
+
+        if code == 200 or code == 20000 then
+
+            -- update state
+            conditional_state.ANTI_PRY_ENABLED = (tamper_swt == 1)
+
+            -- push to UI
+            PushAntiPryStateToUI()
+
+            C4:UpdateProperty(
+                "Status",
+                "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled")
+            )
+
+        else
+            print("[ANTI-PRY] ❌ Failed:", tostring(err))
+            C4:UpdateProperty("Status", "Anti-Pry failed")
+        end
+    end)
+
+    return true
+end
+
+-- =====================================================
+-- PUSH ANTI-PRY STATE TO UI
+-- =====================================================
+
+function PushAntiPryStateToUI()
+
+    local payload = json.encode({
+        tamper_swt = conditional_state.ANTI_PRY_ENABLED and 1 or 0
+    })
+
+    print("[ANTI-PRY] Pushing UI state:", payload)
+
+    C4:SendDataToUI(payload)
+
+    C4:SetTimer(600, function()
+        C4:SendDataToUI(payload)
+    end)
+end
+
+-- =====================================================
+-- INITIAL UI SYNC
+-- =====================================================
+
+function PushInitialVD05State()
+
+    C4:SetTimer(1000, function()
+
+        local payload = json.encode({
+            tamper_swt = conditional_state.ANTI_PRY_ENABLED and 1 or 0,
+            mic_muted  = conditional_state.MIC_MUTED
+        })
+
+        print("[VD05] Initial UI Sync:", payload)
+
+        C4:SendDataToUI(payload)
+    end)
+end
+
+-- Helper to safely get current CldBus credentials from Properties
+local function GetCldBusCredentials()
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
+    local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
+    return appId, appSecret
+end

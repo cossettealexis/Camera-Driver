@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>VD05 Settings</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+
+/* =========================
+   THEME
+========================= */
+:root{
+    --accent:#ad1c42;
+    --bg:#0f1115;
+    --surface:#181b21;
+    --surface2:#1f232b;
+    --border:#2d333c;
+    --text:#ffffff;
+    --muted:#98a2b3;
+}
+
+/* =========================
+   RESET
+========================= */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Inter',sans-serif;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+    background:var(--bg);
+    color:var(--text);
+    overflow:hidden;
+}
+
+/* =========================
+   APP WRAPPER
+========================= */
+.app{
+    width:100%;
+    height:100%;
+}
+
+/* =========================
+   PANELS
+========================= */
+.panel{
+    display:none;
+    width:100%;
+    height:100%;
+    flex-direction:column;
+}
+
+.panel.active{
+    display:flex;
+}
+
+/* =========================
+   HEADER
+========================= */
+.header{
+    padding:20px;
+    border-bottom:1px solid var(--border);
+}
+
+.header h1{
+    font-size:22px;
+    font-weight:700;
+}
+
+.header p{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:4px;
+}
+
+/* =========================
+   SETTINGS LIST
+========================= */
+.list{
+    padding:10px;
+}
+
+.item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+
+    padding:14px 16px;
+    margin-bottom:10px;
+
+    cursor:pointer;
+    transition:.2s;
+}
+
+.item:hover{
+    background:var(--surface2);
+}
+
+.left{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.icon{
+    width:20px;
+    height:20px;
+    color:var(--accent);
+}
+
+.title{
+    font-size:15px;
+    font-weight:600;
+}
+
+.subtitle{
+    font-size:12px;
+    color:var(--muted);
+}
+
+.chevron{
+    width:18px;
+    height:18px;
+    color:var(--muted);
+}
+
+/* =========================
+   TOP BAR (BACK)
+========================= */
+.topbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+}
+
+.back{
+    width:38px;
+    height:38px;
+
+    border:none;
+    border-radius:10px;
+
+    background:var(--surface);
+    color:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    cursor:pointer;
+}
+
+/* =========================
+   FEATURE SCREEN
+========================= */
+.content{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    text-align:center;
+    gap:18px;
+}
+
+.bigIcon{
+    width:64px;
+    height:64px;
+    color:var(--accent);
+}
+
+.h2{
+    font-size:22px;
+    font-weight:700;
+}
+
+.desc{
+    font-size:13px;
+    color:var(--muted);
+    max-width:260px;
+}
+
+/* =========================
+   BUTTON
+========================= */
+.btn{
+    background:var(--accent);
+    border:none;
+    color:white;
+
+    padding:12px 24px;
+    border-radius:12px;
+
+    font-weight:600;
+    cursor:pointer;
+}
+
+/* =========================
+   TOGGLE
+========================= */
+.toggle{
+    position:relative;
+    width:70px;
+    height:38px;
+}
+
+.toggle input{ display:none; }
+
+.slider{
+    position:absolute;
+    inset:0;
+    background:#444;
+    border-radius:999px;
+    transition:.2s;
+}
+
+.slider:before{
+    content:'';
+    position:absolute;
+    width:30px;
+    height:30px;
+    left:4px;
+    top:4px;
+    background:white;
+    border-radius:50%;
+    transition:.2s;
+}
+
+.toggle input:checked + .slider{
+    background:var(--accent);
+}
+
+.toggle input:checked + .slider:before{
+    transform:translateX(32px);
+}
+
+.status{
+    font-size:13px;
+    color:var(--muted);
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- HOME -->
+    <section id="homePanel" class="panel active">
+
+        <div class="header">
+            <h1>Device Settings</h1>
+            <p>VD05 Camera Controls</p>
+        </div>
+
+        <div class="list">
+
+            <div class="item" onclick="show('rebootPanel')">
+                <div class="left">
+                    <i data-lucide="rotate-cw" class="icon"></i>
+                    <div>
+                        <div class="title">Reboot</div>
+                        <div class="subtitle">Restart device</div>
+                    </div>
+                </div>
+                <i data-lucide="chevron-right" class="chevron"></i>
+            </div>
+
+            <div class="item" onclick="show('antiPryPanel')">
+                <div class="left">
+                    <i data-lucide="shield-alert" class="icon"></i>
+                    <div>
+                        <div class="title">Anti-Pry</div>
+                        <div class="subtitle">Tamper protection</div>
+                    </div>
+                </div>
+                <i data-lucide="chevron-right" class="chevron"></i>
+            </div>
+
+            <div class="item" onclick="show('micPanel')">
+                <div class="left">
+                    <i data-lucide="mic" class="icon"></i>
+                    <div>
+                        <div class="title">Microphone</div>
+                        <div class="subtitle">Audio capture control</div>
+                    </div>
+                </div>
+                <i data-lucide="chevron-right" class="chevron"></i>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- REBOOT -->
+    <section id="rebootPanel" class="panel">
+
+        <div class="topbar">
+            <button class="back" onclick="show('homePanel')">
+                <i data-lucide="arrow-left"></i>
+            </button>
+        </div>
+
+        <div class="content">
+
+            <i data-lucide="rotate-cw" class="bigIcon"></i>
+
+            <div class="h2">Reboot Device</div>
+            <div class="desc">This will restart the camera system.</div>
+
+            <button class="btn" onclick="reboot()">
+                Reboot
+            </button>
+
+        </div>
+
+    </section>
+
+    <!-- ANTI PRY -->
+    <section id="antiPryPanel" class="panel">
+
+        <div class="topbar">
+            <button class="back" onclick="show('homePanel')">
+                <i data-lucide="arrow-left"></i>
+            </button>
+        </div>
+
+        <div class="content">
+
+            <i data-lucide="shield-alert" class="bigIcon"></i>
+
+            <div class="h2">Anti-Pry</div>
+            <div class="desc">Enable or disable tamper protection.</div>
+
+            <label class="toggle">
+                <input type="checkbox" id="antiPry">
+                <span class="slider"></span>
+            </label>
+
+            <div class="status" id="antiPryStatus">Disabled</div>
+
+        </div>
+
+    </section>
+
+    <!-- MIC -->
+    <section id="micPanel" class="panel">
+
+        <div class="topbar">
+            <button class="back" onclick="show('homePanel')">
+                <i data-lucide="arrow-left"></i>
+            </button>
+        </div>
+
+        <div class="content">
+
+            <i data-lucide="mic" class="bigIcon"></i>
+
+            <div class="h2">Microphone</div>
+            <div class="desc">Enable or disable audio capture.</div>
+
+            <label class="toggle">
+                <input type="checkbox" id="mic">
+                <span class="slider"></span>
+            </label>
+
+            <div class="status" id="micStatus">Enabled</div>
+
+        </div>
+
+    </section>
+
+</div>
+
+<script>
+
+lucide.createIcons();
+
+/* =========================
+   NAVIGATION
+========================= */
+function show(id){
+
+    document.querySelectorAll('.panel')
+        .forEach(p => p.classList.remove('active'));
+
+    document.getElementById(id)
+        .classList.add('active');
+
+    lucide.createIcons();
+}
+
+/* =========================
+   CONTROL4 ACTIONS
+========================= */
+function reboot(){
+
+    console.log("REBOOT_DEVICE");
+
+    // C4JH.SendToProxy("REBOOT_DEVICE",{});
+
+}
+
+/* =========================
+   TOGGLES
+========================= */
+document.addEventListener('DOMContentLoaded', () => {
+
+    document.getElementById('antiPry').addEventListener('change', function(){
+
+        document.getElementById('antiPryStatus').innerText =
+            this.checked ? "Enabled" : "Disabled";
+
+        console.log(this.checked ? "ANTI_PRY_ON" : "ANTI_PRY_OFF");
+
+    });
+
+    document.getElementById('mic').addEventListener('change', function(){
+
+        document.getElementById('micStatus').innerText =
+            this.checked ? "Enabled" : "Disabled";
+
+        console.log(this.checked ? "MIC_ON" : "MIC_OFF");
+
+    });
+
+});
+
+</script>
+ <script src="javascript/index.js" type="text/javascript"></script>
+</body>
+</html>
