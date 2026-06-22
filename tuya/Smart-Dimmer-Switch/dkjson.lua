@@ -16,7 +16,7 @@ For the documentation see the corresponding readme.txt or visit
 You can contact the author by sending an e-mail to 'david' at the
 domain 'dkolf.de'.
 
-
+   
 Copyright (C) 2010-2014 David Heiko Kolf
 
 Permission is hereby granted, free of charge, to any person obtaining

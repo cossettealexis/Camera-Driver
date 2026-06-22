@@ -12,6 +12,8 @@ This driver integrates a Tuya-based Smart Dimmer Switch with Control4, supportin
 - Manual and cloud-based dimmer level syncing
 
 ### Required Properties
+- **Tcp Port**:  TCP server port used by the driver to establish the network connection.
+- **MacAddress**: Control 4 Mac Address.
 - **ClientId**: Tuya Cloud API client ID.
 - **ClientSecret**: Tuya Cloud API client secret.
 - **Contract**: Enables/disables driver cloud operations.
@@ -20,10 +22,11 @@ This driver integrates a Tuya-based Smart Dimmer Switch with Control4, supportin
 - **State**: Represents current ON/OFF status of the dimmer
 - **Level**: Integer from 0–100 indicating brightness level
 - **Debug Mode**: Enables verbose log output for diagnostics
+- **Device Response**: Mac Address Validation Message
 
 ### Proxies
-- **5001**: `uibutton` proxy for manual UI toggle
-- **5002**: `light_v2` proxy for light level and ON/OFF state
+- **5001**: `light_v2` proxy for light level and ON/OFF state 
+- **5002**: `uibutton` proxy for manual UI toggle
 
 ### Network Binding
 - **6001**: TCP connection for real-time event relay
@@ -78,6 +81,20 @@ Includes icon sets for ON/OFF states with brightness indication
    - Disable Debug Mode and finish setup
 
 ### Change Log
+**Version 122**  
+- SDH-1194 - Apply To option is not showing other dimmers or switches on the list
+
+**Version 121**  
+- SDH-1154 - Fetch Client ID & Client Secret directly from REST API (remove Node.js dependency)
+
+**Version 120**  
+- TCI-829 - Drivers establish TCP connections using multiple ports with the TCP Port property.
+
+**Version 119**  
+- TCI-356 - Client ID and Secret Solution -  Solution by entering MAC Address in Property Section and validate MAC
+
+**Version 118**  
+- TCI-245 - Develop a way to show the list of devices for Agents as part of driver creating scenes 
 
 **Version 117**  
 - TCI-303 - Add correct dates for Driver and Add proper naming convention for Drivers
