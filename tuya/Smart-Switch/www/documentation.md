@@ -12,6 +12,8 @@ This driver enables Control4 to integrate with a Tuya-based Smart Switch using s
 - Supports Alexa light level emulation via `SetBrightnessTargetAlexa`  
 
 ### Required Properties
+- **Tcp Port**:  TCP server port used by the driver to establish the network connection.
+- **MacAddress**: Control 4 Mac Address.
 - **ClientId**: Tuya Cloud API client ID.
 - **ClientSecret**: Tuya Cloud API client secret.
 - **Contract**: Enables/disables driver cloud operations.
@@ -19,10 +21,11 @@ This driver enables Control4 to integrate with a Tuya-based Smart Switch using s
 - **DeviceId**: The unique identifier of the Tuya switch device.  
 - **State**: Reflects the current state of the switch ("on" or "off").  
 - **Debug Mode**: Enables or disables debug logging.   
+- **Device Response**: Mac Address Validation Message.
 
 ### Proxies
-- **5001**: `uibutton` proxy used for UI interaction and feedback.  
-- **5002**: `light_v2` proxy handles ON/OFF commands and brightness transitions.  
+- **5001**: `light_v2` proxy handles ON/OFF commands and brightness transitions.  
+- **5002**: `uibutton` proxy used for UI interaction and feedback.  
 
 ### Network Binding
 - **6001**: TCP connection to cloud relay server (Tuya MQTT-HTTP bridge).  
@@ -77,6 +80,25 @@ Enabling `Debug Mode` will automatically turn off after 60 minutes to prevent lo
 
 
 ### Change log
+**Version 96**  
+- SDH-750 - Fixed the toggle issue.
+
+**Version 95**  
+- TCI-1194 - Apply To option is not showing other dimmers or switches on the list.
+
+**Version 94**  
+- TCI-853 - Advanced Lighting scenes for Smart Switch.
+- SDH-1153 - Virtual Buttons under System Design when double click still is not showing.
+- SDH-1154 - Fetch Client ID & Client Secret directly from REST API (remove Node.js dependency)
+
+**Version 93**  
+- TCI-829 - Drivers establish TCP connections using multiple ports with the TCP Port property.
+
+**Version 92**  
+- TCI-356 - Client ID and Secret Solution -  Solution by entering MAC Address in Property Section and validate MAC
+
+**Version 91**  
+- TCI-245 - Develop a way to show the list of devices for Agents as part of driver creating scenes 
 
 **Version 90**  
 - TCI-303 - Add correct dates for Driver and Add proper naming convention for Drivers
