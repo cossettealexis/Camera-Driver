@@ -5,8 +5,8 @@
   <name>Smart Switch</name>
   <model>Smart Switch</model>
   <created>04/03/2025 07:52 PM</created>
-  <modified>09/23/2025 3:20 PM</modified>
-  <version>92</version>
+  <modified>03/30/2026 3:20 PM</modified>
+  <version>96</version>
   <small>devices_sm\c4.gif</small>
   <large>devices_lg\c4.gif</large>
   <control>lua_gen</control>
@@ -15,13 +15,19 @@
     <category>Lights</category>
   </composer_categories>
   <proxies>
-    <proxy proxybindingid="5001" name="Smart Switch" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
-    <proxy proxybindingid="5002" name="Smart Switch Proxy">light_v2</proxy>
+    <proxy proxybindingid="5001" name="Smart Switch Proxy">light_v2</proxy>
+    <proxy proxybindingid="5002" name="Smart Switch" image_source="c4z" large_image="icons/device_lg.png" small_image="icons/device_sm.png">uibutton</proxy>
   </proxies>
   <config>
     <documentation file="www/documentation/index.html">Smart Switch</documentation>
-    <script file="driver.lua" encryption="2" />
+    <script file="driver.lua" />
     <properties>
+      <property>
+        <name>Tcp Port</name>
+        <type>STRING</type>
+        <readonly>false</readonly>
+        <default>8080</default>
+      </property>
       <property>
         <name>MacAddress</name>
         <type>STRING</type>
@@ -82,6 +88,12 @@
         <readonly>true</readonly>
         <default></default>
       </property>
+      <property>
+        <name>TCP Connection</name>
+        <type>STRING</type>
+        <readonly>true</readonly>
+        <default>OFFLINE</default>
+      </property>
     </properties>
     <commands>
       <command>
@@ -107,7 +119,7 @@
     </actions>
   </config>
   <capabilities>
-    <navigator_display_option proxybindingid="5001">
+    <navigator_display_option proxybindingid="5002">
       <display_icons>
         <Icon width="70" height="70">controller://driver/Slomins_SmartSwitch/icons/device/switch_70.png</Icon>
         <Icon width="90" height="90">controller://driver/Slomins_SmartSwitch/icons/device/switch_90.png</Icon>
@@ -124,7 +136,7 @@
         </state>
       </display_icons>
     </navigator_display_option>
-    <web_view_url proxybindingid="5001">controller://driver/Slomins_SmartSwitch/contents/index.html</web_view_url>
+    <web_view_url proxybindingid="5002">controller://driver/Slomins_SmartSwitch/contents/index.html</web_view_url>
     <mobile_web_view_enabled>True</mobile_web_view_enabled>
     <dimmer>False</dimmer>
     <set_level>True</set_level>
@@ -143,12 +155,12 @@
     <hide_proxy_events>false</hide_proxy_events>
     <load_group_support>False</load_group_support>
     <buttons_are_virtual>True</buttons_are_virtual>
-    <reduced_als_support>True</reduced_als_support>
-    <advanced_scene_support>False</advanced_scene_support>
+    <reduced_als_support>False</reduced_als_support>
+    <advanced_scene_support>True</advanced_scene_support>
   </capabilities>
   <connections>
     <connection>
-      <id>5001</id>
+      <id>5002</id>
       <facing>6</facing>
       <connectionname>UIBUTTON</connectionname>
       <type>2</type>
@@ -163,7 +175,7 @@
       </classes>
     </connection>
     <connection>
-      <id>5002</id>
+      <id>5001</id>
       <facing>6</facing>
       <connectionname>LIGHT</connectionname>
       <type>2</type>
@@ -188,7 +200,7 @@
           <classname>TCP</classname>
           <ports>
             <port>
-              <number>8081</number>
+              <number>8080</number>
               <suppress_connection_events>True</suppress_connection_events>
               <auto_connect>True</auto_connect>
               <monitor_connection>True</monitor_connection>

@@ -7,9 +7,9 @@ GlobalObject.ClientSecret = ""
 GlobalObject.AES_KEY = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG" -- 32 bytes = AES-256
 GlobalObject.AES_IV = "33rj6KNVN4kFvd0s"                  --16 bytes
 GlobalObject.BaseUrl = "https://openapi.tuyaus.com"
-GlobalObject.TCP_SERVER_IP = 'tuya.slomins.com'
-GlobalObject.TCP_SERVER_PORT = 8081
-GlobalObject.BaseApi = "https://svcs.slomins.com/PROD/OntechSvcs/1.0/ontech"
+GlobalObject.TCP_SERVER_IP = 'tuya.slomins.net'
+GlobalObject.TCP_SERVER_PORT = ""
+GlobalObject.BaseApi = "https://svcs.slomins.com/Prod/OntechSvcs/1.1/ontech"
 
 UI_REQUEST = {}
 PRX_CMD = {}
@@ -35,7 +35,9 @@ gDebugTimer = 0;
 gConnectionStatus = false;
 gPortNumber = 8085
 IsTcpConnected = false
-
+gScenes = gScenes or {}
+DRIVER_ID = ""
+SCENE_KEY = ""
 
 function ON_INIT.setupState()
     print("SetupProperties:")
@@ -43,7 +45,10 @@ function ON_INIT.setupState()
     GlobalObject.ClientSecret =  Properties["ClientSecret"]
     deviceId = Properties["DeviceId"];
     print("deviceId ", deviceId);
-    TcpConnection() 
+    C4:UpdateProperty("Tcp Port", "8080")
+    C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
+    GlobalObject.TCP_SERVER_PORT = Properties["Tcp Port"]
+    TcpConnection()
 end
 
 function SendUpdate(extractedData)
@@ -58,8 +63,8 @@ function SendUpdate(extractedData)
     ]], jsonString)
 
     if extractedData and extractedData.state then
-        C4:SendToProxy(5001, "ICON_CHANGED", { icon = extractedData.state, icon_description = jsonString })
-        C4:SendToProxy(5001, "UPDATE_UI", {})
+        C4:SendToProxy(5002, "ICON_CHANGED", { icon = extractedData.state, icon_description = jsonString })
+        C4:SendToProxy(5002, "UPDATE_UI", {})
         if extractedData.state == 'on' then
             EC.SetBrightnessTargetAlexa({ LIGHT_BRIGHTNESS_TARGET = 100, RATE = 750 })
         else
@@ -107,105 +112,188 @@ function UIRequest(strCommand, tParams)
     return nil
 end
 
+function DisconnectTcp()
+    print("Disconnecting old TCP connection...")
+    C4:NetDisconnect(6001, GlobalObject.TCP_SERVER_PORT)
+end
+
 function TcpConnection()
-    print("TcpConnection established")
+    if GlobalObject.TCP_SERVER_PORT == "" or GlobalObject.TCP_SERVER_PORT == nil then
+        print("ERROR: Tcp Port is empty!")
+        return
+    end
+    
+    print("========================================")
+    print("TcpConnection: Attempting to connect")
+    print("Server IP: " .. GlobalObject.TCP_SERVER_IP)
+    print("Server Port: " .. tostring(GlobalObject.TCP_SERVER_PORT))
+    print("========================================")
+    
     local tPortParams = {
-        SUPPRESS_CONNECTION_EVENTS = true,
+        SUPPRESS_CONNECTION_EVENTS = false,
         AUTO_CONNECT = true,
         MONITOR_CONNECTION = true,
         KEEP_CONNECTION = true,
         KEEP_ALIVE = true,
         DELIMITER = "0d0a"
     }
+    
     C4:CreateNetworkConnection(6001, GlobalObject.TCP_SERVER_IP, "TCP")
     C4:NetPortOptions(6001, GlobalObject.TCP_SERVER_PORT, "TCP", tPortParams)
-    C4:NetConnect(6001, GlobalObject.TCP_SERVER_PORT) 
-    C4:SendToProxy(5002, "ONLINE_CHANGED", {STATE=true}, "NOTIFY")
+    C4:NetConnect(6001, GlobalObject.TCP_SERVER_PORT)
+    C4:SendToProxy(5001, "ONLINE_CHANGED", {STATE=true}, "NOTIFY")
+    print("NetConnect() call issued for port: " .. tostring(GlobalObject.TCP_SERVER_PORT))
+end
+
+function OnNetworkConnected(idBinding, nPort)
+    print("=======TCP CONNECTION SUCCESSFUL========")
+    print("Port: " .. tostring(nPort))
+    print("========================================")
+end
+
+function OnNetworkDisconnected(idBinding, nPort)
+    print("=========TCP DISCONNECTED ==============")
+    print("Port: " .. tostring(nPort))
+    print("========================================")
 end
 
 function OnConnectionStatusChanged(idBinding, nPort, strStatus)
-    if (nPort == GlobalObject.TCP_SERVER_PORT) then
+    print("========OnConnectionStatusChanged======")
+    print("idBinding: " .. tostring(idBinding))
+    print("Port: " .. tostring(nPort))
+    print("Status: " .. tostring(strStatus))
+
+    if tonumber(nPort) == tonumber(GlobalObject.TCP_SERVER_PORT) then
         IsTcpConnected = strStatus
-        print("TCP connection status changed:", strStatus)
+        C4:UpdateProperty("TCP Connection", strStatus)
+        if strStatus == "ONLINE" then
+            print("Connection Status: ONLINE ")
+        elseif strStatus == "OFFLINE" then
+            print("Connection Status: OFFLINE")
+        end
     end
+    print("========================================")
+
 end
 
 -- Called when data is received from the network
 function ReceivedFromNetwork(idBinding, nPort, strData)
     -- Remove trailing \r\n if present
-    if string.sub(strData, -2) == "\r\n" then
-        strData = string.sub(strData, 1, -3)
-    end
-    local cipher = 'AES-256-CBC'
-    local options = {
-        return_encoding = 'NONE',
-        key_encoding = 'NONE',
-        iv_encoding = 'NONE',
-        data_encoding = 'BASE64',
-        padding = true,
-    }
-    local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
-    if (decrypted_data ~= nil) then
-        local data = C4:JsonDecode(decrypted_data)
-        extractedData = {}
-        deviceId = Properties["DeviceId"]
-	    if data and data.EventName == "UpdateBaseApi" then
-            GlobalObject.BaseApi = data.BaseApi
+    if tonumber(nPort) == tonumber(GlobalObject.TCP_SERVER_PORT) then
+        if string.sub(strData, -2) == "\r\n" then
+            strData = string.sub(strData, 1, -3)
         end
-	   if data and data.EventName == "UpdateClientSecretId" and data.MacAddress == Properties["MacAddress"] then
-            GlobalObject.ClientID = data.ClientId
-            GlobalObject.ClientSecret = data.SecretId
-            C4:UpdateProperty("ClientId", data.ClientId or "")
-            C4:UpdateProperty("ClientSecret", data.SecretId or "")
-        end
-        if data and data.EventName == "ChangeGlobalKeys" then
-            GlobalObject.ClientID = data.ClientId
-            GlobalObject.ClientSecret = data.ClientSecret
-            C4:UpdateProperty("ClientId", data.ClientId or "")
-            C4:UpdateProperty("ClientSecret", data.ClientSecret or "")
-        end
-
-        if data and data.EventName == "ChangeContract" then
-            if data.UserId == Properties["UserId"] then
-                C4:UpdateProperty("Contract", data.Contract or "")
+        local cipher = 'AES-256-CBC'
+        local options = {
+            return_encoding = 'NONE',
+            key_encoding = 'NONE',
+            iv_encoding = 'NONE',
+            data_encoding = 'BASE64',
+            padding = true,
+        }
+        local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
+        if (decrypted_data ~= nil) then
+            local data = C4:JsonDecode(decrypted_data)
+            extractedData = {}
+            deviceId = Properties["DeviceId"]
+            if data and data.EventName == "UpdateBaseApi" then
+                GlobalObject.BaseApi = data.BaseApi
             end
-        end
-        if data and data.devId and data.devId == deviceId then
-            print("ReceivedFromNetwork()", idBinding, nPort, strData)
-            -- Mapping of codes to extractedData keys
-            local codeMapping = {
-                switch_1 = "switch_1"
-            }
+            if data and data.EventName == "UpdateClientSecretId" and data.MacAddress == Properties["MacAddress"] then
+               print("ReceivedFromNetwork() UpdateClientSecretId", idBinding, nPort, strData)
+                GlobalObject.ClientID = data.ClientId
+                GlobalObject.ClientSecret = data.SecretId
+                C4:UpdateProperty("ClientId", data.ClientId or "")
+                C4:UpdateProperty("ClientSecret", data.SecretId or "")
+            end
+            if data and data.EventName == "ChangeGlobalKeys" then
+                GlobalObject.ClientID = data.ClientId
+                GlobalObject.ClientSecret = data.ClientSecret
+                C4:UpdateProperty("ClientId", data.ClientId or "")
+                C4:UpdateProperty("ClientSecret", data.ClientSecret or "")
+            end
 
-            -- Process the result
-            for _, item in ipairs(data.properties) do
-                if item.code and item.value ~= nil then -- Ensure item.code and item.value are valid
-                    local key = codeMapping[item.code]
-                    if key then
-                        extractedData[key] = item.value
+            if data and data.EventName == "ChangeContract" then
+                if data.UserId == Properties["UserId"] then
+                    C4:UpdateProperty("Contract", data.Contract or "")
+                end
+            end
+            if data and data.devId and data.devId == deviceId then
+                print("ReceivedFromNetwork()", idBinding, nPort, strData)
+                -- Mapping of codes to extractedData keys
+                local codeMapping = {
+                    switch_1 = "switch_1"
+                }
+
+                -- Process the result
+                for _, item in ipairs(data.properties) do
+                    if item.code and item.value ~= nil then -- Ensure item.code and item.value are valid
+                        local key = codeMapping[item.code]
+                        if key then
+                            extractedData[key] = item.value
+                        end
                     end
                 end
-            end
-            if extractedData.switch_1 ~= nil then
-                print("Switch " .. tostring(extractedData.switch_1))
-                if extractedData.switch_1 == true then
-                    C4:UpdateProperty("State", "on")
-                    extractedData.state = "on"
-                else
-                    C4:UpdateProperty("State", "off")
-                    extractedData.state = "off"
+                if extractedData.switch_1 ~= nil then
+                    print("Switch " .. tostring(extractedData.switch_1))
+                    if extractedData.switch_1 == true then
+                        C4:UpdateProperty("State", "on")
+                        extractedData.state = "on"
+                    else
+                        C4:UpdateProperty("State", "off")
+                        extractedData.state = "off"
+                    end
+                    -- Encode the data to JSON and send to UI
+                    local jsonString = C4:JsonEncode(extractedData)
+                    print("GetSwitchApi JSON to UI: " .. jsonString)
+                    SendUpdate(extractedData)
                 end
-                -- Encode the data to JSON and send to UI
-                local jsonString = C4:JsonEncode(extractedData)
-                print("GetSwitchApi JSON to UI: " .. jsonString)
-                SendUpdate(extractedData)
             end
-        end
-    end 
+        end 
+    end
 end
 
 function ReceivedFromProxy(idBinding, strCommand, tParams)
-    print("RecievedFromProxy()", idBinding, strCommand)  
+    print("RecievedFromProxy()", idBinding, strCommand)
+    
+    if strCommand == "PUSH_SCENE" then
+
+        if tParams then
+            print("=== PUSH_SCENE tParams ===")
+            for k, v in pairs(tParams) do
+                if type(v) == "table" then
+                    print(k .. " = " .. C4:JsonEncode(v))
+                else
+                    print(k .. " = " .. tostring(v))
+                end
+            end
+        else
+            print("No tParams received")
+        end
+        Handle_PushScene(tParams)
+
+    elseif strCommand == "REMOVE_SCENE" then
+        Handle_RemoveScene(tParams)
+
+    elseif strCommand == "ACTIVATE_SCENE" then
+        Handle_ActivateScene(tParams)
+
+    elseif strCommand == "RAMP_SCENE_UP" then
+        Handle_RampSceneUp(tParams)
+
+    elseif strCommand == "RAMP_SCENE_DOWN" then
+        Handle_RampSceneDown(tParams)
+
+    elseif strCommand == "STOP_SCENE_RAMP" then
+        Handle_StopSceneRamp(tParams)
+
+    elseif strCommand == "SYNC_SCENE" then
+        Handle_SyncScene(tParams)
+
+    elseif strCommand == "SYNC_ALL_SCENES" then
+        Handle_SyncAllScenes(tParams)
+    end
+    
     if Properties["Contract"] == "Enable" then 
         -- GenerateToken(GlobalObject, function(accessToken)
         --     if not accessToken then
@@ -289,7 +377,6 @@ function ON_LATE_INIT.ChangeProperty()
     print('OnDriverLateInit');
     LIGHT_LEVEL = 0 -- set light to be off on startup
 
-    C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
     ValidateMacAddress(Properties["MacAddress"])
 end
 
@@ -574,14 +661,14 @@ function RFP.SET_BRIGHTNESS_TARGET(idBinding, strCommand, tParams, args)
     }
 
     -- https://snap-one.github.io/docs-driverworks-proxyprotocol/#light-brightness-changing
-    C4:SendToProxy(5002, 'LIGHT_BRIGHTNESS_CHANGING', args)
+    C4:SendToProxy(5001, 'LIGHT_BRIGHTNESS_CHANGING', args)
 
 
     -- start a timer for the length of time provided, and then send the notify in an async timer callback
     local _timer = function(timer)
         LIGHT_LEVEL = target
         -- https://snap-one.github.io/docs-driverworks-proxyprotocol/#light-brightness-changed 
-        C4:SendToProxy(5002, 'LIGHT_BRIGHTNESS_CHANGED', { LIGHT_BRIGHTNESS_CURRENT = LIGHT_LEVEL })
+        C4:SendToProxy(5001, 'LIGHT_BRIGHTNESS_CHANGED', { LIGHT_BRIGHTNESS_CURRENT = LIGHT_LEVEL })
     end
 
     C4:SetTimer(rate, _timer)
@@ -631,14 +718,14 @@ EC.SetBrightnessTargetAlexa = function(tParams)
     }
 
     -- https://snap-one.github.io/docs-driverworks-proxyprotocol/#light-brightness-changing
-    C4:SendToProxy(5002, 'LIGHT_BRIGHTNESS_CHANGING', args)
+    C4:SendToProxy(5001, 'LIGHT_BRIGHTNESS_CHANGING', args)
 
 
     -- start a timer for the length of time provided, and then send the notify in an async timer callback
     local _timer = function(timer)
         LIGHT_LEVEL = target
         -- https://snap-one.github.io/docs-driverworks-proxyprotocol/#light-brightness-changed
-        C4:SendToProxy(5002, 'LIGHT_BRIGHTNESS_CHANGED', { LIGHT_BRIGHTNESS_CURRENT = LIGHT_LEVEL })
+        C4:SendToProxy(5001, 'LIGHT_BRIGHTNESS_CHANGED', { LIGHT_BRIGHTNESS_CURRENT = LIGHT_LEVEL })
     end
 
     C4:SetTimer(rate, _timer)
@@ -721,8 +808,18 @@ function OnPropertyChanged(strName)
         GlobalObject.ClientSecret = Properties[strName]        
     end
     if (strName == "MacAddress") then
-        C4:UpdateProperty("ClientSecret", Properties[strName])
+        C4:UpdateProperty("MacAddress", Properties[strName])
         ValidateMacAddress(Properties[strName]);      
+    end
+    if (strName == "Tcp Port") then
+        print("========================================")
+        print("Tcp Port CHANGED: " .. Properties[strName])
+        print("========================================")
+        C4:UpdateProperty("Tcp Port", Properties[strName])
+        GlobalObject.TCP_SERVER_PORT = Properties[strName]
+        DisconnectTcp()
+        TcpConnection()
+	   ValidateMacAddress(Properties["MacAddress"])
     end
 end
 
@@ -746,6 +843,9 @@ end
 
 function OnDriverInit()
     runFunctions(ON_INIT)
+    DRIVER_ID = C4:GetDeviceID()
+    SCENE_KEY = "SCENES_" .. DRIVER_ID
+    LoadScenes()
 end
 
 function OnDriverLateInit()
@@ -812,6 +912,38 @@ function ValidateMacAddress(mac)
             if response.IsValidMacAddress == true then
                 print("MAC Address is valid")
                 C4:UpdateProperty("Device Response","MAC Address is valid")
+                
+                local strData = response.EncryptMsg
+                if string.sub(strData, -2) == "\r\n" then
+                  strData = string.sub(strData, 1, -3)
+                end
+          
+                local cipher = 'AES-256-CBC'
+                local options = {
+                    return_encoding = 'NONE',
+                    key_encoding = 'NONE',
+                    iv_encoding = 'NONE',
+                    data_encoding = 'BASE64',
+                    padding = true,
+                }
+
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData, options)
+                
+                if (decrypted_data ~= nil) then
+                 
+                  local data = C4:JsonDecode(decrypted_data)
+                  extractedData = {}
+                  deviceId = Properties["DeviceId"]
+                
+                  if data and data.message and data.message.EventName == "UpdateClientSecretId" and 
+                     data.message.MacAddress == Properties["MacAddress"] then
+                        print("ValidateMacAddress() " , data.message.EventName)
+                        GlobalObject.ClientID = data.message.ClientId
+                        GlobalObject.ClientSecret = data.message.SecretId
+                        C4:UpdateProperty("ClientId", data.message.ClientId or "")
+                        C4:UpdateProperty("ClientSecret", data.message.SecretId or "")
+                   end
+                end
             else
                 print("MAC Address is invalid")
                 C4:UpdateProperty("Device Response","MAC Address is invalid")
@@ -825,4 +957,232 @@ function ValidateMacAddress(mac)
             C4:UpdateProperty("Device Response","Failed to parse JSON response")
         end
     end)
+end
+
+function LoadScenes()
+    local encoded = C4:PersistGetValue(SCENE_KEY)
+
+    if encoded and encoded ~= "" then
+        gScenes = encoded
+        print("Scenes loaded successfully")
+    else
+        gScenes = {}
+        print("No stored scenes found")
+    end
+end
+
+
+function Handle_PushScene(tParams)
+    local sceneId  = tonumber(tParams["SCENE_ID"])
+    local xml      = tParams["ELEMENTS"]
+
+    if not sceneId or not xml then
+        print("Invalid PUSH_SCENE params")
+        return
+    end
+
+    StoreGScene(tonumber(DRIVER_ID), sceneId, xml)
+end
+
+function StoreGScene(driverId, sceneId, sceneXml)
+    if not driverId or not sceneId then
+        print("Invalid driverId or sceneId")
+        return
+    end
+
+    gScenes[driverId] = gScenes[driverId] or {}
+
+    gScenes[driverId][sceneId] = {
+        driverId = driverId,
+        sceneId  = sceneId,
+        sceneXml = sceneXml
+    }
+
+    C4:PersistSetValue(SCENE_KEY, gScenes)
+
+    print("Stored GScene → Device:", driverId, "Scene:", sceneId)
+end
+
+function Handle_ActivateScene(tParams)
+    if not tParams then
+        print("No tParams received")
+        return
+    end
+
+    print("=== START ACTIVATE_SCENE tParams ===")
+    for k, v in pairs(tParams) do
+        if type(v) == "table" then
+            print(k .. " = " .. C4:JsonEncode(v))
+        else
+            print(k .. " = " .. tostring(v))
+        end
+    end
+    print("=== END ACTIVATE_SCENE tParams ===")
+
+    local deviceId = tonumber(DRIVER_ID)
+    local sceneId  = tonumber(tParams["SCENE_ID"])
+
+    if not deviceId then
+        print("Invalid DRIVER_ID")
+        return
+    end
+
+    if not sceneId then
+        print("Invalid SCENE_ID")
+        return
+    end
+
+    if not gScenes then
+        print("gScenes is nil")
+        return
+    end
+
+    if not gScenes[deviceId] then
+        print("No scenes found for Device ID:", deviceId)
+        return
+    end
+
+    if not gScenes[deviceId][sceneId] then
+        print("No scene found for Device ID:", deviceId, "Scene ID:", sceneId)
+        return
+    end
+
+    local scene = gScenes[deviceId][sceneId]
+
+    print("Scene Found ✔")
+    print("Scene ID:", scene.sceneId)
+    print("Scene XML:", scene.sceneXml)
+
+    local xml = scene.sceneXml
+
+    -- Loop through each <element> block
+    for element in xml:gmatch("<element>(.-)</element>") do
+        
+        local delay               = element:match("<delay>(.-)</delay>")
+        local brightnessEnabled   = element:match("<brightnessEnabled>(.-)</brightnessEnabled>")
+        local brightness          = element:match("<brightness>(.-)</brightness>")
+        local brightnessRate      = element:match("<brightnessRate>(.-)</brightnessRate>")
+        local presetId            = element:match("<brightnessPresetID>(.-)</brightnessPresetID>")
+        local colorEnabled        = element:match("<colorEnabled>(.-)</colorEnabled>")
+
+        print("Executing Element:")
+        print("  Delay =", delay)
+        print("  BrightnessEnabled =", brightnessEnabled)
+        print("  Brightness =", brightness)
+        print("  Rate =", brightnessRate)
+        print("  PresetID =", presetId)
+        print("  ColorEnabled =", colorEnabled)
+
+        -- Delay before executing next element
+        if tonumber(delay) > 0 then
+            C4:SetTimer(tonumber(delay), function()
+                ExecuteElement(brightness, brightnessRate, presetId)
+            end)
+        else
+            ExecuteElement(brightness, brightnessRate, presetId)
+        end
+    end
+end
+
+function ExecuteElement(brightness, rate, presetId)
+    print("Applying brightness:", brightness, "rate:", rate, "preset:", presetId)
+
+    if brightness then
+        -- Convert brightness to number and set on device
+        local brightnessLevel = tonumber(brightness) or 100
+        print("Setting brightness level to:", brightnessLevel)
+        local params = { LIGHT_BRIGHTNESS_TARGET = brightnessLevel, RATE = 750 }
+        RFP.SET_BRIGHTNESS_TARGET(nil, nil, params, nil)
+    elseif presetId then
+        print("Using preset ID:", presetId)
+        -- Handle preset if needed in future
+    else
+        print("No brightness or preset specified")
+    end
+end
+
+function Handle_RemoveScene(tParams)
+    print("REMOVE_SCENE called with params")
+    if tParams then
+        print("=== REMOVE_SCENE tParams ===")
+        for k, v in pairs(tParams) do
+            if type(v) == "table" then
+                print(k .. " = " .. C4:JsonEncode(v))
+            else
+                print(k .. " = " .. tostring(v))
+            end
+        end
+     else
+         print("No tParams received")
+     end
+    local driverId = tonumber(DRIVER_ID)
+    local sceneId  = tonumber(tParams["SCENE_ID"])
+
+    if not driverId or not sceneId then
+        print("RemoveScene: Invalid driverId or sceneId")
+        return false
+    end
+
+    if not gScenes or not gScenes[driverId] then
+        print("RemoveScene: No scenes found for driverId:", driverId)
+        return false
+    end
+
+    if not gScenes[driverId][sceneId] then
+        print("RemoveScene: Scene not found. driverId:", driverId, "sceneId:", sceneId)
+        return false
+    end
+
+    -- Remove the scene
+    gScenes[driverId][sceneId] = nil
+    print("Scene removed. driverId:", driverId, "sceneId:", sceneId)
+
+    -- If driver has no more scenes, clean it up
+    if next(gScenes[driverId]) == nil then
+        gScenes[driverId] = nil
+        print("No more scenes for driverId:", driverId, "- driver entry removed")
+    end
+
+    -- Persist updated scenes
+    C4:PersistSetValue(SCENE_KEY, gScenes)
+
+    return true
+end
+
+function Handle_RampSceneUp(tParams)
+    print("RAMP_SCENE_UP called")
+    -- Ramp brightness up to 100%
+    --SetLightLevel(100)
+end
+
+function Handle_RampSceneDown(tParams)
+    print("RAMP_SCENE_DOWN called")
+    -- Ramp brightness down to 0%
+    --SetLightLevel(0)
+end
+
+function Handle_StopSceneRamp(tParams)
+    print("STOP_SCENE_RAMP called")
+    -- Stop any ongoing ramp
+end
+
+function Handle_SyncScene(tParams)
+    print("SYNC_SCENE called")
+    -- Sync single scene to proxy
+    --SendSceneListToProxy()
+end
+
+function Handle_SyncAllScenes(tParams)
+    print("SYNC_ALL_SCENES called")
+    -- Sync all scenes to proxy
+    --SendSceneListToProxy()
+end
+
+function SetLightLevel(level)
+    if Properties["Contract"] == "Enable" then
+        print("Setting light level to " .. tostring(level))
+        local target = level
+        local rate = 750
+        proxyBrightnessChanges(target, rate)
+    end
 end

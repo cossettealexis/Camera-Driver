@@ -1,5 +1,5 @@
 ﻿<Driver type="c4z" name="Slomins_SmartSwitch">
- <Items> 
+ <Items>
   <Item type="dir" c4zDir="www" name="www" recurse="true" exclude="false" />
   <Item type="file" name="dkjson.lua" />
   <Item type="file" name="driver.lua" />
