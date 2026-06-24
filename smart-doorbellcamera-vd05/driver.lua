@@ -17,7 +17,7 @@ LAST_NOTIFY_ID           = LAST_NOTIFY_ID or nil
 MAX_TIME_DRIFT           = 600 -- seconds (acceptable drift)
 
 local CAMERA_BINDING     = 5001
-local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 7000
+local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 3000
 
 local last_ip_refresh    = 0
 local MIN_REFRESH_GAP    = 5  -- seconds (small gap, not too strict)
@@ -98,6 +98,10 @@ _props.MQTT                    = {
 _props.MQTT.manual_disconnect  = false
 
 local PROP_MQTT_HOST           = "MQTT Host"
+
+-- Forward declarations for functions used in ExecuteCommand
+local handle_doorbell
+
 local PROP_MQTT_PORT           = "MQTT Port"
 local PROP_MQTT_CLIENT_ID      = "MQTT Client ID"
 local PROP_MQTT_SECRET         = "MQTT Secret"
@@ -484,7 +488,7 @@ function OnPropertyChanged(strProperty)
         return
     end
     if strProperty == "Event Interval (ms)" then
-        EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
+        EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 3000
         print("[WAKE] Event interval updated to:", EVENT_DELAY_MS, "ms")
         return
     end
@@ -601,6 +605,12 @@ function ExecuteCommand(strCommand, tParams)
     end
     if strCommand == "TEST_PUSH_NOTIFICATION" then
         SEND_TEST_NOTIFICATION()
+        return
+    end
+    
+    if strCommand == "TEST_DOORBELL" then
+        print("[TEST] 🔔 Simulating doorbell press")
+        handle_doorbell(nil, nil, {type = 5})
         return
     end
 
@@ -1955,6 +1965,11 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
    -- if not can_notify(cooldown_key, cooldown_sec) then return end
 
+    if event_name == EVENT.DOORBELL then
+        print("[DOORBELL] Doorbell event received.")
+        C4:FireEvent(event_name, CAMERA_BINDING)
+    end
+
     local tries = 0
 
     local function fetch()
@@ -1981,9 +1996,12 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
                 event_name,
                 "IP Camera"
             )
-            C4:SetTimer(EVENT_DELAY_MS, function()
-                C4:FireEvent(event_name, CAMERA_BINDING)
-            end)
+            if event_name ~= EVENT.DOORBELL then
+                C4:SetTimer(EVENT_DELAY_MS, function()
+                    C4:FireEvent(event_name, CAMERA_BINDING)
+                    print("[NOTIFY] Event " .. event_name)
+                end)
+            end
         end)
     end
 
@@ -2017,7 +2035,7 @@ local function handle_restart()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_RESTARTED, "restart", COOLDOWN.restart)
      EventLogger.logCameraRestarted()
 end
-local function handle_doorbell(filename, extp, params)
+handle_doorbell = function(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
     EventLogger.logDoorbell(params) -- ← pass full params
 end
