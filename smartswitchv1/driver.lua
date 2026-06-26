@@ -309,6 +309,16 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
             EC.On(true)
         elseif strCommand == "OFF" then
             EC.Off(true)
+        elseif strCommand == "TOGGLE" then
+            local currentState = Properties["State"] or "off"
+            print("[TOGGLE] Current state: " .. currentState)
+            if currentState == "on" then
+                print("[TOGGLE] Switching OFF")
+                EC.Off(true)
+            else
+                print("[TOGGLE] Switching ON")
+                EC.On(true)
+            end
         end
     end 
 

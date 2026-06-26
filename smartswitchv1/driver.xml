@@ -5,8 +5,8 @@
   <name>Smart Switch</name>
   <model>Smart Switch</model>
   <created>04/03/2025 07:52 PM</created>
-  <modified>03/30/2026 3:20 PM</modified>
-  <version>96</version>
+  <modified>06/24/2026 12:00 PM</modified>
+  <version>97</version>
   <small>devices_sm\c4.gif</small>
   <large>devices_lg\c4.gif</large>
   <control>lua_gen</control>
