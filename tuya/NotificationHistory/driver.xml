@@ -1,12 +1,12 @@
 <devicedata>
     <copyright>Copyright © 2026 Slomins. All Rights Reserved.</copyright>
     <name>Notification History</name>
-    <version>3</version>
+    <version>4</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>NotificationHistory</model>
     <created>2026-06-08</created>
-    <modified>2026-06-19</modified>
+    <modified>2026-06-26</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <auto_update>true</auto_update>

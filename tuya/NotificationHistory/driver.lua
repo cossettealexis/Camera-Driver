@@ -414,6 +414,33 @@ function ReceivedFromNetwork(id, port, data)
 
     if payload.EventName ~= "LnduUpdate" then return end
 
+    local myMacAddress = Properties["MacAddress"] or ""
+    local payloadMacAddress = payload.C4UniqueMac or payload.MacAddress or ""
+    
+    -- Normalize MAC addresses for comparison (remove separators, uppercase)
+    local normalizedMyMac = myMacAddress:gsub("[:%-]", ""):upper()
+    local normalizedPayloadMac = payloadMacAddress:gsub("[:%-]", ""):upper()
+    
+    if normalizedMyMac == "" then
+        print("[SECURITY] ReceivedFromNetwork: No MAC address configured in Properties, ignoring TCP message")
+        return
+    end
+    
+    if normalizedPayloadMac == "" then
+        print("[SECURITY] ReceivedFromNetwork: No C4UniqueMac in payload, ignoring TCP message")
+        return
+    end
+    
+    if normalizedMyMac ~= normalizedPayloadMac then
+        print("[SECURITY] ReceivedFromNetwork: MAC address mismatch - ignoring token")
+        print("[SECURITY]   Expected (Properties): " .. myMacAddress)
+        print("[SECURITY]   Received (C4UniqueMac): " .. payloadMacAddress)
+        return
+    end
+    
+    print("[SECURITY] ReceivedFromNetwork: MAC address validated - " .. myMacAddress)
+    -- ============================================================
+
     if payload.Token then
         -- Build the extractedData table like Smart Camera driver
         local extractedData = {

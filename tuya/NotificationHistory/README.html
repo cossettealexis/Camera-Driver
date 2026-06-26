@@ -154,14 +154,19 @@
   <p>Complete Control4 driver for viewing notification history from all Slomins devices with CldBus API integration,
     video playback, device filtering, and automatic refresh.</p>
 
-  <p><strong>Version:</strong> 3<br>
+  <p><strong>Version:</strong> 4<br>
     <strong>Package:</strong> NotificationHistory.c4z<br>
     <strong>Minimum Control4 OS:</strong> 3.3.2+<br>
     <strong>Created:</strong> June 8, 2026<br>
-    <strong>Modified:</strong> June 19, 2026
+    <strong>Modified:</strong> June 26, 2026
   </p>
 
   <h2>Change History</h2>
+  <h3>Version 4 - June 26, 2026</h3>
+  <ul>
+    <li>Fixed critical security vulnerability where devices from other accounts could appear in the device list due to missing MAC address validation in TCP message handling.</li>
+  </ul>
+
   <h3>Version 3 - June 19, 2026</h3>
   <ul>
     <li>Fixed UI not showing on Android.</li>
