@@ -1,41 +1,41 @@
-PersistData = PersistData or {}
-PersistData.presets = PersistData.presets or {}
-PersistData.current_ptz = PersistData.current_ptz or { x = 0, y = 0 }
-local _props             = {}
+PersistData                    = PersistData or {}
+PersistData.presets            = PersistData.presets or {}
+PersistData.current_ptz        = PersistData.current_ptz or { x = 0, y = 0 }
+local _props                   = {}
 
-local json               = require("CldBusApi.dkjson")
-local http               = require("CldBusApi.http")
-local auth               = require("CldBusApi.auth")
-local transport          = require("CldBusApi.transport_c4")
-local util               = require("CldBusApi.util")
-
+local json                     = require("CldBusApi.dkjson")
+local http                     = require("CldBusApi.http")
+local auth                     = require("CldBusApi.auth")
+local transport                = require("CldBusApi.transport_c4")
+local util                     = require("CldBusApi.util")
+local EventLogger              = require("event_logger")
 -- Local state
-local LAST_EVENT_ID      = 0
-local NOTIFICATION_URLS  = {}
-local NOTIFICATION_QUEUE = {}
-PENDING_NOTIFICATION_URL = nil
-ACTIVE_NOTIFICATION_URL  = nil
-LAST_NOTIFY_ID           = LAST_NOTIFY_ID or nil
-MAX_TIME_DRIFT           = 600     -- seconds (acceptable drift)
+local LAST_EVENT_ID            = 0
+local NOTIFICATION_URLS        = {}
+local NOTIFICATION_QUEUE       = {}
+PENDING_NOTIFICATION_URL       = nil
+ACTIVE_NOTIFICATION_URL        = nil
+LAST_NOTIFY_ID                 = LAST_NOTIFY_ID or nil
+MAX_TIME_DRIFT                 = 600 -- seconds (acceptable drift)
 
-local MQTT               = require("mqtt_manager")
-local CAMERA_BINDING     = 5001
-local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 5000
-local last_ip_refresh    = 0
-local MIN_REFRESH_GAP    = 5
-local NOTIFY             = {
+local MQTT                     = require("mqtt_manager")
+local CAMERA_BINDING           = 5001
+local EVENT_DELAY_MS           = tonumber(Properties["Event Interval (ms)"]) or 5000
+local last_ip_refresh          = 0
+local MIN_REFRESH_GAP          = 5
+local NOTIFY                   = {
     ALERT = "ALERT",
     INFO  = "INFO"
 }
 
 -- User toggles (bind later to driver properties if needed)
-local user_settings      = {
+local user_settings            = {
     enable_alerts = true,
     enable_info   = true
 }
 
 -- Cooldown windows (seconds)
-local COOLDOWN           = {
+local COOLDOWN                 = {
     motion  = 0,
     human   = 0,
     online  = 0,
@@ -45,8 +45,8 @@ local COOLDOWN           = {
 }
 
 -- Track last notification times
-local last_sent          = {}
-local last_confirmed_online = nil
+local last_sent                = {}
+local last_confirmed_online    = nil
 
 --TCP variables
 local _pendingAuthToken        = nil
@@ -64,7 +64,7 @@ GlobalObject.ClientID          = nil
 GlobalObject.AES_KEY           = "DMb9vJT7ZuhQsI967YUuV621SqGwg1jG"
 GlobalObject.AES_IV            = "33rj6KNVN4kFvd0s"
 GlobalObject.ProductSubType    = "poe_camera" -- poe_camera K15
-GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
+GlobalObject.BaseApi           = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
 
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
@@ -90,7 +90,7 @@ local PROP_MQTT_SECRET         = "MQTT Secret"
 local MQTT_AUTO_ENABLED        = false
 local GET_DEVICES_CALLED       = false
 
-local EVENT = {
+local EVENT                    = {
     MOTION           = "Motion Detected",
     CAMERA_ONLINE    = "Camera Online",
     CAMERA_OFFLINE   = "Camera Offline",
@@ -99,20 +99,20 @@ local EVENT = {
 
 }
 
-local mqtt_enabled = false
+local mqtt_enabled             = false
 
-local conditional_state = {
+local conditional_state        = {
     MOTION_DETECTED = false,
     NOT_MOTION_DETECTED = true,
     MIC_MUTED = false,
     MIC_UNMUTED = true,
-    SPEAKER_VOLUME = 5,
+    SPEAKER_VOLUME = 4,
     BATTERY_LEVEL = 100,
     SENSITIVITY = 5
 }
 
 --Establishes a TCP connection to the configured server.
-  
+
 
 function TcpConnection()
     print("TcpConnection established")
@@ -156,18 +156,18 @@ function SET_CAMERA_IP(ip)
         ADDRESS = ip
     })
 
-     --------------------------------------------------
+    --------------------------------------------------
     -- ✅ Regenerate RTSP URLs when IP changes
     --------------------------------------------------
     print("[CAMERA] Updating RTSP URLs...")
 
-    local rtsp_port = Properties["RTSP Port"] or "554"
+    local rtsp_port     = Properties["RTSP Port"] or "554"
     local auth_required = Properties["Authentication Type"] ~= "NONE"
-    local username = Properties["Username"] or "SystemConnect"
-    local password = Properties["Password"] or "123456"
+    local username      = Properties["Username"] or "SystemConnect"
+    local password      = Properties["Password"] or "123456"
 
-    local main_path = Properties["Main Stream Path"] or "streamtype=1"
-    local sub_path  = Properties["Sub Stream Path"] or "streamtype=0"
+    local main_path     = Properties["Main Stream Path"] or "streamtype=1"
+    local sub_path      = Properties["Sub Stream Path"] or "streamtype=0"
 
     local rtsp_main, rtsp_sub
 
@@ -196,7 +196,7 @@ function OnDriverInit()
     --Call TCP upon driver initialization
     TcpConnection()
     print("=== K15-SL Driver Initialized ===")
-
+     C4:UpdateConditional("SPEAKER_VOLUME", "4")
     -- Initialize properties
     for k, v in pairs(Properties) do
         if k ~= "Password" then
@@ -216,6 +216,23 @@ function OnDriverInit()
     })
 
     C4:UpdateProperty("Status", "Driver initialized")
+
+    --  ── Initialise EventLogger ───────────────────────────────────────────────
+    EventLogger.init(
+        transport,
+        json,
+        function()
+            return {
+                BaseApi    = GlobalObject.BaseApi or "",
+                DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+                DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+                UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+                IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+                AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "", -- ← add this
+            }
+        end
+    )
+    -- ────────────────────────────────────────────────────────────────────────
 end
 
 function OnDriverDestroyed()
@@ -239,7 +256,6 @@ function ValidateMacAddress(mac)
 
     C4:urlPost(url, requestBody, headers, true,
         function(ticketId, strData, responseCode, tHeaders, strError)
-
             if strError and strError ~= "" then
                 print("[MAC] API Error: " .. strError)
                 C4:UpdateProperty("Status", "MAC validation error: " .. strError)
@@ -282,7 +298,8 @@ function ValidateMacAddress(mac)
                     padding         = true,
                 }
 
-                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg, options)
+                local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, encryptedMsg,
+                    options)
 
                 if not decrypted_data then
                     print("[MAC] Decryption failed:", tostring(err))
@@ -297,20 +314,19 @@ function ValidateMacAddress(mac)
                     return
                 end
 
-                if data.message.EventName == "UpdateClientSecretId" and 
-                   data.message.MacAddress == C4:GetUniqueMAC() then
-
-                    local appId     = data.message.CldBusAppId or ""
-                    local appSecret = data.message.CldBusSecret or data.message.SecretId or ""
-                    local email     = data.message.CustomerEmail or ""
+                if data.message.EventName == "UpdateClientSecretId" and
+                    data.message.MacAddress == C4:GetUniqueMAC() then
+                    local appId                = data.message.CldBusAppId or ""
+                    local appSecret            = data.message.CldBusSecret or data.message.SecretId or ""
+                    local email                = data.message.CustomerEmail or ""
 
                     GlobalObject.CldBusAppId   = appId
                     GlobalObject.CldBusSecret  = appSecret
                     GlobalObject.CustomerEmail = email
 
-                    _props["AppId"]     = appId
-                    _props["AppSecret"] = appSecret
-                    _props["Account"]   = email
+                    _props["AppId"]            = appId
+                    _props["AppSecret"]        = appSecret
+                    _props["Account"]          = email
 
                     -- Force update multiple times with delay
                     C4:UpdateProperty("AppId", appId)
@@ -332,18 +348,16 @@ function ValidateMacAddress(mac)
                     print("[MAC] ✅ SUCCESS: Credentials loaded")
                     print("[MAC] AppId     : " .. appId)
                     print("[MAC] Account   : " .. email)
-
                 else
                     print("[MAC] Unexpected decrypted message format")
                     C4:UpdateProperty("Status", "MAC valid but bad credential format")
                 end
-
             else
                 print("[MAC] ❌ MAC Address is invalid according to server")
-                GlobalObject.CldBusAppId   = ""
-                GlobalObject.CldBusSecret  = ""
-                _props["AppId"] = ""
-                _props["AppSecret"] = ""
+                GlobalObject.CldBusAppId  = ""
+                GlobalObject.CldBusSecret = ""
+                _props["AppId"]           = ""
+                _props["AppSecret"]       = ""
                 C4:UpdateProperty("AppId", "")
                 C4:UpdateProperty("AppSecret", "")
                 C4:UpdateProperty("Status", "MAC validation failed - Invalid MAC")
@@ -354,8 +368,9 @@ end
 
 function OnDriverLateInit()
     print("=== K15-SL Driver Late Init ===")
-     C4:UpdateProperty("Camera Status", "Unknown")
-     ValidateMacAddress(C4:GetUniqueMAC())
+    C4:UpdateProperty("Camera Status", "Unknown")
+   
+    ValidateMacAddress(C4:GetUniqueMAC())
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "3333"
@@ -368,9 +383,8 @@ function OnDriverLateInit()
         print("  RTSP Port: " .. rtsp_port)
     end
     C4:UpdateProperty("Status", "Driver ready - waiting for credentials")
+     C4:UpdateConditional("SPEAKER_VOLUME", 4)
 end
-
-
 
 local function update_prop(name, value)
     if not value then value = "" end
@@ -380,7 +394,7 @@ end
 
 -- Helper to safely get current CldBus credentials from Properties
 local function GetCldBusCredentials()
-    local appId     = Properties["AppId"]     or _props["AppId"]     or ""
+    local appId     = Properties["AppId"] or _props["AppId"] or ""
     local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
     return appId, appSecret
 end
@@ -410,7 +424,16 @@ function OnPropertyChanged(strProperty)
         ValidateMacAddress(C4:GetUniqueMAC())
         return
     end
-
+    if strProperty == "VID" then
+        local newVid = Properties["VID"] or ""
+        if newVid ~= "" then
+            print("[VID] VID changed to:", newVid)
+            _props["VID"] = newVid
+            -- ✅ VID just changed and is valid, refresh camera status
+            GET_BATTERY_LEVEL()
+        end
+        return
+    end
     --[[if strProperty == "Enable MQTT" then
         mqtt_enabled = (Properties[strProperty] == "True")
 
@@ -440,7 +463,7 @@ function OnPropertyChanged(strProperty)
         if mqtt_enabled then
             print("[MQTT] Enabled by user")
             update_prop("Status", "MQTT enabled - waiting for credentials...")
-            C4:SetTimer(1000, APPLY_MQTT_INFO)   -- give time for credentials
+            C4:SetTimer(1000, APPLY_MQTT_INFO) -- give time for credentials
         else
             print("[MQTT] Disabled by user")
             update_prop("Status", "MQTT disabled")
@@ -466,7 +489,22 @@ function OnPropertyChanged(strProperty)
         return
     end
 
+    if strProperty == "Account" then
+        local newAccount = Properties["Account"] or ""
+        print("[ACCOUNT] Account changed to: " .. newAccount)
 
+        _props["Account"] = newAccount
+        GlobalObject.CustomerEmail = newAccount
+
+        if newAccount and newAccount ~= "" then
+            print("[ACCOUNT] Account changed → Re-initializing login...")
+            C4:UpdateProperty("Status", "Account changed - Re-logging in...")
+
+            -- Re-run full initialization with new email
+            C4:SetTimer(1500, InitializeCamera)
+        end
+        return
+    end
     local value = Properties[strProperty]
     print("Property [" .. strProperty .. "] changed to: " .. tostring(value))
     _props[strProperty] = value
@@ -530,8 +568,8 @@ function ExecuteCommand(strCommand, tParams)
     end
 
     if strCommand == "PTZ_GOTO_PRESET" then
-    PTZ_GOTO_PRESET(tParams)
-     return
+        PTZ_GOTO_PRESET(tParams)
+        return
     end
 
     if strCommand == "GET_PRESETS_API" then ---v1.0.2
@@ -617,7 +655,7 @@ function InitializeCamera()
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
     local version = "0.0.1"
-     local appId, appSecret = GetCldBusCredentials()
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet")
@@ -707,7 +745,7 @@ function LoginOrRegister(country_code, account, public_key)
 
     local request_id = util.uuid_v4()
     local time = tostring(os.time())
-     local appId, appSecret = GetCldBusCredentials()
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("ERROR: CldBus credentials not loaded yet. Waiting for MAC validation...")
@@ -901,7 +939,7 @@ function SendTokenToNodeAPI(token)
             headers = {
                 ["Content-Type"]    = "application/json",
                 ["Accept-Language"] = "en",
-                ["App-Name"]        = appId          -- Correct: use the local appId variable
+                ["App-Name"]        = appId -- Correct: use the local appId variable
             },
             body = json.encode(body),
             timeout = 10
@@ -913,8 +951,9 @@ function SendTokenToNodeAPI(token)
             if code == 200 then
                 print("[NodeAPI] SUCCESS: Token delivered!")
             else
-                print(string.format("[NodeAPI] Failed - Response: %s | Error: %s", tostring(code), tostring(err or "none")))
-                
+                print(string.format("[NodeAPI] Failed - Response: %s | Error: %s", tostring(code),
+                    tostring(err or "none")))
+
                 if attempt < max_attempts then
                     attempt = attempt + 1
                     print("[NodeAPI] Retrying... attempt " .. attempt)
@@ -1023,6 +1062,7 @@ function GET_DEVICES(p_vid)
                     _props["VID"] = target_device.vid
 
                     C4:UpdateProperty("VID", target_device.vid)
+                     GET_BATTERY_LEVEL()
 
                     -- Store IP address if available
                     if target_device.local_ip and target_device.local_ip ~= "" then
@@ -1061,8 +1101,6 @@ function GET_DEVICES(p_vid)
 
     print("================================================================")
 end
-
-
 
 -- Send Camera Properties to Control4 UI
 function SendUpdateCameraProp(extractedData)
@@ -1125,8 +1163,6 @@ function SendUpdateCameraProp(extractedData)
     print("================================================================")
 end
 
-
-
 -- -----------------------
 --  Apply MQTT Info
 -- -----------------------
@@ -1182,7 +1218,7 @@ function APPLY_MQTT_INFO()
     if appId == "" or appSecret == "" then
         print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
         update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
-        
+
         C4:SetTimer(2000, function()
             if Properties["Enable MQTT"] == "True" then
                 APPLY_MQTT_INFO()
@@ -1256,15 +1292,13 @@ function APPLY_MQTT_INFO()
 
                     MQTT.connect()
                 end)
-
             else
                 update_prop("Status", "MQTT info parse error")
             end
-
         else
             print("[MQTT] Failed with code:", code)
             update_prop("Status", "MQTT info failed: " .. tostring(code))
-            
+
             -- Retry once more
             C4:SetTimer(3000, function()
                 if Properties["Enable MQTT"] == "True" then
@@ -1359,7 +1393,7 @@ function ReceivedFromNetwork(id, port, data)
         print("[TCP] Token missing in payload")
     end
 
-    
+
     if payload.AppId and payload.AppId ~= "" then
         GlobalObject.AppId = payload.AppId
         _props["AppId"] = payload.AppId
@@ -1367,7 +1401,7 @@ function ReceivedFromNetwork(id, port, data)
         print(string.format("[PROP] AppId updated => %s", payload.AppId))
     end
 
-    
+
     if payload.AppSecret and payload.AppSecret ~= "" then
         GlobalObject.AppSecret = payload.AppSecret
         _props["AppSecret"] = payload.AppSecret
@@ -1436,15 +1470,15 @@ local function normalize_http_url(url)
     return url
 end
 function GetImageForEvent(extp, done)
-    local vid   = Properties["VID"]
-    local token = Properties["Auth Token"]
-    local base  = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local vid              = Properties["VID"]
+    local token            = Properties["Auth Token"]
+    local base             = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
-    print("ERROR: CldBus credentials not loaded yet")
-    C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
-    return
+        print("ERROR: CldBus credentials not loaded yet")
+        C4:UpdateProperty("Status", "Init failed: No CldBus credentials")
+        return
     end
 
     if not extp then
@@ -1560,17 +1594,19 @@ end
 
 
 
-local function handle_motion(filename, extp)
+
+local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
-    
-    -- Update motion conditional states
+    EventLogger.logMotion(params) -- ← pass full params
     UpdateConditional("MOTION_DETECTED", true)
     UpdateConditional("NOT_MOTION_DETECTED", false)
 end
 
-local function handle_human(filename, extp)
+local function handle_human(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "human", COOLDOWN.human, filename, extp)
+    EventLogger.logHuman(params) -- ← pass full params
 end
+
 
 
 local function handle_restart()
@@ -1609,6 +1645,7 @@ local function handle_online_status(new_online)
                 "online",
                 COOLDOWN.online
             )
+            EventLogger.logCameraOnline()
         else
             C4:UpdateProperty("Camera Status", "Offline")
             _props["Camera Status"] = "Offline"
@@ -1618,6 +1655,7 @@ local function handle_online_status(new_online)
                 "offline",
                 COOLDOWN.offline
             )
+            EventLogger.logCameraOffline()
         end
     end
 end
@@ -1662,12 +1700,12 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 10021 then
-                handle_motion(filename, extp)
+                handle_motion(filename, extp, params)
                 return true
             end
 
             if params.type == 10022 then
-                handle_human(filename, extp)
+                handle_human(filename, extp, params)
                 return true
             end
 
@@ -1709,25 +1747,25 @@ function HANDLE_JSON_EVENT(payload)
     end
 
     ------------------------------------------------
--- PTZ POSITION TRACKING (🔥 THIS IS THE FIX)
-------------------------------------------------
-if msg.method == "updateDeviceStatus" and msg.status then
-    for _, s in ipairs(msg.status) do
-        if s.status_key == "ptz_location" and s.status_val then
-            local x = tonumber(s.status_val.x_location)
-            local y = tonumber(s.status_val.y_location)
+    -- PTZ POSITION TRACKING (🔥 THIS IS THE FIX)
+    ------------------------------------------------
+    if msg.method == "updateDeviceStatus" and msg.status then
+        for _, s in ipairs(msg.status) do
+            if s.status_key == "ptz_location" and s.status_val then
+                local x = tonumber(s.status_val.x_location)
+                local y = tonumber(s.status_val.y_location)
 
-            if x and y then
-                PersistData.current_ptz = { x = x, y = y }
+                if x and y then
+                    PersistData.current_ptz = { x = x, y = y }
 
-                print("[PTZ] Current position updated:", x, y)
+                    print("[PTZ] Current position updated:", x, y)
 
-                -- Optional: show in Composer
-                C4:UpdateProperty("Current PTZ", x .. "," .. y)
+                    -- Optional: show in Composer
+                    C4:UpdateProperty("Current PTZ", x .. "," .. y)
+                end
             end
         end
     end
-end
 
 
 
@@ -1784,7 +1822,6 @@ function SEND_TEST_NOTIFICATION()
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_ONLINE, "test_online", 0)
     print("[TEST] ✅ Test notifications fired")
 end
-
 
 -- Camera On/Off Commands
 function CAMERA_ON(idBinding, tParams)
@@ -1917,10 +1954,10 @@ function PTZ_COMMAND(idBinding, strCommand, tParams)
 
     -- Map Control4 commands to numeric direction (0-3)
     local direction_map = {
-        PAN_LEFT   = 2,   -- Left
-        PAN_RIGHT  = 3,   -- Right
-        TILT_UP    = 0,   -- Up
-        TILT_DOWN  = 1,   -- Down
+        PAN_LEFT  = 2,  -- Left
+        PAN_RIGHT = 3,  -- Right
+        TILT_UP   = 0,  -- Up
+        TILT_DOWN = 1,  -- Down
         -- ZOOM_IN / ZOOM_OUT not supported by ac_ptz
     }
 
@@ -1949,7 +1986,7 @@ function PTZ_COMMAND(idBinding, strCommand, tParams)
     local body = {
         vid = vid,
         action_id = "ac_ptz",
-        input_params = json.encode(input_params),   -- MUST be string
+        input_params = json.encode(input_params), -- MUST be string
         check_t = 0,
         is_async = 0
     }
@@ -1970,11 +2007,11 @@ function PTZ_COMMAND(idBinding, strCommand, tParams)
             C4:UpdateProperty("Status", "PTZ " .. strCommand)
         else
             print("PTZ " .. strCommand .. " FAILED - HTTP Code:", code)
-            if resp then 
-                print("Response body:", resp) 
+            if resp then
+                print("Response body:", resp)
             end
-            if err then 
-                print("Error:", err) 
+            if err then
+                print("Error:", err)
             end
         end
     end)
@@ -1984,14 +2021,14 @@ function PTZ_HOME(idBinding, tParams)
     print("================================================================")
     print("                  PTZ_HOME CALLED                               ")
     print("================================================================")
-    
+
     -- Return camera to home position
     print("Returning camera to home position...")
     C4:UpdateProperty("Status", "PTZ Home")
-    
+
     -- You would call your camera's home position API here
     -- For now, this is a placeholder
-    
+
     print("================================================================")
 end
 
@@ -2894,7 +2931,7 @@ function UIRequest(strCommand, tParams)
     -- Legacy support
     if strCommand == "GET_CAMERA_URL" or strCommand == "GET_SNAPSHOT_URL" then
         return "<snapshot_query_string>" ..
-        C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
+            C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
     end
 end
 
@@ -2966,7 +3003,7 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     elseif strCommand == "PTZ_GOTO_PRESET" then
         PTZ_GOTO_PRESET(idBinding, tParams)
     elseif strCommand == "PRESET" then
-        PTZ_GOTO_PRESET(idBinding, tParams) 
+        PTZ_GOTO_PRESET(idBinding, tParams)
     else
         print("Unknown command from proxy: " .. strCommand)
     end
@@ -2995,14 +3032,14 @@ function PTZ_STOP(idBinding, tParams)
 
     -- For STOP we always use state = 0
     local input_params = {
-        direction = 0,   -- direction doesn't matter for stop, but we still send it
-        state = 0        -- 0 = stop
+        direction = 0, -- direction doesn't matter for stop, but we still send it
+        state = 0      -- 0 = stop
     }
 
     local body = {
         vid = vid,
         action_id = "ac_ptz",
-        input_params = json.encode(input_params),   -- must be a JSON string
+        input_params = json.encode(input_params), -- must be a JSON string
         check_t = 0,
         is_async = 0
     }
@@ -3452,8 +3489,6 @@ function GetNotificationAttachmentURL(id)
     return url
 end
 
-
-
 function FinishedWithNotificationAttachment(id)
     print("FinishedWithNotificationAttachment id =", id)
 
@@ -3489,14 +3524,14 @@ function PTZ_MOVE(idBinding, tParams)
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/device/do-action"
 
-    local direction = 2  -- default Left
+    local direction = 2 -- default Left
     if tParams and tParams.direction then
         direction = tonumber(tParams.direction) or 2
     end
 
     local input_params = {
         direction = direction,
-        state = 1        -- 1 = start long-press / continuous move
+        state = 1 -- 1 = start long-press / continuous move
     }
 
     local body = {
@@ -3528,8 +3563,6 @@ function PTZ_MOVE(idBinding, tParams)
     end)
 end
 
-
-
 --[[function PTZ_GOTO_PRESET(idBinding, tParams)
     print("================================================================")
     print("              PTZ_GOTO_PRESET (REAL PRESET MODE)               ")
@@ -3553,7 +3586,7 @@ end
     local preset_id = tonumber(tParams and tParams.INDEX) or 1
     print("Preset requested:", preset_id)
 
-   
+
     local preset_map = {
         [1] = {x=2487, y=2033}, -- Home
         [2] = {x=3000, y=1800},
@@ -3707,7 +3740,6 @@ function PTZ_GOTO_PRESET(idBinding, tParams)
         headers = headers,
         body = json.encode(body_disable_tracking)
     }, function(code, resp, _, err)
-
         print("Tracking OFF response:", code, resp, err)
 
         ----------------------------------------------------------------
@@ -3729,7 +3761,6 @@ function PTZ_GOTO_PRESET(idBinding, tParams)
             headers = headers,
             body = json.encode(body_preset)
         }, function(code2, resp2, _, err2)
-
             print("Preset move response:", code2, resp2, err2)
 
             if code2 == 200 or code2 == 20000 then
@@ -3756,7 +3787,6 @@ function PTZ_GOTO_PRESET(idBinding, tParams)
                 }, function(code3, resp3, _, err3)
                     print("Tracking ON response:", code3, resp3, err3)
                 end)
-
             else
                 print("❌ Preset move FAILED:", code2, err2)
             end
@@ -3820,7 +3850,6 @@ function GET_PRESETS_API() -- v1.0.3
         headers = headers,
         body = body
     }, function(code, resp, _, err)
-
         print("Preset API response code:", code)
 
         if err then
@@ -3891,16 +3920,16 @@ function UpdateConditional(cond_name, value)
     end
 
     print("[CONDITIONAL] Update: " .. cond_name .. " = " .. tostring(value))
-    
+
     conditional_state[cond_name] = value
 end
 
 function TestCondition(condition_name, test_value)
     print("[TESTCONDITION] Checking: " .. tostring(condition_name) .. " | Expected: " .. tostring(test_value))
 
-    if not condition_name then 
+    if not condition_name then
         print("[TESTCONDITION] No condition_name provided")
-        return false 
+        return false
     end
 
     -- Convert test_value to proper type
@@ -3915,14 +3944,68 @@ function TestCondition(condition_name, test_value)
 
     -- Check conditional state
     local current_value = conditional_state[condition_name]
-    
+
     if current_value == nil then
         print("[TESTCONDITION] Condition not found: " .. condition_name)
         return false
     end
 
     local result = (current_value == desired)
-    print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
-    
+    print("[TESTCONDITION] Result: " ..
+    tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
+
     return result
+end
+
+function GET_BATTERY_LEVEL()
+    print("===== GET BATTERY =====")
+
+    local token   = Properties["Auth Token"] or _props["Auth Token"]
+    local vid     = Properties["VID"] or _props["VID"]
+    local baseUrl = GlobalObject.LnduBaseUrl
+
+    if not token or token == "" then
+        print("Missing Token")
+        return
+    end
+    if not vid or vid == "" then
+        print("Missing VID")
+        return
+    end
+
+    transport.execute({
+        url     = baseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = { ["Authorization"] = "Bearer " .. token }
+    }, function(code, resp)
+        print("[BATTERY] Response code:", code)
+        if code ~= 200 then return end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or type(data) ~= "table" or type(data.data) ~= "table" then
+            print("[BATTERY] Parse error")
+            return
+        end
+
+        local function find(list)
+            if type(list) ~= "table" then return nil end
+            for _, d in ipairs(list) do
+                if tostring(d.vid) == tostring(vid) then return d end
+            end
+            return list[1]
+        end
+
+        local device = find(data.data.devices) or find(data.data.share_devices)
+        if not device then
+            print("[BATTERY] No device found")
+            return
+        end
+
+        -- Online status
+        local status = (device.is_online == 1 or device.is_online == true) and "Online" or "Offline"
+        if _props["Camera Status"] ~= status then
+            C4:UpdateProperty("Camera Status", status)
+            _props["Camera Status"] = status
+        end
+    end)
 end
