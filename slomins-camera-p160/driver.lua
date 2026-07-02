@@ -102,13 +102,13 @@ local MIN_REFRESH_GAP    = 5
 local conditional_state = {
     MOTION_DETECTED = false,
     NOT_MOTION_DETECTED = true,
-    MIC_MUTED = false,
-    MIC_UNMUTED = true,
     SPEAKER_VOLUME = 4
 }
 
 -- Volume tracking
 local volume_before_mute = nil
+conditional_state.MIC_MUTED   = true      -- default muted for safety
+conditional_state.MIC_UNMUTED = false
 
 --Establishes a TCP connection to the configured server.
 
@@ -783,16 +783,15 @@ function ExecuteCommand(strCommand, tParams)
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
-    if strCommand == "UNMUTE_MIC" then
+   if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
-        UpdateConditional("MIC_MUTED", false)
-        UpdateConditional("MIC_UNMUTED", true)
+        SET_MIC_STATE(false)          -- false = Unmuted
         return
     end
+
     if strCommand == "MUTE_MIC" then
         print("[COMMAND] Mute Mic requested")
-        UpdateConditional("MIC_MUTED", true)
-        UpdateConditional("MIC_UNMUTED", false)
+        SET_MIC_STATE(true)           -- true = Muted
         return
     end
     if strCommand == "SPEAKER_VOLUME_UP" then
@@ -2214,6 +2213,23 @@ local function handle_device_status(msg)
         elseif s.status_key == "stored" and (s.status_type == 2 or s.status_type == nil) then
             HandleSDCardStatus(s.status_val)
         end
+
+          -- ====================== MICROPHONE STATUS ======================
+        if s.status_key == "mic_on" or 
+           s.status_key == "talk_on" or 
+           s.status_key == "microphone" or 
+           s.status_key == "ac_talk" then
+            
+            local micOn = (tonumber(s.status_val) == 1)
+            conditional_state.MIC_MUTED   = not micOn
+            conditional_state.MIC_UNMUTED = micOn
+            
+            print("[MIC] State updated from cloud:", micOn and "ON" or "OFF")
+            
+            -- Push to WebView
+            PushMicStateToUI()
+        end
+
     end
 end
 
@@ -2483,7 +2499,107 @@ function GET_CAMERA_SNAPSHOT(idBinding, tParams)
     print("================================================================")
 end
 
--- PTZ Commands - REMOVED (P160 is a fixed camera, no PTZ support)
+-- PTZ Commands
+function PTZ_COMMAND(idBinding, strCommand, tParams)
+    print("================================================================")
+    print("              PTZ_COMMAND: " .. strCommand .. "                ")
+    print("================================================================")
+
+    -- Get VID and auth token for API calls
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("ERROR: No VID available")
+        return
+    end
+
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    -- Map Control4 commands to camera PTZ directions
+    local direction_map = {
+        PAN_LEFT = "left",
+        PAN_RIGHT = "right",
+        TILT_UP = "up",
+        TILT_DOWN = "down",
+        ZOOM_IN = "zoom_in",
+        ZOOM_OUT = "zoom_out"
+    }
+
+    local direction = direction_map[strCommand]
+    if not direction then
+        print("Unknown PTZ command: " .. strCommand)
+        return
+    end
+
+    local speed = (tParams and tonumber(tParams.SPEED)) or 1
+
+    print("PTZ Direction: " .. direction)
+    print("PTZ Speed: " .. speed)
+
+    -- Build API request for PTZ control
+    local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/device/do-action"
+
+    local input_params = {
+        dir = direction,
+        speed = speed
+    }
+
+    local body = {
+        vid = vid,
+        action_id = "ac_ptz",
+        input_params = json.encode(input_params),
+        check_t = 0,
+        is_async = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("Sending PTZ command to API...")
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        if code == 200 or code == 20000 then
+            print("PTZ command successful")
+            C4:UpdateProperty("Status", "PTZ " .. direction)
+        else
+            print("PTZ command failed: " .. tostring(code))
+            if err then
+                print("Error: " .. err)
+            end
+        end
+    end)
+
+    print("================================================================")
+end
+
+function PTZ_HOME(idBinding, tParams)
+    print("================================================================")
+    print("                  PTZ_HOME CALLED                               ")
+    print("================================================================")
+
+    -- Return camera to home position
+    print("Returning camera to home position...")
+    C4:UpdateProperty("Status", "PTZ Home")
+
+    -- You would call your camera's home position API here
+    -- For now, this is a placeholder
+
+    print("================================================================")
+end
 
 -- Get Current Camera Properties (for external requests)
 function GET_CAMERA_PROPERTIES()
@@ -3186,6 +3302,12 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         URL_GET(idBinding, tParams)
     elseif strCommand == "RTSP_URL_PUSH" then
         RTSP_URL_PUSH(idBinding, tParams)
+    elseif strCommand == "PAN_LEFT" or strCommand == "PAN_RIGHT" or
+        strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
+        strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
+        PTZ_COMMAND(idBinding, strCommand, tParams)
+    elseif strCommand == "HOME" then
+        PTZ_HOME(idBinding, tParams)
     else
         print("Unknown command from proxy: " .. strCommand)
     end
@@ -3821,4 +3943,93 @@ function TriggerMemoryCardEvent(is_present)
             })
         end
     end
+end
+
+-- ====================== MICROPHONE CONTROL ======================
+
+-- Main function to call the cloud API
+function SET_MIC_STATE(isMuted)
+    print("[MIC] Setting microphone to:", isMuted and "MUTED" or "UNMUTED")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("[MIC] ❌ Missing VID")
+        return false
+    end
+    if not token or token == "" then
+        print("[MIC] ❌ Missing Auth Token")
+        return false
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local on_off = isMuted and 0 or 1   -- 0 = Off (Mute), 1 = On (Unmute)
+
+    local input_params = json.encode({
+        t      = os.time() * 1000,   -- current timestamp in ms
+        on_off = on_off
+    })
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_talk",
+        input_params = input_params,
+        check_t      = 0,
+        is_async     = 0
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[MIC] Sending ac_talk command → on_off =", on_off)
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        print("[MIC] API Response Code:", code)
+        if resp then 
+            print("[MIC] Response Body:", resp) 
+        end
+
+        if code == 200 or code == 20000 then
+            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            
+            -- Update local state
+            conditional_state.MIC_MUTED    = isMuted
+            conditional_state.MIC_UNMUTED  = not isMuted
+
+            -- Push to WebView UI
+            PushMicStateToUI()
+            
+            C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+        else
+            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            C4:UpdateProperty("Status", "Mic command failed")
+        end
+    end)
+
+    return true
+end
+
+-- Push current mic state to WebView
+function PushMicStateToUI()
+    local payload = json.encode({
+        mic_muted = conditional_state.MIC_MUTED
+    })
+    
+    C4:SendDataToUI(payload)
+    
+    -- Extra push for reliability
+    C4:SetTimer(600, function()
+        C4:SendDataToUI(payload)
+    end)
 end
