@@ -688,7 +688,7 @@ function ExecuteCommand(strCommand, tParams)
     EventLogger.test()
     return
 end
-    if strCommand == "UNMUTE_MIC" then
+    --[[if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
         -- Check if volume is actually 0 before unmuting
         GET_DEVICE_PROPERTY("beep_vol", function(current_val)
@@ -736,7 +736,20 @@ end
             end)
         end)
         return
+    end--]]
+    --implement the api for microphone
+    if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        SET_MIC_STATE(false) -- false = Unmuted
+        return
     end
+
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        SET_MIC_STATE(true) -- true = Muted
+        return
+    end
+
     if strCommand == "SPEAKER_VOLUME_UP" then
         print("[COMMAND] Speaker Volume Up requested")
         GET_DEVICE_PROPERTY("beep_vol", function(current_val)
@@ -3356,4 +3369,90 @@ function TestCondition(condition_name, test_value)
     print("[TESTCONDITION] Result: " .. tostring(result) .. " (current=" .. tostring(current_value) .. ", desired=" .. tostring(desired) .. ")")
     
     return result
+end
+
+function SET_MIC_STATE(isMuted)
+    print("[MIC] Setting microphone to:", isMuted and "MUTED" or "UNMUTED")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("[MIC] ❌ Missing VID")
+        return false
+    end
+    if not token or token == "" then
+        print("[MIC] ❌ Missing Auth Token")
+        return false
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local on_off = isMuted and 0 or 1   -- 0 = Off (Mute), 1 = On (Unmute)
+
+    local input_params = json.encode({
+        t      = os.time() * 1000,   -- current timestamp in ms
+        on_off = on_off
+    })
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_talk",
+        input_params = input_params,
+        check_t      = 0,
+        is_async     = 0
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[MIC] Sending ac_talk command → on_off =", on_off)
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        print("[MIC] API Response Code:", code)
+        if resp then 
+            print("[MIC] Response Body:", resp) 
+        end
+
+        if code == 200 or code == 20000 then
+            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            
+            -- Update local state
+            conditional_state.MIC_MUTED    = isMuted
+            conditional_state.MIC_UNMUTED  = not isMuted
+
+            -- Push to WebView UI
+            PushMicStateToUI()
+            
+            C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+        else
+            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            C4:UpdateProperty("Status", "Mic command failed")
+        end
+    end)
+
+    return true
+end
+
+-- Push current mic state to WebView
+function PushMicStateToUI()
+    local payload = json.encode({
+        mic_muted = conditional_state.MIC_MUTED
+    })
+    
+    C4:SendDataToUI(payload)
+    
+    -- Extra push for reliability
+    C4:SetTimer(600, function()
+        C4:SendDataToUI(payload)
+    end)
 end
