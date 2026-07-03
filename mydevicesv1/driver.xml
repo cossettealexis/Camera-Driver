@@ -6,8 +6,8 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>06/17/2026 9:00 AM</modified>
-  <version>7</version>
+  <modified>07/03/2026 12:00 PM</modified>
+  <version>10</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
   <auto_update>true</auto_update>
@@ -280,14 +280,47 @@
         <command>DISCOVER_DEVICES</command>
         <description>Make LNDU devices discoverable</description>
       </action>
+      <action>
+        <name>Enable C4 Discovery</name>
+        <command>ENABLE_C4_DISCOVERY</command>
+        <description>Enable SDDP integration for Control4 discovery</description>
+      </action>
+      <action>
+        <name>Tuya</name>
+        <command>FILTER_TUYA</command>
+        <description>Display only Tuya devices</description>
+      </action>
+      <action>
+        <name>Cameras</name>
+        <command>FILTER_CAMERAS</command>
+        <description>Display only LNDU camera devices</description>
+      </action>
+      <action>
+        <name>My Devices</name>
+        <command>FILTER_ALL</command>
+        <description>Display both Tuya and LNDU devices</description>
+      </action>
     </actions>
     <commands>
       <command>
         <name>DISCOVER_DEVICES</name>
         <description>Discover Devices</description>
       </command>
+      <command>
+        <name>ENABLE_C4_DISCOVERY</name>
+        <description>Enable C4 SDDP Discovery</description>
+      </command>
     </commands>
   </config>
+  <search>
+    <search_type>slomins:mydevices</search_type>
+    <add_device_properties>
+      <property type="string" id="1" name="IP Address" network_address="true" />
+    </add_device_properties>
+    <add_connection_binding_address>
+      <connection_id>6001</connection_id>
+    </add_connection_binding_address>
+  </search>
   <combo>true</combo>
   <proxies>
     <proxy>dynamic_lists</proxy>

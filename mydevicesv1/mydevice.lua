@@ -31,6 +31,9 @@ local _pendingAuthToken = nil
 local _tcpConnected = false
 local TCP_BINDING_ID = 6001
 
+local MasterDeviceList = {}  -- Stores all devices (LNDU + TUYA)
+local CurrentFilter = "ALL"  -- Current filter: "ALL", "TUYA", "CAMERAS"
+
 -- ==========================
 -- LNDU (ISOLATED)
 -- ==========================
@@ -258,6 +261,24 @@ end
 function ExecuteCommand(command, tParams)
     print("ExecuteCommand command: " .. command .. " tParams: " .. tostring(tParams)) -- Debugging
 
+    if command == "FILTER_TUYA" or (tParams and tParams["ACTION"] == "FILTER_TUYA") then
+        print("[FILTER] Tuya button pressed")
+        SetDeviceFilter("TUYA")
+        return
+    end
+
+    if command == "FILTER_CAMERAS" or (tParams and tParams["ACTION"] == "FILTER_CAMERAS") then
+        print("[FILTER] Cameras button pressed")
+        SetDeviceFilter("CAMERAS")
+        return
+    end
+
+    if command == "FILTER_ALL" or (tParams and tParams["ACTION"] == "FILTER_ALL") then
+        print("[FILTER] My Devices (All) button pressed")
+        SetDeviceFilter("ALL")
+        return
+    end
+
     if command == "DISCOVER_DEVICES" or tParams["ACTION"] == "DISCOVER_DEVICES" then
         print("[DISCOVER_DEVICES] Button pressed - Validating credentials first...")
         C4:UpdateProperty("Status", "Validating credentials...")
@@ -273,6 +294,12 @@ function ExecuteCommand(command, tParams)
                 C4:UpdateProperty("Status", "Discovery failed: Invalid credentials")
             end
         end)
+        return
+    end
+
+    if command == "ENABLE_C4_DISCOVERY" or (tParams and tParams["ACTION"] == "ENABLE_C4_DISCOVERY") then
+        print("[ENABLE_C4_DISCOVERY] Button pressed - Enabling SDDP for Control4 discovery...")
+        EnableC4Discovery()
         return
     end
 
@@ -559,7 +586,7 @@ function ValidateMacAddress(mac, callback)
                         return
                     end
                     
-                    if customerEmail == email then
+                    if customerEmail:lower() == email:lower() then
                         print("[ValidateMacAddress] ✓ MAC Address and Email match")
                         C4:UpdateProperty("Device Response", "MAC and Email valid")
                         
@@ -910,10 +937,17 @@ end
 
 function UpdateDeviceProperties(devices)
     ClearDeviceList()
+    
+    -- Store master list for filtering
+    MasterDeviceList = devices
+    
+    -- Apply current filter
+    local filteredDevices = ApplyDeviceFilter(devices, CurrentFilter)
+    
     local remaining = {}
     local filledSlots = 0
 
-    for i, device in ipairs(devices) do
+    for i, device in ipairs(filteredDevices) do
         local line = FormatDeviceLine(device)
 
         -- Fill visible slots 1..20 first.
@@ -932,16 +966,57 @@ function UpdateDeviceProperties(devices)
     end
     
     UpdateRemainingDevicesList(remaining)
+    
+    -- Update status with filter info
+    local filterName = CurrentFilter == "ALL" and "All Devices" or 
+                      (CurrentFilter == "TUYA" and "Tuya Devices" or "Camera Devices")
+    C4:UpdateProperty("Status", string.format("Showing %s: %d total (%d displayed, %d in overflow)", 
+                      filterName, #filteredDevices, math.min(20, #filteredDevices), math.max(0, #filteredDevices - 20)))
+end
+
+function ApplyDeviceFilter(devices, filterType)
+    if filterType == "ALL" then
+        return devices
+    elseif filterType == "TUYA" then
+        local filtered = {}
+        for _, device in ipairs(devices) do
+            if device.prefix == "[TUYA]" then
+                table.insert(filtered, device)
+            end
+        end
+        return filtered
+    elseif filterType == "CAMERAS" then
+        local filtered = {}
+        for _, device in ipairs(devices) do
+            if device.prefix == "[LNDU]" then
+                table.insert(filtered, device)
+            end
+        end
+        return filtered
+    end
+    return devices
+end
+
+function SetDeviceFilter(filterType)
+    print("[FILTER] Switching to filter:", filterType)
+    CurrentFilter = filterType
+    
+    -- Clear selected remaining device detail when switching views
+    C4:UpdateProperty("Selected Remaining Device Detail", "Select an item from Remaining Devices")
+    
+    -- Reapply filter to master list
+    UpdateDeviceProperties(MasterDeviceList)
 end
 
 
 
-function MakeSSDPDiscoverable(deviceVid)
+function MakeSSDPDiscoverable(deviceVid, deviceName, callback)
     print("[SSDP] Waking LNDU device via do-property for VID:", deviceVid)
 
     local auth_token = GlobalObject.LNDU.AccessToken
     if not auth_token or auth_token == "" then
         print("[SSDP] ERROR: No LNDU auth token available")
+        if callback then callback(false, deviceName) end
         return
     end
     
@@ -962,9 +1037,11 @@ function MakeSSDPDiscoverable(deviceVid)
         body = json.encode(body)
     }, function(code, resp)
         if code == 200 or code == 20000 then
-            print("[SSDP] Successfully enabled SSDP for VID:", deviceVid)
+            print("[SSDP] Successfully enabled SSDP for:", deviceName, "VID:", deviceVid)
+            if callback then callback(true, deviceName) end
         else
-            print("[SSDP] Failed to enable SSDP for VID:", deviceVid, "Code:", tostring(code))
+            print("[SSDP] Failed to enable SSDP for:", deviceName, "VID:", deviceVid, "Code:", tostring(code))
+            if callback then callback(false, deviceName) end
         end
     end)
 end
@@ -988,6 +1065,95 @@ function GetTuyaDevices(callback)
         end
 
         print("[TUYA] Token obtained, fetching devices for UID:", uid)
+
+function EnableC4Discovery()
+    print("[C4 DISCOVERY] Enabling SDDP for all LNDU cameras...")
+    C4:UpdateProperty("Status", "Enabling C4 discovery...")
+    
+    local auth_token = GlobalObject.LNDU.AccessToken
+    if not auth_token or auth_token == "" then
+        print("[C4 DISCOVERY] ERROR: No LNDU auth token. Please run Discover Devices first.")
+        C4:UpdateProperty("Status", "C4 Discovery failed: No auth token")
+        return
+    end
+    
+    local baseUrl = Properties["Base API URL"] or "https://api.arpha-tech.com"
+    local camUrl = baseUrl .. "/api/v3/openapi/devices-v2"
+
+    transport.execute({
+        url = camUrl,
+        method = "GET",
+        headers = { 
+            ["Authorization"] = "Bearer " .. auth_token 
+        }
+    },
+    function(code, resp)
+        if code == 200 then
+            local ok, parsed = pcall(C4.JsonDecode, C4, resp)
+            if ok and parsed and parsed.data and parsed.data.devices then
+                local cameraDevices = parsed.data.devices
+                local totalCount = #cameraDevices
+                
+                if totalCount == 0 then
+                    C4:UpdateProperty("Status", "C4 Discovery: No devices found")
+                    print("[C4 DISCOVERY] No devices found to enable")
+                    return
+                end
+                
+                -- Track results asynchronously
+                local resultsTracker = {
+                    total = totalCount,
+                    completed = 0,
+                    succeeded = 0,
+                    failed = {}
+                }
+                
+                -- Callback to track each device result
+                local function onDeviceResult(success, deviceName)
+                    resultsTracker.completed = resultsTracker.completed + 1
+                    
+                    if success then
+                        resultsTracker.succeeded = resultsTracker.succeeded + 1
+                    else
+                        table.insert(resultsTracker.failed, deviceName)
+                    end
+                    
+                    -- When all devices processed, update status
+                    if resultsTracker.completed == resultsTracker.total then
+                        local statusMsg = string.format("C4 Discovery: %d/%d enabled", 
+                            resultsTracker.succeeded, resultsTracker.total)
+                        
+                        if #resultsTracker.failed > 0 then
+                            statusMsg = statusMsg .. " (Failed: " .. table.concat(resultsTracker.failed, ", ") .. ")"
+                        end
+                        
+                        C4:UpdateProperty("Status", statusMsg)
+                        print("[C4 DISCOVERY] Final: " .. statusMsg)
+                    end
+                end
+                
+                -- Enable SDDP for each LNDU camera device
+                for _, d in ipairs(cameraDevices) do
+                    if d.vid and d.vid ~= "" then
+                        local deviceName = d.device_name or "Unknown"
+                        print("[C4 DISCOVERY] Enabling SDDP for:", deviceName, "VID:", d.vid)
+                        MakeSSDPDiscoverable(d.vid, deviceName, onDeviceResult)
+                    else
+                        -- No VID = immediate failure
+                        onDeviceResult(false, d.device_name or "Unknown (no VID)")
+                    end
+                end
+                
+            else
+                print("[C4 DISCOVERY] Failed to parse device response")
+                C4:UpdateProperty("Status", "C4 Discovery failed: Parse error")
+            end
+        else
+            print("[C4 DISCOVERY] HTTP error:", code)
+            C4:UpdateProperty("Status", "C4 Discovery failed: HTTP " .. tostring(code))
+        end
+    end)
+end
 
         local apiUrl = GlobalObject.BaseUrl .. "/v1.0/users/" .. uid .. "/devices"
 
@@ -1086,7 +1252,13 @@ function GET_DEVICES(tParams, do_awake)
                         
                         -- Wake LNDU device if requested
                         if do_awake == true and d.vid and d.vid ~= "" then
-                            MakeSSDPDiscoverable(d.vid)
+                            local deviceName = d.device_name or "Unknown Camera"
+                            MakeSSDPDiscoverable(d.vid, deviceName, function(success, name)
+                                -- Background operation - just log result
+                                if success then
+                                    print("[SSDP] Woke device during discovery:", name)
+                                end
+                            end)
                         end
                     end
                 else

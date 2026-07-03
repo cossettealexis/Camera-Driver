@@ -35,6 +35,15 @@ It allows show all devices of user base on userid.
 
 ### Change log
 
+**Version 10 (July 3, 2026)**  
+- Added Enable C4 Discovery button for SDDP device enablement.
+
+**Version 9 (July 2, 2026)**  
+- Email comparison is now case-insensitive for validation.
+
+**Version 8 (June 30, 2026)**  
+- Added filter buttons: Tuya, Cameras, and My Devices.
+
 **Version 7 (June 17, 2026)**  
 - Fixed device list only showing 20. Filled slots 1-20 first, moved only overflow devices to the Remaining Devices dynamic list, and added Selected Remaining Device Detail.
 
