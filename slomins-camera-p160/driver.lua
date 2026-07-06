@@ -334,6 +334,7 @@ function OnDriverLateInit()
     print("=== P160-SL Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
     
+    C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
     ValidateMacAddress(C4:GetUniqueMAC())
     
     -- Wait for MAC validation to complete before initializing camera

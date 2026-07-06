@@ -4,8 +4,8 @@
 
 Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.
 
-**Version:** 0.1.0  
-**Package:** Smart-Camera-P160-SL-v0.1.0.c4z (22.1 KB)  
+**Version:** 6  
+**Package:** Slomins-indoor-P160.c4z  
 **Minimum Control4 OS:** 3.3.2+
 
 ---
@@ -55,7 +55,7 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 
 1. Open **Control4 Composer Pro**
 2. Go to **Drivers** menu → **Add Driver** → **Install From File**
-3. Select `Smart-Camera-P160-SL-v0.1.0.c4z`
+3. Select `Slomins-indoor-P160.c4z`
 4. Click **Install**
 5. Driver will appear in available drivers list
 
@@ -714,7 +714,7 @@ Run in PowerShell:
 .\build-c4z.ps1
 ```
 
-This creates `Smart-Camera-P160-SL-v0.1.0.c4z` ready for installation.
+This creates `Slomins-indoor-P160.c4z` ready for installation.
 
 ### Manual Build
 
@@ -772,7 +772,10 @@ local client_id = util.uuid_v4()
 
 ## Version History
 
-### v0.1.0 (Current)
+### v6 (Current)
+- Auto-populate IP Address, VID and MAC Address
+
+### v0.1.0
 - ✅ Complete API integration
 - ✅ RSA-OAEP encryption with C4:Crypto()
 - ✅ User authentication
@@ -788,7 +791,7 @@ local client_id = util.uuid_v4()
 
 ## Support & Contact
 
-- **Driver Version:** 0.1.0
+- **Driver Version:** 6
 - **Maintainer:** Slomins
 - **Manufacturer:** Slomins
 - **Model:** P160-SL
