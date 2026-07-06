@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', function () {
     initAntiPry();
     initMicrophone();
     initReboot();
+
+    // Request initial state from driver
+    requestInitialState();
 });
 
 // =====================================================
@@ -45,15 +48,31 @@ function initializeControl4() {
     }
 }
 
+function requestInitialState() {
+    // Ask driver for current Anti-Pry and Mic state
+    try {
+        C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
+        console.log('📤 Requested initial Anti-Pry / Mic state');
+    } catch (e) {
+        console.log('Request initial state failed', e);
+    }
+}
+
 // =====================================================
 // ANTI-PRY
 // =====================================================
 
 function initAntiPry() {
-
     const toggle = document.getElementById('antiPry');
-    if (!toggle) return;
+    if (!toggle) {
+        console.error("❌ antiPry toggle not found in DOM!");
+        return;
+    }
 
+    console.log("✅ antiPry toggle initialized");
+
+    // Remove old listener if exists
+    toggle.removeEventListener('change', handleAntiPryToggle);
     toggle.addEventListener('change', handleAntiPryToggle);
 }
 
@@ -85,16 +104,17 @@ function sendAntiPryCommand(state) {
     }
 }
 
-function updateAntiPryUI(state) {
+/*function updateAntiPryUI(state) {
 
-    antiPryEnabled = state;
+    antiPryEnabled = !!state;
 
     const toggle = document.getElementById('antiPry');
     const status = document.getElementById('antiPryStatus');
 
-    if (toggle) toggle.checked = state;
-    if (status) status.innerText = state ? 'Enabled' : 'Disabled';
-}
+    if (toggle) toggle.checked = antiPryEnabled;
+    if (status) status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
+} */
+
 
 // =====================================================
 // MICROPHONE
@@ -178,7 +198,63 @@ function handleReboot() {
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
 // =====================================================
 
+
 function onDataToUi(value) {
+    try {
+        const obj = JSON.parse(value);
+        console.log('📥 onDataToUi received:', obj);
+
+        if (obj.type === "anti_pry_update" || 
+            obj.tamper_swt !== undefined || 
+            obj.anti_pry_enabled !== undefined) {
+            
+            let state = false;
+            
+            // Prefer tamper_swt (most reliable)
+            if (obj.tamper_swt !== undefined) {
+                state = Number(obj.tamper_swt) === 1;
+            } else if (obj.anti_pry_enabled !== undefined) {
+                state = !!obj.anti_pry_enabled;
+            }
+
+            console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
+            updateAntiPryUI(state);
+        }
+
+        // Mic handling
+        if (obj.mic_muted !== undefined) {
+            updateMicUI(!!obj.mic_muted);
+        }
+
+    } catch (e) {
+        console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
+    }
+}
+
+function updateAntiPryUI(state) {
+    antiPryEnabled = !!state;
+
+    const toggle = document.getElementById('antiPry');
+    const status = document.getElementById('antiPryStatus');
+
+    if (toggle) {
+        const wasChecked = toggle.checked;
+        toggle.checked = antiPryEnabled;
+        
+        console.log(`[UI] Toggle updated: ${wasChecked} → ${toggle.checked} (desired: ${antiPryEnabled})`);
+        
+        // Extra force for stubborn Control4 WebView
+        if (toggle.checked !== antiPryEnabled) {
+            console.warn("[UI] Toggle didn't stick - forcing again");
+            setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
+        }
+    }
+
+    if (status) {
+        status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
+    }
+}
+/*function onDataToUi(value) {
 
     console.log('📥 VD05 DATA:', value);
 
@@ -186,21 +262,21 @@ function onDataToUi(value) {
 
         const obj = JSON.parse(value);
 
-        // =========================
-        // ANTI-PRY SYNC
-        // =========================
-        if (obj.tamper_swt !== undefined) {
+        if (obj.tamper_swt !== undefined || obj.anti_pry_enabled !== undefined) {
 
-            const state = Number(obj.tamper_swt) === 1;
+            let state = false;
 
-            console.log('🛡 Anti-Pry sync:', state);
+            if (obj.tamper_swt !== undefined) {
+                state = Number(obj.tamper_swt) === 1;
+            } else if (obj.anti_pry_enabled !== undefined) {
+                state = !!obj.anti_pry_enabled;
+            }
 
+            console.log('Anti-Pry UI Update →', state ? 'ENABLED' : 'DISABLED');
             updateAntiPryUI(state);
         }
 
-        // =========================
-        // MICROPHONE SYNC
-        // =========================
+    
         if (obj.mic_muted !== undefined) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
@@ -213,7 +289,7 @@ function onDataToUi(value) {
     } catch (e) {
         console.log('onDataToUi parse error', e);
     }
-}
+} */
 
 // =====================================================
 // ERROR HANDLERS

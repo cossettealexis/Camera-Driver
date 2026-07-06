@@ -686,6 +686,15 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "REQUEST_INITIAL_STATE" then
+        REQUEST_INITIAL_STATE()
+        return
+    end
+    if strCommand == "GET_DEVICE_INFO" then
+        GET_DEVICE_INFO()
+        return
+    end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -2259,12 +2268,32 @@ local function handle_device_status(msg)
     local power_status = nil
 
     for _, s in ipairs(msg.status) do
-        if s.status_key == "is_online" then
-            handle_online_status(s.status_val == 1)
-        end
+        local key = s.status_key
+        local val = s.status_val
 
-        if s.status_key == "e" then
-            battery_pct = tonumber(s.status_val)
+        -- ====================== ANTI-PRY ======================
+        if key == "tamper_swt" or key == "tamper_switch" or 
+           key == "antipry" or key == "tamper" or key == "tamper_alarm" then
+            
+            local enabled = (tonumber(val) == 1)
+            local old_state = conditional_state.ANTI_PRY_ENABLED
+            
+            conditional_state.ANTI_PRY_ENABLED = enabled
+            print("[DEBUG] handle_device_status")
+            print("enabled =", tostring(enabled))
+            print("conditional_state.ANTI_PRY_ENABLED =", tostring(conditional_state.ANTI_PRY_ENABLED))
+            
+            ForceUIAntiPryRefresh()
+            
+            print("[ANTI-PRY] ✅ Cloud/MQTT update →", enabled and "ENABLED" or "DISABLED")
+            
+            if old_state ~= enabled then
+                print("[ANTI-PRY] State changed → pushing")
+                PushAntiPryStateToUI()
+            else
+                print("[ANTI-PRY] State unchanged but still refreshing UI")
+                ForceUIAntiPryRefresh()
+             end
         end
 
 
@@ -2404,6 +2433,7 @@ function HANDLE_JSON_EVENT(payload)
 
             return true
         end
+        
 
         ------------------------------------------------
         -- 🔄 Camera Restart
@@ -2416,11 +2446,46 @@ function HANDLE_JSON_EVENT(payload)
         return true
     end
 
+    
+
     ------------------------------------------------
     -- DEVICE STATUS (ONLINE / OFFLINE)
     ------------------------------------------------
-    if msg.method == "updateDeviceStatus" then
+    
+    --[[if msg.method == "updateDeviceStatus" then
         handle_device_status(msg, now)
+        return true
+    end
+
+    return false--]]
+
+    ------------------------------------------------
+    -- DEVICE STATUS (ONLINE / OFFLINE + ANTI-PRY etc.)
+    ------------------------------------------------
+    if msg.method == "updateDeviceStatus" then
+        handle_device_status(msg)   -- Removed unused 'now' parameter
+
+        -- === IMPROVED ANTI-PRY SYNC ===
+        local hasTamperUpdate = false
+        
+        if msg.status then
+            for _, s in ipairs(msg.status) do
+                local key = tostring(s.status_key or "")
+                if key == "tamper_swt" or key == "tamper_switch" or 
+                   key == "antipry" or key == "tamper" then
+                    hasTamperUpdate = true
+                    break
+                end
+            end
+        end
+
+        
+        --[[if hasTamperUpdate then
+            print("[ANTI-PRY] Tamper status changed via cloud → scheduling full sync")
+            C4:SetTimer(1200, GET_DEVICE_STATUS)   
+            C4:SetTimer(3500, GET_DEVICE_STATUS)   
+        end--]]
+
         return true
     end
 
@@ -3633,7 +3698,7 @@ end
 -- ANTI-PRY STATE (VD05) - CLEAN FINAL VERSION
 -- =====================================================
 
-function SET_ANTI_PRY_STATE(tParams)
+--[[function SET_ANTI_PRY_STATE(tParams)
 
     print("[ANTI-PRY] Toggle requested")
 
@@ -3753,26 +3818,112 @@ function SET_ANTI_PRY_STATE(tParams)
     end)
 
     return true
+end--]] 
+-- =====================================================
+-- ANTI-PRY STATE (VD05) - FIXED & RELIABLE
+-- =====================================================
+
+function SET_ANTI_PRY_STATE(tParams)
+    print("[ANTI-PRY] Toggle requested from UI")
+
+    local raw = false
+    if type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then raw = data.state end
+    elseif type(tParams) == "table" then
+        raw = tParams.state
+    elseif type(tParams) == "boolean" or type(tParams) == "number" then
+        raw = tParams
+    end
+
+    local tamper_swt = (raw == true or raw == 1 or raw == "1" or raw == "true") and 1 or 0
+
+    print("[ANTI-PRY] FINAL tamper_swt =", tamper_swt)
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" or not token or token == "" then
+        print("[ANTI-PRY] ❌ Missing VID or Token")
+        return false
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-property"
+
+    local body = {
+        vid = vid,
+        data = json.encode({ tamper_swt = tamper_swt })
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp)
+        print("[ANTI-PRY] Cloud response code:", code)
+        if code == 200 or code == 20000 then
+            conditional_state.ANTI_PRY_ENABLED = (tamper_swt == 1)
+            PushAntiPryStateToUI()   -- immediate feedback
+            C4:UpdateProperty("Status", "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled"))
+        else
+            print("[ANTI-PRY] ❌ Cloud command failed")
+        end
+    end)
+
+    return true
 end
 
--- =====================================================
--- PUSH ANTI-PRY STATE TO UI
--- =====================================================
 
 function PushAntiPryStateToUI()
+    local enabled = conditional_state.ANTI_PRY_ENABLED or false
+    local state = enabled and 1 or 0
 
     local payload = json.encode({
-        tamper_swt = conditional_state.ANTI_PRY_ENABLED and 1 or 0
+        type               = "anti_pry_update",
+        tamper_swt         = state,
+        anti_pry_enabled   = enabled,
+        timestamp          = os.time()          -- force UI refresh
     })
 
-    print("[ANTI-PRY] Pushing UI state:", payload)
+    print("[ANTI-PRY] Pushing to UI:", payload)
 
     C4:SendDataToUI(payload)
 
-    C4:SetTimer(600, function()
-        C4:SendDataToUI(payload)
-    end)
+    -- Staggered pushes for reliability
+    C4:SetTimer(300, function() C4:SendDataToUI(payload) end)
+    C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
+    C4:SetTimer(1500, function() C4:SendDataToUI(payload) end)
 end
+--[[function PushAntiPryStateToUI()
+    local state = conditional_state.ANTI_PRY_ENABLED and 1 or 0
+
+     print("[DEBUG] PushAntiPryStateToUI")
+    print("conditional_state.ANTI_PRY_ENABLED =", tostring(conditional_state.ANTI_PRY_ENABLED))
+    print("state =", state)
+
+
+    local payload = json.encode({
+        tamper_swt = state,
+        anti_pry_enabled = (state == 1),
+        type = "anti_pry_update"   -- extra identifier
+    })
+
+    print("[ANTI-PRY] Pushing to UI:", payload)
+
+    C4:SendDataToUI(payload)
+
+    -- Triple push with delays for reliability
+    C4:SetTimer(400, function() C4:SendDataToUI(payload) end)
+    C4:SetTimer(900, function() C4:SendDataToUI(payload) end)
+end --]]
 
 -- =====================================================
 -- INITIAL UI SYNC
@@ -3798,4 +3949,186 @@ local function GetCldBusCredentials()
     local appId     = Properties["AppId"] or _props["AppId"] or ""
     local appSecret = Properties["AppSecret"] or _props["AppSecret"] or ""
     return appId, appSecret
+end
+
+function REQUEST_INITIAL_STATE()
+    print("[UI] REQUEST_INITIAL_STATE called")
+    PushAntiPryStateToUI()
+    PushMicStateToUI()
+    
+    C4:SetTimer(800, GET_DEVICE_STATUS)
+    C4:SetTimer(2000, GET_DEVICE_STATUS)
+    C4:SetTimer(4500, GET_DEVICE_STATUS)
+end
+
+function GET_DEVICE_STATUS()
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid   = _props["VID"] or Properties["VID"]
+    if not token or not vid or vid == "" then 
+        print("[GET_DEVICE_STATUS] Missing token or VID")
+        return 
+    end
+
+    print("[GET_DEVICE_STATUS] Polling cloud for full status...")
+
+    transport.execute({
+        url     = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = { ["Authorization"] = "Bearer " .. token }
+    }, function(code, resp)
+        print("[GET_DEVICE_STATUS] Response code:", code)
+
+        if code ~= 200 then return end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or not data or not data.data then 
+            print("[GET_DEVICE_STATUS] Parse failed")
+            return 
+        end
+
+        local device = data.data.devices and data.data.devices[1] or 
+                       (data.data.share_devices and data.data.share_devices[1])
+
+        if not device then 
+            print("[GET_DEVICE_STATUS] No device data")
+            return 
+        end
+
+        print("[GET_DEVICE_STATUS] Full device status received")
+
+        local status_data = type(device.status) == "string" and json.decode(device.status) or device.status
+
+        local antiPryUpdated = false
+
+        for _, s in ipairs(status_data or {}) do
+            local key = tostring(s.status_key or "")
+            local val = s.status_val
+
+            -- ANTI-PRY
+            if key == "tamper_swt" or key == "tamper_switch" or key == "antipry" or key == "tamper" then
+                local enabled = (tonumber(val) == 1)
+                if conditional_state.ANTI_PRY_ENABLED ~= enabled then
+                    conditional_state.ANTI_PRY_ENABLED = enabled
+                    antiPryUpdated = true
+                end
+                print("[ANTI-PRY] ✅ Synced via polling:", enabled and "ENABLED" or "DISABLED")
+            end
+
+            -- MICROPHONE
+            if key == "mic_on" or key == "talk_on" or key == "microphone" or key == "ac_talk" then
+                local micOn = (tonumber(val) == 1)
+                conditional_state.MIC_MUTED   = not micOn
+                conditional_state.MIC_UNMUTED = micOn
+            end
+        end
+
+        -- Push UI updates ONCE at the end (more efficient)
+        if antiPryUpdated or true then   -- always push for safety
+            PushAntiPryStateToUI()
+        end
+        ForceUIAntiPryRefresh()
+        
+    end)
+end
+
+
+function ForceUIAntiPryRefresh()
+    print("[ANTI-PRY] Force refresh triggered")
+    PushAntiPryStateToUI()
+end
+
+--get device info
+function GET_DEVICE_INFO()
+    print("===================================================")
+    print("GET_DEVICE_INFO CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    if auth_token == "" or vid == "" then
+        print("ERROR: Missing Auth Token or VID")
+        SendDeviceInfoToUI({ success = false, error = "Missing Auth Token or VID" })
+        return
+    end
+
+    local url = baseUrl .. "/api/v3/openapi/device/info?vid=" .. vid
+
+    transport.execute({
+        url     = url,
+        method  = "GET",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or ""
+        }
+    }, function(code, response, _, err)
+        print("GET_DEVICE_INFO HTTP Code:", code)
+
+        if err or code ~= 200 then
+            print("Request failed:", err or code)
+            SendDeviceInfoToUI({ success = false, error = "HTTP Error" })
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or not result or not result.data then
+            print("JSON Parse Error")
+            SendDeviceInfoToUI({ success = false, error = "JSON Parse Error" })
+            return
+        end
+
+        local d = result.data
+
+        -- Extract data safely
+        local payload = {
+            type           = "device_info",
+            success        = true,
+            device_name    = d.device_name or "Unknown",
+            version        = d.version or "",                    -- Firmware version
+            battery        = tonumber(d.power) or 0,
+            wifi           = d.wifi or "",
+            rssi           = d.rssi or "",
+            ip             = d.ip or "",
+            mac            = d.mac or "",
+            serial         = d.device_sn or "",
+            timezone       = d.timezone or "",
+            online         = (d.is_online == 1),
+            can_update     = (d.can_update == 1)
+        }
+
+        print("✅ Device Info Parsed:")
+        print("   Name:", payload.device_name)
+        print("   Firmware:", payload.version)
+        print("   Battery:", payload.battery .. "%")
+
+        SendDeviceInfoToUI(payload)
+        C4:UpdateProperty("Status", "Device info loaded")
+    end)
+end
+
+-- Reliable send to UI Proxy (Binding 5005)
+function SendDeviceInfoToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Primary method - Send to UIBUTTON proxy
+    local success = pcall(function()
+        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    end)
+
+    -- Fallback methods
+    if not success then
+        pcall(function()
+            C4:SendToProxy(5005, "DATA", { data = jsonData })
+        end)
+    end
+
+    if C4.SendDataToUI then
+        pcall(function()
+            C4:SendDataToUI(jsonData)
+        end)
+    end
+
+    print("[UI] Device info sent to proxy 5005")
 end

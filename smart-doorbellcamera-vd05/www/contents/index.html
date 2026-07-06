@@ -1,450 +1,757 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>VD05 Settings</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/lucide@latest"></script>
-
-<style>
-
-/* =========================
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>VD05 Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* =========================
    THEME
 ========================= */
-:root{
-    --accent:#ad1c42;
-    --bg:#0f1115;
-    --surface:#181b21;
-    --surface2:#1f232b;
-    --border:#2d333c;
-    --text:#ffffff;
-    --muted:#98a2b3;
-}
+        :root {
+            --accent: #ad1c42;
+            --bg: #0f1115;
+            --surface: #181b21;
+            --surface2: #1f232b;
+            --border: #2d333c;
+            --text: #ffffff;
+            --muted: #98a2b3;
+        }
 
-/* =========================
+        /* =========================
    RESET
 ========================= */
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Inter',sans-serif;
-}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
 
-html,body{
-    width:100%;
-    height:100%;
-    background:var(--bg);
-    color:var(--text);
-    overflow:hidden;
-}
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
 
-/* =========================
+        /* =========================
    APP WRAPPER
 ========================= */
-.app{
-    width:100%;
-    height:100%;
-}
+        .app {
+            width: 100%;
+            height: 100%;
+        }
 
-/* =========================
+        /* =========================
    PANELS
 ========================= */
-.panel{
-    display:none;
-    width:100%;
-    height:100%;
-    flex-direction:column;
-}
+        .panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+        }
 
-.panel.active{
-    display:flex;
-}
+        .panel.active {
+            display: flex;
+        }
 
-/* =========================
+        /* =========================
    HEADER
 ========================= */
-.header{
-    padding:20px;
-    border-bottom:1px solid var(--border);
-}
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
 
-.header h1{
-    font-size:22px;
-    font-weight:700;
-}
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
 
-.header p{
-    font-size:13px;
-    color:var(--muted);
-    margin-top:4px;
-}
+        .header p {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
 
-/* =========================
+        /* =========================
    SETTINGS LIST
 ========================= */
-.list{
-    padding:10px;
-}
+        .list {
+            padding: 10px;
+        }
 
-.item{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
+        .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
 
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
 
-    padding:14px 16px;
-    margin-bottom:10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
 
-    cursor:pointer;
-    transition:.2s;
-}
+            cursor: pointer;
+            transition: .2s;
+        }
 
-.item:hover{
-    background:var(--surface2);
-}
+        .item:hover {
+            background: var(--surface2);
+        }
 
-.left{
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
+        .left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
 
-.icon{
-    width:20px;
-    height:20px;
-    color:var(--accent);
-}
+        .icon {
+            width: 20px;
+            height: 20px;
+            color: var(--accent);
+        }
 
-.title{
-    font-size:15px;
-    font-weight:600;
-}
+        .title {
+            font-size: 15px;
+            font-weight: 600;
+        }
 
-.subtitle{
-    font-size:12px;
-    color:var(--muted);
-}
+        .subtitle {
+            font-size: 12px;
+            color: var(--muted);
+        }
 
-.chevron{
-    width:18px;
-    height:18px;
-    color:var(--muted);
-}
+        .chevron {
+            width: 18px;
+            height: 18px;
+            color: var(--muted);
+        }
 
-/* =========================
+        /* =========================
    TOP BAR (BACK)
 ========================= */
-.topbar{
-    display:flex;
-    align-items:center;
-    gap:10px;
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
 
-    padding:14px 16px;
-    border-bottom:1px solid var(--border);
-}
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
 
-.back{
-    width:38px;
-    height:38px;
+        .back {
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 10px;
+            background: var(--surface);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
 
-    border:none;
-    border-radius:10px;
-
-    background:var(--surface);
-    color:white;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
-    cursor:pointer;
-}
-
-/* =========================
+        /* =========================
    FEATURE SCREEN
 ========================= */
-.content{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-    text-align:center;
-    gap:18px;
-}
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            gap: 18px;
+        }
 
-.bigIcon{
-    width:64px;
-    height:64px;
-    color:var(--accent);
-}
+        .bigIcon {
+            width: 64px;
+            height: 64px;
+            color: var(--accent);
+        }
 
-.h2{
-    font-size:22px;
-    font-weight:700;
-}
+        .h2 {
+            font-size: 22px;
+            font-weight: 700;
+        }
 
-.desc{
-    font-size:13px;
-    color:var(--muted);
-    max-width:260px;
-}
+        .desc {
+            font-size: 13px;
+            color: var(--muted);
+            max-width: 260px;
+        }
 
-/* =========================
+        /* =========================
    BUTTON
 ========================= */
-.btn{
-    background:var(--accent);
-    border:none;
-    color:white;
+        .btn {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
 
-    padding:12px 24px;
-    border-radius:12px;
-
-    font-weight:600;
-    cursor:pointer;
-}
-
-/* =========================
+        /* =========================
    TOGGLE
 ========================= */
-.toggle{
-    position:relative;
-    width:70px;
-    height:38px;
-}
+        .toggle {
+            position: relative;
+            width: 70px;
+            height: 38px;
+        }
 
-.toggle input{ display:none; }
+        .toggle input {
+            display: none;
+        }
 
-.slider{
-    position:absolute;
-    inset:0;
-    background:#444;
-    border-radius:999px;
-    transition:.2s;
-}
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #444;
+            border-radius: 999px;
+            transition: .2s;
+        }
 
-.slider:before{
-    content:'';
-    position:absolute;
-    width:30px;
-    height:30px;
-    left:4px;
-    top:4px;
-    background:white;
-    border-radius:50%;
-    transition:.2s;
-}
+        .slider:before {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            left: 4px;
+            top: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: .2s;
+        }
 
-.toggle input:checked + .slider{
-    background:var(--accent);
-}
+        .toggle input:checked+.slider {
+            background: var(--accent);
+        }
 
-.toggle input:checked + .slider:before{
-    transform:translateX(32px);
-}
+        .toggle input:checked+.slider:before {
+            transform: translateX(32px);
+        }
 
-.status{
-    font-size:13px;
-    color:var(--muted);
-}
+        .status {
+            font-size: 13px;
+            color: var(--muted);
+        }
 
-</style>
+        .footer {
+            padding: 12px 16px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: -80px !important;
+        }
+
+        .version-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            line-height: 1.4;
+        }
+    </style>
 </head>
 
 <body>
 
-<div class="app">
+    <div class="app">
 
-    <!-- HOME -->
-    <section id="homePanel" class="panel active">
-
-        <div class="header">
-            <h1>Device Settings</h1>
-            <p>VD05 Camera Controls</p>
-        </div>
-
-        <div class="list">
-
-            <div class="item" onclick="show('rebootPanel')">
-                <div class="left">
-                    <i data-lucide="rotate-cw" class="icon"></i>
-                    <div>
-                        <div class="title">Reboot</div>
-                        <div class="subtitle">Restart device</div>
+        <!-- HOME -->
+        <section id="homePanel" class="panel active">
+            <div class="header">
+                <h1>Device Settings</h1>
+                <p>VD05 Camera Controls</p>
+            </div>
+            <div class="list">
+                <div class="item" onclick="show('rebootPanel')">
+                    <div class="left">
+                        <i data-lucide="rotate-cw" class="icon"></i>
+                        <div>
+                            <div class="title">Reboot</div>
+                            <div class="subtitle">Restart device</div>
+                        </div>
                     </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-                <i data-lucide="chevron-right" class="chevron"></i>
+
+                <div class="item" onclick="show('antiPryPanel')">
+                    <div class="left">
+                        <i data-lucide="shield-alert" class="icon"></i>
+                        <div>
+                            <div class="title">Anti-Pry</div>
+                            <div class="subtitle">Tamper protection</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+
+                <div class="item" onclick="show('micPanel')">
+                    <div class="left">
+                        <i data-lucide="mic" class="icon"></i>
+                        <div>
+                            <div class="title">Microphone</div>
+                            <div class="subtitle">Audio capture control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" onclick="show('deviceNamePanel')">
+                    <div class="left">
+                        <i data-lucide="smartphone" class="icon"></i>
+                        <div>
+                            <div class="title">Device Name</div>
+                            <div class="subtitle">Device name control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
             </div>
 
-            <div class="item" onclick="show('antiPryPanel')">
-                <div class="left">
-                    <i data-lucide="shield-alert" class="icon"></i>
-                    <div>
-                        <div class="title">Anti-Pry</div>
-                        <div class="subtitle">Tamper protection</div>
-                    </div>
-                </div>
-                <i data-lucide="chevron-right" class="chevron"></i>
+        </section>
+
+        <!-- REBOOT -->
+        <section id="rebootPanel" class="panel">
+
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
             </div>
 
-            <div class="item" onclick="show('micPanel')">
-                <div class="left">
-                    <i data-lucide="mic" class="icon"></i>
-                    <div>
-                        <div class="title">Microphone</div>
-                        <div class="subtitle">Audio capture control</div>
-                    </div>
-                </div>
-                <i data-lucide="chevron-right" class="chevron"></i>
+            <div class="content">
+
+                <i data-lucide="rotate-cw" class="bigIcon"></i>
+
+                <div class="h2">Reboot Device</div>
+                <div class="desc">This will restart the camera system.</div>
+
+                <button class="btn" onclick="reboot()">
+                    Reboot
+                </button>
+            </div>
+        </section>
+
+        <!-- ANTI PRY -->
+        <section id="antiPryPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="shield-alert" class="bigIcon"></i>
+
+                <div class="h2">Anti-Pry</div>
+                <div class="desc">Enable or disable tamper protection.</div>
+
+                <label class="toggle">
+                    <input type="checkbox" id="antiPry">
+                    <span class="slider"></span>
+                </label>
+
+                <div class="status" id="antiPryStatus">Disabled</div>
+
             </div>
 
-        </div>
+        </section>
 
-    </section>
+        <!-- MIC -->
+        <section id="micPanel" class="panel">
 
-    <!-- REBOOT -->
-    <section id="rebootPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
 
-        <div class="topbar">
-            <button class="back" onclick="show('homePanel')">
-                <i data-lucide="arrow-left"></i>
-            </button>
-        </div>
+            <div class="content">
 
-        <div class="content">
+                <i data-lucide="mic" class="bigIcon"></i>
 
-            <i data-lucide="rotate-cw" class="bigIcon"></i>
+                <div class="h2">Microphone</div>
+                <div class="desc">Enable or disable audio capture.</div>
 
-            <div class="h2">Reboot Device</div>
-            <div class="desc">This will restart the camera system.</div>
+                <label class="toggle">
+                    <input type="checkbox" id="mic">
+                    <span class="slider"></span>
+                </label>
 
-            <button class="btn" onclick="reboot()">
-                Reboot
-            </button>
+                <div class="status" id="micStatus">Enabled</div>
 
-        </div>
+            </div>
+        </section>
+        <!-- DEVICE NAME -->
+        <section id="deviceNamePanel" class="panel">
 
-    </section>
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
 
-    <!-- ANTI PRY -->
-    <section id="antiPryPanel" class="panel">
+            <div class="content">
 
-        <div class="topbar">
-            <button class="back" onclick="show('homePanel')">
-                <i data-lucide="arrow-left"></i>
-            </button>
-        </div>
+                <i data-lucide="edit-3" class="bigIcon"></i>
 
-        <div class="content">
+                <div class="h2">Device Name</div>
+                <div class="desc">Set a custom name for this device</div>
 
-            <i data-lucide="shield-alert" class="bigIcon"></i>
+                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
+                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
+                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
+                </div>
+                <button class="btn" onclick="updateDeviceName()">
+                    Update Name
+                </button>
+                <div id="deviceNameStatus" class="status" style="margin-top: 12px; min-height: 20px;"></div>
+            </div>
+        </section>
+    </div>
+    <footer class="footer">
+    <div class="version-info">
+        <span id="deviceVersion">Device: Loading...</span>
+        <span id="firmwareVersion">Firmware: Loading...</span>
+    </div>
+</footer>
 
-            <div class="h2">Anti-Pry</div>
-            <div class="desc">Enable or disable tamper protection.</div>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-            <label class="toggle">
-                <input type="checkbox" id="antiPry">
-                <span class="slider"></span>
-            </label>
+    <script>
+        // Wait for everything to be ready
+        function initializeUI() {
+            console.log("VD05 UI Initializing...");
 
-            <div class="status" id="antiPryStatus">Disabled</div>
+            lucide.createIcons();
 
-        </div>
+        }
 
-    </section>
+        // Run initialization
+        window.addEventListener('load', initializeUI);
 
-    <!-- MIC -->
-    <section id="micPanel" class="panel">
+    </script>
 
-        <div class="topbar">
-            <button class="back" onclick="show('homePanel')">
-                <i data-lucide="arrow-left"></i>
-            </button>
-        </div>
+    <!-- Your main logic -->
+    <!--<script src="javascript/index.js" type="text/javascript"></script>-->
 
-        <div class="content">
+    <script>
+        // Debug: force refresh when Anti-Pry panel is shown
+        function show(id) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            const panel = document.getElementById(id);
+            if (panel) panel.classList.add('active');
 
-            <i data-lucide="mic" class="bigIcon"></i>
+            lucide.createIcons();
 
-            <div class="h2">Microphone</div>
-            <div class="desc">Enable or disable audio capture.</div>
+        
+            // Extra force for Anti-Pry panel
+            if (id === 'antiPryPanel') {
+                setTimeout(() => {
+                    if (typeof PushAntiPryStateToUI === 'function') {
+                        // This is not real - just a hint for driver if needed
+                        console.log("Anti-Pry panel opened - requesting fresh state");
+                    }
+                }, 200);
+            }
+        }
+    </script>
+    <script>
 
-            <label class="toggle">
-                <input type="checkbox" id="mic">
-                <span class="slider"></span>
-            </label>
+        let antiPryEnabled = false;
+        let isMicMuted = false;
 
-            <div class="status" id="micStatus">Enabled</div>
+        // =====================================================
+        // INIT
+        // =====================================================
 
-        </div>
+        document.addEventListener('DOMContentLoaded', function () {
 
-    </section>
+            console.log('VD05 Settings UI Loaded');
 
-</div>
+            initializeControl4();
 
-<script>
+            initAntiPry();
+            initMicrophone();
+            initReboot();
 
-lucide.createIcons();
+            // Request initial state from driver
+            requestInitialState();
 
-/* =========================
-   NAVIGATION
-========================= */
-function show(id){
+            // Request Device + Firmware Version for Footer
+            setTimeout(() => {
+                console.log("📡 Requesting Device Info for Footer...");
+            try {
+                C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+            } catch (e) {
+                console.error("Failed to request device info", e);
+            }
+            }, 1500);
+        });
 
-    document.querySelectorAll('.panel')
-        .forEach(p => p.classList.remove('active'));
+        // =====================================================
+        // CONTROL4 INIT
+        // =====================================================
 
-    document.getElementById(id)
-        .classList.add('active');
+        function initializeControl4() {
 
-    lucide.createIcons();
-}
+            try {
 
-/* =========================
-   CONTROL4 ACTIONS
-========================= */
-function reboot(){
+                C4.subscribeToDataToUi(true);
+                C4.subscribeToVariable('LAST_ROOM_SELECTED');
+                C4.subscribeToVariable('LAST_MENU_SELECTED');
 
-    console.log("REBOOT_DEVICE");
+                C4.sendCommand('REQUEST_SETTINGS', '', false, false);
 
-    // C4JH.SendToProxy("REBOOT_DEVICE",{});
+                console.log('Control4 initialized');
 
-}
+            } catch (e) {
+                console.log('Control4 init error', e);
+            }
+        }
 
-/* =========================
-   TOGGLES
-========================= */
-document.addEventListener('DOMContentLoaded', () => {
+        function requestInitialState() {
+            // Ask driver for current Anti-Pry and Mic state
+            try {
+                C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
+                console.log('📤 Requested initial Anti-Pry / Mic state');
+            } catch (e) {
+                console.log('Request initial state failed', e);
+            }
+        }
 
-    document.getElementById('antiPry').addEventListener('change', function(){
+        // =====================================================
+        // ANTI-PRY
+        // =====================================================
 
-        document.getElementById('antiPryStatus').innerText =
-            this.checked ? "Enabled" : "Disabled";
+        function initAntiPry() {
+            const toggle = document.getElementById('antiPry');
+            if (!toggle) {
+                console.error("❌ antiPry toggle not found in DOM!");
+                return;
+            }
 
-        console.log(this.checked ? "ANTI_PRY_ON" : "ANTI_PRY_OFF");
+            console.log("✅ antiPry toggle initialized");
 
-    });
+            // Remove old listener if exists
+            toggle.removeEventListener('change', handleAntiPryToggle);
+            toggle.addEventListener('change', handleAntiPryToggle);
+        }
 
-    document.getElementById('mic').addEventListener('change', function(){
+        function handleAntiPryToggle(e) {
 
-        document.getElementById('micStatus').innerText =
-            this.checked ? "Enabled" : "Disabled";
+            const state = e.target.checked;
 
-        console.log(this.checked ? "MIC_ON" : "MIC_OFF");
+            console.log('🛡 Anti-Pry toggle clicked:', state);
 
-    });
+            // DO NOT assume success — Lua will confirm
+            sendAntiPryCommand(state);
+        }
 
-});
+        function sendAntiPryCommand(state) {
 
-</script>
- <script src="javascript/index.js" type="text/javascript"></script>
+            try {
+
+                C4.sendCommand(
+                    'SET_ANTI_PRY',
+                    JSON.stringify({
+                        state: state ? 1 : 0   // 🔥 force 0/1
+                    }),
+                    false,
+                    true
+                );
+
+            } catch (e) {
+                console.log('Anti-Pry command error', e);
+            }
+        }
+
+
+
+        // =====================================================
+        // MICROPHONE
+        // =====================================================
+
+        function initMicrophone() {
+
+            const toggle = document.getElementById('mic');
+            if (!toggle) return;
+
+            toggle.addEventListener('change', handleMicToggle);
+        }
+
+        function handleMicToggle(e) {
+
+            const muted = !e.target.checked;
+
+            console.log('🎤 Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
+
+            sendMicCommand(muted);
+        }
+
+        function sendMicCommand(muted) {
+
+            try {
+
+                C4.sendCommand(
+                    muted ? 'MUTE_MIC' : 'UNMUTE_MIC',
+                    '',
+                    false,
+                    true
+                );
+
+            } catch (e) {
+                console.log('Mic command error', e);
+            }
+        }
+
+        function updateMicUI(muted) {
+
+            isMicMuted = muted;
+
+            const toggle = document.getElementById('mic');
+            const status = document.getElementById('micStatus');
+
+            if (toggle) toggle.checked = !muted;
+            if (status) status.innerText = muted ? 'Muted' : 'Enabled';
+        }
+
+        // =====================================================
+        // REBOOT
+        // =====================================================
+
+        function initReboot() {
+
+            const btn = document.getElementById('rebootBtn');
+            if (!btn) return;
+
+            btn.addEventListener('click', handleReboot);
+        }
+
+        function handleReboot() {
+
+            console.log('🔄 Reboot requested');
+
+            try {
+
+                C4.sendCommand(
+                    'REBOOT_DEVICE',
+                    '',
+                    false,
+                    true
+                );
+
+            } catch (e) {
+                console.log('Reboot error', e);
+            }
+        }
+
+        // =====================================================
+        // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
+        // =====================================================
+        function onDataToUi(value) {
+            try {
+                const obj = JSON.parse(value);
+                console.log('📥 onDataToUi received:', obj);
+
+                if (obj.type === "anti_pry_update" ||
+                    obj.tamper_swt !== undefined ||
+                    obj.anti_pry_enabled !== undefined) {
+
+                    let state = false;
+
+                    // Prefer tamper_swt (most reliable)
+                    if (obj.tamper_swt !== undefined) {
+                        state = Number(obj.tamper_swt) === 1;
+                    } else if (obj.anti_pry_enabled !== undefined) {
+                        state = !!obj.anti_pry_enabled;
+                    }
+
+                    console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
+                    updateAntiPryUI(state);
+                }
+
+                // Mic handling
+                if (obj.mic_muted !== undefined) {
+                    updateMicUI(!!obj.mic_muted);
+                }
+
+                // Device Information
+                // ==================== DEVICE INFO (FOOTER) ====================
+                if (obj.type === "device_info") {
+                    console.log("✅ Device Info Received for Footer:", obj);
+
+                     document.getElementById("deviceVersion").innerText = 
+                        "Device: " + (obj.device_name || "Unknown");
+
+                    document.getElementById("firmwareVersion").innerText = 
+                        "Firmware: " + (obj.version || obj.firmware || "Unknown");
+                }
+
+            } catch (e) {
+                console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
+            }
+        }
+
+        function updateAntiPryUI(state) {
+            antiPryEnabled = !!state;
+
+            const toggle = document.getElementById('antiPry');
+            const status = document.getElementById('antiPryStatus');
+
+            if (toggle) {
+                const wasChecked = toggle.checked;
+                toggle.checked = antiPryEnabled;
+
+                console.log(`[UI] Toggle updated: ${wasChecked} → ${toggle.checked} (desired: ${antiPryEnabled})`);
+
+                // Extra force for stubborn Control4 WebView
+                if (toggle.checked !== antiPryEnabled) {
+                    console.warn("[UI] Toggle didn't stick - forcing again");
+                    setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
+                }
+            }
+
+            if (status) {
+                status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
+            }
+        }
+
+        function onVariable(v) {
+            console.log('onVariable', v);
+        }
+
+        function onSendCommandError(msg) {
+            console.log('Command Error', msg);
+        }
+
+        function onSubscribeToDataToUi(msg) {
+            console.log('Subscribe Error', msg);
+        }
+
+        function onSubscribeToVariableError(v, msg) {
+            console.log('Variable Error', v, msg);
+        }
+    </script>
+
+
+
 </body>
+
 </html>
