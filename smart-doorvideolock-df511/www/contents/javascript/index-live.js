@@ -14,6 +14,7 @@ let currentState = 'locked';
 // =====================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+    
 
     slider = document.getElementById('lockSlider');
     thumb = document.getElementById('sliderThumb');
@@ -31,6 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('pointerup', onPointerUp);
 
     applyLockState('locked');
+    initScreenshot();
+   
 });
 
 // =====================================================
@@ -211,13 +214,83 @@ function sendLockCommand(action) {
     }
 }
 
+
+
+function onVariable(v) {
+    console.log('onVariable', v);
+}
+
+function onSendCommandError(msg) {
+    console.log('Command Error', msg);
+}
+
+function onSubscribeToDataToUi(msg) {
+    console.log('Subscribe Error', msg);
+}
+
+function onSubscribeToVariableError(v, msg) {
+    console.log('Variable Error', v, msg);
+}
+
 // =====================================================
-// LUA -> UI
+// SCREENSHOT FUNCTIONALITY
 // =====================================================
+
+let screenshotModal = null;
+let screenshotImg = null;
+let screenshotLoading = null;
+let urlDisplay = null;
+
+function initScreenshot() {
+    screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+    screenshotImg = document.getElementById('screenshotImage');
+    screenshotLoading = document.getElementById('screenshotLoading');
+    urlDisplay = document.getElementById('urlDisplay');
+
+    const btn = document.getElementById('screenshotBtn');
+    if (btn) btn.addEventListener('click', takeScreenshot);
+
+
+    if (screenshotImg) {
+        screenshotImg.addEventListener('load', function() {
+            screenshotLoading.style.display = 'none';
+            this.style.display = 'block';
+        });
+    }
+}
+
+function takeScreenshot() {
+    if (!screenshotModal || !screenshotImg || !screenshotLoading) {
+        console.error("Screenshot elements not found");
+        return;
+    }
+
+    screenshotImg.style.display = 'none';
+    screenshotLoading.style.display = 'block';
+    if (urlDisplay) urlDisplay.textContent = "Capturing...";
+    screenshotModal.show();
+
+    try {
+        C4.sendCommand('TAKE_SCREENSHOT', '', false, true);
+        console.log('📸 TAKE_SCREENSHOT sent');
+    } catch (e) {
+        console.error('Send command failed', e);
+    }
+}
+
+function updateUrlDisplay(url) {
+    if (urlDisplay) {
+        urlDisplay.textContent = url || "No URL received";
+        console.log('📍 URL shown in modal:', url);
+    }
+}
 
 function onDataToUi(value) {
 
-    console.log('RAW LUA:', value);
+    console.log('RAW LUA DATA:', value);
+    
+    // Show alert with raw data (for debugging)
+    alert("Data received from Lua:\n\n" + value);
 
     try {
 
@@ -235,61 +308,29 @@ function onDataToUi(value) {
             updateBatteryUI(obj.battery);
         }
 
+        // ==================== SCREENSHOT RESPONSE ====================
+        if (obj.type === "screenshot" && obj.url) {
+           console.log('✅ Screenshot URL received:', obj.url);
+            updateUrlDisplay(obj.url);                    // Show in modal
+
+            if (screenshotImg && screenshotLoading) {
+                screenshotLoading.style.display = 'none';
+                screenshotImg.style.display = 'block';
+                screenshotImg.src = obj.url;
+            }
+        }
+
+        if (obj.type === "test_url" && obj.url) {
+            console.log('✅ Test URL received:', obj.url);
+            alert("✅ Test URL from Lua:\n\n" + obj.url);
+            return;
+        }
+
     } catch (e) {
 
-        console.log('onDataToUi error', e);
+        console.log('onDataToUi parse error', e);
+        alert("Parse Error: " + e.message + "\n\nRaw data: " + value);
     }
-}
 
-// =====================================================
-// BATTERY
-// =====================================================
 
-function updateBatteryUI(power) {
-
-    const icon =
-        document.getElementById('batteryIcon');
-
-    const batteryText =
-        document.getElementById('batteryText');
-
-    if (!icon) return;
-
-    const pwr = parseInt(power, 10);
-
-    if (isNaN(pwr)) return;
-
-    let css;
-
-    if (pwr >= 75) css = 100;
-    else if (pwr >= 50) css = 75;
-    else if (pwr >= 25) css = 50;
-    else if (pwr > 15) css = 25;
-    else css = 10;
-
-    icon.setAttribute('data-percent', css);
-
-    if (batteryText) {
-        batteryText.textContent = pwr + '%';
-    }
-}
-
-// =====================================================
-// REQUIRED C4 CALLBACKS
-// =====================================================
-
-function onVariable(v) {
-    console.log('onVariable', v);
-}
-
-function onSendCommandError(msg) {
-    console.log('Command Error', msg);
-}
-
-function onSubscribeToDataToUi(msg) {
-    console.log('Subscribe Error', msg);
-}
-
-function onSubscribeToVariableError(v, msg) {
-    console.log('Variable Error', v, msg);
 }

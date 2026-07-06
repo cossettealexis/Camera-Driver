@@ -594,7 +594,9 @@ function OnDriverLateInit()
     print("=== DF511 Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
 
+    C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
     ValidateMacAddress(C4:GetUniqueMAC())
+    
     -- Define variables for use inside the timer
     local ip = _props["IP Address"] or Properties["IP Address"]
     local http_port = Properties["HTTP Port"] or "3333"
@@ -603,8 +605,8 @@ function OnDriverLateInit()
     local password = Properties["Password"] or "123456"
 
     local snapshot_path = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
-    local snapshot_url = string.format("http://%s:%s%s", ip, http_port, snapshot_path)
-
+    --local snapshot_url = string.format("http://%s:%s%s", ip, http_port, snapshot_path)
+    local snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi?resolution=640x480&transport=tcp", ip, http_port)
     -- Step 1: Force Camera Proxy Auth and Port settings (VD05 Fix)
     C4:SendToProxy(CAMERA_BINDING, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
     C4:SendToProxy(CAMERA_BINDING, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
@@ -620,6 +622,8 @@ function OnDriverLateInit()
     C4:SendToProxy(CAMERA_BINDING, "RTSP_AUDIO_ENABLED", { ENABLED = "False" })
 
     C4:UpdateProperty("Status", "MAC validation started - will auto login after...")
+    C4:UpdateProperty("Snapshot URL", snapshot_url)
+       
 end
 
 local function CompleteCameraSetup()
@@ -815,10 +819,10 @@ function OnPropertyChanged(strProperty)
         local snapshot_url
         if auth_type ~= "NONE" then
             -- Add username and password directly into the URL for the Proxy
-            snapshot_url = string.format("http://%s:%s@%s:%s/wps-cgi/image.cgi?resolution=640x480", username, password,
+            snapshot_url = string.format("http://%s:%s@%s:%s/wps-cgi/image.cgi?resolution=640x480&transport=tcp", username, password,
                 ip, http_port)
         else
-            snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi?resolution=640x480", ip, http_port)
+            snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi?resolution=640x480&transport=tcp", ip, http_port)
         end
 
 
@@ -1212,6 +1216,16 @@ function ExecuteCommand(strCommand, tParams)
         else
             print("Unknown SetLockUnlock action:", action)
         end
+        return
+    end
+
+    if strCommand == "TAKE_SCREENSHOT" then
+        TakeScreenshotForUI()
+        return
+    end
+
+    if strCommand == "TEST_URL" then
+        SendTestUrlToUI()
         return
     end
 
@@ -4957,4 +4971,82 @@ function FormatEventTimestamp(ts)
         ts = math.floor(ts / 1000)
     end
     return os.date("%Y-%m-%d %H:%M:%S", ts)
+end
+
+--screenshot
+
+-- ==================== SCREENSHOT FOR WEB UI ====================
+function TakeScreenshotForUI()
+    print("[UI-SCREENSHOT] Web UI requested screenshot")
+
+    WakeCamera(2)
+
+    C4:SendToProxy(CAMERA_BINDING, "SNAPSHOT_INVALIDATE", {})
+
+    -- Longer delay + multiple attempts for reliability
+    C4:SetTimer(1800, function()
+        local ip = _props["IP Address"] or Properties["IP Address"] or ""
+        local port = Properties["HTTP Port"] or "3333"
+        local user = Properties["Username"] or "SystemConnect"
+        local pass = Properties["Password"] or "123456"
+        local path = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
+
+        local url = ""
+        if ip ~= "" then
+            if user and pass and pass ~= "" then
+                url = string.format("http://%s:%s%s?resolution=640x480&transport=tcp", 
+                    ip, port, path)
+            else
+                url = string.format("http://%s:%s%s?resolution=640x480&transport=tcp", 
+                    ip, port, path)
+            end
+        end
+
+        print("[UI-SCREENSHOT] Final URL being sent:", url)
+
+        local payload = json.encode({
+            type = "screenshot",
+            url = url,
+            timestamp = os.time(),
+            success = (url ~= "")
+        })
+
+        -- Send multiple times with delays (very important for WebView)
+        C4:SendDataToUI(payload)
+        C4:SetTimer(300, function() C4:SendDataToUI(payload) end)
+        C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
+
+        C4:UpdateProperty("Latest Screenshot URL", url)
+    end)
+end
+
+-- Optional: Try to get latest cloud image from notification queue
+function GetLatestCloudImageUrl()
+    if NOTIFICATION_QUEUE and #NOTIFICATION_QUEUE > 0 then
+        local id = NOTIFICATION_QUEUE[#NOTIFICATION_QUEUE]
+        return NOTIFICATION_URLS[id] or ""
+    end
+    return ""
+end
+
+
+-- ==================== TEST URL FOR DEBUGGING ====================
+function SendTestUrlToUI()
+    print("[TEST-URL] Sending test URL to Web UI")
+
+    local test_url = "https://picsum.photos/id/1015/1280/720"  -- Reliable test image
+
+    local payload = json.encode({
+        type = "test_url",
+        url = test_url,
+        timestamp = os.time(),
+        message = "This is a test from Lua"
+    })
+
+    -- Send multiple times to ensure WebView receives it
+    C4:SendDataToUI(payload)
+    C4:SetTimer(300, function() C4:SendDataToUI(payload) end)
+    C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
+
+    print("[TEST-URL] Test payload sent successfully")
 end

@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins DF511 Door Video Lock</name>
-    <version>4</version>
+    <version>5</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>DF511</model>
     <created>01/27/2025 12:00 AM</created>
-    <modified>06/02/2026 12:00 AM</modified>
+    <modified>07/02/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -20,7 +20,7 @@
     <proxies>
         <proxy proxybindingid="5003" name="DF511 Preview">uibutton</proxy>
         <proxy proxybindingid="5002" name="Door Lock">lock</proxy>
-        <!--<proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>-->
+        <proxy proxybindingid="5001" name="DF511 Camera">camera</proxy>
         <proxy proxybindingid="5005" name="DF511 Door Lock">uibutton</proxy>
     </proxies>
     <OnlineCategory>Security</OnlineCategory>
@@ -649,6 +649,9 @@
             </command>
             <command>
                 <name>SELECT</name>
+            </command>
+            <command>
+                <name>TAKE_SCREENSHOT</name>
             </command>
         </commands>
         <interfaces>
