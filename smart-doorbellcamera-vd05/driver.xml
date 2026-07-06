@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>6</version>
+    <version>7</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>06/23/2026 12:00 AM</modified>
+    <modified>07/02/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -230,6 +230,7 @@
         <searchtype>slomins:camera</searchtype>
         <add_device_properties>
             <property type="string" id="1" name="IP Address" network_address="true"/>
+            <property type="string" id="3" name="VID"/>
         </add_device_properties>
         <add_connection_binding_address>
             <connection_id>6001</connection_id>
@@ -256,6 +257,12 @@
                 <name>Device Name</name>
                 <type>STRING</type>
                 <default>VD05-SL</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>MAC Address</name>
+                <type>STRING</type>
+                <default></default>
                 <readonly>false</readonly>
             </property>
              <property>
@@ -367,6 +374,10 @@
                 <command>INITIALIZE_CAMERA</command>
             </action>
             <action>
+                <name>Wake Camera</name>
+                <command>AWAKE_CAMERA</command>
+            </action>
+            <action>
                 <name>Unmute Mic</name>
                 <command>UNMUTE_MIC</command>
             </action>
@@ -404,6 +415,10 @@
             <command>
                 <name>INITIALIZE_CAMERA</name>
                 <description>Initialize Camera</description>
+            </command>
+            <command>
+                <name>AWAKE_CAMERA</name>
+                <description>Wake Camera</description>
             </command>
             <command>
                 <name>UNMUTE_MIC</name>

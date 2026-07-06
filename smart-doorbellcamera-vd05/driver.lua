@@ -370,6 +370,7 @@ function OnDriverLateInit()
     print("=== VD05 Driver Late Init ===")
     C4:UpdateProperty("Status", "Ready")
 
+    C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
     ValidateMacAddress(C4:GetUniqueMAC())
 
     -- Wait for MAC validation to complete before initializing camera
@@ -1212,25 +1213,39 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
-                for i, device in ipairs(devices) do
-                    -- If IP is set, match by IP address
-                    if ip and ip ~= "" and device.local_ip == ip then
-                        target_device = device
-                        print("Found device matching IP " .. ip .. " at index " .. i)
-                        print("  Device Name: " .. (device.device_name or "N/A"))
-                        print("  Model: " .. (device.model or "N/A"))
-                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                        break
-                        -- If no IP set, filter by model or product subtype
-                    elseif (not ip or ip == "") then
+                local ip_matched = false
+                
+                -- First try: Match by IP if IP is set
+                if ip and ip ~= "" then
+                    for i, device in ipairs(devices) do
+                        if device.local_ip == ip then
+                            target_device = device
+                            ip_matched = true
+                            print("Found device matching IP " .. ip .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            break
+                        end
+                    end
+                end
+                
+                -- Second try: If no IP match, fall back to model/product_subtype matching
+                if not target_device then
+                    for i, device in ipairs(devices) do
                         local model_match = device.model and
-                        string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
                         local subtype_match = device.product_subtype and
-                        string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
 
                         if model_match or subtype_match then
                             target_device = device
-                            print("Found VD05 device (no IP filter) at index " .. i)
+                            if ip and ip ~= "" then
+                                print("WARNING: IP mismatch - SDDP discovered " .. ip .. " but API shows " .. (device.local_ip or "N/A"))
+                                print("Found VD05 device by product_subtype at index " .. i)
+                            else
+                                print("Found VD05 device (no IP filter) at index " .. i)
+                            end
                             print("  Model: " .. (device.model or "N/A"))
                             print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                             print("  Local IP: " .. (device.local_ip or "N/A"))
@@ -1239,9 +1254,12 @@ function GET_DEVICES(p_vid)
                     end
                 end
 
-                if not target_device and ip then
-                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                if not target_device then
+                    print("ERROR: No VD05 device found in API response")
+                    if ip and ip ~= "" then
+                        print("  Searched for IP: " .. ip)
+                    end
+                    print("  Searched for product_subtype: " .. GlobalObject.ProductSubType)
                     return
                 end
 
@@ -1266,17 +1284,18 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
-                    -- Set IP Address if found and not already set
+                    -- Set IP Address from API response
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
+                        if not ip or ip == "" or ip ~= target_device.local_ip then
+                            if ip and ip ~= "" and ip ~= target_device.local_ip then
+                                print("  IP Address mismatch - updating from " .. ip .. " to " .. target_device.local_ip)
+                            end
                             SET_CAMERA_IP(target_device.local_ip)
                             print("  IP Address property updated to: " .. target_device.local_ip)
                         else
-                            print("  IP Address already set to: " .. ip)
+                            print("  IP Address already correct: " .. ip)
                         end
                     end
-
-
 
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
@@ -3220,14 +3239,14 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
         return
     end
 
-    -- Skip wake on first call, only wake on subsequent calls
-    if rtsp_first_call then
-        print("[RTSP] First call - skipping wake")
-        rtsp_first_call = false
-    else
-        print("[RTSP] Subsequent call - waking camera for streaming session...")
-        WakeCamera(1)
-    end
+    -- -- Skip wake on first call, only wake on subsequent calls
+    -- if rtsp_first_call then
+    --     print("[RTSP] First call - skipping wake")
+    --     rtsp_first_call = false
+    -- else
+    --     print("[RTSP] Subsequent call - waking camera for streaming session...")
+    --     WakeCamera(1)
+    -- end
 
     -- Determine stream type based on resolution
     -- Higher resolution -> main stream (stream0)
