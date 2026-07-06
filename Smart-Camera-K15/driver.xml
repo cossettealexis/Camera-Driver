@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>03/17/2026 12:00 AM</created>
-    <modified>05/27/2026 12:00 AM</modified>
+    <modified>07/02/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>

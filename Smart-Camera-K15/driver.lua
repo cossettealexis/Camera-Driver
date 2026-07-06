@@ -370,7 +370,9 @@ function OnDriverLateInit()
     print("=== K15-SL Driver Late Init ===")
     C4:UpdateProperty("Camera Status", "Unknown")
    
+    C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
     ValidateMacAddress(C4:GetUniqueMAC())
+    
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "3333"
