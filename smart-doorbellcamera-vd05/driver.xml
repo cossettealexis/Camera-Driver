@@ -250,7 +250,7 @@
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d50h79mbtn8c73cnbggg</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
