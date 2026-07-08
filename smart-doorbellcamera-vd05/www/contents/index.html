@@ -5,8 +5,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>VD05 Settings</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External resources removed - Control4 blocks CDN access -->
+    <style>
+        /* Import Inter font fallback to system fonts */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
     <style>
         /* =========================
    THEME
@@ -267,10 +272,42 @@
             gap: 4px;
             line-height: 1.4;
         }
+
+        /* Debug Panel */
+        .debug-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            border-bottom: 3px solid yellow;
+        }
+
+        .debug-panel .log {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .debug-panel .timestamp {
+            color: #ffff00;
+            font-weight: bold;
+        }
     </style>
 </head>
 
 <body>
+
+    <!-- DEBUG PANEL -->
+    <div class="debug-panel" id="debugPanel">
+        <div class="log"><span class="timestamp">[INIT]</span> Debug panel loaded - waiting for page init...</div>
+    </div>
 
     <div class="app">
 
@@ -428,23 +465,22 @@
     <footer class="footer">
     <div class="version-info">
         <span id="deviceVersion">Device: Loading...</span>
-        <span id="firmwareVersion">Firmware: Loading...</span>
-    </div>
-</footer>
-
-    <script src="https://unpkg.com/lucide@latest"></script>
+     !-- Lucide CDN removed - Control4 blocks external resources -->
 
     <script>
         // Wait for everything to be ready
         function initializeUI() {
             console.log("VD05 UI Initializing...");
-
-            lucide.createIcons();
-
+            // Lucide icons removed - not available offline
         }
 
         // Run initialization
         window.addEventListener('load', initializeUI);
+
+    </script>
+
+    <!-- Your main logic - MUST BE LOADED FOR C4 INTEGRATION -->
+    <script src="javascript/index.js" type="text/javascript"></script
 
     </script>
 
@@ -478,31 +514,84 @@
         let isMicMuted = false;
 
         // =====================================================
+        // DEBUG LOGGING
+        // =====================================================
+
+        function debugLog(message, data) {
+            const panel = document.getElementById('debugPanel');
+            if (!panel) {
+                console.log('[DEBUG] Panel not found:', message, data);
+                return;
+            }
+            
+            const time = new Date().toLocaleTimeString();
+            const log = document.createElement('div');
+            log.className = 'log';
+            
+            let msg = `<span class="timestamp">[${time}]</span> ${message}`;
+            if (data !== undefined) {
+                const dataStr = typeof data === 'object' ? JSON.stringify(data).substring(0, 150) : String(data);
+                msg += `: ${dataStr}`;
+            }
+            log.innerHTML = msg;
+            
+            panel.appendChild(log);
+            panel.scrollTop = panel.scrollHeight;
+            
+            // Keep only last 25 logs
+            while (panel.children.length > 25) {
+                panel.removeChild(panel.firstChild);
+            }
+            
+            console.log('[DEBUG]', message, data);
+        }
+
+        // =====================================================
         // INIT
         // =====================================================
 
         document.addEventListener('DOMContentLoaded', function () {
 
+            debugLog('🚀 DOMContentLoaded fired');
             console.log('VD05 Settings UI Loaded');
 
+            debugLog('C4 check', typeof C4 !== 'undefined' ? '✅ FOUND' : '❌ NOT FOUND');
+            debugLog('Footer check', {
+                device: !!document.getElementById('deviceVersion'),
+                firmware: !!document.getElementById('firmwareVersion'),
+                release: !!document.getElementById('releaseDate')
+            });
+
+            debugLog('→ initializeControl4()');
             initializeControl4();
 
+            debugLog('→ initAntiPry()');
             initAntiPry();
+            
+            debugLog('→ initMicrophone()');
             initMicrophone();
+            
+            debugLog('→ initReboot()');
             initReboot();
 
+            debugLog('→ requestInitialState()');
             // Request initial state from driver
             requestInitialState();
 
             // Request Device + Firmware Version for Footer
             setTimeout(() => {
+                debugLog("📡 Sending GET_DEVICE_INFO command...");
                 console.log("📡 Requesting Device Info for Footer...");
             try {
                 C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+                debugLog("✅ GET_DEVICE_INFO sent successfully");
             } catch (e) {
+                debugLog("❌ GET_DEVICE_INFO failed: " + e.message);
                 console.error("Failed to request device info", e);
             }
             }, 1500);
+            
+            debugLog('✅ Page initialization complete');
         });
 
         // =====================================================
@@ -511,17 +600,23 @@
 
         function initializeControl4() {
 
+            debugLog('initializeControl4 starting...');
             try {
 
+                debugLog('Subscribing to DataToUi...');
                 C4.subscribeToDataToUi(true);
+                debugLog('✅ Subscribed to DataToUi');
+                
                 C4.subscribeToVariable('LAST_ROOM_SELECTED');
                 C4.subscribeToVariable('LAST_MENU_SELECTED');
 
                 C4.sendCommand('REQUEST_SETTINGS', '', false, false);
 
+                debugLog('✅ Control4 initialized');
                 console.log('Control4 initialized');
 
             } catch (e) {
+                debugLog('❌ Control4 init error: ' + e.message);
                 console.log('Control4 init error', e);
             }
         }
@@ -666,9 +761,11 @@
         // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
         // =====================================================
         function onDataToUi(value) {
+            debugLog('📥 onDataToUi called');
             try {
                 const obj = JSON.parse(value);
                 console.log('📥 onDataToUi received:', obj);
+                debugLog('📦 Data type: ' + (obj.type || 'no type'));
 
                 if (obj.type === "anti_pry_update" ||
                     obj.tamper_swt !== undefined ||
@@ -683,28 +780,49 @@
                         state = !!obj.anti_pry_enabled;
                     }
 
+                    debugLog('🛡 Anti-Pry: ' + (state ? 'ENABLED' : 'DISABLED'));
                     console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
                     updateAntiPryUI(state);
                 }
 
                 // Mic handling
                 if (obj.mic_muted !== undefined) {
+                    debugLog('🎤 Mic: ' + (obj.mic_muted ? 'MUTED' : 'UNMUTED'));
                     updateMicUI(!!obj.mic_muted);
                 }
 
                 // Device Information
                 // ==================== DEVICE INFO (FOOTER) ====================
                 if (obj.type === "device_info") {
+                    debugLog('✅ DEVICE_INFO received!');
                     console.log("✅ Device Info Received for Footer:", obj);
 
-                     document.getElementById("deviceVersion").innerText = 
-                        "Device: " + (obj.device_name || "Unknown");
+                    const devEl = document.getElementById("deviceVersion");
+                    const fwEl = document.getElementById("firmwareVersion");
+                    const relEl = document.getElementById("releaseDate");
+                    
+                    debugLog('Elements', {dev: !!devEl, fw: !!fwEl, rel: !!relEl});
 
-                    document.getElementById("firmwareVersion").innerText = 
-                        "Firmware: " + (obj.version || obj.firmware || "Unknown");
+                    if (devEl) {
+                        devEl.innerText = "Device: " + (obj.device_name || "Unknown");
+                        debugLog('✅ Set device: ' + obj.device_name);
+                    }
+
+                    if (fwEl) {
+                        fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
+                        debugLog('✅ Set firmware: ' + obj.version);
+                    }
+                    
+                    if (relEl) {
+                        relEl.innerText = "Release: " + (obj.release_date || "Unknown");
+                        debugLog('✅ Set release: ' + (obj.release_date || 'Unknown'));
+                    }
+                    
+                    debugLog('🎉 Footer updated!');
                 }
 
             } catch (e) {
+                debugLog('❌ ERROR: ' + e.message);
                 console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
             }
         }
