@@ -300,13 +300,24 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     elseif strCommand == "SYNC_ALL_SCENES" then
         Handle_SyncAllScenes(tParams)
     end
-    if strCommand == SET_LEVEL or strCommand == RAMP_TO_LEVEL then
-        print("====SET_LEVEL or RAMP_TO_LEVEL Command Received====")
-        print("LEVEL = " .. tostring(tParams.LEVEL))
-        print("Brightness = " .. tostring(tParams.Brightness))
-        print("=========END SET_LEVEL or RAMP_TO_LEVEL =========")
-        -- local level = tonumber(tParams.LEVEL or tParams.Brightness)
-        -- HandleBrightness(level)
+    
+    -- Handle Advanced Lighting Scene commands from light_v2 proxy
+    if strCommand == "SET_LEVEL" or strCommand == "RAMP_TO_LEVEL" then
+        print("====Advanced Lighting Scene Command Received====")
+        print("Command: " .. strCommand)
+        local level = tonumber(tParams.LEVEL) or 100
+        print("LEVEL = " .. tostring(level))
+        print("=========================================")
+        
+        if Properties["Contract"] == "Enable" then
+            local deviceId = Properties["DeviceId"]
+            local tempVar = {}
+            tempVar.command = "on"
+            tempVar.brightness = level
+            Switchonoff(deviceId, tempVar)
+            C4:SetProperty("Brightness", level)
+            proxyBrightnessChanges(level)
+        end
     end
     
    if Properties["Contract"] == "Enable" then
@@ -477,12 +488,49 @@ function ExecuteCommand(strCommand, tParams)
             tempVar.brightness = Properties["Brightness"]
             Switchonoff(deviceId, tempVar)
             print("Switchonoff with command  : " .. strCommand)
-        end
-        if (strCommand == "Off") then
+        elseif (strCommand == "Off") then
             deviceId = Properties["DeviceId"];
             tempVar.command = "off"
             Switchonoff(deviceId, tempVar)
             print("Switchonoff with command  : " .. strCommand)
+        elseif (strCommand == "Toggle") then
+            deviceId = Properties["DeviceId"]
+            local currentState = Properties["State"]
+            if currentState == "On" then
+                tempVar.command = "off"
+            else
+                tempVar.command = "on"
+                tempVar.brightness = Properties["Brightness"]
+            end
+            Switchonoff(deviceId, tempVar)
+            print("Toggle executed - switching to: " .. tempVar.command)
+        elseif (strCommand == "SET_LEVEL") then
+            local level = tonumber(tParams["LEVEL"]) or 100
+            deviceId = Properties["DeviceId"]
+            tempVar.command = "on"
+            tempVar.brightness = level
+            Switchonoff(deviceId, tempVar)
+            C4:SetProperty("Brightness", level)
+            proxyBrightnessChanges(level)
+            print("SET_LEVEL executed - level: " .. level)
+        elseif (strCommand == "SET_BRIGHTNESS_TARGET") then
+            local level = tonumber(tParams["LIGHT_BRIGHTNESS_TARGET"]) or 100
+            deviceId = Properties["DeviceId"]
+            tempVar.command = "on"
+            tempVar.brightness = level
+            Switchonoff(deviceId, tempVar)
+            C4:SetProperty("Brightness", level)
+            proxyBrightnessChanges(level)
+            print("SET_BRIGHTNESS_TARGET executed - level: " .. level)
+        elseif (strCommand == "RAMP_TO_LEVEL") then
+            local level = tonumber(tParams["LEVEL"]) or 100
+            deviceId = Properties["DeviceId"]
+            tempVar.command = "on"
+            tempVar.brightness = level
+            Switchonoff(deviceId, tempVar)
+            C4:SetProperty("Brightness", level)
+            proxyBrightnessChanges(level)
+            print("RAMP_TO_LEVEL executed - level: " .. level)
         end
     end
 

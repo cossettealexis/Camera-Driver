@@ -4,7 +4,7 @@
 
 Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.
 
-**Version:** 6  
+**Version:** 7  
 **Package:** Slomins-indoor-P160.c4z  
 **Minimum Control4 OS:** 3.3.2+
 
@@ -772,7 +772,12 @@ local client_id = util.uuid_v4()
 
 ## Version History
 
-### v6 (Current)
+### v7 (Current)
+- **LCDD-335:** Fixed Timeline display issue - events now appear in both Timeline and Event History
+- Added `CAMERA_EVENT` notifications to Camera Proxy for Timeline integration
+- Events (Motion, Human, Online/Offline) now properly sync to Timeline view
+
+### v6
 - Auto-populate IP Address, VID and MAC Address
 
 ### v0.1.0
@@ -791,7 +796,7 @@ local client_id = util.uuid_v4()
 
 ## Support & Contact
 
-- **Driver Version:** 6
+- **Driver Version:** 7
 - **Maintainer:** Slomins
 - **Manufacturer:** Slomins
 - **Model:** P160-SL

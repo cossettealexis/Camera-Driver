@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>6</version>
+    <version>7</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>07/02/2026 12:00 AM</modified>
+    <modified>07/15/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>

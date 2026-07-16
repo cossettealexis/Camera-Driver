@@ -5,8 +5,8 @@
   <name>Smart Dimmer Switch</name>
   <model>Smart Dimmer Switch</model>
   <created>04/02/2025 07:28 PM</created>
-  <modified>03/24/2026 06:11 PM</modified>
-  <version>122</version>
+  <modified>07/15/2026 02:00 PM</modified>
+  <version>123</version>
   <small>devices_sm\c4.gif</small>
   <large>devices_lg\c4.gif</large>
   <control>lua_gen</control>
@@ -20,7 +20,7 @@
   </proxies>
   <config>
     <documentation file="www/documentation/index.html">Smart Dimmer Switch Document</documentation>
-    <script file="driver.lua" encryption="2" />
+    <script file="driver.lua" />
     <properties>
       <property>
         <name>Tcp Port</name>
@@ -112,6 +112,58 @@
         <name>Off</name>
         <description>Power Off</description>
       </command>
+      <command>
+        <name>Toggle</name>
+        <description>Toggle Power State</description>
+      </command>
+      <command>
+        <name>SET_LEVEL</name>
+        <description>Set Light Level</description>
+        <params>
+          <param>
+            <name>LEVEL</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>SET_BRIGHTNESS_TARGET</name>
+        <description>Set Brightness Target</description>
+        <params>
+          <param>
+            <name>LIGHT_BRIGHTNESS_TARGET</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>RATE</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>RAMP_TO_LEVEL</name>
+        <description>Ramp to Level</description>
+        <params>
+          <param>
+            <name>LEVEL</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>TIME</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
+      </command>
     </commands>
     <actions>
       <action>
@@ -123,6 +175,62 @@
         <name>Power Off</name>
         <description>Switch off the dimmer light</description>
         <command>Off</command>
+      </action>
+      <action>
+        <name>Toggle</name>
+        <description>Toggle the dimmer light state</description>
+        <command>Toggle</command>
+      </action>
+      <action>
+        <name>Set Level</name>
+        <description>Set dimmer level</description>
+        <command>SET_LEVEL</command>
+        <params>
+          <param>
+            <name>LEVEL</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </action>
+      <action>
+        <name>Set Brightness</name>
+        <description>Set brightness with rate</description>
+        <command>SET_BRIGHTNESS_TARGET</command>
+        <params>
+          <param>
+            <name>LIGHT_BRIGHTNESS_TARGET</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>RATE</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
+      </action>
+      <action>
+        <name>Ramp To Level</name>
+        <description>Ramp to level over time</description>
+        <command>RAMP_TO_LEVEL</command>
+        <params>
+          <param>
+            <name>LEVEL</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>TIME</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
       </action>
     </actions>
   </config>

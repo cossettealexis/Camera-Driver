@@ -2077,6 +2077,50 @@ local function record_history(severity, event_type, subcategory)
     return uuid
 end
 
+local function send_timeline_event(event_name, image_url)
+    local event_type = "other"
+    local description = event_name or "Camera Event"
+    
+    -- Map event names to Timeline event types
+    if event_name == EVENT.MOTION or event_name:lower():find("motion") then
+        event_type = "motion"
+        description = "Motion Detected"
+    elseif event_name == EVENT.HUMAN or event_name:lower():find("human") or event_name:lower():find("person") then
+        event_type = "person"
+        description = "Human Detected"
+    elseif event_name == EVENT.CAMERA_ONLINE then
+        event_type = "connection"
+        description = "Camera Online"
+    elseif event_name == EVENT.CAMERA_OFFLINE then  
+        event_type = "connection"
+        description = "Camera Offline"
+    elseif event_name == EVENT.LOW_BATTERY then
+        event_type = "alert"
+        description = "Low Battery"
+    elseif event_name == EVENT.MEMORY_CARD_MISSING then
+        event_type = "alert"
+        description = "Memory Card Missing"
+    end
+    
+    local timeline_data = {
+        EVENT_TYPE = event_type,
+        TIMESTAMP = os.time(),
+        DESCRIPTION = description
+    }
+    
+    -- Add image URL if available
+    if image_url and image_url ~= "" then
+        timeline_data.IMAGE_URL = image_url
+        print("[TIMELINE] Sending event with image: " .. description)
+    else
+        print("[TIMELINE] Sending event: " .. description)
+    end
+    
+    -- Send to Camera Proxy Timeline (binding 5001)
+    C4:SendToProxy(5001, "CAMERA_EVENT", timeline_data)
+    print("[TIMELINE] Event sent - Type: " .. event_type .. ", Time: " .. os.time())
+end
+
 local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
@@ -2103,11 +2147,16 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             else
                 print("[NOTIFY] no image after retry")
             end
+            
+            -- Send to Event History
             record_history(
                 category == NOTIFY.ALERT and "Critical" or "Info",
                 event_name,
                 "IP Camera"
             )
+            
+            send_timeline_event(event_name, url)
+            
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
             end)
