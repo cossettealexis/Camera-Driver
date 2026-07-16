@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VD05 Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: red;
+            color: white;
+            font-family: Arial;
+            padding: 50px;
+            text-align: center;
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WEB VIEW IS WORKING!</h1>
+    <p>If you see this red screen, the web view path is correct.</p>
+    <div id="test"></div>
+    <script>
+        document.getElementById('test').innerHTML = 'JavaScript is working at: ' + new Date();
+    </script>
+</body>
+</html>
