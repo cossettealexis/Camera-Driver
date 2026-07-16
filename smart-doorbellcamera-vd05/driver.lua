@@ -382,9 +382,6 @@ function OnDriverLateInit()
             C4:UpdateProperty("Status", "MAC validation failed - no credentials")
         end
     end)
-    
-    -- Get device info on startup for web UI
-    C4:SetTimer(8000, GET_DEVICE_INFO)
 
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
@@ -1322,12 +1319,6 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("VD05 properties updated successfully")
-                    
-                    -- Fetch firmware version and release date
-                    C4:SetTimer(2000, function()
-                        print("[INIT] Fetching device firmware information...")
-                        GET_DEVICE_INFO()
-                    end)
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
                 end
@@ -3096,13 +3087,6 @@ function UIRequest(strCommand, tParams)
     end
     print("================================================================")
 
-    -- Handle settings UI requests
-    if strCommand == "HandleSelect" then
-        print("[UI] User opened settings - sending device info")
-        C4:SetTimer(500, GET_DEVICE_INFO)
-        return nil
-    end
-
     -- Route camera commands and RETURN their results FIRST, then wake camera
     if strCommand == "GET_SNAPSHOT_QUERY_STRING" then
         local result = "<snapshot_query_string>" ..
@@ -4096,25 +4080,13 @@ function GET_DEVICE_INFO()
         end
 
         local d = result.data
-        
-        -- DEBUG: Print full API response to see available fields
-        print("=== FULL DEVICE INFO RESPONSE ===")
-        print(json.encode(d, { indent = true }))
-        print("=================================")
 
-        -- Extract data safely - try multiple possible field names for release date
-        local release_date = d.release_date or d.software_date or d.sw_date or 
-                           d.firmware_date or d.fw_date or d.update_date or 
-                           d.version_date or d.build_date or ""
-        
+        -- Extract data safely
         local payload = {
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            firmware       = {                                   -- Nest firmware info
-                version        = d.version or "",
-                release_date   = release_date ~= "" and release_date or "N/A"
-            },
+            version        = d.version or "",                    -- Firmware version
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -4128,43 +4100,35 @@ function GET_DEVICE_INFO()
 
         print("✅ Device Info Parsed:")
         print("   Name:", payload.device_name)
-        print("   Firmware:", payload.firmware.version)
-        print("   Release Date:", payload.firmware.release_date)
+        print("   Firmware:", payload.version)
         print("   Battery:", payload.battery .. "%")
-        
-        -- Update driver properties
-        if payload.firmware.version ~= "" then
-            _props["Firmware Version"] = payload.firmware.version
-            C4:UpdateProperty("Firmware Version", payload.firmware.version)
-            print("   Firmware Version property updated to:", payload.firmware.version)
-        end
-        
-        -- Update Release Date property
-        _props["Release Date"] = payload.firmware.release_date
-        C4:UpdateProperty("Release Date", payload.firmware.release_date)
-        print("   Release Date property updated to:", payload.firmware.release_date)
 
         SendDeviceInfoToUI(payload)
-        
-        -- Show firmware version in Status
-        local statusMsg = "FW: " .. payload.firmware.version .. " | Date: " .. payload.firmware.release_date
-        C4:UpdateProperty("Status", statusMsg)
-        print("   Status updated to:", statusMsg)
+        C4:UpdateProperty("Status", "Device info loaded")
     end)
 end
 
--- Reliable send to UI Proxy (Binding 5002)
+-- Reliable send to UI Proxy (Binding 5005)
 function SendDeviceInfoToUI(data)
-    local jsonString = json.encode(data)
-    
-    print("[UI] Sending device info to web UI")
-    print("[UI] JSON:", jsonString)
-    
-    -- Send raw JSON (VD05 JavaScript expects this, not XML wrapper)
-    C4:SendDataToUI(jsonString)
-    
-    -- Also try proxy methods
-    pcall(function()
-        C4:SendToProxy(5002, "UPDATE_UI", {})
+    local jsonData = json.encode(data)
+
+    -- Primary method - Send to UIBUTTON proxy
+    local success = pcall(function()
+        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
     end)
+
+    -- Fallback methods
+    if not success then
+        pcall(function()
+            C4:SendToProxy(5005, "DATA", { data = jsonData })
+        end)
+    end
+
+    if C4.SendDataToUI then
+        pcall(function()
+            C4:SendDataToUI(jsonData)
+        end)
+    end
+
+    print("[UI] Device info sent to proxy 5005")
 end

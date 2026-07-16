@@ -4,21 +4,6 @@
 // =====================================================
 
 // ==========================
-// DEBUG HELPER
-// ==========================
-function addDebugLog(message) {
-    const debugPanel = document.getElementById('debugPanel');
-    if (debugPanel) {
-        const timestamp = new Date().toLocaleTimeString();
-        const logDiv = document.createElement('div');
-        logDiv.className = 'log';
-        logDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
-        debugPanel.appendChild(logDiv);
-        debugPanel.scrollTop = debugPanel.scrollHeight;
-    }
-}
-
-// ==========================
 // STATE (UI ONLY CACHE)
 // ==========================
 let antiPryEnabled = false;
@@ -31,7 +16,6 @@ let isMicMuted = false;
 document.addEventListener('DOMContentLoaded', function () {
 
     console.log('VD05 Settings UI Loaded');
-    addDebugLog('✅ JavaScript loaded - DOMContentLoaded fired');
 
     initializeControl4();
 
@@ -41,8 +25,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Request initial state from driver
     requestInitialState();
-    
-    addDebugLog('✅ All UI components initialized');
 });
 
 // =====================================================
@@ -60,11 +42,9 @@ function initializeControl4() {
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
 
         console.log('Control4 initialized');
-        addDebugLog('✅ Control4 API initialized successfully');
 
     } catch (e) {
         console.log('Control4 init error', e);
-        addDebugLog('❌ Control4 init ERROR: ' + e.message);
     }
 }
 
@@ -185,32 +165,6 @@ function updateMicUI(muted) {
 }
 
 // =====================================================
-// DEVICE INFO
-// =====================================================
-
-function updateDeviceInfo(version, releaseDate) {
-    console.log('📋 Device Info:', version, releaseDate);
-    addDebugLog('📝 Updating footer - FW: ' + version + ', Date: ' + releaseDate);
-
-    const versionEl = document.getElementById('firmwareVersion');
-    const dateEl = document.getElementById('releaseDate');
-
-    if (versionEl) {
-        versionEl.textContent = version || 'Unknown';
-        addDebugLog('✅ Footer FW element updated');
-    } else {
-        addDebugLog('❌ Footer FW element NOT FOUND!');
-    }
-    
-    if (dateEl) {
-        dateEl.textContent = releaseDate || 'N/A';
-        addDebugLog('✅ Footer Date element updated');
-    } else {
-        addDebugLog('❌ Footer Date element NOT FOUND!');
-    }
-}
-
-// =====================================================
 // REBOOT
 // =====================================================
 
@@ -246,11 +200,9 @@ function handleReboot() {
 
 
 function onDataToUi(value) {
-    addDebugLog('📥 DATA RECEIVED from driver!');
     try {
         const obj = JSON.parse(value);
         console.log('📥 onDataToUi received:', obj);
-        addDebugLog('✅ JSON parsed successfully - type: ' + (obj.type || 'unknown'));
 
         if (obj.type === "anti_pry_update" || 
             obj.tamper_swt !== undefined || 
@@ -266,7 +218,6 @@ function onDataToUi(value) {
             }
 
             console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
-            addDebugLog('🛡 Anti-Pry update: ' + (state ? 'ENABLED' : 'DISABLED'));
             updateAntiPryUI(state);
         }
 
@@ -275,17 +226,8 @@ function onDataToUi(value) {
             updateMicUI(!!obj.mic_muted);
         }
 
-        // Device info handling
-        if (obj.type === "device_info" && obj.firmware) {
-            addDebugLog('📱 Device info received - FW: ' + obj.firmware.version);
-            updateDeviceInfo(obj.firmware.version, obj.firmware.release_date);
-        } else if (obj.type === "device_info") {
-            addDebugLog('⚠️ Device info received but no firmware object!');
-        }
-
     } catch (e) {
         console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
-        addDebugLog('❌ JSON PARSE ERROR: ' + e.message);
     }
 }
 
