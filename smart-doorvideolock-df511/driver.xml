@@ -516,6 +516,18 @@
                 <maximum>24</maximum>
                 <readonly>false</readonly>
             </property>
+            <property>
+                <name>Firmware Version</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Release Date</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
 
         </properties>
         <actions>
@@ -652,6 +664,10 @@
             </command>
             <command>
                 <name>TAKE_SCREENSHOT</name>
+            </command>
+            <command>
+                <name>GET_DEVICE_INFO</name>
+                <description>Fetch firmware version and device info from LNDU API</description>
             </command>
         </commands>
         <interfaces>

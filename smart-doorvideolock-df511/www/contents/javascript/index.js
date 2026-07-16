@@ -139,6 +139,22 @@ function onDataToUi(value) {
             return;
         }
 
+        // ── Device Info (firmware version, release date) ──
+        if (obj.type === "device_info") {
+            console.log("✅ Device Info Received:", obj);
+            
+            document.getElementById("deviceVersion").innerText = 
+                "Device: " + (obj.device_name || "Unknown");
+            
+            document.getElementById("firmwareVersion").innerText = 
+                "Firmware: " + (obj.version || obj.firmware || "Unknown");
+            
+            document.getElementById("releaseDate").innerText = 
+                "Release: " + (obj.release_date || "Unknown");
+            
+            return;
+        }
+
         // ── NEW: Timestamp Support ──
         if (obj.time || obj.event) {
             updateLastEventTime(obj);

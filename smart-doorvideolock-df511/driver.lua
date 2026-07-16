@@ -1729,6 +1729,12 @@ function GET_DEVICES(p_vid)
                     end
                     print("DF511 properties updated successfully")
 
+                    -- Auto-fetch firmware info 2 seconds after device initialized
+                    C4:SetTimer(2000, function(timer)
+                        print("[AUTO] Fetching device info for firmware version...")
+                        GET_DEVICE_INFO()
+                    end)
+
                     --call the helper
                     if not _props.full_init_complete then
                         _props.full_init_complete = true
@@ -1744,6 +1750,135 @@ function GET_DEVICES(p_vid)
     end)
 
     print("================================================================")
+end
+
+-- GET_DEVICE_INFO: Fetch firmware version and device details
+function GET_DEVICE_INFO()
+    print("================================================================")
+    print("                GET_DEVICE_INFO CALLED                          ")
+    print("================================================================")
+
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("ERROR: No VID available for GET_DEVICE_INFO")
+        return
+    end
+
+    if not auth_token or auth_token == "" then
+        print("ERROR: No auth token available")
+        return
+    end
+
+    local appId, appSecret = GetCldBusCredentials()
+    if appId == "" or appSecret == "" then
+        print("ERROR: CldBus credentials not loaded")
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/info?vid=" .. vid
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "GET",
+        headers = headers
+    }
+
+    print("Fetching device info from: " .. url)
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("GET_DEVICE_INFO HTTP Code: " .. tostring(code))
+
+        if err then
+            print("ERROR: " .. tostring(err))
+            return
+        end
+
+        if code ~= 200 and code ~= 20000 then
+            print("ERROR: Device info failed with code " .. tostring(code))
+            return
+        end
+
+        local ok, result = pcall(json.decode, resp)
+        if not ok or not result or not result.data then
+            print("ERROR: Failed to parse device info response")
+            return
+        end
+
+        local d = result.data
+
+        -- DEBUG: Print full API response to see available fields
+        print("=== FULL DEVICE INFO RESPONSE ===")
+        print(json.encode(d, { indent = true }))
+        print("=================================")
+
+        -- Extract data safely - try multiple possible field names for release date
+        local release_date = d.release_date or d.software_date or d.sw_date or 
+                           d.firmware_date or d.fw_date or d.update_date or 
+                           d.version_date or d.build_date or ""
+
+        local payload = {
+            type           = "device_info",
+            success        = true,
+            device_name    = d.device_name or "Unknown",
+            version        = d.version or "",
+            release_date   = release_date,
+            battery        = tonumber(d.power) or 0,
+            wifi           = d.wifi or "",
+            rssi           = d.rssi or "",
+            ip             = d.ip or "",
+            mac            = d.mac or "",
+            serial         = d.device_sn or "",
+            timezone       = d.timezone or "",
+            online         = (d.is_online == 1),
+            can_update     = (d.can_update == 1)
+        }
+
+        print("✅ Device Info Parsed:")
+        print("   Name:", payload.device_name)
+        print("   Firmware:", payload.version)
+        print("   Release Date:", payload.release_date ~= "" and payload.release_date or "Not available from API")
+        print("   Battery:", payload.battery .. "%")
+
+        -- Update driver properties
+        if payload.version ~= "" then
+            _props["Firmware Version"] = payload.version
+            C4:UpdateProperty("Firmware Version", payload.version)
+            print("   Firmware Version property updated to:", payload.version)
+        end
+
+        -- Update Release Date property (or set to "N/A" if not available)
+        local displayDate = payload.release_date ~= "" and payload.release_date or "N/A"
+        _props["Release Date"] = displayDate
+        C4:UpdateProperty("Release Date", displayDate)
+        print("   Release Date property updated to:", displayDate)
+
+        SendDeviceInfoToUI(payload)
+        C4:UpdateProperty("Status", "Device info loaded")
+    end)
+end
+
+-- Send device info to UI
+function SendDeviceInfoToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Send to UIBUTTON proxy 5003 (DF511 Preview)
+    pcall(function()
+        C4:SendToProxy(5003, "SEND_DATA", { DATA = jsonData })
+    end)
+
+    -- Send to UIBUTTON proxy 5005 (DF511 Door Lock)
+    pcall(function()
+        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    end)
 end
 
 local function HANDLE_BATTERY_LEVEL(pct)
