@@ -30,5 +30,9 @@ This README would normally document whatever steps are necessary to get your app
 
 ## Version History
 
+### v98
+- Added Toggle, Set Level, and brightness control actions to Advanced Lighting Scenes
+- Preserved existing Power On/Off action names for backwards compatibility
+
 ### v97
 - Fixed Toggle command functionality

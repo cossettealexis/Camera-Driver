@@ -477,6 +477,13 @@ function ExecuteCommand(strCommand, tParams)
             Switchonoff(deviceId, tempVar)
             print("Switchonoff with command  : " .. strCommand)
         end
+        if (strCommand == "Toggle") then
+            local currentState = Properties["State"] or "off"
+            deviceId = Properties["DeviceId"];
+            tempVar.command = (currentState == "on") and "off" or "on"
+            Switchonoff(deviceId, tempVar)
+            print("Toggle - switching to: " .. tempVar.command)
+        end
 
         if strCommand == "LUA_ACTION" then
             -- Extract action from tParams

@@ -5,8 +5,8 @@
   <name>Smart Switch</name>
   <model>Smart Switch</model>
   <created>04/03/2025 07:52 PM</created>
-  <modified>06/24/2026 12:00 PM</modified>
-  <version>97</version>
+  <modified>07/10/2026 02:00 PM</modified>
+  <version>98</version>
   <small>devices_sm\c4.gif</small>
   <large>devices_lg\c4.gif</large>
   <control>lua_gen</control>
@@ -104,6 +104,28 @@
         <name>Off</name>
         <description>Power Off</description>
       </command>
+      <command>
+        <name>Toggle</name>
+        <description>Toggle Power State</description>
+      </command>
+      <command>
+        <name>SET_BRIGHTNESS_TARGET</name>
+        <description>Set Brightness Target</description>
+        <params>
+          <param>
+            <name>LIGHT_BRIGHTNESS_TARGET</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>RATE</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
+      </command>
     </commands>
     <actions>
       <action>
@@ -115,6 +137,30 @@
         <name>Power Off</name>
         <description>Switch off the light</description>
         <command>Off</command>
+      </action>
+      <action>
+        <name>Toggle</name>
+        <description>Toggle the light state</description>
+        <command>Toggle</command>
+      </action>
+      <action>
+        <name>Set Level</name>
+        <description>Set brightness level</description>
+        <command>SET_BRIGHTNESS_TARGET</command>
+        <params>
+          <param>
+            <name>LIGHT_BRIGHTNESS_TARGET</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+          <param>
+            <name>RATE</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>10000</maximum>
+          </param>
+        </params>
       </action>
     </actions>
   </config>

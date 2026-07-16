@@ -80,6 +80,13 @@ Enabling `Debug Mode` will automatically turn off after 60 minutes to prevent lo
 
 
 ### Change log
+**Version 98**  
+- Added Toggle, Set Level, and brightness control actions to Advanced Lighting Scenes
+- Preserved existing Power On/Off action names for backwards compatibility
+
+**Version 97**  
+- Implemented Toggle command in ExecuteCommand for scene actions
+
 **Version 96**  
 - SDH-750 - Fixed the toggle issue.
 
