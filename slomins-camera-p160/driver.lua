@@ -105,6 +105,9 @@ local conditional_state = {
     SPEAKER_VOLUME = 4
 }
 
+conditional_state.MIC_MUTED = conditional_state.MIC_MUTED or false
+conditional_state.MIC_UNMUTED = not conditional_state.MIC_MUTED
+
 -- Volume tracking
 local volume_before_mute = nil
 conditional_state.MIC_MUTED   = true      -- default muted for safety
@@ -786,13 +789,13 @@ function ExecuteCommand(strCommand, tParams)
     end
    if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
-        SET_MIC_STATE(false)          -- false = Unmuted
+        SET_MIC_STATE(false)          
         return
     end
 
     if strCommand == "MUTE_MIC" then
         print("[COMMAND] Mute Mic requested")
-        SET_MIC_STATE(true)           -- true = Muted
+        SET_MIC_STATE(true)          
         return
     end
     if strCommand == "SPEAKER_VOLUME_UP" then
@@ -817,6 +820,16 @@ function ExecuteCommand(strCommand, tParams)
                 UpdateConditional("SPEAKER_VOLUME", tostring(new_vol))
             end)
         end)
+        return
+    end
+
+    if strCommand == "REQUEST_INITIAL_STATE" then
+        REQUEST_INITIAL_STATE()
+        return
+    end
+
+    if strCommand == "SET_DEVICE_NAME" then
+        SET_DEVICE_NAME(tParams)        -- ← This calls your function
         return
     end
     -- Handle LUA_ACTION wrapper
@@ -2077,50 +2090,6 @@ local function record_history(severity, event_type, subcategory)
     return uuid
 end
 
-local function send_timeline_event(event_name, image_url)
-    local event_type = "other"
-    local description = event_name or "Camera Event"
-    
-    -- Map event names to Timeline event types
-    if event_name == EVENT.MOTION or event_name:lower():find("motion") then
-        event_type = "motion"
-        description = "Motion Detected"
-    elseif event_name == EVENT.HUMAN or event_name:lower():find("human") or event_name:lower():find("person") then
-        event_type = "person"
-        description = "Human Detected"
-    elseif event_name == EVENT.CAMERA_ONLINE then
-        event_type = "connection"
-        description = "Camera Online"
-    elseif event_name == EVENT.CAMERA_OFFLINE then  
-        event_type = "connection"
-        description = "Camera Offline"
-    elseif event_name == EVENT.LOW_BATTERY then
-        event_type = "alert"
-        description = "Low Battery"
-    elseif event_name == EVENT.MEMORY_CARD_MISSING then
-        event_type = "alert"
-        description = "Memory Card Missing"
-    end
-    
-    local timeline_data = {
-        EVENT_TYPE = event_type,
-        TIMESTAMP = os.time(),
-        DESCRIPTION = description
-    }
-    
-    -- Add image URL if available
-    if image_url and image_url ~= "" then
-        timeline_data.IMAGE_URL = image_url
-        print("[TIMELINE] Sending event with image: " .. description)
-    else
-        print("[TIMELINE] Sending event: " .. description)
-    end
-    
-    -- Send to Camera Proxy Timeline (binding 5001)
-    C4:SendToProxy(5001, "CAMERA_EVENT", timeline_data)
-    print("[TIMELINE] Event sent - Type: " .. event_type .. ", Time: " .. os.time())
-end
-
 local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
@@ -2147,16 +2116,11 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             else
                 print("[NOTIFY] no image after retry")
             end
-            
-            -- Send to Event History
             record_history(
                 category == NOTIFY.ALERT and "Critical" or "Info",
                 event_name,
                 "IP Camera"
             )
-            
-            send_timeline_event(event_name, url)
-            
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
             end)
@@ -4082,4 +4046,294 @@ function PushMicStateToUI()
     C4:SetTimer(600, function()
         C4:SendDataToUI(payload)
     end)
+end
+
+function GET_DEVICE_STATUS()
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid   = _props["VID"] or Properties["VID"]
+
+    if not token or not vid or vid == "" then
+        print("[GET_DEVICE_STATUS] Missing token or VID")
+        return
+    end
+
+    print("[GET_DEVICE_STATUS] Polling cloud for full status...")
+
+    transport.execute({
+        url     = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
+        method  = "GET",
+        headers = {
+            ["Authorization"] = "Bearer " .. token
+        }
+    }, function(code, resp)
+
+        print("[GET_DEVICE_STATUS] Response code:", code)
+
+        if code ~= 200 then
+            return
+        end
+
+        local ok, data = pcall(json.decode, resp or "")
+        if not ok or not data or not data.data then
+            print("[GET_DEVICE_STATUS] Failed to parse response")
+            return
+        end
+
+        local device =
+            (data.data.devices and data.data.devices[1]) or
+            (data.data.share_devices and data.data.share_devices[1])
+
+        if not device then
+            print("[GET_DEVICE_STATUS] No device found")
+            return
+        end
+
+        local status_data =
+            type(device.status) == "string"
+            and json.decode(device.status)
+            or device.status
+
+        local antiPryUpdated = false
+        local micUpdated = false
+
+        for _, s in ipairs(status_data or {}) do
+
+            local key = tostring(s.status_key or "")
+            local val = s.status_val
+
+            -- Debug: print every status returned by the cloud
+            print(string.format("[STATUS] %s = %s", key, tostring(val)))
+
+            ------------------------------------------------------------------
+            -- Microphone
+            ------------------------------------------------------------------
+            if key == "mic_on"
+                or key == "talk_on"
+                or key == "microphone"
+                or key == "ac_talk"
+            then
+
+                local micOn = (tonumber(val) == 1)
+
+                if conditional_state.MIC_MUTED ~= (not micOn) then
+                    conditional_state.MIC_MUTED = not micOn
+                    conditional_state.MIC_UNMUTED = micOn
+                    micUpdated = true
+                end
+
+                print("[MIC] Synced:", micOn and "UNMUTED" or "MUTED")
+            end
+        end
+
+        ----------------------------------------------------------------------
+        -- Push latest states to the UI
+        ----------------------------------------------------------------------
+      
+        PushMicStateToUI()
+
+    end)
+end
+
+--get device info
+function GET_DEVICE_INFO()
+    print("===================================================")
+    print("GET_DEVICE_INFO CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    if auth_token == "" or vid == "" then
+        print("ERROR: Missing Auth Token or VID")
+        SendDeviceInfoToUI({ success = false, error = "Missing Auth Token or VID" })
+        return
+    end
+
+    local url = baseUrl .. "/api/v3/openapi/device/info?vid=" .. vid
+
+    transport.execute({
+        url     = url,
+        method  = "GET",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or ""
+        }
+    }, function(code, response, _, err)
+        print("GET_DEVICE_INFO HTTP Code:", code)
+
+        if err or code ~= 200 then
+            print("Request failed:", err or code)
+            SendDeviceInfoToUI({ success = false, error = "HTTP Error" })
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or not result or not result.data then
+            print("JSON Parse Error")
+            SendDeviceInfoToUI({ success = false, error = "JSON Parse Error" })
+            return
+        end
+
+        local d = result.data
+
+        -- Extract data safely
+        local payload = {
+            type           = "device_info",
+            success        = true,
+            device_name    = d.device_name or "Unknown",
+            version        = d.version or "",                    -- Firmware version
+            battery        = tonumber(d.power) or 0,
+            wifi           = d.wifi or "",
+            rssi           = d.rssi or "",
+            ip             = d.ip or "",
+            mac            = d.mac or "",
+            serial         = d.device_sn or "",
+            timezone       = d.timezone or "",
+            online         = (d.is_online == 1),
+            can_update     = (d.can_update == 1)
+        }
+
+        print("✅ Device Info Parsed:")
+        print("   Name:", payload.device_name)
+        print("   Firmware:", payload.version)
+        print("   Battery:", payload.battery .. "%")
+
+        SendDeviceInfoToUI(payload)
+        C4:UpdateProperty("Status", "Device info loaded")
+    end)
+end
+
+-- Reliable send to UI Proxy (Binding 5005)
+function SendDeviceInfoToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Primary method - Send to UIBUTTON proxy
+    local success = pcall(function()
+        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    end)
+
+    -- Fallback methods
+    if not success then
+        pcall(function()
+            C4:SendToProxy(5005, "DATA", { data = jsonData })
+        end)
+    end
+
+    if C4.SendDataToUI then
+        pcall(function()
+            C4:SendDataToUI(jsonData)
+        end)
+    end
+
+    print("[UI] Device info sent to proxy 5005")
+end
+
+-- =====================================================
+-- CHANGE DEVICE NAME
+-- =====================================================
+
+function SET_DEVICE_NAME(tParams)
+    print("================================================================")
+    print("              SET_DEVICE_NAME CALLED                             ")
+    print("================================================================")
+
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local appId = GlobalObject.CldBusAppId or Properties["AppId"]
+
+    -- Parse params (from UI)
+    local new_name = nil
+    if type(tParams) == "table" then
+        new_name = tParams.name or tParams.device_name
+    elseif type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            new_name = data.name or data.device_name
+        end
+    end
+
+    if not new_name or new_name == "" then
+        print("[NAME] ❌ No device name provided")
+        C4:UpdateProperty("Status", "Error: No name provided")
+        return false
+    end
+
+    if not vid or vid == "" then
+        print("[NAME] ❌ Missing VID")
+        C4:UpdateProperty("Status", "Error: No VID")
+        return false
+    end
+
+    if not auth_token or auth_token == "" then
+        print("[NAME] ❌ Missing Auth Token")
+        C4:UpdateProperty("Status", "Error: Not authenticated")
+        return false
+    end
+
+    print("[NAME] Changing device name to:", new_name)
+
+    local url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/change-name"
+
+    local body = {
+        vid = vid,
+        device_name = new_name
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId or ""
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("[NAME] Response Code:", code)
+
+        if resp then
+            print("[NAME] Response Body:", resp)
+        end
+
+        if code == 200 or code == 20000 then
+            print("[NAME] ✅ Device name changed successfully")
+
+            -- Update local properties
+            _props["Device Name"] = new_name
+            C4:UpdateProperty("Device Name", new_name)
+            C4:UpdateProperty("Status", "Device name updated to: " .. new_name)
+
+            print("[NAME] Sending success to UI")
+
+            -- Notify UI
+           local payload = json.encode({
+            type = "device_name_updated",
+            device_name_updated = true,
+            device_name = new_name,
+            timestamp = os.time()
+            })
+
+            print("[NAME] Pushing to UI:", payload)
+
+            C4:SendDataToUI(payload)
+
+        else
+            print("[NAME] ❌ Failed to change name. Code:", code)
+            C4:UpdateProperty("Status", "Failed to update device name")
+            
+            C4:SendDataToUI(json.encode({
+                error = "Failed to update name",
+                code = code
+            }))
+        end
+    end)
+
+    print("================================================================")
+    return true
 end
