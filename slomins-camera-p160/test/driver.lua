@@ -4215,6 +4215,12 @@ function GET_DEVICE_INFO()
         print("   Firmware:", payload.version)
         print("   Battery:", payload.battery .. "%")
 
+        -- Update driver properties with real firmware version
+        if payload.version and payload.version ~= "" then
+            C4:UpdateProperty("Software Version", payload.version)
+            print("[FIRMWARE] Software Version updated to:", payload.version)
+        end
+
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
     end)
