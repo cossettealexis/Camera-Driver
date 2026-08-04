@@ -3847,10 +3847,15 @@ function GET_BATTERY_LEVEL()
         return
     end
 
+    local appId = _props["AppId"] or Properties["AppId"] or ""
+    
     transport.execute({
         url     = baseUrl .. "/api/v3/openapi/devices?vid=" .. vid,
         method  = "GET",
-        headers = { ["Authorization"] = "Bearer " .. token }
+        headers = { 
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = appId
+        }
     }, function(code, resp)
         print("[BATTERY] Response code:", code)
         if code ~= 200 then return end
@@ -3880,6 +3885,16 @@ function GET_BATTERY_LEVEL()
         if _props["Camera Status"] ~= status then
             C4:UpdateProperty("Camera Status", status)
             _props["Camera Status"] = status
+        end
+
+        -- Battery level (P160 is plugged, but check anyway)
+        local pct = tonumber(device.power)
+        if pct then
+            print("[BATTERY] Level:", pct, "%")
+            C4:UpdateProperty("Battery Level", tostring(pct))
+            _props["Battery Level"] = tostring(pct)
+        else
+            print("[BATTERY] No battery field (plugged camera)")
         end
     end)
 end
