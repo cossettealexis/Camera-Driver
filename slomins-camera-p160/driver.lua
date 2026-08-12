@@ -310,7 +310,7 @@ function ValidateMacAddress(mac)
                         InitializeCamera()
                     end)
 
-                    print("[MAC] ✅ SUCCESS: Credentials loaded")
+                    print("[MAC] SUCCESS: Credentials loaded")
                     print("[MAC] AppId     : " .. appId)
                     print("[MAC] Account   : " .. email)
 
@@ -320,7 +320,7 @@ function ValidateMacAddress(mac)
                 end
 
             else
-                print("[MAC] ❌ MAC Address is invalid according to server")
+                print("[MAC] ERROR: MAC Address is invalid according to server")
                 GlobalObject.CldBusAppId   = ""
                 GlobalObject.CldBusSecret  = ""
                 _props["AppId"] = ""
@@ -372,6 +372,10 @@ function OnDriverLateInit()
 
         C4:SendToProxy(5001, "PASSWORD_CHANGED", { PASSWORD = password })
         print("  Sent PASSWORD_CHANGED to Camera Proxy")
+
+        -- Enable motion detection for Timeline
+        C4:SendToProxy(5001, "SUPPORTS_MOTION", { ENABLED = "True" })
+        print("  Sent SUPPORTS_MOTION to Camera Proxy")
 
         C4:SetTimer(100, function()
             C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
@@ -492,7 +496,7 @@ function OnPropertyChanged(strProperty)
     if newVid ~= "" then
         print("[VID] VID changed to:", newVid)
         _props["VID"] = newVid
-        -- ✅ VID just changed and is valid, refresh camera status
+        -- VID just changed and is valid, refresh camera status
         GET_BATTERY_LEVEL()
     end
     return
@@ -832,6 +836,116 @@ function ExecuteCommand(strCommand, tParams)
         SET_DEVICE_NAME(tParams)        -- ← This calls your function
         return
     end
+
+    if strCommand == "TEST_MOTION" then
+        print("[TEST] Triggering Motion Detected event")
+        
+        -- Send to virtual contact sensor - THIS populates Timeline
+        C4:SendToProxy(1, "CONTACT_OPEN", {})
+        print("[TIMELINE] Sent CONTACT_OPEN to Motion Detection sensor (binding 1)")
+        
+        -- Record history for Event History tab
+        C4:RecordHistory("Info", EVENT.MOTION, "Cameras", "Camera")
+        
+        -- Fire event for programming
+        C4:FireEvent(EVENT.MOTION, {}, CAMERA_BINDING)
+        
+        -- Update conditionals
+        UpdateConditional("MOTION_DETECTED", true)
+        UpdateConditional("NOT_MOTION_DETECTED", false)
+        
+        -- Close contact after 3 seconds
+        C4:SetTimer(3000, function()
+            C4:SendToProxy(1, "CONTACT_CLOSED", {})
+            UpdateConditional("MOTION_DETECTED", false)
+            UpdateConditional("NOT_MOTION_DETECTED", true)
+        end)
+        return
+    end
+
+    if strCommand == "TEST_HUMAN" then
+        print("[TEST] Triggering Human Detected event")
+        C4:RecordHistory("Info", EVENT.HUMAN, "Cameras", "IP Camera")
+        C4:SendToProxy(CAMERA_BINDING, "MOTION_DETECTED", {})
+        -- Send to virtual contact sensor for Timeline
+        C4:SendToProxy(2, "CONTACT_OPEN", {})
+        print("[TIMELINE] Sent CONTACT_OPEN to Human Detection sensor (binding 2)")
+        C4:FireEvent(EVENT.HUMAN, {}, CAMERA_BINDING)
+        -- Close contact after 2 seconds
+        C4:SetTimer(2000, function()
+            C4:SendToProxy(2, "CONTACT_CLOSED", {})
+        end)
+        return
+    end
+
+    if strCommand == "TEST_MEMORY_CARD" then
+        print("[TEST] Triggering Memory Card Missing event")
+        C4:RecordHistory("Critical", EVENT.MEMORY_CARD_MISSING, "Cameras", "IP Camera")
+        -- Send to virtual contact sensor for Timeline
+        C4:SendToProxy(6, "CONTACT_OPEN", {})
+        print("[TIMELINE] Sent CONTACT_OPEN to Memory Card Missing sensor (binding 6)")
+        C4:FireEvent(EVENT.MEMORY_CARD_MISSING, {}, CAMERA_BINDING)
+        -- Close contact after 2 seconds
+        C4:SetTimer(2000, function()
+            C4:SendToProxy(6, "CONTACT_CLOSED", {})
+        end)
+        return
+    end
+
+    if strCommand == "TEST_CAMERA_ONLINE" then
+        print("[TEST] Triggering Camera Online event")
+        C4:RecordHistory("Info", EVENT.CAMERA_ONLINE, "Cameras", "IP Camera")
+        -- Send to virtual contact sensor for Timeline
+        C4:SendToProxy(3, "CONTACT_OPEN", {})
+        print("[TIMELINE] Sent CONTACT_OPEN to Camera Online sensor (binding 3)")
+        C4:FireEvent(EVENT.CAMERA_ONLINE, {}, CAMERA_BINDING)
+        C4:UpdateProperty("Camera Status", "Online")
+        -- Close contact after 2 seconds
+        C4:SetTimer(2000, function()
+            C4:SendToProxy(3, "CONTACT_CLOSED", {})
+        end)
+        return
+    end
+
+    if strCommand == "TEST_CAMERA_OFFLINE" then
+        print("[TEST] Triggering Camera Offline event")
+        C4:RecordHistory("Critical", EVENT.CAMERA_OFFLINE, "Cameras", "IP Camera")
+        -- Send to virtual contact sensor for Timeline
+        C4:SendToProxy(4, "CONTACT_OPEN", {})
+        print("[TIMELINE] Sent CONTACT_OPEN to Camera Offline sensor (binding 4)")
+        C4:FireEvent(EVENT.CAMERA_OFFLINE, {}, CAMERA_BINDING)
+        C4:UpdateProperty("Camera Status", "Offline")
+        -- Close contact after 2 seconds
+        C4:SetTimer(2000, function()
+            C4:SendToProxy(4, "CONTACT_CLOSED", {})
+        end)
+        return
+    end
+
+    -- Timeline Playback Commands
+    if strCommand == "PLAYBACK_PLAY" then
+        print("[PLAYBACK] Play command received")
+        if tParams and tParams.TIME then
+            print("[PLAYBACK] Requested time:", tParams.TIME)
+        end
+        -- P160 cameras record to SD card/cloud - would need API to fetch playback stream
+        -- For now, acknowledge the command
+        return
+    end
+
+    if strCommand == "PLAYBACK_SEEK" then
+        print("[PLAYBACK] Seek command received")
+        if tParams and tParams.TIME then
+            print("[PLAYBACK] Seeking to time:", tParams.TIME)
+        end
+        return
+    end
+
+    if strCommand == "PLAYBACK_STOP" or strCommand == "PLAYBACK_PAUSE" then
+        print("[PLAYBACK] Stop/Pause command received")
+        return
+    end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -1781,8 +1895,8 @@ function APPLY_MQTT_INFO()
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
 
-                    print("[MQTT] ✅ Username: " .. username)
-                    print("[MQTT] ✅ Password received (len = " .. #pwd .. ")")
+                    print("[MQTT] Username: " .. username)
+                    print("[MQTT] Password received (len = " .. #pwd .. ")")
 
                     print("--------------------------------------------------")
                     print("[MQTT] 🔍 FINAL CONNECTION DATA")
@@ -2121,6 +2235,42 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
                 event_name,
                 "IP Camera"
             )
+            
+            -- Send to virtual contact sensors for Timeline (like Luma driver)
+            if event_name == EVENT.MOTION then
+                C4:SendToProxy(CAMERA_BINDING, "MOTION_DETECTED", {})
+                C4:SendToProxy(1, "CONTACT_OPEN", {})
+                print("[TIMELINE] Sent CONTACT_OPEN to Motion Detection sensor")
+                C4:SetTimer(2000, function()
+                    C4:SendToProxy(1, "CONTACT_CLOSED", {})
+                end)
+            elseif event_name == EVENT.HUMAN then
+                C4:SendToProxy(CAMERA_BINDING, "MOTION_DETECTED", {})
+                C4:SendToProxy(2, "CONTACT_OPEN", {})
+                print("[TIMELINE] Sent CONTACT_OPEN to Human Detection sensor")
+                C4:SetTimer(2000, function()
+                    C4:SendToProxy(2, "CONTACT_CLOSED", {})
+                end)
+            elseif event_name == EVENT.CAMERA_ONLINE then
+                C4:SendToProxy(3, "CONTACT_OPEN", {})
+                print("[TIMELINE] Sent CONTACT_OPEN to Camera Online sensor")
+                C4:SetTimer(2000, function()
+                    C4:SendToProxy(3, "CONTACT_CLOSED", {})
+                end)
+            elseif event_name == EVENT.CAMERA_OFFLINE then
+                C4:SendToProxy(4, "CONTACT_OPEN", {})
+                print("[TIMELINE] Sent CONTACT_OPEN to Camera Offline sensor")
+                C4:SetTimer(2000, function()
+                    C4:SendToProxy(4, "CONTACT_CLOSED", {})
+                end)
+            elseif event_name == EVENT.MEMORY_CARD_MISSING then
+                C4:SendToProxy(6, "CONTACT_OPEN", {})
+                print("[TIMELINE] Sent CONTACT_OPEN to Memory Card Missing sensor")
+                C4:SetTimer(2000, function()
+                    C4:SendToProxy(6, "CONTACT_CLOSED", {})
+                end)
+            end
+            
             C4:SetTimer(EVENT_DELAY_MS, function()
                 C4:FireEvent(event_name, CAMERA_BINDING)
             end)
@@ -2375,7 +2525,7 @@ function SEND_TEST_NOTIFICATION()
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "test_human", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_OFFLINE, "test_offline", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_ONLINE, "test_online", 0)
-    print("[TEST] ✅ Test notifications fired")
+    print("[TEST] Test notifications fired")
 end
 
 function SEND_TEST_NOTIFICATION_HUMAN()
@@ -2397,12 +2547,12 @@ function SEND_TEST_NOTIFICATION_HUMAN()
 
     print("[TEST] Snapshot URL:", test_snapshot_url)
 
-    -- ⚠️ IMPORTANT:
+    -- IMPORTANT:
     -- This does NOT use Notifications Agent
     -- This is a custom push-style payload
     C4:SendToProxy(5001, "PUSH_NOTIFICATION", payload)
 
-    print("[TEST] ✅ Image push sent")
+    print("[TEST] Image push sent")
 end
 
 -- Camera On/Off Commands
@@ -3271,6 +3421,17 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
+    
+    -- When WebView is opened, send device info
+    if strCommand == "SELECT" and idBinding == 5005 then
+        print("[UI] WebView opened, sending device info...")
+        -- Small delay to ensure UI is ready
+        C4:SetTimer(500, function()
+            GET_DEVICE_INFO()
+        end)
+        return
+    end
+    
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
@@ -3910,17 +4071,17 @@ function HandleSDCardStatus(status_val)
 
     if sd_status == 1 then
         -- SD Card Missing / Removed
-        print("[SD CARD] ❌ Memory Card Not Detected")
+        print("[SD CARD] ERROR: Memory Card Not Detected")
         TriggerMemoryCardEvent(false)
 
     elseif sd_status == 0 then
         -- SD Card Inserted and Normal
-        print("[SD CARD] ✅ Memory Card Inserted")
+        print("[SD CARD] Memory Card Inserted")
         TriggerMemoryCardEvent(true)
 
     elseif sd_status == 2 then
         -- Filesystem not initialized
-        print("[SD CARD] ⚠️ Filesystem not initialized")
+        print("[SD CARD] WARNING: Filesystem not initialized")
         TriggerMemoryCardEvent(false)
     else
         print("[SD CARD] Unknown status code:", sd_status)
@@ -3969,11 +4130,11 @@ function SET_MIC_STATE(isMuted)
     local token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not vid or vid == "" then
-        print("[MIC] ❌ Missing VID")
+        print("[MIC] ERROR: Missing VID")
         return false
     end
     if not token or token == "" then
-        print("[MIC] ❌ Missing Auth Token")
+        print("[MIC] ERROR: Missing Auth Token")
         return false
     end
 
@@ -4015,7 +4176,7 @@ function SET_MIC_STATE(isMuted)
         end
 
         if code == 200 or code == 20000 then
-            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            print("[MIC] Success - Microphone", isMuted and "MUTED" or "UNMUTED")
             
             -- Update local state
             conditional_state.MIC_MUTED    = isMuted
@@ -4026,7 +4187,7 @@ function SET_MIC_STATE(isMuted)
             
             C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
         else
-            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            print("[MIC] ERROR: Failed. Code:", code, "Error:", tostring(err))
             C4:UpdateProperty("Status", "Mic command failed")
         end
     end)
@@ -4183,7 +4344,8 @@ function GET_DEVICE_INFO()
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            version        = d.version or "",                    -- Firmware version
+            version        = d.version or "N/A",                    -- Firmware version
+            release_date   = d.release_date or d.update_time or "N/A",  -- Release date
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -4195,10 +4357,18 @@ function GET_DEVICE_INFO()
             can_update     = (d.can_update == 1)
         }
 
-        print("✅ Device Info Parsed:")
+        print("Device Info Parsed:")
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
+        print("   Release:", payload.release_date)
         print("   Battery:", payload.battery .. "%")
+
+        -- Update Control4 driver properties
+        C4:UpdateProperty("Software Version", payload.version)
+        print("[FIRMWARE] Software Version updated:", payload.version)
+        
+        C4:UpdateProperty("Release Date", payload.release_date)
+        print("[FIRMWARE] Release Date updated:", payload.release_date)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
@@ -4209,25 +4379,13 @@ end
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
 
-    -- Primary method - Send to UIBUTTON proxy
-    local success = pcall(function()
-        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    -- Use ICON_CHANGED pattern (same as NotificationHistory driver)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
     end)
 
-    -- Fallback methods
-    if not success then
-        pcall(function()
-            C4:SendToProxy(5005, "DATA", { data = jsonData })
-        end)
-    end
-
-    if C4.SendDataToUI then
-        pcall(function()
-            C4:SendDataToUI(jsonData)
-        end)
-    end
-
-    print("[UI] Device info sent to proxy 5005")
+    print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
 end
 
 -- =====================================================
@@ -4255,19 +4413,19 @@ function SET_DEVICE_NAME(tParams)
     end
 
     if not new_name or new_name == "" then
-        print("[NAME] ❌ No device name provided")
+        print("[NAME] ERROR: No device name provided")
         C4:UpdateProperty("Status", "Error: No name provided")
         return false
     end
 
     if not vid or vid == "" then
-        print("[NAME] ❌ Missing VID")
+        print("[NAME] ERROR: Missing VID")
         C4:UpdateProperty("Status", "Error: No VID")
         return false
     end
 
     if not auth_token or auth_token == "" then
-        print("[NAME] ❌ Missing Auth Token")
+        print("[NAME] ERROR: Missing Auth Token")
         C4:UpdateProperty("Status", "Error: Not authenticated")
         return false
     end
@@ -4302,7 +4460,7 @@ function SET_DEVICE_NAME(tParams)
         end
 
         if code == 200 or code == 20000 then
-            print("[NAME] ✅ Device name changed successfully")
+            print("[NAME] Device name changed successfully")
 
             -- Update local properties
             _props["Device Name"] = new_name
@@ -4324,7 +4482,7 @@ function SET_DEVICE_NAME(tParams)
             C4:SendDataToUI(payload)
 
         else
-            print("[NAME] ❌ Failed to change name. Code:", code)
+            print("[NAME] ERROR: Failed to change name. Code:", code)
             C4:UpdateProperty("Status", "Failed to update device name")
             
             C4:SendDataToUI(json.encode({

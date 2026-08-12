@@ -227,7 +227,7 @@ function EventLogger.log(eventType, eventPayload, eventDescription)
 
     if not ok then
         -- Last-resort: even if everything above exploded, just print and move on
-        safe_print("[EVENT_LOGGER] ❌ Unexpected error in log() (non-fatal): " .. tostring(err))
+        safe_print("[EVENT_LOGGER] ERROR: Unexpected error in log() (non-fatal): " .. tostring(err))
     end
 end
 

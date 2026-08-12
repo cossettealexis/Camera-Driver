@@ -310,7 +310,7 @@ function ValidateMacAddress(mac)
                         InitializeCamera()
                     end)
 
-                    print("[MAC] ✅ SUCCESS: Credentials loaded")
+                    print("[MAC] SUCCESS: Credentials loaded")
                     print("[MAC] AppId     : " .. appId)
                     print("[MAC] Account   : " .. email)
 
@@ -320,7 +320,7 @@ function ValidateMacAddress(mac)
                 end
 
             else
-                print("[MAC] ❌ MAC Address is invalid according to server")
+                print("[MAC] ERROR: MAC Address is invalid according to server")
                 GlobalObject.CldBusAppId   = ""
                 GlobalObject.CldBusSecret  = ""
                 _props["AppId"] = ""
@@ -492,7 +492,7 @@ function OnPropertyChanged(strProperty)
     if newVid ~= "" then
         print("[VID] VID changed to:", newVid)
         _props["VID"] = newVid
-        -- ✅ VID just changed and is valid, refresh camera status
+        -- VID just changed and is valid, refresh camera status
         GET_BATTERY_LEVEL()
     end
     return
@@ -825,6 +825,11 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "REQUEST_INITIAL_STATE" then
         REQUEST_INITIAL_STATE()
+        return
+    end
+
+    if strCommand == "GET_DEVICE_INFO" then
+        GET_DEVICE_INFO()
         return
     end
 
@@ -1639,6 +1644,11 @@ function GET_DEVICES(p_vid)
                     end
                     
                     print("P160 properties updated successfully")
+                    
+                    -- Fetch firmware version from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
                 else
                     print("ERROR: No P160 camera device found or vid missing")
                 end
@@ -1781,8 +1791,8 @@ function APPLY_MQTT_INFO()
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
 
-                    print("[MQTT] ✅ Username: " .. username)
-                    print("[MQTT] ✅ Password received (len = " .. #pwd .. ")")
+                    print("[MQTT] Username: " .. username)
+                    print("[MQTT] Password received (len = " .. #pwd .. ")")
 
                     print("--------------------------------------------------")
                     print("[MQTT] 🔍 FINAL CONNECTION DATA")
@@ -2375,7 +2385,7 @@ function SEND_TEST_NOTIFICATION()
     send_notification(NOTIFY.INFO, EVENT.HUMAN, "test_human", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_OFFLINE, "test_offline", 0)
     send_notification(NOTIFY.ALERT, EVENT.CAMERA_ONLINE, "test_online", 0)
-    print("[TEST] ✅ Test notifications fired")
+    print("[TEST] Test notifications fired")
 end
 
 function SEND_TEST_NOTIFICATION_HUMAN()
@@ -2397,12 +2407,12 @@ function SEND_TEST_NOTIFICATION_HUMAN()
 
     print("[TEST] Snapshot URL:", test_snapshot_url)
 
-    -- ⚠️ IMPORTANT:
+    -- IMPORTANT:
     -- This does NOT use Notifications Agent
     -- This is a custom push-style payload
     C4:SendToProxy(5001, "PUSH_NOTIFICATION", payload)
 
-    print("[TEST] ✅ Image push sent")
+    print("[TEST] Image push sent")
 end
 
 -- Camera On/Off Commands
@@ -3271,6 +3281,17 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
+    
+    -- When WebView is opened, send device info
+    if strCommand == "SELECT" and idBinding == 5005 then
+        print("[UI] WebView opened, sending device info...")
+        -- Small delay to ensure UI is ready
+        C4:SetTimer(500, function()
+            GET_DEVICE_INFO()
+        end)
+        return
+    end
+    
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
@@ -3925,17 +3946,17 @@ function HandleSDCardStatus(status_val)
 
     if sd_status == 1 then
         -- SD Card Missing / Removed
-        print("[SD CARD] ❌ Memory Card Not Detected")
+        print("[SD CARD] ERROR: Memory Card Not Detected")
         TriggerMemoryCardEvent(false)
 
     elseif sd_status == 0 then
         -- SD Card Inserted and Normal
-        print("[SD CARD] ✅ Memory Card Inserted")
+        print("[SD CARD] Memory Card Inserted")
         TriggerMemoryCardEvent(true)
 
     elseif sd_status == 2 then
         -- Filesystem not initialized
-        print("[SD CARD] ⚠️ Filesystem not initialized")
+        print("[SD CARD] WARNING: Filesystem not initialized")
         TriggerMemoryCardEvent(false)
     else
         print("[SD CARD] Unknown status code:", sd_status)
@@ -3984,11 +4005,11 @@ function SET_MIC_STATE(isMuted)
     local token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not vid or vid == "" then
-        print("[MIC] ❌ Missing VID")
+        print("[MIC] ERROR: Missing VID")
         return false
     end
     if not token or token == "" then
-        print("[MIC] ❌ Missing Auth Token")
+        print("[MIC] ERROR: Missing Auth Token")
         return false
     end
 
@@ -4030,7 +4051,7 @@ function SET_MIC_STATE(isMuted)
         end
 
         if code == 200 or code == 20000 then
-            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            print("[MIC] Success - Microphone", isMuted and "MUTED" or "UNMUTED")
             
             -- Update local state
             conditional_state.MIC_MUTED    = isMuted
@@ -4041,7 +4062,7 @@ function SET_MIC_STATE(isMuted)
             
             C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
         else
-            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            print("[MIC] ERROR: Failed. Code:", code, "Error:", tostring(err))
             C4:UpdateProperty("Status", "Mic command failed")
         end
     end)
@@ -4198,7 +4219,8 @@ function GET_DEVICE_INFO()
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            version        = d.version or "",                    -- Firmware version
+            version        = d.version or "N/A",                    -- Firmware version
+            release_date   = d.release_date or d.update_time or "N/A",  -- Release date
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -4210,16 +4232,18 @@ function GET_DEVICE_INFO()
             can_update     = (d.can_update == 1)
         }
 
-        print("✅ Device Info Parsed:")
+        print("Device Info Parsed:")
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
+        print("   Release:", payload.release_date)
         print("   Battery:", payload.battery .. "%")
 
-        -- Update driver properties with real firmware version
-        if payload.version and payload.version ~= "" then
-            C4:UpdateProperty("Software Version", payload.version)
-            print("[FIRMWARE] Software Version updated to:", payload.version)
-        end
+        -- Update Control4 driver properties
+        C4:UpdateProperty("Software Version", payload.version)
+        print("[FIRMWARE] Software Version updated:", payload.version)
+        
+        C4:UpdateProperty("Release Date", payload.release_date)
+        print("[FIRMWARE] Release Date updated:", payload.release_date)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
@@ -4230,25 +4254,13 @@ end
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
 
-    -- Primary method - Send to UIBUTTON proxy
-    local success = pcall(function()
-        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    -- Use ICON_CHANGED pattern (same as NotificationHistory driver)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
     end)
 
-    -- Fallback methods
-    if not success then
-        pcall(function()
-            C4:SendToProxy(5005, "DATA", { data = jsonData })
-        end)
-    end
-
-    if C4.SendDataToUI then
-        pcall(function()
-            C4:SendDataToUI(jsonData)
-        end)
-    end
-
-    print("[UI] Device info sent to proxy 5005")
+    print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
 end
 
 -- =====================================================
@@ -4276,19 +4288,19 @@ function SET_DEVICE_NAME(tParams)
     end
 
     if not new_name or new_name == "" then
-        print("[NAME] ❌ No device name provided")
+        print("[NAME] ERROR: No device name provided")
         C4:UpdateProperty("Status", "Error: No name provided")
         return false
     end
 
     if not vid or vid == "" then
-        print("[NAME] ❌ Missing VID")
+        print("[NAME] ERROR: Missing VID")
         C4:UpdateProperty("Status", "Error: No VID")
         return false
     end
 
     if not auth_token or auth_token == "" then
-        print("[NAME] ❌ Missing Auth Token")
+        print("[NAME] ERROR: Missing Auth Token")
         C4:UpdateProperty("Status", "Error: Not authenticated")
         return false
     end
@@ -4323,7 +4335,7 @@ function SET_DEVICE_NAME(tParams)
         end
 
         if code == 200 or code == 20000 then
-            print("[NAME] ✅ Device name changed successfully")
+            print("[NAME] Device name changed successfully")
 
             -- Update local properties
             _props["Device Name"] = new_name
@@ -4345,7 +4357,7 @@ function SET_DEVICE_NAME(tParams)
             C4:SendDataToUI(payload)
 
         else
-            print("[NAME] ❌ Failed to change name. Code:", code)
+            print("[NAME] ERROR: Failed to change name. Code:", code)
             C4:UpdateProperty("Status", "Failed to update device name")
             
             C4:SendDataToUI(json.encode({

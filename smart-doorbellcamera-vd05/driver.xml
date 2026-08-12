@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>7</version>
+    <version>8</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>07/02/2026 12:00 AM</modified>
+    <modified>08/05/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -45,6 +45,8 @@
         <show_test_url>true</show_test_url>
         <supports_streaming>true</supports_streaming>
         <hasHistory>true</hasHistory>
+        <has_doorbell>true</has_doorbell>
+        <has_motion_sensor>true</has_motion_sensor>
          <navigator_display_option proxybindingid="5005">
             <display_icons>
                 <Icon width="70" height="70">
@@ -362,6 +364,18 @@
                 <maximum>24</maximum>
                 <readonly>false</readonly>
             </property>
+            <property>
+                <name>Software Version</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Release Date</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
 
         </properties>
         <actions>
@@ -410,6 +424,14 @@
                 <name>Show device information</name>
                 <command>GET_DEVICE_INFO</command>
             </action>
+            <!-- <action>
+                <name>Test Doorbell Event</name>
+                <command>TEST_DOORBELL</command>
+            </action>
+            <action>
+                <name>Test Push Notification</name>
+                <command>TEST_PUSH_NOTIFICATION</command>
+            </action> -->
         </actions>
         <commands>
             <command>
@@ -459,6 +481,14 @@
             <command>
                 <name>GET_DEVICE_INFO</name>
                 <description>Request device info</description>
+            </command>
+            <command>
+                <name>TEST_DOORBELL</name>
+                <description>Test Doorbell Event</description>
+            </command>
+            <command>
+                <name>TEST_PUSH_NOTIFICATION</name>
+                <description>Test Push Notification</description>
             </command>
         </commands>
     </config>

@@ -274,6 +274,20 @@ function EventLogger.logHuman(params)
     end)
 end
 
+function EventLogger.logStranger(params)
+    safe_wrap(function()
+        EventLogger.log("StrangerDetected", {
+            motion_type  = params and params.type,
+            timestamp    = params and params.t,
+            thumbnail    = params and params.ext_p     or nil,
+            video_path   = params and params.cld_v     or nil,
+            video_local  = params and params.ext_v     or nil,
+            start_at     = params and params.start_at  or nil,
+            end_at       = params and params.end_at    or nil,
+            v_duration   = params and params.v_duration or nil,
+        }, "Stranger Detected")
+    end)
+end
 
 function EventLogger.logCameraOnline()
     safe_wrap(function()
@@ -301,19 +315,6 @@ function EventLogger.logLowBattery(pct)
     end)
 end
 
-function EventLogger.logMemoryCardMissing(params)
-    safe_wrap(function()
-        EventLogger.log("MemoryCardMissing", {
-            motion_type  = params and params.type,
-            timestamp    = params and params.t,
-            thumbnail    = params and params.ext_p     or nil,
-            video_path   = params and params.cld_v     or nil,
-            video_local  = params and params.ext_v     or nil,
-            start_at     = params and params.start_at  or nil,
-            end_at       = params and params.end_at    or nil,
-            v_duration   = params and params.v_duration or nil,
-        }, "Memory Card Missing")
-    end)
-end
+
 
 return EventLogger

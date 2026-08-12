@@ -386,6 +386,11 @@ function OnDriverLateInit()
     end
     C4:UpdateProperty("Status", "Driver ready - waiting for credentials")
      C4:UpdateConditional("SPEAKER_VOLUME", 4)
+     
+    -- Fetch device firmware info after initialization
+    C4:SetTimer(5000, function()
+        GET_DEVICE_INFO()
+    end)
 end
 
 local function update_prop(name, value)
@@ -631,6 +636,11 @@ function ExecuteCommand(strCommand, tParams)
         local level = (tParams and tParams.LEVEL)
         print("[COMMAND] Set Sensitivity: " .. tostring(level))
         UpdateConditional("SENSITIVITY", level)
+        return
+    end
+
+    if strCommand == "GET_DEVICE_INFO" then
+        GET_DEVICE_INFO()
         return
     end
 
@@ -2948,6 +2958,16 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
+    
+    -- When WebView is opened, send device info
+    if strCommand == "SELECT" and idBinding == 5005 then
+        print("[UI] WebView opened, sending device info...")
+        -- Small delay to ensure UI is ready
+        C4:SetTimer(500, function()
+            GET_DEVICE_INFO()
+        end)
+        return
+    end
 
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
@@ -4010,4 +4030,97 @@ function GET_BATTERY_LEVEL()
             _props["Camera Status"] = status
         end
     end)
+end
+
+-- Get Device Info (Firmware, Release Date, etc.) from API
+function GET_DEVICE_INFO()
+    print("===================================================")
+    print("GET_DEVICE_INFO CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    if auth_token == "" or vid == "" then
+        print("ERROR: Missing Auth Token or VID")
+        SendDeviceInfoToUI({ success = false, error = "Missing Auth Token or VID" })
+        return
+    end
+
+    local url = baseUrl .. "/api/v3/openapi/device/info?vid=" .. vid
+
+    transport.execute({
+        url     = url,
+        method  = "GET",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or ""
+        }
+    }, function(code, response, _, err)
+        print("GET_DEVICE_INFO HTTP Code:", code)
+
+        if err or code ~= 200 then
+            print("Request failed:", err or code)
+            SendDeviceInfoToUI({ success = false, error = "HTTP Error" })
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or not result or not result.data then
+            print("JSON Parse Error")
+            SendDeviceInfoToUI({ success = false, error = "JSON Parse Error" })
+            return
+        end
+
+        local d = result.data
+
+        -- Extract data safely
+        local payload = {
+            type           = "device_info",
+            success        = true,
+            device_name    = d.device_name or "Unknown",
+            version        = d.version or "N/A",                    -- Firmware version
+            release_date   = d.release_date or d.update_time or "N/A",  -- Release date
+            battery        = tonumber(d.power) or 0,
+            wifi           = d.wifi or "",
+            rssi           = d.rssi or "",
+            ip             = d.ip or "",
+            mac            = d.mac or "",
+            serial         = d.device_sn or "",
+            timezone       = d.timezone or "",
+            online         = (d.is_online == 1),
+            can_update     = (d.can_update == 1)
+        }
+
+        print("Device Info Parsed:")
+        print("   Name:", payload.device_name)
+        print("   Firmware:", payload.version)
+        print("   Release:", payload.release_date)
+        print("   Battery:", payload.battery .. "%")
+
+        -- Update Control4 driver properties
+        C4:UpdateProperty("Software Version", payload.version)
+        print("[FIRMWARE] Software Version updated:", payload.version)
+        
+        C4:UpdateProperty("Release Date", payload.release_date)
+        print("[FIRMWARE] Release Date updated:", payload.release_date)
+
+        SendDeviceInfoToUI(payload)
+        C4:UpdateProperty("Status", "Device info loaded")
+    end)
+end
+
+-- Reliable send to UI Proxy (Binding 5005)
+function SendDeviceInfoToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Use ICON_CHANGED pattern (same as NotificationHistory driver)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
 end

@@ -44,13 +44,13 @@ local user_settings         = {
 local COOLDOWN              = {
     motion   = 0,
     human    = 0,
+    doorbell = 0,
     online   = 10,
     offline  = 10,
     restart  = 30,
     stranger = 0,
     registered_user   = 5,
     antipry  = 10
-
 }
 
 -- Track last notification times
@@ -402,7 +402,18 @@ function OnDriverLateInit()
 
         -- Send authentication settings
         C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
-        print("  Sent AUTHENTICATION_REQUIRED: True to Camera Proxy")
+        print("  Sent AUTHENTICATION_REQUIRED: False to Camera Proxy")
+
+        -- Enable event logging for Timeline
+        C4:SendToProxy(5001, "SUPPORTS_MOTION", { ENABLED = "True" })
+        print("  Sent SUPPORTS_MOTION to Camera Proxy")
+        
+        C4:SendToProxy(5001, "SUPPORTS_DOORBELL", { ENABLED = "True" })
+        print("  Sent SUPPORTS_DOORBELL to Camera Proxy")
+        
+        -- Enable history logging
+        C4:SendToProxy(5001, "HISTORY_ENABLED", { ENABLED = "True" })
+        print("  Sent HISTORY_ENABLED to Camera Proxy")
 
         print("Camera Proxy configuration complete!")
     end
@@ -443,7 +454,7 @@ function OnPropertyChanged(strProperty)
     if strProperty == "Enable MQTT" then
         local requested = (Properties[strProperty] == "True")
 
-        -- ✅ Prevent auto-init from being overridden
+        -- Prevent auto-init from being overridden
         if not requested and _initializing then
             print("[MQTT] Ignoring disable during initialization")
             return
@@ -610,8 +621,9 @@ function ExecuteCommand(strCommand, tParams)
     end
     
     if strCommand == "TEST_DOORBELL" then
-        print("[TEST] 🔔 Simulating doorbell press")
+        print("[TEST] Simulating doorbell press")
         handle_doorbell(nil, nil, {type = 5})
+        print("[TEST] Doorbell handler executed")
         return
     end
 
@@ -1319,6 +1331,11 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("VD05 properties updated successfully")
+                    
+                    -- Fetch firmware version and release date from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
                 end
@@ -1367,9 +1384,13 @@ local function HANDLE_BATTERY_LEVEL(pct)
     _lastLowBatteryAlert = now
     EventLogger.logLowBattery(pct)
     C4:RecordHistory("Critical", EVENT.LOW_BATTERY, "Cameras", "IP Camera")
-    C4:FireEvent(EVENT.LOW_BATTERY, CAMERA_BINDING)
+    C4:FireEvent(EVENT.LOW_BATTERY, {
+        DeviceName = Properties["Device Name"] or "VD05 Doorbell",
+        EventType  = EVENT.LOW_BATTERY,
+        BatteryLevel = pct
+    }, CAMERA_BINDING)
 
-    print("[BATTERY] ✅ Low battery alert fired")
+    print("[BATTERY] Low battery alert fired")
 end
 
 
@@ -1391,7 +1412,7 @@ function START_BATTERY_ALERT_ENGINE()
         else
             print("[ALERT ENGINE] No cached battery value")
         end
-    end, true) -- ✅ repeating timer
+    end, true) -- repeating timer
 end
 
 function STOP_BATTERY_ALERT_ENGINE()
@@ -1993,11 +2014,32 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
    -- if not can_notify(cooldown_key, cooldown_sec) then return end
 
-    if event_name == EVENT.DOORBELL then
-        print("[DOORBELL] Doorbell event received.")
-        C4:FireEvent(event_name, CAMERA_BINDING)
+    print("[TIMELINE] Sending native Camera Proxy notification for: " .. event_name)
+    
+    -- Record history for Event History tab
+    local history_severity = (category == NOTIFY.ALERT) and "Critical" or "Info"
+    record_history(history_severity, event_name, "Camera")
+    
+    -- Send NATIVE Control4 Camera Proxy notifications with NO custom data
+    -- Control4 proxy may auto-populate timestamp and details
+    if event_name == EVENT.MOTION or event_name == EVENT.HUMAN or event_name == EVENT.STRANGER or event_name == EVENT.REGISTERED_USER then
+        print("[TIMELINE] Sending MOTION_DETECTED to Camera Proxy")
+        C4:SendToProxy(CAMERA_BINDING, "MOTION_DETECTED", {})
+        
+    elseif event_name == EVENT.DOORBELL then
+        print("[TIMELINE] Sending DOORBELL_PUSHED to Camera Proxy")
+        C4:SendToProxy(CAMERA_BINDING, "DOORBELL_PUSHED", {})
     end
+    
+    print("[TIMELINE] Proxy notification sent")
 
+    -- Fire event for Control4 programming/automations
+    C4:FireEvent(event_name, {
+        DeviceName = Properties["Device Name"] or "VD05 Doorbell",
+        EventType  = event_name
+    }, CAMERA_BINDING)
+
+    -- Asynchronously fetch and attach image snapshot
     local tries = 0
 
     local function fetch()
@@ -2019,22 +2061,12 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             else
                 print("[NOTIFY] no image after retry")
             end
-            record_history(
-                category == NOTIFY.ALERT and "Critical" or "Info",
-                event_name,
-                "IP Camera"
-            )
-            if event_name ~= EVENT.DOORBELL then
-                C4:SetTimer(EVENT_DELAY_MS, function()
-                    C4:FireEvent(event_name, CAMERA_BINDING)
-                    print("[NOTIFY] Event " .. event_name)
-                end)
-            end
         end)
     end
 
     fetch()
 end
+
 local function handle_motion(filename, extp, params)
     send_notification(NOTIFY.INFO, EVENT.MOTION, "motion", COOLDOWN.motion, filename, extp)
     EventLogger.logMotion(params)   -- ← pass full params
@@ -2054,7 +2086,7 @@ end
 
 --registerd user
 local function handle_registered_user(filename, extp, params)
-    -- ⚠️ now ONLY used if you later add real identity DB
+    -- now ONLY used if you later add real identity DB
     send_notification(NOTIFY.INFO, EVENT.REGISTERED_USER, "registered_user", COOLDOWN.stranger, filename, extp)
     EventLogger.logRegisteredUser(params)
 end
@@ -2064,7 +2096,7 @@ local function handle_restart()
      EventLogger.logCameraRestarted()
 end
 handle_doorbell = function(filename, extp, params)
-    send_notification(NOTIFY.INFO, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
+    send_notification(NOTIFY.ALERT, EVENT.DOORBELL, "doorbell", COOLDOWN.doorbell, filename, extp)
     EventLogger.logDoorbell(params) -- ← pass full params
 end
 
@@ -2197,7 +2229,7 @@ local function handle_camera_event(params)
     final_event.EventDescription = result.label .. " Detected"
 
     if result.category == "KNOWN_FACE" then
-        print("[FACE EVENT] ✅ Known Person:", result.label)
+        print("[FACE EVENT] Known Person:", result.label)
 
         send_notification(
             NOTIFY.INFO,
@@ -2236,7 +2268,7 @@ local function handle_human(filename, extp, params)
 end
 
 local function handle_antipry(filename, extp, params)
-    print("[ANTIPRY] ✅ Anti-Pry Alarm Triggered - Handling notification")
+    print("[ANTIPRY] Anti-Pry Alarm Triggered - Handling notification")
 
     send_notification(
         NOTIFY.ALERT,                    -- Use ALERT (more urgent)
@@ -2285,7 +2317,7 @@ local function handle_device_status(msg)
             
             ForceUIAntiPryRefresh()
             
-            print("[ANTI-PRY] ✅ Cloud/MQTT update →", enabled and "ENABLED" or "DISABLED")
+            print("[ANTI-PRY] Cloud/MQTT update ->", enabled and "ENABLED" or "DISABLED")
             
             if old_state ~= enabled then
                 print("[ANTI-PRY] State changed → pushing")
@@ -2436,7 +2468,7 @@ function HANDLE_JSON_EVENT(payload)
         
 
         ------------------------------------------------
-        -- 🔄 Camera Restart
+        -- Camera Restart
         ------------------------------------------------
         if id == "stored_reset" then
             handle_restart()
@@ -3126,6 +3158,17 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
+    
+    -- When WebView is opened, send device info
+    if strCommand == "SELECT" and idBinding == 5005 then
+        print("[UI] WebView opened, sending device info...")
+        -- Small delay to ensure UI is ready
+        C4:SetTimer(500, function()
+            GET_DEVICE_INFO()
+        end)
+        return
+    end
+    
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
@@ -3614,11 +3657,11 @@ function SET_MIC_STATE(isMuted)
     local token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not vid or vid == "" then
-        print("[MIC] ❌ Missing VID")
+        print("[MIC] ERROR: Missing VID")
         return false
     end
     if not token or token == "" then
-        print("[MIC] ❌ Missing Auth Token")
+        print("[MIC] ERROR: Missing Auth Token")
         return false
     end
 
@@ -3660,7 +3703,7 @@ function SET_MIC_STATE(isMuted)
         end
 
         if code == 200 or code == 20000 then
-            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            print("[MIC] Success - Microphone", isMuted and "MUTED" or "UNMUTED")
             
             -- Update local state
             conditional_state.MIC_MUTED    = isMuted
@@ -3671,7 +3714,7 @@ function SET_MIC_STATE(isMuted)
             
             C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
         else
-            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            print("[MIC] ERROR: Failed. Code:", code, "Error:", tostring(err))
             C4:UpdateProperty("Status", "Mic command failed")
         end
     end)
@@ -3748,12 +3791,12 @@ end
     local token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not vid or vid == "" then
-        print("[ANTI-PRY] ❌ Missing VID")
+        print("[ANTI-PRY] ERROR: Missing VID")
         return false
     end
 
     if not token or token == "" then
-        print("[ANTI-PRY] ❌ Missing Auth Token")
+        print("[ANTI-PRY] ERROR: Missing Auth Token")
         return false
     end
 
@@ -3812,7 +3855,7 @@ end
             )
 
         else
-            print("[ANTI-PRY] ❌ Failed:", tostring(err))
+            print("[ANTI-PRY] ERROR: Failed:", tostring(err))
             C4:UpdateProperty("Status", "Anti-Pry failed")
         end
     end)
@@ -3844,7 +3887,7 @@ function SET_ANTI_PRY_STATE(tParams)
     local token = _props["Auth Token"] or Properties["Auth Token"]
 
     if not vid or vid == "" or not token or token == "" then
-        print("[ANTI-PRY] ❌ Missing VID or Token")
+        print("[ANTI-PRY] ERROR: Missing VID or Token")
         return false
     end
 
@@ -3874,7 +3917,7 @@ function SET_ANTI_PRY_STATE(tParams)
             PushAntiPryStateToUI()   -- immediate feedback
             C4:UpdateProperty("Status", "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled"))
         else
-            print("[ANTI-PRY] ❌ Cloud command failed")
+            print("[ANTI-PRY] ERROR: Cloud command failed")
         end
     end)
 
@@ -4011,7 +4054,7 @@ function GET_DEVICE_STATUS()
                     conditional_state.ANTI_PRY_ENABLED = enabled
                     antiPryUpdated = true
                 end
-                print("[ANTI-PRY] ✅ Synced via polling:", enabled and "ENABLED" or "DISABLED")
+                print("[ANTI-PRY] Synced via polling:", enabled and "ENABLED" or "DISABLED")
             end
 
             -- MICROPHONE
@@ -4086,7 +4129,8 @@ function GET_DEVICE_INFO()
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            version        = d.version or "",                    -- Firmware version
+            version        = d.version or "N/A",                    -- Firmware version
+            release_date   = d.release_date or d.update_time or "N/A",  -- Release date
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -4098,10 +4142,18 @@ function GET_DEVICE_INFO()
             can_update     = (d.can_update == 1)
         }
 
-        print("✅ Device Info Parsed:")
+        print("Device Info Parsed:")
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
+        print("   Release:", payload.release_date)
         print("   Battery:", payload.battery .. "%")
+
+        -- Update Control4 driver properties
+        C4:UpdateProperty("Software Version", payload.version)
+        print("[FIRMWARE] Software Version updated:", payload.version)
+        
+        C4:UpdateProperty("Release Date", payload.release_date)
+        print("[FIRMWARE] Release Date updated:", payload.release_date)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
@@ -4112,23 +4164,11 @@ end
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
 
-    -- Primary method - Send to UIBUTTON proxy
-    local success = pcall(function()
-        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    -- Use ICON_CHANGED pattern (same as NotificationHistory driver)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
     end)
 
-    -- Fallback methods
-    if not success then
-        pcall(function()
-            C4:SendToProxy(5005, "DATA", { data = jsonData })
-        end)
-    end
-
-    if C4.SendDataToUI then
-        pcall(function()
-            C4:SendDataToUI(jsonData)
-        end)
-    end
-
-    print("[UI] Device info sent to proxy 5005")
+    print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
 end

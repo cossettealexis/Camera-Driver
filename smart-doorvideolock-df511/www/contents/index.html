@@ -260,6 +260,19 @@
             display: none;
             text-align: center;
         }
+
+        .version-info {
+            text-align: center;
+            padding: 15px;
+            font-size: 14px;
+            color: #1a2228;
+            font-weight: 500;
+            margin-top: 20px;
+        }
+
+        .version-info p {
+            margin: 5px 0;
+        }
     </style>
 </head>
 
@@ -298,6 +311,12 @@
                     <span class="lock_status">Hold to lock</span>
                 </button>
             </div>
+        </div>
+
+        <div class="version-info">
+            <p id="deviceVersion">Device: --</p>
+            <p id="softwareVersion">Version: --</p>
+            <p id="releaseDate">Release: --</p>
         </div>
 
     </div>

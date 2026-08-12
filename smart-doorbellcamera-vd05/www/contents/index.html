@@ -39,10 +39,11 @@
         html,
         body {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             background: var(--bg);
             color: var(--text);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* =========================
@@ -50,7 +51,7 @@
 ========================= */
         .app {
             width: 100%;
-            height: 100%;
+            min-height: 100vh;
         }
 
         /* =========================
@@ -59,7 +60,7 @@
         .panel {
             display: none;
             width: 100%;
-            height: 100%;
+            min-height: calc(100vh - 60px);
             flex-direction: column;
         }
 
@@ -257,57 +258,29 @@
         }
 
         .footer {
-            padding: 12px 16px;
+            padding: 20px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: -80px !important;
+            margin-top: auto;
         }
 
         .version-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            line-height: 1.4;
+            display: inline-block;
+            text-align: left;
+            line-height: 1.5;
         }
-
-        /* Debug Panel */
-        .debug-panel {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 0, 0, 0.9);
-            color: #fff;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 9999;
-            border-bottom: 3px solid yellow;
-        }
-
-        .debug-panel .log {
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .debug-panel .timestamp {
-            color: #ffff00;
-            font-weight: bold;
+        
+        .version-info span {
+            display: block;
+            margin: 4px 0;
         }
     </style>
 </head>
 
 <body>
-
-    <!-- DEBUG PANEL -->
-    <div class="debug-panel" id="debugPanel">
-        <div class="log"><span class="timestamp">[INIT]</span> Debug panel loaded - waiting for page init...</div>
-    </div>
 
     <div class="app">
 
@@ -464,8 +437,12 @@
     </div>
     <footer class="footer">
     <div class="version-info">
-        <span id="deviceVersion">Device: Loading...</span>
-     !-- Lucide CDN removed - Control4 blocks external resources -->
+        <span id="deviceVersion">Device: Loading...</span><br>
+        <span id="firmwareVersion">Firmware: Loading...</span><br>
+        <span id="releaseDate">Release: Loading...</span>
+    </div>
+    </footer>
+     <!-- Lucide CDN removed - Control4 blocks external resources -->
 
     <script>
         // Wait for everything to be ready
@@ -480,12 +457,7 @@
     </script>
 
     <!-- Your main logic - MUST BE LOADED FOR C4 INTEGRATION -->
-    <script src="javascript/index.js" type="text/javascript"></script
-
-    </script>
-
-    <!-- Your main logic -->
-    <!--<script src="javascript/index.js" type="text/javascript"></script>-->
+    <script src="javascript/index.js" type="text/javascript"></script>
 
     <script>
         // Debug: force refresh when Anti-Pry panel is shown
@@ -506,365 +478,6 @@
                     }
                 }, 200);
             }
-        }
-    </script>
-    <script>
-
-        let antiPryEnabled = false;
-        let isMicMuted = false;
-
-        // =====================================================
-        // DEBUG LOGGING
-        // =====================================================
-
-        function debugLog(message, data) {
-            const panel = document.getElementById('debugPanel');
-            if (!panel) {
-                console.log('[DEBUG] Panel not found:', message, data);
-                return;
-            }
-            
-            const time = new Date().toLocaleTimeString();
-            const log = document.createElement('div');
-            log.className = 'log';
-            
-            let msg = `<span class="timestamp">[${time}]</span> ${message}`;
-            if (data !== undefined) {
-                const dataStr = typeof data === 'object' ? JSON.stringify(data).substring(0, 150) : String(data);
-                msg += `: ${dataStr}`;
-            }
-            log.innerHTML = msg;
-            
-            panel.appendChild(log);
-            panel.scrollTop = panel.scrollHeight;
-            
-            // Keep only last 25 logs
-            while (panel.children.length > 25) {
-                panel.removeChild(panel.firstChild);
-            }
-            
-            console.log('[DEBUG]', message, data);
-        }
-
-        // =====================================================
-        // INIT
-        // =====================================================
-
-        document.addEventListener('DOMContentLoaded', function () {
-
-            debugLog('🚀 DOMContentLoaded fired');
-            console.log('VD05 Settings UI Loaded');
-
-            debugLog('C4 check', typeof C4 !== 'undefined' ? '✅ FOUND' : '❌ NOT FOUND');
-            debugLog('Footer check', {
-                device: !!document.getElementById('deviceVersion'),
-                firmware: !!document.getElementById('firmwareVersion'),
-                release: !!document.getElementById('releaseDate')
-            });
-
-            debugLog('→ initializeControl4()');
-            initializeControl4();
-
-            debugLog('→ initAntiPry()');
-            initAntiPry();
-            
-            debugLog('→ initMicrophone()');
-            initMicrophone();
-            
-            debugLog('→ initReboot()');
-            initReboot();
-
-            debugLog('→ requestInitialState()');
-            // Request initial state from driver
-            requestInitialState();
-
-            // Request Device + Firmware Version for Footer
-            setTimeout(() => {
-                debugLog("📡 Sending GET_DEVICE_INFO command...");
-                console.log("📡 Requesting Device Info for Footer...");
-            try {
-                C4.sendCommand('GET_DEVICE_INFO', '', false, true);
-                debugLog("✅ GET_DEVICE_INFO sent successfully");
-            } catch (e) {
-                debugLog("❌ GET_DEVICE_INFO failed: " + e.message);
-                console.error("Failed to request device info", e);
-            }
-            }, 1500);
-            
-            debugLog('✅ Page initialization complete');
-        });
-
-        // =====================================================
-        // CONTROL4 INIT
-        // =====================================================
-
-        function initializeControl4() {
-
-            debugLog('initializeControl4 starting...');
-            try {
-
-                debugLog('Subscribing to DataToUi...');
-                C4.subscribeToDataToUi(true);
-                debugLog('✅ Subscribed to DataToUi');
-                
-                C4.subscribeToVariable('LAST_ROOM_SELECTED');
-                C4.subscribeToVariable('LAST_MENU_SELECTED');
-
-                C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-
-                debugLog('✅ Control4 initialized');
-                console.log('Control4 initialized');
-
-            } catch (e) {
-                debugLog('❌ Control4 init error: ' + e.message);
-                console.log('Control4 init error', e);
-            }
-        }
-
-        function requestInitialState() {
-            // Ask driver for current Anti-Pry and Mic state
-            try {
-                C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
-                console.log('📤 Requested initial Anti-Pry / Mic state');
-            } catch (e) {
-                console.log('Request initial state failed', e);
-            }
-        }
-
-        // =====================================================
-        // ANTI-PRY
-        // =====================================================
-
-        function initAntiPry() {
-            const toggle = document.getElementById('antiPry');
-            if (!toggle) {
-                console.error("❌ antiPry toggle not found in DOM!");
-                return;
-            }
-
-            console.log("✅ antiPry toggle initialized");
-
-            // Remove old listener if exists
-            toggle.removeEventListener('change', handleAntiPryToggle);
-            toggle.addEventListener('change', handleAntiPryToggle);
-        }
-
-        function handleAntiPryToggle(e) {
-
-            const state = e.target.checked;
-
-            console.log('🛡 Anti-Pry toggle clicked:', state);
-
-            // DO NOT assume success — Lua will confirm
-            sendAntiPryCommand(state);
-        }
-
-        function sendAntiPryCommand(state) {
-
-            try {
-
-                C4.sendCommand(
-                    'SET_ANTI_PRY',
-                    JSON.stringify({
-                        state: state ? 1 : 0   // 🔥 force 0/1
-                    }),
-                    false,
-                    true
-                );
-
-            } catch (e) {
-                console.log('Anti-Pry command error', e);
-            }
-        }
-
-
-
-        // =====================================================
-        // MICROPHONE
-        // =====================================================
-
-        function initMicrophone() {
-
-            const toggle = document.getElementById('mic');
-            if (!toggle) return;
-
-            toggle.addEventListener('change', handleMicToggle);
-        }
-
-        function handleMicToggle(e) {
-
-            const muted = !e.target.checked;
-
-            console.log('🎤 Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
-
-            sendMicCommand(muted);
-        }
-
-        function sendMicCommand(muted) {
-
-            try {
-
-                C4.sendCommand(
-                    muted ? 'MUTE_MIC' : 'UNMUTE_MIC',
-                    '',
-                    false,
-                    true
-                );
-
-            } catch (e) {
-                console.log('Mic command error', e);
-            }
-        }
-
-        function updateMicUI(muted) {
-
-            isMicMuted = muted;
-
-            const toggle = document.getElementById('mic');
-            const status = document.getElementById('micStatus');
-
-            if (toggle) toggle.checked = !muted;
-            if (status) status.innerText = muted ? 'Muted' : 'Enabled';
-        }
-
-        // =====================================================
-        // REBOOT
-        // =====================================================
-
-        function initReboot() {
-
-            const btn = document.getElementById('rebootBtn');
-            if (!btn) return;
-
-            btn.addEventListener('click', handleReboot);
-        }
-
-        function handleReboot() {
-
-            console.log('🔄 Reboot requested');
-
-            try {
-
-                C4.sendCommand(
-                    'REBOOT_DEVICE',
-                    '',
-                    false,
-                    true
-                );
-
-            } catch (e) {
-                console.log('Reboot error', e);
-            }
-        }
-
-        // =====================================================
-        // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
-        // =====================================================
-        function onDataToUi(value) {
-            debugLog('📥 onDataToUi called');
-            try {
-                const obj = JSON.parse(value);
-                console.log('📥 onDataToUi received:', obj);
-                debugLog('📦 Data type: ' + (obj.type || 'no type'));
-
-                if (obj.type === "anti_pry_update" ||
-                    obj.tamper_swt !== undefined ||
-                    obj.anti_pry_enabled !== undefined) {
-
-                    let state = false;
-
-                    // Prefer tamper_swt (most reliable)
-                    if (obj.tamper_swt !== undefined) {
-                        state = Number(obj.tamper_swt) === 1;
-                    } else if (obj.anti_pry_enabled !== undefined) {
-                        state = !!obj.anti_pry_enabled;
-                    }
-
-                    debugLog('🛡 Anti-Pry: ' + (state ? 'ENABLED' : 'DISABLED'));
-                    console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
-                    updateAntiPryUI(state);
-                }
-
-                // Mic handling
-                if (obj.mic_muted !== undefined) {
-                    debugLog('🎤 Mic: ' + (obj.mic_muted ? 'MUTED' : 'UNMUTED'));
-                    updateMicUI(!!obj.mic_muted);
-                }
-
-                // Device Information
-                // ==================== DEVICE INFO (FOOTER) ====================
-                if (obj.type === "device_info") {
-                    debugLog('✅ DEVICE_INFO received!');
-                    console.log("✅ Device Info Received for Footer:", obj);
-
-                    const devEl = document.getElementById("deviceVersion");
-                    const fwEl = document.getElementById("firmwareVersion");
-                    const relEl = document.getElementById("releaseDate");
-                    
-                    debugLog('Elements', {dev: !!devEl, fw: !!fwEl, rel: !!relEl});
-
-                    if (devEl) {
-                        devEl.innerText = "Device: " + (obj.device_name || "Unknown");
-                        debugLog('✅ Set device: ' + obj.device_name);
-                    }
-
-                    if (fwEl) {
-                        fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
-                        debugLog('✅ Set firmware: ' + obj.version);
-                    }
-                    
-                    if (relEl) {
-                        relEl.innerText = "Release: " + (obj.release_date || "Unknown");
-                        debugLog('✅ Set release: ' + (obj.release_date || 'Unknown'));
-                    }
-                    
-                    debugLog('🎉 Footer updated!');
-                }
-
-            } catch (e) {
-                debugLog('❌ ERROR: ' + e.message);
-                console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
-            }
-        }
-
-        function updateAntiPryUI(state) {
-            antiPryEnabled = !!state;
-
-            const toggle = document.getElementById('antiPry');
-            const status = document.getElementById('antiPryStatus');
-
-            if (toggle) {
-                const wasChecked = toggle.checked;
-                toggle.checked = antiPryEnabled;
-
-                console.log(`[UI] Toggle updated: ${wasChecked} → ${toggle.checked} (desired: ${antiPryEnabled})`);
-
-                // Extra force for stubborn Control4 WebView
-                if (toggle.checked !== antiPryEnabled) {
-                    console.warn("[UI] Toggle didn't stick - forcing again");
-                    setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
-                }
-            }
-
-            if (status) {
-                status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
-            }
-        }
-
-        function onVariable(v) {
-            console.log('onVariable', v);
-        }
-
-        function onSendCommandError(msg) {
-            console.log('Command Error', msg);
-        }
-
-        function onSubscribeToDataToUi(msg) {
-            console.log('Subscribe Error', msg);
-        }
-
-        function onSubscribeToVariableError(v, msg) {
-            console.log('Variable Error', v, msg);
         }
     </script>
 

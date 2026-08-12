@@ -49,7 +49,7 @@ function requestInitialState() {
     // Ask driver for current Anti-Pry and Mic state
     try {
         C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
-        console.log('📤 Requested initial Anti-Pry / Mic state');
+        console.log('Requested initial Anti-Pry / Mic state');
     } catch (e) {
         console.log('Request initial state failed', e);
     }
@@ -64,11 +64,11 @@ function initDeviceName() {
     const statusEl = document.getElementById('deviceNameStatus');
 
     if (!btn || !input) {
-        console.error("❌ Device name elements not found");
+        console.error("ERROR: Device name elements not found");
         return;
     }
 
-    console.log("✅ Device Name module initialized");
+    console.log("Device Name module initialized");
 
     btn.addEventListener('click', function () {
       
@@ -96,7 +96,7 @@ function initDeviceName() {
                 true
             );
 
-            console.log("📤 SET_DEVICE_NAME sent:", newName);
+            console.log("SET_DEVICE_NAME sent:", newName);
 
             // Show Modal
             showModal("Device name updated successfully!", "Success");
@@ -156,7 +156,7 @@ function handleMicToggle(e) {
 
     const muted = !e.target.checked;
 
-    console.log('🎤 Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
+    console.log('Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
 
     sendMicCommand(muted);
 }
@@ -206,7 +206,7 @@ function updateMicUI(muted) {
 
 function onDataToUi(value) {
 
-    console.log('📥 p160 DATA:', value);
+    console.log('p160 DATA:', value);
 
     try {
 
@@ -225,7 +225,7 @@ function onDataToUi(value) {
             const input = document.getElementById('deviceNameInput');
             if (input && obj.device_name) {
                 input.value = obj.device_name;
-                console.log("✅ Device name loaded:", obj.device_name);
+                console.log("Device name loaded:", obj.device_name);
             }
 
             // Show Firmware Version (you need to add an element in HTML)
@@ -234,7 +234,7 @@ function onDataToUi(value) {
                 if (firmwareEl) {
                     firmwareEl.innerText = obj.version;
                 } else {
-                    console.warn("⚠️ No element with id='firmwareVersion' found");
+                    console.warn("WARNING: No element with id='firmwareVersion' found");
                 }
             }
         }
@@ -246,7 +246,7 @@ function onDataToUi(value) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
 
-            console.log("🎤 Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
+            console.log("Mic UI UPDATE ->", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
         }

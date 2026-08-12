@@ -15,13 +15,12 @@ let isMicMuted = false;
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    console.log('VD05 Settings UI Loaded');
-
     initializeControl4();
 
     initAntiPry();
     initMicrophone();
     initReboot();
+    initDeviceInfo();
 
     // Request initial state from driver
     requestInitialState();
@@ -35,13 +34,11 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
 
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-
-        console.log('Control4 initialized');
 
     } catch (e) {
         console.log('Control4 init error', e);
@@ -52,9 +49,16 @@ function requestInitialState() {
     // Ask driver for current Anti-Pry and Mic state
     try {
         C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
-        console.log('📤 Requested initial Anti-Pry / Mic state');
     } catch (e) {
         console.log('Request initial state failed', e);
+    }
+}
+
+function initDeviceInfo() {
+    try {
+        C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+    } catch (e) {
+        console.error("Failed to request device info", e);
     }
 }
 
@@ -65,11 +69,9 @@ function requestInitialState() {
 function initAntiPry() {
     const toggle = document.getElementById('antiPry');
     if (!toggle) {
-        console.error("❌ antiPry toggle not found in DOM!");
+        console.error("ERROR: antiPry toggle not found in DOM!");
         return;
     }
-
-    console.log("✅ antiPry toggle initialized");
 
     // Remove old listener if exists
     toggle.removeEventListener('change', handleAntiPryToggle);
@@ -79,8 +81,6 @@ function initAntiPry() {
 function handleAntiPryToggle(e) {
 
     const state = e.target.checked;
-
-    console.log('🛡 Anti-Pry toggle clicked:', state);
 
     // DO NOT assume success — Lua will confirm
     sendAntiPryCommand(state);
@@ -132,8 +132,6 @@ function handleMicToggle(e) {
 
     const muted = !e.target.checked;
 
-    console.log('🎤 Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
-
     sendMicCommand(muted);
 }
 
@@ -178,8 +176,6 @@ function initReboot() {
 
 function handleReboot() {
 
-    console.log('🔄 Reboot requested');
-
     try {
 
         C4.sendCommand(
@@ -201,8 +197,34 @@ function handleReboot() {
 
 function onDataToUi(value) {
     try {
-        const obj = JSON.parse(value);
-        console.log('📥 onDataToUi received:', obj);
+        const jsonObject = JSON.parse(value);
+
+        // Handle icon_description wrapper (NotificationHistory pattern)
+        let obj;
+        if (jsonObject.hasOwnProperty('icon_description')) {
+            obj = JSON.parse(jsonObject.icon_description);
+        } else {
+            obj = jsonObject;
+        }
+
+        // Device Info (Name + Firmware)
+        if (obj.type === "device_info" && obj.success) {
+            const devEl = document.getElementById('deviceVersion');
+            const fwEl = document.getElementById('firmwareVersion');
+            const relEl = document.getElementById('releaseDate');
+
+            if (devEl) {
+                devEl.innerText = "Device: " + (obj.device_name || "Unknown");
+            }
+
+            if (fwEl) {
+                fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
+            }
+
+            if (relEl) {
+                relEl.innerText = "Release: " + (obj.release_date || "N/A");
+            }
+        }
 
         if (obj.type === "anti_pry_update" || 
             obj.tamper_swt !== undefined || 
@@ -217,7 +239,6 @@ function onDataToUi(value) {
                 state = !!obj.anti_pry_enabled;
             }
 
-            console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
             updateAntiPryUI(state);
         }
 
@@ -227,7 +248,7 @@ function onDataToUi(value) {
         }
 
     } catch (e) {
-        console.error('❌ onDataToUi ERROR:', e, 'Raw value:', value);
+        console.error('ERROR: onDataToUi ERROR:', e, 'Raw value:', value);
     }
 }
 
@@ -241,11 +262,8 @@ function updateAntiPryUI(state) {
         const wasChecked = toggle.checked;
         toggle.checked = antiPryEnabled;
         
-        console.log(`[UI] Toggle updated: ${wasChecked} → ${toggle.checked} (desired: ${antiPryEnabled})`);
-        
         // Extra force for stubborn Control4 WebView
         if (toggle.checked !== antiPryEnabled) {
-            console.warn("[UI] Toggle didn't stick - forcing again");
             setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
         }
     }
@@ -256,7 +274,7 @@ function updateAntiPryUI(state) {
 }
 /*function onDataToUi(value) {
 
-    console.log('📥 VD05 DATA:', value);
+    console.log('VD05 DATA:', value);
 
     try {
 
@@ -272,7 +290,6 @@ function updateAntiPryUI(state) {
                 state = !!obj.anti_pry_enabled;
             }
 
-            console.log('Anti-Pry UI Update →', state ? 'ENABLED' : 'DISABLED');
             updateAntiPryUI(state);
         }
 
@@ -281,13 +298,11 @@ function updateAntiPryUI(state) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
 
-            console.log('🎤 Mic sync:', muted);
-
             updateMicUI(muted);
         }
 
     } catch (e) {
-        console.log('onDataToUi parse error', e);
+        // Parse error - silently ignore
     }
 } */
 

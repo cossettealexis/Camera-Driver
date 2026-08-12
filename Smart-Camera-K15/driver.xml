@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>4</version>
+    <version>6</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>03/17/2026 12:00 AM</created>
-    <modified>07/02/2026 12:00 AM</modified>
+    <modified>08/05/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -17,8 +17,9 @@
     <composer_categories>
         <category>Cameras</category>
     </composer_categories>
-    <proxies qty="1">
+    <proxies qty="2">
         <proxy proxybindingid="5001" name="Slomins K15-SL PTZ Camera">camera</proxy>
+        <proxy proxybindingid="5005" name="K15 Settings">uibutton</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
@@ -39,11 +40,23 @@
         <snapshot_cache_duration>180</snapshot_cache_duration>
         <has_pan>true</has_pan>
         <has_tilt>true</has_tilt>
-        <has_zoom>true</has_zoom>
+        <has_zoom>false</has_zoom>
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
            <hasHistory>true</hasHistory>
+        <navigator_display_option proxybindingid="5005">
+            <display_icons>
+                <Icon width="70" height="70">
+                    controller://driver/Slomins-ptz-K15/icons/device/settings_70.png</Icon>
+                <Icon width="90" height="90">
+                    controller://driver/Slomins-ptz-K15/icons/device/settings_90.png</Icon>
+                <Icon width="300" height="300">
+                    controller://driver/Slomins-ptz-K15/icons/device/settings_300.png</Icon>
+            </display_icons>
+        </navigator_display_option>
+        <web_view_url proxybindingid="5005">controller://driver/Slomins-ptz-K15/contents/index.html</web_view_url>
+        <mobile_web_view_enabled>true</mobile_web_view_enabled>
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
@@ -172,13 +185,13 @@
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
-                <default>192.168.60.50</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
                 <name>VID</name>
                 <type>STRING</type>
-                <default>d6rrkb6hg7rc73dvgr40</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -256,6 +269,18 @@
             </property>
             <property>
                 <name>Camera Status</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Software Version</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Release Date</name>
                 <type>STRING</type>
                 <default></default>
                 <readonly>true</readonly>
@@ -387,6 +412,34 @@
                 <command>SET_DEVICE_PROPERTY</command>
             </action>
         </actions>
+        <variables>
+            <variable>
+                <name>MOTION_DETECTED</name>
+                <type>STRING</type>
+                <default>False</default>
+            </variable>
+            <variable>
+                <name>NOT_MOTION_DETECTED</name>
+                <type>STRING</type>
+                <default>True</default>
+            </variable>
+            <variable>
+                <name>MIC_MUTED</name>
+                <type>STRING</type>
+                <default>False</default>
+            </variable>
+            <variable>
+                <name>MIC_UNMUTED</name>
+                <type>STRING</type>
+                <default>True</default>
+            </variable>
+            <variable>
+                <name>SPEAKER_VOLUME</name>
+                <type>NUMBER</type>
+                <default>5</default>
+            </variable>
+        </variables>
+
         <commands>
             <command>
                 <name>GET_PRESETS_API</name>
@@ -479,18 +532,16 @@
                 </params>
             </command>
             <command>
-                <name>PRESET_RECALL</name>
-                <description>Recall a saved preset</description>
-                <params>
-                    <param>
-                        <name>preset_id</name>
-                        <type>INTEGER</type>
-                    </param>
-                </params>
+                <name>REQUEST_INITIAL_STATE</name>
+                <description>Request initial state of anti pry alarm</description>
             </command>
             <command>
-                <name>SEND_NOTIFICATION</name>
-                <description>Send notification to control4 app</description>
+                <name>GET_DEVICE_INFO</name>
+                <description>Request device info</description>
+            </command>
+            <command>
+                <name>SET_DEVICE_NAME</name>
+                <description>Change device name</description>
             </command>
         </commands>
         <interfaces>
@@ -506,6 +557,21 @@
     </config>
     <connections>
         <connection>
+            <id>5005</id>
+            <facing>6</facing>
+            <connectionname>UIBUTTON</connectionname>
+            <type>2</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>True</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>UIBUTTON</classname>
+                </class>
+            </classes>
+        </connection>
+        <connection>
             <id>5001</id>
             <facing>6</facing>
             <connectionname>Camera</connectionname>
@@ -516,16 +582,29 @@
                     <classname>CAMERA</classname>
                 </class>
             </classes>
+            <hidden>True</hidden>
         </connection>
         <connection>
             <id>6001</id>
             <facing>1</facing>
-            <connectionname>MQTT Proxy</connectionname>
+            <connectionname>Network/MQTT</connectionname>
             <type>4</type>
-            <consumer>true</consumer>
+            <consumer>True</consumer>
+            <linelevel>False</linelevel>
             <classes>
                 <class>
-                    <classname>GENERIC_PROXY</classname>
+                    <classname>TCP</classname>
+                    <ports>
+                        <port>
+                            <number>3333</number>
+                        </port>
+                        <port>
+                            <number>554</number>
+                        </port>
+                        <port>
+                            <number>8884</number>
+                        </port>
+                    </ports>
                 </class>
             </classes>
         </connection>

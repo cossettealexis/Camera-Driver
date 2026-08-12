@@ -108,11 +108,12 @@ document.addEventListener('DOMContentLoaded', function () {
         startStatePolling();
         startBatteryPolling();
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
         C4.sendCommand('sendCameraPreviewCommand', '', false, false);
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+        C4.sendCommand('GET_DEVICE_INFO', '', false, false);
 
         // Staggered fallback requests
         setTimeout(() => C4.sendCommand('REQUEST_SETTINGS', '', false, false), 800);
@@ -128,16 +129,39 @@ document.addEventListener('DOMContentLoaded', function () {
 // ── Main data receiver ───────────────────────────────
 function onDataToUi(value) {
     try {
-        // Always try to show UI when data arrives
-        // showUI();
-
         var obj = JSON.parse(value);
+
+        // Check for icon_description wrapper (from driver)
+        if (obj.icon_description) {
+            try {
+                obj = JSON.parse(obj.icon_description);
+            } catch (e) {
+                // If parsing fails, continue with original obj
+            }
+        }
+
+        // Handle device_info type
+        if (obj.type === "device_info" && obj.success) {
+            var devEl = document.getElementById('deviceVersion');
+            var verEl = document.getElementById('softwareVersion');
+            var relEl = document.getElementById('releaseDate');
+
+            if (devEl) devEl.textContent = 'Device: ' + (obj.device_name || 'Unknown');
+            if (verEl) verEl.textContent = 'Version: ' + (obj.version || 'N/A');
+            if (relEl) relEl.textContent = 'Release: ' + (obj.release_date || 'N/A');
+            return;
+        }
 
         // ── Battery update (real-time from Lua C4:SendDataToUI) ──
         if (obj.battery !== undefined) {
             updateBatteryUI(obj.battery);
-            return;
         }
+
+        // ── Version info update (legacy) ──
+        var versionEl = document.getElementById('softwareVersion');
+        var dateEl = document.getElementById('releaseDate');
+        if (versionEl) versionEl.textContent = 'Version: ' + (obj.version || '--');
+        if (dateEl) dateEl.textContent = 'Release: ' + (obj.releaseDate || '--');
 
         // ── NEW: Timestamp Support ──
         if (obj.time || obj.event) {

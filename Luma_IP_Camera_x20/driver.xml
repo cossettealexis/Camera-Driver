@@ -1,0 +1,622 @@
+<devicedata>
+	<copyright>Copyright 2022 Snap One All rights reserved.</copyright>
+	<creator>Snap One</creator>
+	<manufacturer>Luma Surveillance</manufacturer>
+	<name>Luma IP Camera X20</name>
+	<model>x20</model>
+	<created>7/5/2022 5:00 PM</created>
+	<modified>10/06/2025 11:09 AM</modified>
+  <minimum_os_version>3.3.2</minimum_os_version>
+	<version>47</version>
+  <small>devices_sm/camera_sm.gif</small>
+  <large>devices_lg/camera_lg.gif</large>
+	<control>lua_gen</control>
+	<controlmethod>ip</controlmethod>
+  <auto_update>true</auto_update>
+	<search_type>luma:camera</search_type>
+	<composer_categories>
+		<category>Cameras</category>
+	</composer_categories>
+	<proxies qty="1">
+		<proxy proxybindingid="5001" name="Luma IP Camera X20">camera</proxy>
+	</proxies>
+	<driver>DriverWorks</driver>
+	<capabilities>
+    <modes>H265,H264,SNAPSHOT</modes>
+		<default_http_port>80</default_http_port>
+		<default_rtsp_port>554</default_rtsp_port>
+		<default_authentication_required>True</default_authentication_required>
+		<default_authentication_type>BASIC</default_authentication_type>
+		<default_username>SystemConnect</default_username>
+		<default_password>123456</default_password>
+		<address_readonly>False</address_readonly>
+		<http_port_readonly>False</http_port_readonly>
+
+    <!-- New dynamic proxy capabilities -->
+    <has_extras>true</has_extras>
+
+    <!-- Use dynamic proxy call instead -->
+    <!--<dynamic_urls_use_type>SINGLE</dynamic_url_use_type>-->
+    <requires_dynamic_snapshot_urls>true</requires_dynamic_snapshot_urls>
+    <requires_dynamic_stream_urls>true</requires_dynamic_stream_urls>
+    </capabilities>
+	<notification_attachment_provider>True</notification_attachment_provider>
+	<notification_attachments>
+		<attachment>
+			<id>1003</id>
+			<type>IMAGE_JPEG</type>
+			<description>Snapshot (URL)</description>
+			<source>URL</source>
+		</attachment>
+	</notification_attachments>
+	<events>
+    <event>
+      <id>1</id>
+      <name>Motion Detection</name>
+      <description>When NAME detected Motion</description>
+    </event>
+    <event>
+      <id>2</id>
+      <name>Line Crossing</name>
+      <description>When NAME detected Line Crossing</description>
+    </event>
+    <event>
+      <id>3</id>
+      <name>Region Intrusion</name>
+      <description>When NAME detected Region Intrusion</description>
+    </event>
+	</events>
+	<config>
+	<identify_text>This driver can be identified through the Discovered Tab</identify_text>
+	<properties>
+		<property>
+			<name>Driver Version</name>
+			<type>STRING</type>
+			<default></default>
+			<readonly>true</readonly>
+      	</property>
+     	<property>
+            <name>Network Status</name>
+            <type>STRING</type>
+            <default>OFFLINE</default>
+            <readonly>true</readonly>
+        </property>
+        <property>
+			<name>Device Name</name>
+			<type>STRING</type>
+			<default></default>
+			<readonly>true</readonly>
+		</property>
+    <property>
+      <name>Internal IP Address</name>
+      <type>STRING</type>
+      <default></default>
+      <readonly>true</readonly>
+    </property>
+    <property>
+      <name>MAC Address</name>
+      <type>STRING</type>
+      <default></default>
+      <readonly>true</readonly>
+    </property>
+    <property>
+			<name>Model</name>
+			<type>STRING</type>
+			<default></default>
+			<readonly>true</readonly>
+		</property>
+      	<property>
+			<name>Software Version</name>
+			<type>STRING</type>
+			<default></default>
+			<readonly>true</readonly>
+      	</property>
+      	<property>
+			<name>Service Tag</name>
+			<type>STRING</type>
+			<default></default>
+			<readonly>true</readonly>
+      	</property>
+        <property>
+      <name>Audio</name>
+      <type>STRING</type>
+      <default></default>
+      <readonly>true</readonly>
+        </property>
+      <property>
+        <name>Connection Method</name>
+        <type>LIST</type>
+        <readonly>false</readonly>
+        <default>Switch</default>
+        <items>
+          <item>Switch</item>
+          <item>X10 NVR</item>
+          <item>NVR</item>
+        </items>
+      </property>
+            <property>
+          <name>Channel Number</name>
+          <type>RANGED_INTEGER</type>
+          <default>1</default>
+        <minimum>1</minimum>
+        <maximum>32</maximum>
+          <readonly>false</readonly>
+      </property>
+      <property>
+            <name>Event Subscription Status</name>
+            <type>STRING</type>
+            <default>OFFLINE</default>
+            <readonly>true</readonly>
+      </property>
+      <property>
+            <name>Events Note</name>
+            <type>STRING</type>
+            <default>Please use Luma X20 NVR Manager Driver for Events</default>
+            <readonly>true</readonly>
+      </property>
+      <property>
+        <name>Notifications</name>
+        <type>LIST</type>
+        <readonly>false</readonly>
+        <default>Disable</default>
+        <items>
+          <item>Enable</item>
+          <item>Disable</item>
+        </items>
+      </property>
+  		<property>
+        <name>Event Toggle</name>
+        <type>LIST</type>
+        <readonly>false</readonly>
+        <default>Disable</default>
+        <items>
+          <item>Enable</item>
+          <item>Disable</item>
+        </items>
+      </property>
+      <property>
+        <name>Automatic Notifications</name>
+        <type>LIST</type>
+        <readonly>false</readonly>
+        <default>Disable</default>
+        <items>
+          <item>Enable</item>
+          <item>Disable</item>
+        </items>
+      </property>
+      <property>
+        <name>PTZ Speed</name>
+        <type>RANGED_INTEGER</type>
+        <default>3</default>
+      <minimum>1</minimum>
+      <maximum>8</maximum>
+        <readonly>false</readonly>
+    </property>
+    <property>
+        <name>Zoom Speed</name>
+        <type>RANGED_INTEGER</type>
+        <default>1</default>
+      <minimum>1</minimum>
+      <maximum>3</maximum>
+        <readonly>false</readonly>
+    </property>
+    <property>
+      <name>DEBUG MODE</name>
+      <type>LIST</type>
+      <items>
+        <item>OFF</item>
+        <item>ON</item>
+      </items>
+      <default>OFF</default>
+      <readonly>false</readonly>
+    </property>
+	</properties>
+	<documentation file="www/documentation.rtf"></documentation>
+	<script file="Luma_IP_Camera_x20.lua" jit="1" encryption="2"/>
+  <actions>
+    <action>
+          <name>Add and Connect Events</name>
+          <command>AddContacts</command>
+          <params>
+              <param>
+                  <name>Event</name>
+                  <type>CUSTOM_SELECT:GetEventsForAction</type>
+                  <search/>
+              </param>
+          </params>
+    </action>
+    <action>
+      <name>Reboot Camera</name>
+      <command>Reboot</command>
+    </action>
+    <action>
+      <name>One Click Focus</name>
+      <command>OneClickFocus</command>
+    </action>
+  </actions>
+    <commands>
+      <command>
+        <name>Reboot</name>
+        <description>Reboot NAME</description>
+      </command>
+      <command>
+        <name>Privacy Mask</name>
+        <description>Change privacy mask to PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Enable</item>
+              <item>Disable</item>
+            </items>
+          </param>
+        </params>
+      </command>
+       <command>
+        <name>One Click Focus</name>
+        <description>Execute One Click Focus on NAME</description>
+      </command>
+      <command>
+        <name>Focus Plus</name>
+        <description>Execute Focus + on NAME</description>
+      </command>
+      <command>
+        <name>Focus Minus</name>
+        <description>Execute Focus - on NAME</description>
+      </command>
+      <command>
+        <name>White Light</name>
+        <description>Set White Light to PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Auto</item>
+              <item>Manual</item>
+              <item>Off</item>
+            </items>
+          </param>
+          <param>
+            <name>Brightness</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>100</maximum>
+            <default>50</default>
+          </param>
+        </params>
+      </command>
+      <!-- <command>
+        <name>Audio</name>
+        <description>Set Audio to PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Enable</item>
+              <item>Disable</item>
+            </items>
+          </param>
+        </params>
+      </command> -->
+      <command>
+        <name>Pan Left</name>
+        <description>Execute Pan Left on NAME</description>
+      </command>
+      <command>
+        <name>Pan Right</name>
+        <description>Execute Pan Right on NAME</description>
+      </command>
+      <command>
+        <name>Pan Scan</name>
+        <description>Execute Pan Scan on NAME</description>
+      </command>
+      <command>
+        <name>Tilt Up</name>
+        <description>Execute Tilt Up on NAME</description>
+      </command>
+      <command>
+        <name>Tilt Down</name>
+        <description>Execute Tilt Down on NAME</description>
+      </command>
+      <command>
+        <name>Tilt Scan</name>
+        <description>Execute Tilt Scan on NAME</description>
+      </command>
+      <command>
+        <name>Zoom In</name>
+        <description>Execute Zoom In on NAME</description>
+      </command>
+      <command>
+        <name>Zoom Out</name>
+        <description>Execute Zoom Out on NAME</description>
+      </command>
+      <command>
+        <name>Preset</name>
+        <description>Execute Preset PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Name</name>
+            <type>DYNAMIC_LIST</type>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Home</name>
+        <description>Execute Home on NAME</description>
+      </command>
+      <command>
+        <name>Set Microphone Volume Level</name>
+        <description>Set the Microphone In Volume Level to PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Level</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>0</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Manual Active Deterrence Audio Alarm Execution</name>
+        <description>Manually execute a one time audio alarm message PARAM1 PARAM2 time(s) at a volume level of PARAM3 on NAME</description>
+        <params>
+          <param>
+            <name>Audio Message</name>
+            <type>DYNAMIC_LIST</type>
+          </param>
+          <param>
+            <name>Repeat Count</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>5</maximum>
+          </param>
+          <param>
+            <name>Volume Level</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Manual Active Deterrence Light Alarm Execution</name>
+        <description>Manually set light alarm to PARAM2 for PARAM1 seconds on NAME</description>
+        <params>
+          <param>
+            <name>Duration</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>300</maximum>
+          </param>
+          <param>
+            <name>Day Light Mode</name>
+            <type>LIST</type>
+            <items>
+              <item>On</item>
+              <item>Flashing</item>
+            </items>
+          </param>
+          <param>
+            <name>Flashing Frequency</name>
+            <type>LIST</type>
+            <items>
+              <item>Low</item>
+              <item>Medium</item>
+              <item>High</item>
+            </items>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Turn On Or Off Audio Alarm</name>
+        <description>PARAM2 trigger audio alarm for PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Event Type</name>
+            <type>LIST</type>
+            <items>
+              <item>Line Crossing</item>
+              <item>Region Intrusion</item>
+            </items>
+          </param>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Enable</item>
+              <item>Disable</item>
+            </items>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Turn On Or Off Light Alarm</name>
+        <description>PARAM2 trigger light alarm for PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Event Type</name>
+            <type>LIST</type>
+            <items>
+              <item>Line Crossing</item>
+              <item>Region Intrusion</item>
+            </items>
+          </param>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Enable</item>
+              <item>Disable</item>
+            </items>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>Turn On Or Off Light And Audio Alarm</name>
+        <description>PARAM2 trigger for light and auido alarm for PARAM1 on NAME</description>
+        <params>
+          <param>
+            <name>Event Type</name>
+            <type>LIST</type>
+            <items>
+              <item>Line Crossing</item>
+              <item>Region Intrusion</item>
+            </items>
+          </param>
+          <param>
+            <name>State</name>
+            <type>LIST</type>
+            <items>
+              <item>Enable</item>
+              <item>Disable</item>
+            </items>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>PTZ Trace Control</name>
+        <description>PARAM1 PTZ Trace for Id PARAM2 on NAME</description>
+        <params>
+          <param>
+            <name>Action</name>
+            <type>LIST</type>
+            <items>
+              <item>Start</item>
+              <item>Stop</item>
+            </items>
+          </param>
+          <param>
+            <name>Id</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>100</maximum>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>PTZ Group Control</name>
+        <description>PARAM1 PTZ Group on NAME</description>
+        <params>
+          <param>
+            <name>Action</name>
+            <type>LIST</type>
+            <items>
+              <item>Run</item>
+              <item>Stop</item>
+            </items>
+          </param>
+        </params>
+      </command>
+      <command>
+        <name>PTZ Patrol Control</name>
+        <description>PARAM1 PTZ Patrol for Id PARAM2 on NAME</description>
+        <params>
+          <param>
+            <name>Action</name>
+            <type>LIST</type>
+            <items>
+              <item>Run</item>
+              <item>Stop</item>
+            </items>
+          </param>
+          <param>
+            <name>Id</name>
+            <type>RANGED_INTEGER</type>
+            <minimum>1</minimum>
+            <maximum>4</maximum>
+          </param>
+        </params>
+      </command>
+    </commands>
+	</config>
+	<connections>
+		<connection>
+            <id>1</id>
+            <facing>6</facing>
+            <connectionname>Motion Detection</connectionname>
+            <type>1</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>False</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+              <class>
+                <classname>CONTACT_SENSOR</classname>
+              </class>
+            </classes>
+      </connection>
+        <connection>
+          <id>2</id>
+          <facing>6</facing>
+          <connectionname>Region Intrusion</connectionname>
+          <type>1</type>
+          <consumer>False</consumer>
+          <audiosource>False</audiosource>
+          <videosource>False</videosource>
+          <linelevel>False</linelevel>
+          <classes>
+            <class>
+              <classname>CONTACT_SENSOR</classname>
+            </class>
+          </classes>
+        </connection>
+        <connection>
+          <id>3</id>
+          <facing>6</facing>
+          <connectionname>Line Crossing</connectionname>
+          <type>1</type>
+          <consumer>False</consumer>
+          <audiosource>False</audiosource>
+          <videosource>False</videosource>
+          <linelevel>False</linelevel>
+          <classes>
+            <class>
+              <classname>CONTACT_SENSOR</classname>
+            </class>
+          </classes>
+        </connection>
+		<connection>
+            <id>5001</id>
+            <facing>6</facing>
+            <connectionname>Camera</connectionname>
+            <type>2</type>
+            <consumer>False</consumer>
+            <audiosource>False</audiosource>
+            <videosource>False</videosource>
+            <linelevel>False</linelevel>
+            <classes>
+                <class>
+                    <classname>CAMERA</classname>
+                </class>
+            </classes>
+            <hidden>True</hidden>
+		</connection>
+		<connection>
+          <id>6001</id>
+          <facing>6</facing>
+          <connectionname>Network Connection</connectionname>
+          <type>4</type>
+          <consumer>True</consumer>
+          <audiosource>False</audiosource>
+          <videosource>False</videosource>
+          <linelevel>True</linelevel>
+          <classes>
+            <class>
+              <classname>TCP</classname>
+              <ports>
+                <port>
+                  <number>80</number>
+                  <auto_connect>False</auto_connect>
+                  <monitor_connection>False</monitor_connection>
+                  <keep_connection>False</keep_connection>
+                  <keep_alive>False</keep_alive>
+                </port>
+              </ports>
+            </class>
+          </classes>
+        </connection>
+	</connections>
+</devicedata>
