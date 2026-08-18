@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>10</version>
+    <version>11</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>08/11/2026 12:00 AM</modified>
+    <modified>08/18/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -424,14 +424,14 @@
                 <name>Show device information</name>
                 <command>GET_DEVICE_INFO</command>
             </action>
-            <action>
+            <!-- <action>
                 <name>Test Doorbell Event</name>
                 <command>TEST_DOORBELL</command>
-            </action>
-            <action>
+            </action> -->
+            <!-- <action>
                 <name>Test Push Notification</name>
                 <command>TEST_PUSH_NOTIFICATION</command>
-            </action>
+            </action> -->
         </actions>
         <commands>
             <command>
@@ -486,18 +486,18 @@
                 <name>SET_DEVICE_NAME</name>
                 <description>Change device name</description>
             </command>
-            <command>
+            <!-- <command>
                 <name>TEST_DOORBELL</name>
                 <description>Test Doorbell Event</description>
-            </command>
+            </command> -->
             <command>
                 <name>REBOOT_DEVICE</name>
                 <description>Restart the device</description>
             </command>
-            <command>
+            <!-- <command>
                 <name>TEST_PUSH_NOTIFICATION</name>
                 <description>Test Push Notification</description>
-            </command>
+            </command> -->
         </commands>
     </config>
     <connections>

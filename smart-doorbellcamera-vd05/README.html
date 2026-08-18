@@ -155,84 +155,104 @@
     streaming, RTSP video streaming, doorbell functionality, and two-way audio support.</p>
   <ul>
     <li><strong>Model:</strong> VD05</li>
-    <li><strong>Version:</strong> 9</li>
+    <li><strong>Version:</strong> 11</li>
     <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
     <li><strong>Device Type:</strong> Video Doorbell with Camera</li>
-    <li><strong>Last Updated:</strong> July 2, 2026</li>
+    <li><strong>Last Updated:</strong> August 18, 2026</li>
   </ul>
 
   <hr>
 
   <h2>Features</h2>
 
+  <h3>Automatic Camera Discovery</h3>
+  <ul>
+    <li>Auto-populate IP Address and VID</li>
+  </ul>
+
+  <h3>Streaming Support</h3>
+  <ul>
+    <li>H.264 (AVC)</li>
+    <li>H.265 (HEVC)</li>
+  </ul>
+
+  <h3>PTZ Support</h3>
+  <ul>
+    <li>No PTZ capabilities (fixed camera)</li>
+  </ul>
+
   <h3>Doorbell Functionality</h3>
   <ul>
     <li>Doorbell ring detection and notifications</li>
-    <li>Two-way audio communication (intercom)</li>
+    <li>Anti-pry alarm detection</li>
     <li>Visitor notification with snapshot attachment</li>
-    <li>Integration with Control4 doorbell events</li>
-    <li>Chime trigger support</li>
   </ul>
 
-  <h3>Video Streaming</h3>
+  <h3>Battery Management</h3>
   <ul>
-    <li>RTSP streaming support (H.264/H.265)</li>
-    <li>Main stream (high quality) and sub stream (low quality)</li>
-    <li>Dynamic RTSP URL generation with token authentication</li>
-    <li>Format: <code>rtsp://IP:8554/streamtype=0</code> (sub) / <code>streamtype=1</code> (main)</li>
-    <li>Snapshot capture via HTTP API</li>
+    <li>Battery level monitoring (0-100%)</li>
+    <li>Low battery alerts</li>
   </ul>
 
-  <h3>Dynamic IP Auto-Update (Online Event Handling)</h3>
-  <p>The driver includes intelligent handling of camera connectivity to ensure the correct IP address is always used.
-  </p>
-  <p>Whenever the camera comes online, the driver automatically:</p>
+  <h3>Two-Way Audio</h3>
   <ul>
-    <li>Detects the <strong>Camera Online</strong> event</li>
-    <li>Calls the <strong>Get Devices API</strong></li>
-    <li>Matches the device using <strong>VID (Virtual ID)</strong></li>
-    <li>Retrieves the latest <strong>local IP address</strong></li>
-    <li>Updates the <strong>IP Address</strong> property in the driver</li>
-    <li>Pushes the updated address to the <strong>Control4 Camera Proxy</strong></li>
+    <li>Microphone control (Mute/Unmute)</li>
+    <li>Speaker volume control (1-10)</li>
   </ul>
 
-  <h3>Real-Time Event Detection</h3>
-  <p>The driver supports <strong>MQTT-based real-time event streaming over SSL (port 8884)</strong> and provides
-    notifications for the following events:</p>
+  <h3>Motion Detection</h3>
   <ul>
-    <li>Doorbell ring notifications with snapshot</li>
-    <li>Motion detection with snapshot attachment</li>
+    <li>Adjustable sensitivity (1-10)</li>
+    <li>Motion event notifications</li>
     <li>Human detection</li>
     <li>Stranger detection</li>
-    <li>Camera online/offline status monitoring</li>
+    <li>Registered user detection</li>
   </ul>
 
-  <h3>Security &amp; Authentication</h3>
+  <hr>
+
+  <h2>Available Actions</h2>
   <ul>
-    <li>CldBus API integration with RSA-OAEP + SHA256 encryption</li>
-    <li>HMAC-SHA256 signatures for API requests</li>
-    <li>Secure token management (temp token, exchange token, auth token)</li>
-    <li>MQTT over SSL/TLS (port 8884)</li>
-    <li>OAuth-style authentication flow</li>
-    <li>Pre-encrypted post data support for API calls</li>
+    <li><strong>Take Snapshot</strong> — Capture a still image from the camera</li>
+    <li><strong>Initialize Camera</strong> — Initialize camera connection and authentication</li>
+    <li><strong>Wake Camera</strong> — Wake the camera from sleep mode</li>
+    <li><strong>Mute Mic</strong> — Mute the camera microphone</li>
+    <li><strong>Unmute Mic</strong> — Unmute the camera microphone</li>
+    <li><strong>Turn up speaker volume</strong> — Increase speaker volume by 1 level</li>
+    <li><strong>Turn down speaker volume</strong> — Decrease speaker volume by 1 level</li>
+    <li><strong>Sensitivity =</strong> — Set motion detection sensitivity (1-10)</li>
+    <li><strong>Show device information</strong> — Display device information</li>
   </ul>
 
-  <h3>Network Discovery</h3>
+  <hr>
+
+  <h2>Control4 Programming Events and Conditionals</h2>
+
+  <h3>Events</h3>
+  <p>The driver triggers the following Control4 events:</p>
   <ul>
-    <li>HTTP scan-based camera discovery (IP range scanning)</li>
-    <li>SDDP (Simple Device Discovery Protocol) multicast discovery</li>
-    <li>Automatic device binding to CldBus API</li>
-    <li>Multi-device support via VID (Virtual ID)</li>
+    <li><strong>Motion Detected</strong> — When camera detects motion</li>
+    <li><strong>Human Detected</strong> — When camera detects a person</li>
+    <li><strong>Stranger Detected</strong> — When camera detects an unknown person</li>
+    <li><strong>Doorbell Ring</strong> — When doorbell button is pressed</li>
+    <li><strong>Low Battery</strong> — When battery level is low</li>
+    <li><strong>Camera Online</strong> — When camera comes online</li>
+    <li><strong>Camera Offline</strong> — When camera goes offline</li>
+    <li><strong>Camera Restarted</strong> — When camera reboots</li>
+    <li><strong>Anti Pry alarm is triggered</strong> — When anti-pry alarm is triggered</li>
+    <li><strong>Registered User Detected</strong> — When camera detects a known registered user</li>
   </ul>
 
-  <h3>Advanced Features</h3>
+  <h3>Conditionals</h3>
+  <p>Use these conditionals in Control4 programming:</p>
   <ul>
-    <li>Multiple connection types (Camera, Network/MQTT, Keep-alive TCP)</li>
-    <li>Configurable event intervals (default: 5 seconds)</li>
-    <li>Alert and info notifications (enable/disable)</li>
-    <li>MQTT auto-connect and reconnection</li>
-    <li>HTTP polling mode (alternative to MQTT)</li>
-    <li>Custom authentication types: BASIC, DIGEST, NONE</li>
+    <li><strong>If sensing motion</strong> — True/False</li>
+    <li><strong>If not sensing motion</strong> — True/False</li>
+    <li><strong>If Mic is muted</strong> — True/False</li>
+    <li><strong>If Mic is unmuted</strong> — True/False</li>
+    <li><strong>If Speaker volume is</strong> — 1 through 10</li>
+    <li><strong>If battery level is</strong> — 0 through 100</li>
+    <li><strong>If Sensitivity is</strong> — 1 through 10</li>
   </ul>
 
   <hr>
@@ -1434,12 +1454,18 @@ Rename-Item "temp.zip" "Slomins-doorbell-VD05.c4z"</code></pre>
 
   <h2>Version History</h2>
 
-  <h3>v10.0 (Current)</h3>
+  <h3>v11 (Current)</h3>
+  <ul>
+    <li>Updated documentation to align with the device features.</li>
+  </ul>
+
+  <h3>v10.0</h3>
   <ul>
     <li>Bug fixes - Online and Offline push notifications</li>    
     <li>Custom Ui for Facial Recognition Configuration</li>
     <li>Added Restart feature</li>
   </ul>
+
   <h3>v9.0</h3>
   <ul>
     <li>Added firmware info.</li>
