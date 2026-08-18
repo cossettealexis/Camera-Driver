@@ -415,6 +415,9 @@ function OnDriverLateInit()
         C4:SendToProxy(5001, "HISTORY_ENABLED", { ENABLED = "True" })
         print("  Sent HISTORY_ENABLED to Camera Proxy")
 
+        C4:SendToProxy(5001, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+
         print("Camera Proxy configuration complete!")
     end
     C4:UpdateConditional("SPEAKER_VOLUME", 4)
@@ -627,7 +630,7 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-    --[[if strCommand == "UNMUTE_MIC" then
+    if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
         SET_MIC_STATE(false)          
         return
@@ -637,9 +640,9 @@ function ExecuteCommand(strCommand, tParams)
         print("[COMMAND] Mute Mic requested")
         SET_MIC_STATE(true)          
         return
-    end--]]
+    end
 
-    if strCommand == "UNMUTE_MIC" then
+    --[[if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
         UpdateConditional("MIC_MUTED", false)
         UpdateConditional("MIC_UNMUTED", true)
@@ -650,7 +653,7 @@ function ExecuteCommand(strCommand, tParams)
         UpdateConditional("MIC_MUTED", true)
         UpdateConditional("MIC_UNMUTED", false)
         return
-    end
+    end--]]
     if strCommand == "SPEAKER_VOLUME_UP" then
         print("[COMMAND] Speaker Volume Up requested")
         GET_DEVICE_PROPERTY("beep_vol", function(current_val)
@@ -698,12 +701,28 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+     if strCommand == "REBOOT_DEVICE" then
+        print("[COMMAND] Rebooting requested")
+        REBOOT_DEVICE(tParams)
+        return
+    end
+
     if strCommand == "REQUEST_INITIAL_STATE" then
         REQUEST_INITIAL_STATE()
         return
     end
     if strCommand == "GET_DEVICE_INFO" then
         GET_DEVICE_INFO()
+        return
+    end
+
+    if strCommand == "SET_DEVICE_NAME" then
+        SET_DEVICE_NAME(tParams)        -- ← This calls your function
+        return
+    end
+
+    if strCommand == "GET_CAMERA_SNAPSHOT" or strCommand == "TAKE_SNAPSHOT" then
+        GET_CAMERA_SNAPSHOT(idBinding or 5001, tParams)
         return
     end
 
@@ -4016,4 +4035,230 @@ function SendDeviceInfoToUI(data)
     end)
 
     print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
+end
+
+-- =====================================================
+-- CHANGE DEVICE NAME
+-- =====================================================
+
+function SET_DEVICE_NAME(tParams)
+    print("================================================================")
+    print("              SET_DEVICE_NAME CALLED                             ")
+    print("================================================================")
+
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local appId = GlobalObject.CldBusAppId or Properties["AppId"]
+
+    -- Parse params (from UI)
+    local new_name = nil
+    if type(tParams) == "table" then
+        new_name = tParams.name or tParams.device_name
+    elseif type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            new_name = data.name or data.device_name
+        end
+    end
+
+    if not new_name or new_name == "" then
+        print("[NAME] ❌ No device name provided")
+        C4:UpdateProperty("Status", "Error: No name provided")
+        return false
+    end
+
+    if not vid or vid == "" then
+        print("[NAME] ❌ Missing VID")
+        C4:UpdateProperty("Status", "Error: No VID")
+        return false
+    end
+
+    if not auth_token or auth_token == "" then
+        print("[NAME] ❌ Missing Auth Token")
+        C4:UpdateProperty("Status", "Error: Not authenticated")
+        return false
+    end
+
+    print("[NAME] Changing device name to:", new_name)
+
+    local url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/change-name"
+
+    local body = {
+        vid = vid,
+        device_name = new_name
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId or ""
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("[NAME] Response Code:", code)
+
+        if resp then
+            print("[NAME] Response Body:", resp)
+        end
+
+        if code == 200 or code == 20000 then
+            print("[NAME] ✅ Device name changed successfully")
+
+            -- Update local properties
+            _props["Device Name"] = new_name
+            C4:UpdateProperty("Device Name", new_name)
+            C4:UpdateProperty("Status", "Device name updated to: " .. new_name)
+
+            print("[NAME] Sending success to UI")
+
+            -- Notify UI
+           local payload = json.encode({
+            type = "device_name_updated",
+            device_name_updated = true,
+            device_name = new_name,
+            timestamp = os.time()
+            })
+
+            print("[NAME] Pushing to UI:", payload)
+
+            C4:SendDataToUI(payload)
+
+        else
+            print("[NAME] ❌ Failed to change name. Code:", code)
+            C4:UpdateProperty("Status", "Failed to update device name")
+            
+            C4:SendDataToUI(json.encode({
+                error = "Failed to update name",
+                code = code
+            }))
+        end
+    end)
+
+    print("================================================================")
+    return true
+end
+
+
+--enabling device pairing mode
+-- This does not solve the very first Composer discovery
+function ENABLE_SDDP_PAIRING()
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid = _props["VID"] or Properties["VID"]
+
+    if not auth_token or auth_token == "" then
+        print("[SDDP] ERROR: No auth token available")
+        return
+    end
+
+    if not vid or vid == "" then
+        print("[SDDP] ERROR: No VID available")
+        return
+    end
+
+    local base_url = GlobalObject.LnduBaseUrl
+    local url = base_url .. "/api/v3/openapi/device/do-property"
+
+    local appId, appSecret = GetCldBusCredentials()
+
+    if appId == "" or appSecret == "" then
+        print("[SDDP] ERROR: No CldBus credentials available")
+        return
+    end
+
+    local body = {
+        vid = vid,
+        sddp_swt = 1
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    print("[SDDP] Enabling device pairing mode")
+    print("[SDDP] VID: " .. tostring(vid))
+    print("[SDDP] Request: " .. json.encode(body))
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("[SDDP] Response code: " .. tostring(code))
+        print("[SDDP] Response: " .. tostring(resp))
+
+        if err then
+            print("[SDDP] Error: " .. tostring(err))
+        end
+
+        if code == 200 or code == 20000 then
+            print("[SDDP] Device pairing mode enabled")
+            C4:UpdateProperty("Status", "SDDP pairing mode enabled")
+        else
+            print("[SDDP] Failed to enable device pairing mode")
+        end
+    end)
+end
+
+function REBOOT_DEVICE(tParams)
+    print("[REBOOT] Reboot requested from UI")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" or not token or token == "" then
+        print("[REBOOT] ERROR: Missing VID or Token")
+        return false
+    end
+
+    local timestamp = os.time()
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_restart",
+        input_params = json.encode({ t = timestamp })
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[REBOOT] Sending →", json.encode(body))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp)
+        print("[REBOOT] Cloud response code:", code)
+        print("[REBOOT] Response:", resp)
+
+        if code == 200 or code == 20000 then
+            C4:UpdateProperty("Status", "Reboot command sent")
+            print("[REBOOT] SUCCESS – device will restart shortly")
+        else
+            print("[REBOOT] ERROR: Cloud command failed")
+            C4:UpdateProperty("Status", "Reboot failed")
+        end
+    end)
+
+    return true
 end

@@ -5,13 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>VD05 Settings</title>
-    <!-- External resources removed - Control4 blocks CDN access -->
-    <style>
-        /* Import Inter font fallback to system fonts */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         /* =========================
    THEME
@@ -39,28 +34,21 @@
         html,
         body {
             width: 100%;
-            min-height: 100%;
+            height: 100%;
             background: var(--bg);
             color: var(--text);
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
-        /* =========================
-   APP WRAPPER
-========================= */
         .app {
             width: 100%;
-            min-height: 100vh;
+            height: 100%;
         }
 
-        /* =========================
-   PANELS
-========================= */
         .panel {
             display: none;
             width: 100%;
-            min-height: calc(100vh - 60px);
+            height: 100%;
             flex-direction: column;
         }
 
@@ -68,9 +56,6 @@
             display: flex;
         }
 
-        /* =========================
-   HEADER
-========================= */
         .header {
             padding: 20px;
             border-bottom: 1px solid var(--border);
@@ -87,9 +72,6 @@
             margin-top: 4px;
         }
 
-        /* =========================
-   SETTINGS LIST
-========================= */
         .list {
             padding: 10px;
         }
@@ -98,14 +80,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 14px;
-
             padding: 14px 16px;
             margin-bottom: 10px;
-
             cursor: pointer;
             transition: .2s;
         }
@@ -142,14 +121,10 @@
             color: var(--muted);
         }
 
-        /* =========================
-   TOP BAR (BACK)
-========================= */
         .topbar {
             display: flex;
             align-items: center;
             gap: 10px;
-
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
         }
@@ -167,18 +142,16 @@
             cursor: pointer;
         }
 
-        /* =========================
-   FEATURE SCREEN
-========================= */
         .content {
             flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             padding: 20px;
             text-align: center;
             gap: 18px;
+            overflow-y: auto;
         }
 
         .bigIcon {
@@ -198,9 +171,6 @@
             max-width: 260px;
         }
 
-        /* =========================
-   BUTTON
-========================= */
         .btn {
             background: var(--accent);
             border: none;
@@ -209,11 +179,21 @@
             border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
+            transition: .15s;
         }
 
-        /* =========================
-   TOGGLE
-========================= */
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn.small {
+            padding: 9px 16px;
+            font-size: 13px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
         .toggle {
             position: relative;
             width: 70px;
@@ -258,16 +238,17 @@
         }
 
         .footer {
-            padding: 20px 16px;
+            padding: 12px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: auto;
+            margin-top: -80px !important;
         }
 
-        .version-info {
+       
+         .version-info {
             display: inline-block;
             text-align: left;
             line-height: 1.5;
@@ -277,13 +258,216 @@
             display: block;
             margin: 4px 0;
         }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content .bigIcon {
+            width: 50px;
+            height: 50px;
+        }
+
+        /* =========================
+           FACIAL RECOGNITION STYLES
+        ========================= */
+        .settings-section {
+            width: 100%;
+            max-width: 340px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 4px;
+        }
+
+        .settings-section.visible {
+            display: flex;
+        }
+
+        .setting-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            text-align: left;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        /* Range slider */
+        .range-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .range-wrap input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #333;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        .range-wrap input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .range-value {
+            min-width: 42px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            text-align: right;
+        }
+
+        /* Quality segmented control */
+        .segmented {
+            display: flex;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+            margin-bottom: 4px;
+        }
+
+        .segmented button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: .15s;
+        }
+
+        .segmented button.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Face list */
+        .face-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            margin-bottom: 4px;
+        }
+
+        .face-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .face-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            background: var(--surface2);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .face-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .face-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .face-name-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            padding: 4px 0;
+            transition: border-color .15s;
+        }
+
+        .face-name-input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        .face-meta {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .empty-faces {
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            padding: 24px 0;
+        }
     </style>
 </head>
 
 <body>
-
     <div class="app">
-
         <!-- HOME -->
         <section id="homePanel" class="panel active">
             <div class="header">
@@ -291,6 +475,7 @@
                 <p>VD05 Camera Controls</p>
             </div>
             <div class="list">
+
                 <div class="item" onclick="show('rebootPanel')">
                     <div class="left">
                         <i data-lucide="rotate-cw" class="icon"></i>
@@ -301,7 +486,6 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-
                 <div class="item" onclick="show('antiPryPanel')">
                     <div class="left">
                         <i data-lucide="shield-alert" class="icon"></i>
@@ -312,7 +496,6 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-
                 <div class="item" onclick="show('micPanel')">
                     <div class="left">
                         <i data-lucide="mic" class="icon"></i>
@@ -333,27 +516,32 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
+                <!-- Facial Recognition -->
+                <div class="item" onclick="show('facialRecPanel')">
+                    <div class="left">
+                        <i data-lucide="scan-face" class="icon"></i>
+                        <div>
+                            <div class="title">Facial Recognition</div>
+                            <div class="subtitle">Face detection & management</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
             </div>
-
         </section>
 
         <!-- REBOOT -->
         <section id="rebootPanel" class="panel">
-
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
                 <i data-lucide="rotate-cw" class="bigIcon"></i>
-
                 <div class="h2">Reboot Device</div>
                 <div class="desc">This will restart the camera system.</div>
-
-                <button class="btn" onclick="reboot()">
+                <button class="btn" id="rebootBtn">
                     Reboot
                 </button>
             </div>
@@ -368,121 +556,347 @@
             </div>
             <div class="content">
                 <i data-lucide="shield-alert" class="bigIcon"></i>
-
                 <div class="h2">Anti-Pry</div>
                 <div class="desc">Enable or disable tamper protection.</div>
-
                 <label class="toggle">
                     <input type="checkbox" id="antiPry">
                     <span class="slider"></span>
                 </label>
-
                 <div class="status" id="antiPryStatus">Disabled</div>
-
             </div>
-
         </section>
 
         <!-- MIC -->
         <section id="micPanel" class="panel">
-
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
                 <i data-lucide="mic" class="bigIcon"></i>
-
                 <div class="h2">Microphone</div>
                 <div class="desc">Enable or disable audio capture.</div>
-
                 <label class="toggle">
                     <input type="checkbox" id="mic">
                     <span class="slider"></span>
                 </label>
-
                 <div class="status" id="micStatus">Enabled</div>
-
             </div>
         </section>
+
         <!-- DEVICE NAME -->
         <section id="deviceNamePanel" class="panel">
-
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
                 <i data-lucide="edit-3" class="bigIcon"></i>
-
                 <div class="h2">Device Name</div>
                 <div class="desc">Set a custom name for this device</div>
-
                 <div style="width: 100%; max-width: 280px; margin: 20px 0;">
                     <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
                         style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
                 </div>
-                <button class="btn" onclick="updateDeviceName()">
-                    Update Name
+                <button class="btn" id="updateNameBtn">Update Name</button>
+            </div>
+        </section>
+
+        <!-- =========================
+             FACIAL RECOGNITION PANEL
+        ========================= -->
+        <section id="facialRecPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
                 </button>
-                <div id="deviceNameStatus" class="status" style="margin-top: 12px; min-height: 20px;"></div>
+            </div>
+            <div class="content">
+                <i data-lucide="scan-face" class="bigIcon"></i>
+                <div class="h2">Facial Recognition</div>
+                <div class="desc">Enable face detection, manage enrolled faces and tune thresholds.</div>
+
+                <!-- Master Enable -->
+                <label class="toggle">
+                    <input type="checkbox" id="faceRecEnable">
+                    <span class="slider"></span>
+                </label>
+                <div class="status" id="faceRecStatus">Disabled</div>
+
+                <!-- Settings that appear only when enabled -->
+                <div class="settings-section" id="faceSettings">
+
+                    <!-- Similarity Threshold -->
+                    <div class="setting-card">
+                        <div class="setting-label">Face Similarity Threshold</div>
+                        <div class="setting-desc">Minimum match confidence required to identify a face</div>
+                        <div class="range-wrap">
+                            <input type="range" id="similarityThreshold" min="0" max="100" value="75">
+                            <span class="range-value" id="similarityValue">75%</span>
+                        </div>
+                        <button class="btn small" id="saveSimilarityBtn">Save Threshold</button>
+                    </div>
+
+                    <!-- Quality Threshold -->
+                    <div class="setting-card">
+                        <div class="setting-label">Face Image Quality Threshold</div>
+                        <div class="setting-desc">Minimum quality required for a face to be accepted</div>
+                        <div class="segmented" id="qualitySegmented">
+                            <button data-value="low">Low</button>
+                            <button data-value="medium" class="active">Medium</button>
+                            <button data-value="high">High</button>
+                        </div>
+                        <button class="btn small" id="saveQualityBtn">Save Quality</button>
+                    </div>
+
+                    <!-- Face Management -->
+                    <div class="setting-card">
+                        <div class="setting-label">Face Management</div>
+                        <div class="setting-desc">Edit names of detected faces. Changes are sent to the API when you save.</div>
+
+                        <div class="face-list" id="faceList">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <button class="btn small" id="saveFacesBtn" disabled>
+                            Save Name Changes
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
     </div>
-    <footer class="footer">
-    <div class="version-info">
-        <span id="deviceVersion">Device: Loading...</span><br>
-        <span id="firmwareVersion">Firmware: Loading...</span><br>
-        <span id="releaseDate">Release: Loading...</span>
+
+    <!-- SUCCESS MODAL -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <i data-lucide="check-circle" class="bigIcon" style="color: #4ade80;"></i>
+            <br>
+            <div class="h2" id="modalTitle">Success</div>
+            <div class="desc" id="modalMessage">Saved successfully!</div>
+            <br>
+            <button class="btn" onclick="closeModal()">OK</button>
+        </div>
     </div>
+
+    <footer class="footer">
+        <div class="version-info">
+            <span id="deviceVersion">Device: Loading...</span><br>
+            <span id="firmwareVersion">Firmware: Loading...</span><br>
+            <span id="releaseDate">Release: Loading...</span>
+        </div>
     </footer>
-     <!-- Lucide CDN removed - Control4 blocks external resources -->
+
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
-        // Wait for everything to be ready
-        function initializeUI() {
-            console.log("VD05 UI Initializing...");
-            // Lucide icons removed - not available offline
-        }
+        lucide.createIcons();
 
-        // Run initialization
-        window.addEventListener('load', initializeUI);
-
-    </script>
-
-    <!-- Your main logic - MUST BE LOADED FOR C4 INTEGRATION -->
-    <script src="javascript/index.js" type="text/javascript"></script>
-
-    <script>
-        // Debug: force refresh when Anti-Pry panel is shown
+        /* =========================
+           NAVIGATION
+        ========================= */
         function show(id) {
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-            const panel = document.getElementById(id);
-            if (panel) panel.classList.add('active');
+            document.querySelectorAll('.panel')
+                .forEach(p => p.classList.remove('active'));
+
+            document.getElementById(id)
+                .classList.add('active');
 
             lucide.createIcons();
+        }
 
-        
-            // Extra force for Anti-Pry panel
-            if (id === 'antiPryPanel') {
-                setTimeout(() => {
-                    if (typeof PushAntiPryStateToUI === 'function') {
-                        // This is not real - just a hint for driver if needed
-                        console.log("Anti-Pry panel opened - requesting fresh state");
-                    }
-                }, 200);
+        /* =========================
+           CONTROL4 ACTIONS
+        ========================= */
+        function reboot() {
+            console.log("REBOOT_DEVICE");
+        }
+
+        /* =========================
+           TOGGLES + FACIAL RECOGNITION
+        ========================= */
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // ---- Existing toggles ----
+            document.getElementById('antiPry').addEventListener('change', function () {
+                document.getElementById('antiPryStatus').innerText =
+                    this.checked ? "Enabled" : "Disabled";
+                console.log(this.checked ? "ANTI_PRY_ON" : "ANTI_PRY_OFF");
+            });
+
+            document.getElementById('mic').addEventListener('change', function () {
+                document.getElementById('micStatus').innerText =
+                    this.checked ? "Enabled" : "Disabled";
+                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
+            });
+
+            // ---- Facial Recognition Enable ----
+            const faceEnable = document.getElementById('faceRecEnable');
+            const faceStatus = document.getElementById('faceRecStatus');
+            const faceSettings = document.getElementById('faceSettings');
+
+            faceEnable.addEventListener('change', function () {
+                const enabled = this.checked;
+                faceStatus.innerText = enabled ? "Enabled" : "Disabled";
+                faceSettings.classList.toggle('visible', enabled);
+
+                console.log(enabled ? "FACE_REC_ON" : "FACE_REC_OFF");
+                console.log(enabled ? "FACE_API_MQTT_LOGS_ON" : "FACE_API_MQTT_LOGS_OFF");
+
+                if (enabled) {
+                    loadFaces();
+                }
+            });
+
+            // ---- Similarity Threshold ----
+            const similaritySlider = document.getElementById('similarityThreshold');
+            const similarityValue = document.getElementById('similarityValue');
+            const saveSimilarityBtn = document.getElementById('saveSimilarityBtn');
+
+            let currentSimilarity = 75;
+
+            similaritySlider.addEventListener('input', function () {
+                similarityValue.innerText = this.value + '%';
+            });
+
+            saveSimilarityBtn.addEventListener('click', function () {
+                currentSimilarity = parseInt(similaritySlider.value);
+                console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
+                // C4JH.SendToProxy("SET_FACE_SIMILARITY", { value: currentSimilarity });
+                showModal(`Similarity threshold set to ${currentSimilarity}%`, "Threshold Saved");
+            });
+
+            // ---- Quality Threshold ----
+            const qualityButtons = document.querySelectorAll('#qualitySegmented button');
+            const saveQualityBtn = document.getElementById('saveQualityBtn');
+            let currentQuality = 'medium';
+
+            qualityButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    qualityButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentQuality = this.dataset.value;
+                });
+            });
+
+            saveQualityBtn.addEventListener('click', function () {
+                console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
+                // C4JH.SendToProxy("SET_FACE_QUALITY", { value: currentQuality });
+                showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");
+            });
+
+            // ---- Face Management ----
+            // Mock data – replace with real API response later
+            // Expected shape from API: { id, name, imageUrl }  or  { id, name, imageBase64 }
+            let faces = [
+                {
+                    id: "f1",
+                    name: "John Doe",
+                    imageUrl: "https://i.pravatar.cc/150?img=12"
+                },
+                {
+                    id: "f2",
+                    name: "Jane Smith",
+                    imageUrl: "https://i.pravatar.cc/150?img=5"
+                },
+                {
+                    id: "f3",
+                    name: "Unknown Person",
+                    imageUrl: "https://i.pravatar.cc/150?img=33"
+                }
+            ];
+
+            let facesDirty = false;
+            const faceListEl = document.getElementById('faceList');
+            const saveFacesBtn = document.getElementById('saveFacesBtn');
+
+            function renderFaces() {
+                faceListEl.innerHTML = '';
+
+                if (faces.length === 0) {
+                    faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
+                    saveFacesBtn.disabled = true;
+                    return;
+                }
+
+                faces.forEach((face, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'face-item';
+
+                    // Support both imageUrl and imageBase64
+                    const imgSrc = face.imageUrl || (face.imageBase64 ? `data:image/jpeg;base64,${face.imageBase64}` : '');
+
+                    item.innerHTML = `
+                        <div class="face-avatar">
+                            ${imgSrc
+                            ? `<img src="${imgSrc}" alt="${face.name}" onerror="this.style.display='none'">`
+                            : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
+                        }
+                        </div>
+                        <div class="face-info">
+                            <input type="text" class="face-name-input" value="${face.name}" data-index="${index}" maxlength="40" placeholder="Enter name">
+                            <div class="face-meta">ID: ${face.id}</div>
+                        </div>
+                    `;
+                    faceListEl.appendChild(item);
+                });
+
+                lucide.createIcons();
+
+                // Name change listeners
+                faceListEl.querySelectorAll('.face-name-input').forEach(input => {
+                    input.addEventListener('input', function () {
+                        const idx = parseInt(this.dataset.index);
+                        faces[idx].name = this.value.trim();
+                        facesDirty = true;
+                        saveFacesBtn.disabled = false;
+                    });
+                });
             }
+
+            function loadFaces() {
+                // In real app replace with:
+                // fetch('/api/faces').then(r => r.json()).then(data => { faces = data; renderFaces(); })
+                console.log("LOAD_FACES_FROM_API");
+                renderFaces();
+            }
+
+            saveFacesBtn.addEventListener('click', function () {
+                if (!facesDirty) return;
+
+                console.log("SAVE_FACES_TO_API", faces);
+                // C4JH.SendToProxy("UPDATE_FACES", { faces: faces });
+
+                facesDirty = false;
+                this.disabled = true;
+                showModal("Face names updated successfully!", "Faces Saved");
+            });
+
+            // Initial render (still hidden until enabled)
+            renderFaces();
+        });
+
+        // Modal Functions
+        function showModal(message, title = "Success") {
+            const modal = document.getElementById('successModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+
+            if (modalTitle) modalTitle.innerText = title;
+            if (modalMessage) modalMessage.innerText = message;
+
+            if (modal) modal.classList.add('show');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('successModal');
+            if (modal) modal.classList.remove('show');
         }
     </script>
-
-
-
+    <script src="javascript/index.js" type="text/javascript"></script>
 </body>
 
 </html>
