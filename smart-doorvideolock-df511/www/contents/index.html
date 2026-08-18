@@ -7,6 +7,7 @@
     <title>DF511 Door Lock</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
@@ -33,12 +34,12 @@
         }
 
         .smartlockui {
-    min-height: 100vh;
-    background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 100%) !important;
-    /* Remove display:none logic entirely — let it render immediately */
-    visibility: visible;
-    opacity: 1;
-}
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 100%) !important;
+            /* Remove display:none logic entirely — let it render immediately */
+            visibility: visible;
+            opacity: 1;
+        }
 
         /* ── Header ── */
         .header {
@@ -56,9 +57,7 @@
         .status_blk {
             display: flex !important;
             flex-direction: column;
-            /* 🔥 stack vertically */
             align-items: center;
-            /* center horizontally */
             justify-content: center;
             gap: 6px;
             margin-top: 10px;
@@ -169,19 +168,20 @@
             display: flex;
             justify-content: center;
             width: 100%;
+            margin-top: -80px !important;
         }
 
         .smart_lock_btn {
             width: 100%;
-            max-width: 300px;
-            height: 300px;
+            max-width: 280px;
+            height: 280px;
             border-radius: 100%;
-            background: radial-gradient(ellipse at center, #fbe6d2 0%, #f59c78 100%);
+            background: radial-gradient(ellipse at center, #fbe6d2 0%, #eb819d 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            border: 20px solid #F57351;
+            border: 25px solid #d42b57;
             position: relative;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
@@ -223,17 +223,18 @@
 
         .circle-shade {
             position: absolute;
-            width: 300px !important;
+            width: 280px !important;
         }
 
         .circle-shade circle {
             stroke-dasharray: 296 296;
             stroke-dashoffset: 296;
             animation: grow 2s ease-out infinite;
+            stroke-width: 6;
         }
 
         .circle-shade .lock {
-            stroke: #f3532a;
+            stroke: #ad1c42;
         }
 
         .circle-shade .unlock {
@@ -246,6 +247,107 @@
             }
         }
 
+        /* Bottom Menu */
+        .bottom-menu {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 10px 20px;
+            box-shadow: 0 8px 8px rgba(0, 0, 0, 0.25);
+            display: flex;
+            gap: 24px;
+        }
+
+        .menu-item {
+            text-align: center;
+            cursor: pointer;
+        }
+
+        /* Device Name Panel */
+        .panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #e7e7e7 0%, #bec0c3 100%);
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+            z-index: 1000;
+        }
+
+        .panel.active {
+            transform: translateY(0);
+        }
+
+        .topbar {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            background: #1a2228;
+            color: white;
+        }
+
+        .content {
+            padding: 50px 20px;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px 16px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .btn {
+            background: #ad1c42;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px 24px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 8px 8px rgba(0, 0, 0, 0.3);
+        }
+
+         .modal-content svg {
+            margin: auto !important;
+        }
+
+        /* Success Popup - Your Original Style */
         .sucess_popup {
             position: absolute;
             bottom: 15%;
@@ -254,24 +356,13 @@
             z-index: 100;
             background: #fff;
             border-radius: 200px;
-            padding: 8px 20px;
+            padding: 12px 30px;
             color: #1a2228;
-            border: 1px solid #1a2228;
+            border: 2px solid #1a2228;
             display: none;
-            text-align: center;
-        }
-
-        .version-info {
-            text-align: center;
-            padding: 15px;
-            font-size: 14px;
-            color: #1a2228;
-            font-weight: 500;
-            margin-top: 20px;
-        }
-
-        .version-info p {
-            margin: 5px 0;
+            text-align: center !important;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
@@ -292,12 +383,13 @@
                 <span class="battery-percent" id="batteryText"></span>
             </div>
         </div>
-      
-       
+
+
         <!-- ============================================================== -->
         <div class="smart_lock_wrap">
             <div class="smart_lock_inner">
-                <button class="smart_lock_btn" id="lockBtn" style="touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0);">
+                <button class="smart_lock_btn" id="lockBtn"
+                    style="touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0);">
                     <svg class="circle-shade" viewBox="0 0 100 100" style="display: none;">
                         <circle class="lock" cx="50" cy="50" r="47" transform="rotate(-90 50 50)" pointer-events="all"
                             stroke-width="6" fill="none" />
@@ -312,20 +404,82 @@
                 </button>
             </div>
         </div>
-
-        <div class="version-info">
-            <p id="deviceVersion">Device: --</p>
-            <p id="softwareVersion">Version: --</p>
-            <p id="releaseDate">Release: --</p>
-        </div>
-
     </div>
+    <!-- Bottom Menu -->
+    <div class="bottom-menu">
+        <div class="menu-item" onclick="showDeviceNamePanel()">
+            <i data-lucide="edit-3" style="width:28px;height:28px;color:#333;"></i>
+            <div style="font-size:13px;color:#333;margin-top: 12px;">Device Name</div>
+        </div>
+    </div>
+
+    <!-- Device Name Panel -->
+    <div id="deviceNamePanel" class="panel">
+        <div class="topbar">
+            <button onclick="hideDeviceNamePanel()"
+                style="background:none;border:none;color:white;font-size:28px;margin-right:12px;">←</button>
+            <h4>Device Name</h4>
+        </div>
+        <div class="content">
+            <i data-lucide="edit-3" style="width:64px;height:64px;color:#ad1c42;margin-bottom:16px;"></i>
+            <div style="font-size:22px;font-weight:700;margin-bottom:8px;color:#222;">Set Device Name</div>
+            <div style="color:#555;margin-bottom:24px;">Custom name for this lock</div>
+
+            <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32">
+            <button class="btn" id="updateNameBtn">Update Name</button>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <i data-lucide="check-circle" style="width:60px;height:60px;color:#4ade80;"></i>
+            <h2 style="margin:16px 0 8px;color:#222;">Success</h2>
+            <p id="modalMessage" style="color:#555;">Device name updated successfully!</p>
+            <button class="btn" onclick="closeModal()" style="margin-top:20px;">OK</button>
+        </div>
+    </div>
+    <script>
+        lucide.createIcons();
+
+        let isLocked = true;
+
+        document.getElementById('lockBtn').addEventListener('click', () => {
+            isLocked = !isLocked;
+            const icon = document.getElementById('lockIcon');
+            const status = document.getElementById('lockStatus');
+
+            icon.setAttribute('data-lucide', isLocked ? 'lock' : 'unlock');
+            status.textContent = isLocked ? "Locked" : "Unlocked";
+            lucide.createIcons();
+        });
+
+        // Device Name Panel
+        function showDeviceNamePanel() {
+            document.getElementById('deviceNamePanel').classList.add('active');
+        }
+
+        function hideDeviceNamePanel() {
+            document.getElementById('deviceNamePanel').classList.remove('active');
+        }
+
+
+
+        function showModal(message) {
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('successModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('successModal').classList.remove('show');
+        }
+    </script>
 
     <script src="js/jquery-3.7.1.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
-    <script src="javascript/index.js?v=2" type="text/javascript"></script>
+    <script src="javascript/index.js?v=3" type="text/javascript"></script>
 </body>
 
 </html>

@@ -623,11 +623,6 @@ function OnDriverLateInit()
 
     C4:UpdateProperty("Status", "MAC validation started - will auto login after...")
     C4:UpdateProperty("Snapshot URL", snapshot_url)
-    
-    -- Fetch device firmware info after initialization
-    C4:SetTimer(8000, function()
-        GET_DEVICE_INFO()
-    end)
        
 end
 
@@ -1133,17 +1128,15 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-    if strCommand == "UNMUTE_MIC" then
+     if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
-        UpdateConditional("MIC_MUTED", false)
-        UpdateConditional("MIC_UNMUTED", true)
+        SET_MIC_STATE(false)          
         return
     end
 
     if strCommand == "MUTE_MIC" then
         print("[COMMAND] Mute Mic requested")
-        UpdateConditional("MIC_MUTED", true)
-        UpdateConditional("MIC_UNMUTED", false)
+        SET_MIC_STATE(true)          
         return
     end
 
@@ -1234,8 +1227,13 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-    if strCommand == "GET_DEVICE_INFO" then
+     if strCommand == "GET_DEVICE_INFO" then
         GET_DEVICE_INFO()
+        return
+    end
+
+    if strCommand == "SET_DEVICE_NAME" then
+        SET_DEVICE_NAME(tParams)        -- ← This calls your function
         return
     end
 
@@ -3896,17 +3894,6 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end
     end
     print("================================================================")
-    
-    -- When WebView is opened, send device info
-    if strCommand == "SELECT" and (idBinding == 5003 or idBinding == 5006) then
-        print("[UI] WebView opened (binding " .. tostring(idBinding) .. "), sending device info...")
-        -- Small delay to ensure UI is ready
-        C4:SetTimer(500, function()
-            GET_DEVICE_INFO()
-        end)
-        return
-    end
-
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
@@ -3963,36 +3950,18 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
             -- ✅ Push battery on page load — multiple times to ensure UI is ready
             C4:SetTimer(500, function()
                 local power = tonumber(Properties["Battery Level"]) or 0
-                local version = Properties["Software Version"] or "Unknown"
-                local releaseDate = Properties["Release Date"] or "Unknown"
                 print("[BATTERY] Push attempt 1:", power)
-                C4:SendDataToUI(json.encode({ 
-                    battery = power,
-                    version = version,
-                    releaseDate = releaseDate
-                }))
+                C4:SendDataToUI(json.encode({ battery = power }))
             end)
             C4:SetTimer(1500, function()
                 local power = tonumber(Properties["Battery Level"]) or 0
-                local version = Properties["Software Version"] or "Unknown"
-                local releaseDate = Properties["Release Date"] or "Unknown"
                 print("[BATTERY] Push attempt 2:", power)
-                C4:SendDataToUI(json.encode({ 
-                    battery = power,
-                    version = version,
-                    releaseDate = releaseDate
-                }))
+                C4:SendDataToUI(json.encode({ battery = power }))
             end)
             C4:SetTimer(3000, function()
                 local power = tonumber(Properties["Battery Level"]) or 0
-                local version = Properties["Software Version"] or "Unknown"
-                local releaseDate = Properties["Release Date"] or "Unknown"
                 print("[BATTERY] Push attempt 3:", power)
-                C4:SendDataToUI(json.encode({ 
-                    battery = power,
-                    version = version,
-                    releaseDate = releaseDate
-                }))
+                C4:SendDataToUI(json.encode({ battery = power }))
             end)
             return
         end
@@ -5090,7 +5059,97 @@ function SendTestUrlToUI()
     print("[TEST-URL] Test payload sent successfully")
 end
 
--- Get Device Info (Firmware, Release Date, etc.) from API
+
+-- ====================== MICROPHONE CONTROL ======================
+
+-- Main function to call the cloud API
+function SET_MIC_STATE(isMuted)
+    print("[MIC] Setting microphone to:", isMuted and "MUTED" or "UNMUTED")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" then
+        print("[MIC] ❌ Missing VID")
+        return false
+    end
+    if not token or token == "" then
+        print("[MIC] ❌ Missing Auth Token")
+        return false
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local on_off = isMuted and 0 or 1   -- 0 = Off (Mute), 1 = On (Unmute)
+
+    local input_params = json.encode({
+        t      = os.time() * 1000,   -- current timestamp in ms
+        on_off = on_off
+    })
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_talk",
+        input_params = input_params,
+        check_t      = 0,
+        is_async     = 0
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[MIC] Sending ac_talk command → on_off =", on_off)
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        print("[MIC] API Response Code:", code)
+        if resp then 
+            print("[MIC] Response Body:", resp) 
+        end
+
+        if code == 200 or code == 20000 then
+            print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
+            
+            -- Update local state
+            conditional_state.MIC_MUTED    = isMuted
+            conditional_state.MIC_UNMUTED  = not isMuted
+
+            -- Push to WebView UI
+            PushMicStateToUI()
+            
+            C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+        else
+            print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
+            C4:UpdateProperty("Status", "Mic command failed")
+        end
+    end)
+
+    return true
+end
+
+-- Push current mic state to WebView
+function PushMicStateToUI()
+    local payload = json.encode({
+        mic_muted = conditional_state.MIC_MUTED
+    })
+    
+    C4:SendDataToUI(payload)
+    
+    -- Extra push for reliability
+    C4:SetTimer(600, function()
+        C4:SendDataToUI(payload)
+    end)
+end
+
+--get device info
 function GET_DEVICE_INFO()
     print("===================================================")
     print("GET_DEVICE_INFO CALLED")
@@ -5139,8 +5198,7 @@ function GET_DEVICE_INFO()
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            version        = d.version or "N/A",
-            release_date   = d.release_date or d.update_time or "N/A",
+            version        = d.version or "",                    -- Firmware version
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -5152,36 +5210,141 @@ function GET_DEVICE_INFO()
             can_update     = (d.can_update == 1)
         }
 
-        print("Device Info Parsed:")
+        print("✅ Device Info Parsed:")
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
-        print("   Release:", payload.release_date)
         print("   Battery:", payload.battery .. "%")
-
-        -- Update Control4 driver properties
-        C4:UpdateProperty("Software Version", payload.version)
-        print("[FIRMWARE] Software Version updated:", payload.version)
-        
-        C4:UpdateProperty("Release Date", payload.release_date)
-        print("[FIRMWARE] Release Date updated:", payload.release_date)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
     end)
 end
 
--- Reliable send to UI Proxy (Binding 5003)
+-- Reliable send to UI Proxy (Binding 5005)
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
 
-    -- Use ICON_CHANGED pattern (same as NotificationHistory driver)
-    -- Send to both Preview (5003) and Settings (5006) proxies
-    pcall(function()
-        C4:SendToProxy(5003, "ICON_CHANGED", { icon_description = jsonData })
-        C4:SendToProxy(5003, "UPDATE_UI", {})
-        C4:SendToProxy(5006, "ICON_CHANGED", { icon_description = jsonData })
-        C4:SendToProxy(5006, "UPDATE_UI", {})
+    -- Primary method - Send to UIBUTTON proxy
+    local success = pcall(function()
+        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
     end)
 
-    print("[UI] Device info sent to proxies 5003 and 5006 via ICON_CHANGED")
+    -- Fallback methods
+    if not success then
+        pcall(function()
+            C4:SendToProxy(5005, "DATA", { data = jsonData })
+        end)
+    end
+
+    if C4.SendDataToUI then
+        pcall(function()
+            C4:SendDataToUI(jsonData)
+        end)
+    end
+
+    print("[UI] Device info sent to proxy 5005")
+end
+
+function SET_DEVICE_NAME(tParams)
+    print("================================================================")
+    print("              SET_DEVICE_NAME CALLED                             ")
+    print("================================================================")
+
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local appId = GlobalObject.CldBusAppId or Properties["AppId"]
+
+    -- Parse params (from UI)
+    local new_name = nil
+    if type(tParams) == "table" then
+        new_name = tParams.name or tParams.device_name
+    elseif type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            new_name = data.name or data.device_name
+        end
+    end
+
+    if not new_name or new_name == "" then
+        print("[NAME] ❌ No device name provided")
+        C4:UpdateProperty("Status", "Error: No name provided")
+        return false
+    end
+
+    if not vid or vid == "" then
+        print("[NAME] ❌ Missing VID")
+        C4:UpdateProperty("Status", "Error: No VID")
+        return false
+    end
+
+    if not auth_token or auth_token == "" then
+        print("[NAME] ❌ Missing Auth Token")
+        C4:UpdateProperty("Status", "Error: Not authenticated")
+        return false
+    end
+
+    print("[NAME] Changing device name to:", new_name)
+
+    local url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/change-name"
+
+    local body = {
+        vid = vid,
+        device_name = new_name
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId or ""
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("[NAME] Response Code:", code)
+
+        if resp then
+            print("[NAME] Response Body:", resp)
+        end
+
+        if code == 200 or code == 20000 then
+            print("[NAME] ✅ Device name changed successfully")
+
+            -- Update local properties
+            _props["Device Name"] = new_name
+            C4:UpdateProperty("Device Name", new_name)
+            C4:UpdateProperty("Status", "Device name updated to: " .. new_name)
+
+            print("[NAME] Sending success to UI")
+
+            -- Notify UI
+           local payload = json.encode({
+            type = "device_name_updated",
+            device_name_updated = true,
+            device_name = new_name,
+            timestamp = os.time()
+            })
+
+            print("[NAME] Pushing to UI:", payload)
+
+            C4:SendDataToUI(payload)
+
+        else
+            print("[NAME] ❌ Failed to change name. Code:", code)
+            C4:UpdateProperty("Status", "Failed to update device name")
+            
+            C4:SendDataToUI(json.encode({
+                error = "Failed to update name",
+                code = code
+            }))
+        end
+    end)
+
+    print("================================================================")
+    return true
 end

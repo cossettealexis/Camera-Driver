@@ -4,6 +4,10 @@
 let smartLockBtn = null;
 let lockStatus   = null;
 
+// Device Name elements
+let deviceNameInput = null;
+let updateNameBtn = null;
+
 document.addEventListener('DOMContentLoaded', function () {
     smartLockBtn = document.querySelector('.smart_lock_btn');
     lockStatus   = smartLockBtn ? smartLockBtn.querySelector('.lock_status') : null;
@@ -11,7 +15,15 @@ document.addEventListener('DOMContentLoaded', function () {
         smartLockBtn.addEventListener('mousedown', beginUnlocking);
         smartLockBtn.addEventListener('touchstart', beginUnlocking, { passive: true });
     }
+     // Control4 Setup
+    initializeControl4();
+
+    // Device Name
+    initDeviceName();
+
 });
+
+
 
 let unlocking  = false;
 let timeoutId  = 0;
@@ -108,12 +120,11 @@ document.addEventListener('DOMContentLoaded', function () {
         startStatePolling();
         startBatteryPolling();
 
-        C4.subscribeToDataToUi(false);
+        C4.subscribeToDataToUi(true);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
         C4.sendCommand('sendCameraPreviewCommand', '', false, false);
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-        C4.sendCommand('GET_DEVICE_INFO', '', false, false);
 
         // Staggered fallback requests
         setTimeout(() => C4.sendCommand('REQUEST_SETTINGS', '', false, false), 800);
@@ -124,44 +135,36 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+function initializeControl4() {
 
+    try {
+
+        C4.subscribeToDataToUi(true);
+        C4.subscribeToVariable('LAST_ROOM_SELECTED');
+        C4.subscribeToVariable('LAST_MENU_SELECTED');
+
+        C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+
+        console.log('Control4 initialized');
+
+    } catch (e) {
+        console.log('Control4 init error', e);
+    }
+}
 
 // ── Main data receiver ───────────────────────────────
 function onDataToUi(value) {
     try {
+        // Always try to show UI when data arrives
+        // showUI();
+
         var obj = JSON.parse(value);
-
-        // Check for icon_description wrapper (from driver)
-        if (obj.icon_description) {
-            try {
-                obj = JSON.parse(obj.icon_description);
-            } catch (e) {
-                // If parsing fails, continue with original obj
-            }
-        }
-
-        // Handle device_info type
-        if (obj.type === "device_info" && obj.success) {
-            var devEl = document.getElementById('deviceVersion');
-            var verEl = document.getElementById('softwareVersion');
-            var relEl = document.getElementById('releaseDate');
-
-            if (devEl) devEl.textContent = 'Device: ' + (obj.device_name || 'Unknown');
-            if (verEl) verEl.textContent = 'Version: ' + (obj.version || 'N/A');
-            if (relEl) relEl.textContent = 'Release: ' + (obj.release_date || 'N/A');
-            return;
-        }
 
         // ── Battery update (real-time from Lua C4:SendDataToUI) ──
         if (obj.battery !== undefined) {
             updateBatteryUI(obj.battery);
+            return;
         }
-
-        // ── Version info update (legacy) ──
-        var versionEl = document.getElementById('softwareVersion');
-        var dateEl = document.getElementById('releaseDate');
-        if (versionEl) versionEl.textContent = 'Version: ' + (obj.version || '--');
-        if (dateEl) dateEl.textContent = 'Release: ' + (obj.releaseDate || '--');
 
         // ── NEW: Timestamp Support ──
         if (obj.time || obj.event) {
@@ -182,6 +185,29 @@ function onDataToUi(value) {
         if (state && state !== 'unknown') {
             applyLockState(state);
             window._lastKnownState = state;
+        }
+
+        // =============================================
+        // DEVICE NAME SUPPORT (NEW)
+        // =============================================
+
+        // ==================== DEVICE NAME ====================
+        // ==================== DEVICE NAME ====================
+        if (obj.type === "device_info" && obj.device_name) {
+            if (deviceNameInput) {
+                deviceNameInput.value = obj.device_name;
+                console.log("✅ Device name loaded:", obj.device_name);
+            }
+        }
+
+        if (obj.device_name_updated === true || obj.device_name_updated === "success") {
+            console.log("✅ Device name updated");
+            showSuccessPopup("Device Name Updated Successfully!");
+            if (deviceNameInput) deviceNameInput.value = "";
+        }
+
+        if (obj.error && obj.error.toLowerCase().includes("name")) {
+            showSuccessPopup("Failed to update device name");
         }
 
     } catch (e) {
@@ -299,3 +325,109 @@ function updateBatteryUI(power) {
         }
     }
 }
+
+
+// =====================================================
+// DEVICE NAME
+// =====================================================
+
+function initDeviceName() {
+
+    const input = document.getElementById('deviceNameInput');
+    const btn = document.getElementById('updateNameBtn');
+    const statusEl = document.getElementById('deviceNameStatus');
+
+    if (!btn || !input) {
+        console.error("❌ Device name elements not found");
+        return;
+    }
+
+    console.log("✅ Device Name module initialized");
+
+    btn.addEventListener('click', function () {
+      
+        const newName = input.value.trim();
+
+        if (!newName) {
+            if (statusEl) {
+                statusEl.innerText = "Please enter a device name";
+                statusEl.style.color = "#ff6b6b";
+            }
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.innerText = "Updating...";
+            statusEl.style.color = "#ffffff";
+        }
+
+        // === SHOW MODAL IMMEDIATELY WHEN BUTTON IS CLICKED ===
+       setTimeout(() => {
+            showModal("Device name updated successfully!", "Success");
+        }, 5000);
+
+        try {
+            C4.sendCommand(
+                "SET_DEVICE_NAME",
+                JSON.stringify({ name: newName }),
+                false,
+                true
+            );
+
+            console.log("📤 SET_DEVICE_NAME sent:", newName);
+
+        } catch (e) {
+            console.error("Send error", e);
+            if (statusEl) {
+                statusEl.innerText = "Failed to send command";
+                statusEl.style.color = "#ff6b6b";
+            }
+            showModal("Failed to send command", "Error");
+        }
+    });
+
+    // Allow Enter key
+    input.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            btn.click();
+        }
+    });
+}
+
+function handleDeviceNameUpdate() {
+    const newName = deviceNameInput.value.trim();
+    if (!newName) {
+        alert("Please enter a device name");
+        return;
+    }
+
+    try {
+        C4.sendCommand(
+            "SET_DEVICE_NAME",
+            JSON.stringify({ name: newName }),
+            false,
+            true
+        );
+
+        console.log("📤 SET_DEVICE_NAME sent:", newName);
+        showSuccessPopup("Updating device name...");
+
+    } catch (e) {
+        console.error("Failed to send SET_DEVICE_NAME", e);
+        alert("Failed to send command");
+    }
+}
+
+ 
+// ====================== SUCCESS POPUP ======================
+
+function showSuccessPopup(message = "Success") {
+    const popup = document.getElementById('successPopup') || document.querySelector('.sucess_popup');
+    if (popup) {
+        popup.textContent = message;
+        popup.style.display = 'block';
+        setTimeout(() => { popup.style.display = 'none'; }, 2500);
+    }
+}
+
+
