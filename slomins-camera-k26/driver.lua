@@ -1228,6 +1228,11 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("K26 properties updated successfully")
+
+                    -- Fetch firmware version from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
                 else
                     print("ERROR: No K26 camera device found or vid missing")
                 end
