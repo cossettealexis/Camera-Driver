@@ -1101,6 +1101,11 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("K15 properties updated successfully")
+
+                    -- Fetch firmware version and release date from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
                 else
                     print("ERROR: No K15 camera device found or vid missing")
                 end

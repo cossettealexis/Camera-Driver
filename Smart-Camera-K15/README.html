@@ -151,50 +151,91 @@
   <h1>Smart-Camera-K15-SL — Control4 Driver</h1>
 
   <h2>Overview</h2>
-  <p>Complete Control4 driver for Slomins K15-SL IP Camera with full API integration, authentication, streaming, PTZ
-    support, and real-time MQTT event detection.</p>
+  <p>Complete Control4 driver for Slomins K15-SL PTZ IP Camera with full CldBus API integration, MQTT event streaming, RTSP video streaming, PTZ controls, and two-way audio support.</p>
   <ul>
-    <li><strong>Version:</strong> 4</li>
-    <li><strong>Package:</strong> <code>Smart-Camera-K15-SL.c4z</code> (22.1 KB)</li>
+    <li><strong>Model:</strong> K15-SL</li>
+    <li><strong>Version:</strong> 7</li>
     <li><strong>Minimum Control4 OS:</strong> 3.3.2+</li>
+    <li><strong>Device Type:</strong> PTZ IP Camera</li>
+    <li><strong>Last Updated:</strong> August 18, 2026</li>
   </ul>
 
   <h2>Features</h2>
 
-  <h3>Full API Integration</h3>
+  <h3>Automatic Camera Discovery</h3>
   <ul>
-    <li>Initialize camera and retrieve public key</li>
-    <li>User authentication with RSA-OAEP encryption</li>
-    <li>Token management (temporary and exchange tokens)</li>
-    <li>Device listing</li>
+    <li>Auto-populate IP Address and VID</li>
   </ul>
 
   <h3>Streaming Support</h3>
   <ul>
-    <li>RTSP main stream (high quality)</li>
-    <li>RTSP sub stream (low quality)</li>
-    <li>Dynamic URL generation</li>
+    <li>H.265 (HEVC)</li>
+    <li>H.264 (AVC)</li>
+    <li>MJPEG</li>
+    <li>Snapshot</li>
   </ul>
 
-  <h3>Camera Functions</h3>
+  <h3>PTZ Support</h3>
   <ul>
-    <li>Snapshot URL generation</li>
-    <li>PTZ controls (Pan, Tilt, Zoom)</li>
-    <li>Preset management</li>
+    <li>Pan (left/right) and Tilt (up/down) controls</li>
+    <li>8 preset positions</li>
+    <li>Tracking mode</li>
+    <li>No zoom capability</li>
   </ul>
 
-  <h3>Security</h3>
+  <h3>Two-Way Audio</h3>
   <ul>
-    <li>RSA-OAEP + SHA256 encryption using <code>C4:Crypto()</code></li>
-    <li>HMAC-SHA256 signatures for API requests</li>
-    <li>Secure token storage</li>
+    <li>Microphone control (Mute/Unmute)</li>
+    <li>Speaker volume control (1-10)</li>
   </ul>
 
-  <h3>Real-Time Event Detection (MQTT)</h3>
+  <h3>Motion Detection</h3>
   <ul>
-    <li>Motion, human, face, and stranger detection</li>
-    <li>Doorbell ring notifications with snapshot</li>
-    <li>Camera online/offline monitoring</li>
+    <li>Motion event notifications</li>
+    <li>Human detection</li>
+  </ul>
+
+  <hr>
+
+  <h2>Available Actions</h2>
+  <ul>
+    <li><strong>Get Cloud Presets</strong> — Fetch cloud preset spots from API</li>
+    <li><strong>Go To Preset</strong> — Move camera to a preset position</li>
+    <li><strong>PTZ Up</strong> — Move camera up</li>
+    <li><strong>PTZ Down</strong> — Move camera down</li>
+    <li><strong>PTZ Left</strong> — Move camera left</li>
+    <li><strong>PTZ Right</strong> — Move camera right</li>
+    <li><strong>Take Snapshot</strong> — Capture a still image from the camera</li>
+    <li><strong>Initialize Camera</strong> — Initialize camera connection and authentication</li>
+    <li><strong>Mute Mic</strong> — Mute the camera microphone</li>
+    <li><strong>Unmute Mic</strong> — Unmute the camera microphone</li>
+    <li><strong>Turn up speaker volume</strong> — Increase speaker volume by 1 level</li>
+    <li><strong>Turn down speaker volume</strong> — Decrease speaker volume by 1 level</li>
+  </ul>
+
+  <hr>
+
+  <h2>Control4 Programming Events and Conditionals</h2>
+
+  <h3>Events</h3>
+  <p>The driver triggers the following Control4 events:</p>
+  <ul>
+    <li><strong>Motion Detected</strong> — When camera detects motion</li>
+    <li><strong>Human Detected</strong> — When camera detects a person</li>
+    <li><strong>Camera Online</strong> — When camera comes online</li>
+    <li><strong>Camera Offline</strong> — When camera goes offline</li>
+    <li><strong>Camera Restarted</strong> — When camera reboots</li>
+  </ul>
+
+  <h3>Conditionals</h3>
+  <p>Use these conditionals in Control4 programming:</p>
+  <ul>
+    <li><strong>If sensing motion</strong> — True/False</li>
+    <li><strong>If not sensing motion</strong> — True/False</li>
+    <li><strong>If Mic is muted</strong> — True/False</li>
+    <li><strong>If Mic is unmuted</strong> — True/False</li>
+    <li><strong>If Speaker volume is 1-10</strong> — 1 through 10</li>
+    <li><strong>If tracking is on/off</strong> — True/False</li>
   </ul>
 
   <h2>Requirements</h2>
@@ -867,7 +908,12 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"</code></pre>
 
   <h2>Version History</h2>
 
-  <h3>v6.0 (Current)</h3>
+  <h3>v7 (Current)</h3>
+  <ul>
+    <li>Updated documentation to align with the device features.</li>
+  </ul>
+
+  <h3>v6.0</h3>
   <ul>
     <li>Added firmware info.</li>
   </ul>
@@ -916,7 +962,7 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"</code></pre>
 
   <h2>Support</h2>
   <ul>
-    <li><strong>Driver Version:</strong> 4</li>
+    <li><strong>Driver Version:</strong> 7</li>
     <li><strong>Maintainer:</strong> Slomins</li>
     <li><strong>Manufacturer:</strong> Slomins</li>
     <li><strong>Model:</strong> K15-SL</li>
