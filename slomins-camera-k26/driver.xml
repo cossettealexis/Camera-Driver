@@ -378,10 +378,6 @@
 
         </properties>
         <actions>
-              <action>
-                <name>Test Event Logger</name>
-                <command>TEST_EVENT_LOGGER</command>
-            </action>
             <action>
                 <name>Take Snapshot</name>
                 <command>TAKE_SNAPSHOT</command>
