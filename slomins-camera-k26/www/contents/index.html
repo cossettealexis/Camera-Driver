@@ -1,70 +1,405 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>K26 Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        :root {
+            --accent: #ad1c42;
+            --bg: #0f1115;
+            --surface: #181b21;
+            --surface2: #1f232b;
+            --border: #2d333c;
+            --text: #ffffff;
+            --muted: #98a2b3;
+        }
+
+      
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
         }
 
+        html,
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(to bottom, #0f1115 0%, #1a1d24 100%);
-            color: #ffffff;
-            min-height: 100vh;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+       
+        .app {
+            width: 100%;
+            height: 100%;
+        }
+
+
+        .panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .panel.active {
+            display: flex;
+        }
+
+        /* =========================
+   HEADER
+========================= */
+        .header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* =========================
+   SETTINGS LIST
+========================= */
+        .list {
+            padding: 10px;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+
+            padding: 14px 16px;
+            margin-bottom: 10px;
+
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .item:hover {
+            background: var(--surface2);
+        }
+
+        .left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            color: var(--accent);
+        }
+
+        .title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .chevron {
+            width: 18px;
+            height: 18px;
+            color: var(--muted);
+        }
+
+        /* =========================
+   TOP BAR (BACK)
+========================= */
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .back {
+            width: 38px;
+            height: 38px;
+            border: none;
+            border-radius: 10px;
+            background: var(--surface);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* =========================
+   FEATURE SCREEN
+========================= */
+        .content {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
-        }
-
-        .header {
             text-align: center;
-            margin-bottom: 40px;
+            gap: 18px;
         }
 
-        .header h1 {
-            font-size: 24px;
+        .bigIcon {
+            width: 64px;
+            height: 64px;
+            color: var(--accent);
+        }
+
+        .h2 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .desc {
+            font-size: 13px;
+            color: var(--muted);
+            max-width: 260px;
+        }
+
+        .btn {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
             font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 8px;
+            cursor: pointer;
         }
 
-        .header p {
-            font-size: 14px;
-            color: #98a2b3;
+        .toggle {
+            position: relative;
+            width: 70px;
+            height: 38px;
+        }
+
+        .toggle input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            background: #444;
+            border-radius: 999px;
+            transition: .2s;
+        }
+
+        .slider:before {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            left: 4px;
+            top: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: .2s;
+        }
+
+        .toggle input:checked+.slider {
+            background: var(--accent);
+        }
+
+        .toggle input:checked+.slider:before {
+            transform: translateX(32px);
+        }
+
+        .status {
+            font-size: 13px;
+            color: var(--muted);
         }
 
         .footer {
-            margin-top: auto;
-            padding: 20px;
+            padding: 12px 16px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
             text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: -80px !important;
         }
 
         .version-info {
-            display: inline-block;
-            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            line-height: 1.4;
         }
 
-        .version-info span {
-            display: block;
-            font-size: 13px;
-            color: #98a2b3;
-            margin: 4px 0;
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 24px;
+            text-align: center;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content .bigIcon {
+            width: 50px;
+            height: 50px;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>K26 Camera</h1>
-        <p>Outdoor Camera Settings</p>
-    </div>
+    <div class="app">
+        <!-- HOME -->
+        <section id="homePanel" class="panel active">
+            <div class="header">
+                <h1>Device Settings</h1>
+                <p>K26 Camera Controls</p>
+            </div>
+            <div class="list">
+                <div class="item" onclick="show('rebootPanel')">
+                    <div class="left">
+                        <i data-lucide="rotate-cw" class="icon"></i>
+                        <div>
+                            <div class="title">Reboot</div>
+                            <div class="subtitle">Restart device</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" onclick="show('micPanel')">
+                    <div class="left">
+                        <i data-lucide="mic" class="icon"></i>
+                        <div>
+                            <div class="title">Microphone</div>
+                            <div class="subtitle">Audio capture control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" onclick="show('deviceNamePanel')">
+                    <div class="left">
+                        <i data-lucide="smartphone" class="icon"></i>
+                        <div>
+                            <div class="title">Device Name</div>
+                            <div class="subtitle">Device name control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+               
+            </div>
+        </section>
 
+        <!-- REBOOT -->
+        <section id="rebootPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="rotate-cw" class="bigIcon"></i>
+                <div class="h2">Reboot Device</div>
+                <div class="desc">This will restart the camera system.</div>
+                <button class="btn" id="rebootBtn">
+                    Reboot
+                </button>
+            </div>
+        </section>
+        <!-- MIC -->
+        <section id="micPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="mic" class="bigIcon"></i>
+                <div class="h2">Microphone</div>
+                <div class="desc">Enable or disable audio capture.</div>
+                <label class="toggle">
+                    <input type="checkbox" id="mic">
+                    <span class="slider"></span>
+                </label>
+                <div class="status" id="micStatus">Enabled</div>
+            </div>
+        </section>
+        <!-- DEVICE NAME -->
+        <section id="deviceNamePanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="edit-3" class="bigIcon"></i>
+                <div class="h2">Device Name</div>
+                <div class="desc">Set a custom name for this device</div>
+
+                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
+                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
+                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
+                </div>
+                <button class="btn" id="updateNameBtn">
+                    Update Name
+                </button>
+            </div>
+        </section>
+        
+    </div>
+    <!-- SUCCESS MODAL -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <i data-lucide="check-circle" class="bigIcon" style="color: #4ade80;"></i>
+            <br>
+            <div class="h2" id="modalTitle">Success</div>
+            <div class="desc" id="modalMessage">Device name updated successfully!</div>
+            <br>
+            <button class="btn" onclick="closeModal()">OK</button>
+        </div>
+    </div>
     <footer class="footer">
         <div class="version-info">
             <span id="deviceVersion">Device: Loading...</span>
@@ -73,6 +408,75 @@
         </div>
     </footer>
 
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+
+        lucide.createIcons();
+
+        /* =========================
+           NAVIGATION
+        ========================= */
+        function show(id) {
+
+            document.querySelectorAll('.panel')
+                .forEach(p => p.classList.remove('active'));
+
+            document.getElementById(id)
+                .classList.add('active');
+
+            lucide.createIcons();
+        }
+
+        /* =========================
+           CONTROL4 ACTIONS
+        ========================= */
+        function reboot() {
+
+            console.log("REBOOT_DEVICE");
+
+            // C4JH.SendToProxy("REBOOT_DEVICE",{});
+
+        }
+
+        /* =========================
+           TOGGLES
+        ========================= */
+        document.addEventListener('DOMContentLoaded', () => {
+
+
+            document.getElementById('mic').addEventListener('change', function () {
+
+                document.getElementById('micStatus').innerText =
+                    this.checked ? "Enabled" : "Disabled";
+
+                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
+
+            });
+
+
+
+        });
+
+        // Modal Functions
+        function showModal(message, title = "Success") {
+                const modal = document.getElementById('successModal');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalMessage = document.getElementById('modalMessage');
+
+                if (modalTitle) modalTitle.innerText = title;
+                if (modalMessage) modalMessage.innerText = message;
+
+                if (modal) modal.classList.add('show');
+                lucide.createIcons();
+                }
+
+                function closeModal() {
+                    const modal = document.getElementById('successModal');
+                    if (modal) modal.classList.remove('show');
+                }
+    </script>
     <script src="javascript/index.js" type="text/javascript"></script>
 </body>
+
 </html>

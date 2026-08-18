@@ -691,59 +691,12 @@ function ExecuteCommand(strCommand, tParams)
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
+
     if strCommand == "TEST_EVENT_LOGGER" then
-    EventLogger.test()
-    return
-end
-    --[[if strCommand == "UNMUTE_MIC" then
-        print("[COMMAND] Unmute Mic requested")
-        -- Check if volume is actually 0 before unmuting
-        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
-            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 0
-            if current == 0 then
-                -- Only unmute if volume is 0 (muted)
-                if volume_before_mute and volume_before_mute > 0 then
-                    -- Restore saved volume
-                    print("[COMMAND] Unmute Mic: Restoring volume to " .. volume_before_mute)
-                    SET_DEVICE_PROPERTY({ beep_vol = tostring(volume_before_mute) }, function()
-                        UpdateConditional("MIC_MUTED", false)
-                        UpdateConditional("MIC_UNMUTED", true)
-                        UpdateConditional("SPEAKER_VOLUME", volume_before_mute)
-                    end)
-                else
-                    -- Never muted before, don't change volume
-                    print("[COMMAND] Unmute Mic: No saved volume, not changing device")
-                    UpdateConditional("MIC_MUTED", false)
-                    UpdateConditional("MIC_UNMUTED", true)
-                end
-            else
-                -- Already unmuted, just update conditionals
-                print("[COMMAND] Unmute Mic: Already unmuted (volume is " .. current .. ")")
-                UpdateConditional("MIC_MUTED", false)
-                UpdateConditional("MIC_UNMUTED", true)
-                UpdateConditional("SPEAKER_VOLUME", current)
-            end
-        end)
+        EventLogger.test()
         return
     end
-    if strCommand == "MUTE_MIC" then
-        print("[COMMAND] Mute Mic requested")
-        -- Save current volume before muting
-        GET_DEVICE_PROPERTY("beep_vol", function(current_val)
-            local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
-            if current > 0 then
-                volume_before_mute = current
-                print("[COMMAND] Saved volume before mute: " .. volume_before_mute)
-            end
-            print("[COMMAND] Mute Mic: Setting volume to 0")
-            SET_DEVICE_PROPERTY({ beep_vol = "0" }, function()
-                UpdateConditional("MIC_MUTED", true)
-                UpdateConditional("MIC_UNMUTED", false)
-                UpdateConditional("SPEAKER_VOLUME", 0)
-            end)
-        end)
-        return
-    end--]]
+   
     --implement the api for microphone
     if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
@@ -790,6 +743,17 @@ end
         local level = (tParams and tParams.LEVEL)
         print("[COMMAND] Set Sensitivity: " .. tostring(level))
         UpdateConditional("SENSITIVITY", level)
+        return
+    end
+
+    if strCommand == "SET_DEVICE_NAME" then
+        SET_DEVICE_NAME(tParams)       
+        return
+    end
+
+    if strCommand == "REBOOT_DEVICE" then
+        print("[COMMAND] Rebooting requested")
+        REBOOT_DEVICE(tParams)
         return
     end
 
@@ -3556,4 +3520,160 @@ function PushMicStateToUI()
     C4:SetTimer(600, function()
         C4:SendDataToUI(payload)
     end)
+end
+
+function SET_DEVICE_NAME(tParams)
+    print("================================================================")
+    print("              SET_DEVICE_NAME CALLED                             ")
+    print("================================================================")
+
+    local vid = _props["VID"] or Properties["VID"]
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local appId = GlobalObject.CldBusAppId or Properties["AppId"]
+
+    -- Parse params (from UI)
+    local new_name = nil
+    if type(tParams) == "table" then
+        new_name = tParams.name or tParams.device_name
+    elseif type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            new_name = data.name or data.device_name
+        end
+    end
+
+    if not new_name or new_name == "" then
+        print("[NAME] ❌ No device name provided")
+        C4:UpdateProperty("Status", "Error: No name provided")
+        return false
+    end
+
+    if not vid or vid == "" then
+        print("[NAME] ❌ Missing VID")
+        C4:UpdateProperty("Status", "Error: No VID")
+        return false
+    end
+
+    if not auth_token or auth_token == "" then
+        print("[NAME] ❌ Missing Auth Token")
+        C4:UpdateProperty("Status", "Error: Not authenticated")
+        return false
+    end
+
+    print("[NAME] Changing device name to:", new_name)
+
+    local url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/change-name"
+
+    local body = {
+        vid = vid,
+        device_name = new_name
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId or ""
+    }
+
+    local req = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }
+
+    transport.execute(req, function(code, resp, resp_headers, err)
+        print("[NAME] Response Code:", code)
+
+        if resp then
+            print("[NAME] Response Body:", resp)
+        end
+
+        if code == 200 or code == 20000 then
+            print("[NAME] ✅ Device name changed successfully")
+
+            -- Update local properties
+            _props["Device Name"] = new_name
+            C4:UpdateProperty("Device Name", new_name)
+            C4:UpdateProperty("Status", "Device name updated to: " .. new_name)
+
+            print("[NAME] Sending success to UI")
+
+            -- Notify UI
+           local payload = json.encode({
+            type = "device_name_updated",
+            device_name_updated = true,
+            device_name = new_name,
+            timestamp = os.time()
+            })
+
+            print("[NAME] Pushing to UI:", payload)
+
+            C4:SendDataToUI(payload)
+
+        else
+            print("[NAME] ❌ Failed to change name. Code:", code)
+            C4:UpdateProperty("Status", "Failed to update device name")
+            
+            C4:SendDataToUI(json.encode({
+                error = "Failed to update name",
+                code = code
+            }))
+        end
+    end)
+
+    print("================================================================")
+    return true
+end
+
+
+function REBOOT_DEVICE(tParams)
+    print("[REBOOT] Reboot requested from UI")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" or not token or token == "" then
+        print("[REBOOT] ERROR: Missing VID or Token")
+        return false
+    end
+
+    local timestamp = os.time()
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_restart",
+        input_params = json.encode({ t = timestamp })
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[REBOOT] Sending →", json.encode(body))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp)
+        print("[REBOOT] Cloud response code:", code)
+        print("[REBOOT] Response:", resp)
+
+        if code == 200 or code == 20000 then
+            C4:UpdateProperty("Status", "Reboot command sent")
+            print("[REBOOT] SUCCESS – device will restart shortly")
+        else
+            print("[REBOOT] ERROR: Cloud command failed")
+            C4:UpdateProperty("Status", "Reboot failed")
+        end
+    end)
+
+    return true
 end
