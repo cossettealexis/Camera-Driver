@@ -5,8 +5,8 @@ local http               = require("CldBusApi.http")
 local auth               = require("CldBusApi.auth")
 local transport          = require("CldBusApi.transport_c4")
 local util               = require("CldBusApi.util")
-local MQTT               = require("mqtt_manager")
-local EventLogger              = require("event_logger")  
+local EventLogger        = require("event_logger")
+
 -- Local state
 local LAST_EVENT_ID      = 0
 local NOTIFICATION_URLS  = {}
@@ -66,7 +66,7 @@ GlobalObject.DeviceModel      = "p160"
 GlobalObject.ProductSubType   = "plugged_camera"
 GlobalObject.CustomerEmail    = ""
 GlobalObject.BaseApi          = "https://qa2.slomins.com/QA/OntechSvcs/1.2/ontech"
-_props.MQTT                   = {
+_props.MQTT                    = {
     socket_ready = false,
     connected = false,
     packet_id = 1,
@@ -79,7 +79,7 @@ local PROP_MQTT_PORT          = "MQTT Port"
 local PROP_MQTT_CLIENT_ID     = "MQTT Client ID"
 local PROP_MQTT_SECRET        = "MQTT Secret"
 
-
+local MQTT                    = require("mqtt_manager")
 
 local EVENT = {
     MOTION           = "Motion Detected",
@@ -91,7 +91,7 @@ local EVENT = {
 }
 
 
-local mqtt_enabled       = false
+local mqtt_enabled             = false
 local MQTT_AUTO_ENABLED  = false
 local GET_DEVICES_CALLED = false
 
@@ -162,7 +162,7 @@ function OnDriverInit()
     C4:UpdateProperty("Camera Status", "false")
     --default speaker volume
     C4:UpdateConditional("SPEAKER_VOLUME", "4")
-    -- Initialize MQTT
+    -- Initialize properties
     for k, v in pairs(Properties) do
         if k ~= "Password" then
             print("Property [" .. k .. "] = " .. tostring(v))
@@ -179,22 +179,27 @@ function OnDriverInit()
             HANDLE_JSON_EVENT(payload)
         end
     })
+    
+    print("[OnDriverInit] MQTT.props after init:", MQTT.props)
+    print("[OnDriverInit] MQTT.props == _props?", MQTT.props == _props)
 
-    C4:UpdateProperty("Status", "Driver initialized")-- ── Initialise EventLogger ───────────────────────────────────────────────
-   EventLogger.init(
-    transport,
-    json,
-    function()
-        return {
-            BaseApi    = GlobalObject.BaseApi or "",
-            DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
-            DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
-            UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
-            IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
-            AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",  -- ← add this
-        }
-    end
-)
+    C4:UpdateProperty("Status", "Driver initialized")
+    
+    -- ── Initialise EventLogger ───────────────────────────────────────────────
+    EventLogger.init(
+        transport,
+        json,
+        function()
+            return {
+                BaseApi    = GlobalObject.BaseApi or "",
+                DeviceId   = Properties["VID"] or _props["VID"] or "UNKNOWN-CAM",
+                DeviceName = Properties["Device Name"] or _props["Device Name"] or "",
+                UserId     = GlobalObject.CustomerEmail or Properties["Account"] or "",
+                IpAddress  = Properties["IP Address"] or _props["IP Address"] or "",
+                AuthToken  = Properties["Auth Token"] or _props["Auth Token"] or "",
+            }
+        end
+    )
     -- ────────────────────────────────────────────────────────────────────────
 end
 
@@ -335,6 +340,26 @@ end
 
 function OnDriverLateInit()
     print("=== P160-SL Driver Late Init ===")
+    print("[OnDriverLateInit] Initializing MQTT module...")
+    print("[OnDriverLateInit] _props.MQTT exists?", _props.MQTT ~= nil)
+    print("[OnDriverLateInit] MQTT module type:", type(MQTT))
+    
+    -- Initialize MQTT here since OnDriverInit may not be called
+    MQTT.init(_props, {
+        on_connected = function()
+            local vid = _props["VID"] or Properties["VID"]
+            print("[OnDriverLateInit] MQTT connected, subscribing to:", vid)
+            MQTT.subscribe(vid)
+        end,
+
+        on_message = function(topic, payload)
+            HANDLE_JSON_EVENT(payload)
+        end
+    })
+    
+    print("[OnDriverLateInit] MQTT.props after init:", MQTT.props ~= nil and "SET" or "NIL")
+    print("[OnDriverLateInit] MQTT.props == _props?", MQTT.props == _props)
+    
     C4:UpdateProperty("Status", "Ready")
     
     C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
@@ -834,9 +859,16 @@ function ExecuteCommand(strCommand, tParams)
     end
 
     if strCommand == "SET_DEVICE_NAME" then
-        SET_DEVICE_NAME(tParams)        -- ← This calls your function
+        SET_DEVICE_NAME(tParams)        
         return
     end
+
+    if strCommand == "REBOOT_DEVICE" then
+        print("[COMMAND] Rebooting requested")
+        REBOOT_DEVICE(tParams)
+        return
+    end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -1696,26 +1728,28 @@ end
 
 function APPLY_MQTT_INFO()
     print("APPLY_MQTT_INFO called")
+
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    local vid = _props["Device ID"] or _props["VID"] or Properties["Device ID"] or Properties["VID"]
+    local vid = _props["VID"] or Properties["VID"] or Properties["Device ID"]
 
     if not auth_token or auth_token == "" then
         print("APPLY_MQTT_INFO: missing auth token")
         update_prop("Status", "MQTT info failed: no auth token")
         return
     end
+
     if not vid or vid == "" then
         print("APPLY_MQTT_INFO: missing VID")
         update_prop("Status", "MQTT info failed: no vid")
         return
     end
 
-     local appId, appSecret = GetCldBusCredentials()
+    local appId, appSecret = GetCldBusCredentials()
 
     if appId == "" or appSecret == "" then
         print("[MQTT] Credentials not ready yet → retrying in 2 seconds")
         update_prop("Status", "MQTT enabled - waiting for AppId/AppSecret...")
-        
+
         C4:SetTimer(2000, function()
             if Properties["Enable MQTT"] == "True" then
                 APPLY_MQTT_INFO()
@@ -1724,13 +1758,13 @@ function APPLY_MQTT_INFO()
         return
     end
 
-     print("[MQTT] Using AppId:", appId)
+    print("[MQTT] Using AppId:", appId)
     update_prop("Status", "Fetching MQTT info...")
+
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/apply-mqtt-info"
 
-    local body_tbl = { vid = vid }
-    local body_json = json.encode(body_tbl)
+    local body_json = json.encode({ vid = vid })
 
     local headers = {
         ["Content-Type"]  = "application/json",
@@ -1751,7 +1785,6 @@ function APPLY_MQTT_INFO()
 
                 local raw_host = d.mqtt_host or ""
                 local secure = false
-
                 if raw_host:match("^mqtts://") then
                     secure = true
                     raw_host = raw_host:gsub("^mqtts://", "")
@@ -1759,28 +1792,22 @@ function APPLY_MQTT_INFO()
                     raw_host = raw_host:gsub("^mqtt://", "")
                 end
 
-
-                local port = tonumber(d.mqtt_port)
-                if not port then
-                    port = secure and 8884 or 1883
-                end
-
+                local port = tonumber(d.mqtt_port) or (secure and 8884 or 1883)
 
                 if d.mqtt_host then update_prop(PROP_MQTT_HOST, raw_host) end
                 if d.mqtt_port then update_prop(PROP_MQTT_PORT, tostring(port)) end
                 if d.mqtt_client_id then update_prop(PROP_MQTT_CLIENT_ID, d.mqtt_client_id) end
                 if d.mqtt_client_secret then update_prop(PROP_MQTT_SECRET, d.mqtt_client_secret) end
 
-
                 _props.MQTT.host      = raw_host
-                _props.MQTT.port      = d.mqtt_port
+                _props.MQTT.port      = port
                 _props.MQTT.client_id = d.mqtt_client_id
                 _props.MQTT.secret    = d.mqtt_client_secret
                 _props.MQTT.secure    = secure
                 _props.MQTT.keepalive = 60
                 _props.MQTT.packet_id = 1
 
-                update_prop("Status", "MQTT info loaded")
+                update_prop("Status", "MQTT info loaded successfully")
 
                 MQTT_GET_PASSWORD(_props.MQTT.client_id, _props.MQTT.secret, function(username, pwd)
                     if not pwd or not username then
@@ -1791,27 +1818,24 @@ function APPLY_MQTT_INFO()
                     _props.MQTT.username = username
                     _props.MQTT.password = pwd
 
-                    print("[MQTT] Username: " .. username)
-                    print("[MQTT] Password received (len = " .. #pwd .. ")")
-
-                    print("--------------------------------------------------")
-                    print("[MQTT] 🔍 FINAL CONNECTION DATA")
-                    print("[MQTT] Host:       " .. tostring(_props.MQTT.host))
-                    print("[MQTT] Port:       " .. tostring(_props.MQTT.port))
-                    print("[MQTT] Client ID:  " .. tostring(_props.MQTT.client_id))
-                    print("[MQTT] Username:   " .. tostring(_props.MQTT.username))
-                    print("[MQTT] Password:   " .. tostring(_props.MQTT.password))
-                    print("[MQTT] KeepAlive:  " .. tostring(_props.MQTT.keepalive))
-                    print("--------------------------------------------------")
+                    print("[MQTT] Username:", username)
+                    print("[MQTT] Password received (len =", #pwd, ")")
 
                     MQTT.connect()
                 end)
-
-                return
+            else
+                update_prop("Status", "MQTT info parse error")
             end
-            update_prop("Status", "MQTT info parse error")
         else
-            update_prop("Status", "MQTT info failed: " .. tostring(err or code))
+            print("[MQTT] Failed with code:", code)
+            update_prop("Status", "MQTT info failed: " .. tostring(code))
+
+            -- Retry once more
+            C4:SetTimer(3000, function()
+                if Properties["Enable MQTT"] == "True" then
+                    APPLY_MQTT_INFO()
+                end
+            end)
         end
     end)
 end
@@ -1864,6 +1888,7 @@ function OnConnectionStatusChanged(id, port, status)
 end
 
 function ReceivedFromNetwork(id, port, data)
+    print("[RX] ReceivedFromNetwork - id:", id, "port:", port, "data length:", data and #data or 0)
     MQTT.onData(id, port, data)
 
     --Receives data through tcp and process
@@ -2259,10 +2284,13 @@ end
 
 
 function HANDLE_JSON_EVENT(payload)
+    print("[EVENT] HANDLE_JSON_EVENT called, payload length:", #payload)
     local ok, msg = pcall(json.decode, payload)
     if not ok or type(msg) ~= "table" then
+        print("[EVENT] JSON decode failed or not table. ok:", tostring(ok), "type:", type(msg))
         return false
     end
+    print("[EVENT] JSON decoded successfully. method:", tostring(msg.method))
 
     local now = os.time()
 
@@ -2328,7 +2356,7 @@ function HANDLE_JSON_EVENT(payload)
     -- DEVICE STATUS (ONLINE / OFFLINE)
     ------------------------------------------------
     if msg.method == "updateDeviceStatus" then
-        handle_device_status(msg, now)
+        handle_device_status(msg)
         return true
     end
 
@@ -4368,5 +4396,57 @@ function SET_DEVICE_NAME(tParams)
     end)
 
     print("================================================================")
+    return true
+end
+
+
+function REBOOT_DEVICE(tParams)
+    print("[REBOOT] Reboot requested from UI")
+
+    local vid   = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+
+    if not vid or vid == "" or not token or token == "" then
+        print("[REBOOT] ERROR: Missing VID or Token")
+        return false
+    end
+
+    local timestamp = os.time()
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/do-action"
+
+    local body = {
+        vid          = vid,
+        action_id    = "ac_restart",
+        input_params = json.encode({ t = timestamp })
+    }
+
+    local headers = {
+        ["Content-Type"]  = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[REBOOT] Sending →", json.encode(body))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp)
+        print("[REBOOT] Cloud response code:", code)
+        print("[REBOOT] Response:", resp)
+
+        if code == 200 or code == 20000 then
+            C4:UpdateProperty("Status", "Reboot command sent")
+            print("[REBOOT] SUCCESS – device will restart shortly")
+        else
+            print("[REBOOT] ERROR: Cloud command failed")
+            C4:UpdateProperty("Status", "Reboot failed")
+        end
+    end)
+
     return true
 end

@@ -71,7 +71,7 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
 
-<p><strong>Version:</strong> 7<br>
+<p><strong>Version:</strong> 8<br>
 <strong>Package:</strong> Slomins-indoor-P160.c4z<br>
 <strong>Minimum Control4 OS:</strong> 3.3.2+</p>
 
@@ -79,40 +79,56 @@
 
 <h2>Features</h2>
 <ul>
-  <li>✅ <strong>Full API Integration</strong>
+  <li><strong>Full API Integration</strong>
     <ul>
       <li>Initialize camera and retrieve public key</li>
       <li>User authentication with RSA-OAEP encryption</li>
       <li>Token management (temporary and exchange tokens)</li>
       <li>Device listing</li>
+      <li>Device information retrieval</li>
     </ul>
   </li>
-  <li>✅ <strong>Streaming Support</strong>
+  <li><strong>Automatic Camera Discovery</strong>
     <ul>
-      <li>RTSP main stream (high quality)</li>
+      <li>Auto-populate IP Address, VID and MAC Address</li>
+    </ul>
+  </li>
+  <li><strong>Streaming Support</strong>
+    <ul>
+      <li>RTSP main stream (high quality H264/H265)</li>
       <li>RTSP sub stream (low quality)</li>
+      <li>MJPEG streaming support</li>
       <li>Dynamic URL generation</li>
     </ul>
   </li>
-  <li>✅ <strong>Camera Functions</strong>
+  <li><strong>Camera Functions</strong>
     <ul>
-      <li>Snapshot URL generation</li>
-      <li>PTZ controls (Pan, Tilt, Zoom)</li>
-      <li>Preset management</li>
+      <li>Snapshot capture and URL generation</li>
+      <li>Customizable device naming</li>
+      <li>Memory card detection and monitoring</li>
     </ul>
   </li>
-  <li>✅ <strong>Security</strong>
+  <li><strong>Two-Way Audio</strong>
+    <ul>
+      <li>Microphone mute/unmute control</li>
+      <li>Speaker volume adjustment (1-10 levels)</li>
+      <li>Audio output support during live streaming</li>
+    </ul>
+  </li>
+  <li><strong>Security</strong>
     <ul>
       <li>RSA-OAEP + SHA256 encryption using C4:Crypto()</li>
       <li>HMAC-SHA256 signatures for API requests</li>
       <li>Secure token storage</li>
+      <li>Anti-pry alarm state monitoring</li>
     </ul>
   </li>
-  <li>✅ <strong>Real-Time Event Detection (MQTT)</strong>
+  <li><strong>Real-Time Event Detection (MQTT)</strong>
     <ul>
-      <li>Motion, human, face, and stranger detection</li>
-      <li>Doorbell ring notifications with snapshot</li>
-      <li>Camera online/offline monitoring</li>
+      <li>Motion detection with snapshot attachment</li>
+      <li>Human detection alerts</li>
+      <li>Camera online/offline status monitoring</li>
+      <li>Memory card status notifications</li>
     </ul>
   </li>
 </ul>
@@ -303,25 +319,42 @@ Snapshot Image Attached
 
 <h2>Available Actions</h2>
 <p>All actions accessible via: <strong>Device → Actions → Select action → Execute</strong></p>
-<h3>Authentication &amp; API</h3>
+<h3>Camera Control</h3>
 <ul>
-  <li><strong>Initialize</strong> - Get RSA public key from API</li>
-  <li><strong>Login/Register</strong> - Authenticate user and get auth token</li>
-  <li><strong>Get Temp Token</strong> - Get temporary token (300 seconds)</li>
-  <li><strong>Get Exchange Token</strong> - Exchange temp token for identity token</li>
-  <li><strong>Get Devices</strong> - List all user devices</li>
+  <li><strong>Take Snapshot</strong> - Capture current camera snapshot</li>
+  <li><strong>Initialize Camera</strong> - Initialize camera connection and retrieve device information</li>
 </ul>
 
-<h3>Streaming &amp; Snapshots</h3>
+<h3>Two-Way Audio Control</h3>
 <ul>
-  <li><strong>Test Main Stream</strong> - Generate high quality RTSP URL</li>
-  <li><strong>Test Sub Stream</strong> - Generate low quality RTSP URL</li>
-  <li><strong>Test Snapshot</strong> - Generate HTTP snapshot URL</li>
+  <li><strong>Mute Mic</strong> - Mute the camera microphone</li>
+  <li><strong>Unmute Mic</strong> - Unmute the camera microphone</li>
+  <li><strong>Turn up speaker volume</strong> - Increase speaker volume (max 10)</li>
+  <li><strong>Turn down speaker volume</strong> - Decrease speaker volume (min 1)</li>
 </ul>
 
-<h3>PTZ Controls</h3>
+<hr>
+
+<h2>Control4 Programming Events</h2>
+
+<h3>Device Events</h3>
+<p>The following events can be used in Control4 programming to trigger actions:</p>
 <ul>
-  <li><strong>PTZ Up</strong> / <strong>Down</strong> / <strong>Left</strong> / <strong>Right</strong></li>
+  <li><strong>Motion Detected</strong> - Triggered when camera detects motion</li>
+  <li><strong>Human Detected</strong> - Triggered when camera detects a human</li>
+  <li><strong>Camera Online</strong> - Triggered when camera comes online</li>
+  <li><strong>Camera Offline</strong> - Triggered when camera goes offline</li>
+  <li><strong>Memory Card not detected</strong> - Triggered when memory card is missing or removed</li>
+</ul>
+
+<h3>Device Conditionals</h3>
+<p>The following conditionals are available for programming logic:</p>
+<ul>
+  <li><strong>If sensing motion</strong> - Check if camera is currently detecting motion</li>
+  <li><strong>If not sensing motion</strong> - Check if camera is not detecting motion</li>
+  <li><strong>If Mic is muted</strong> - Check if microphone is muted</li>
+  <li><strong>If Mic is unmuted</strong> - Check if microphone is unmuted</li>
+  <li><strong>If Speaker volume is</strong> - Check speaker volume level (1-10)</li>
 </ul>
 
 <hr>
@@ -592,14 +625,18 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v7 (Current)</h3>
+<h3>v8 (Current)</h3>
 <ul>
- <li>Added firmware info.</li>
+ <li>Fixed MQTT initialization to use OnDriverLateInit() instead of OnDriverInit()</li>
+ <li>Resolved MQTT connection failures (props not initialized issue)</li>
+ <li>Improved debug logging for MQTT connection flow</li>
+ <li>Added comprehensive event reception tracking</li>
 </ul>
 
 <h3>v6</h3>
 <ul>
  <li>Auto-populate IP Address, VID and MAC Address</li>
+ <li>SSDP network discovery support</li>
 </ul>
 
 <h3>v3</h3>
@@ -622,7 +659,7 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 <ul>
   <li>Updated Control4 Camera Programming Options</li>
   <li><strong>Device Events</strong>: Added "Memory Card not detected"</li>
-  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera *, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume</li>
+  <li><strong>Commands Added</strong>: Take Snapshot, Initialize Camera, Unmute Mic, Mute Mic, Turn up speaker volume, Turn down speaker volume</li>
   <li><strong>Commands Removed</strong>: AWAKE_CAMERA, TEST_SNAPSHOT, TEST_MAIN_STREAM, TEST_SUB_STREAM, BIND_DEVICE, LOGIN_OR_REGISTER, GET_TEMP_TOKEN, GET_EXCHANGE_TOKEN, GET_DEVICES, DISCOVER_CAMERAS, DISCOVER_CAMERAS_SDDP, SET_DEVICE_PROPERTY, SEND_NOTIFICATION</li>
   <li><strong>Conditions Added</strong>: If sensing motion, If not sensing motion, If Mic is muted, If Mic is unmuted, If Speaker volume is 1-10</li>
 </ul>
@@ -631,18 +668,17 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 <ul>
   <li>Complete API integration</li>
   <li>RSA-OAEP encryption with C4:Crypto()</li>
-  <li>User authentication</li>
-  <li>Token management</li>
-  <li>Device listing</li>
-  <li>RTSP streaming URLs, snapshot support, PTZ controls</li>
+  <li>User authentication and token management</li>
+  <li>RTSP streaming URLs and snapshot support</li>
   <li>MQTT real-time event detection (SSL, port 8884)</li>
+  <li>Two-way audio support</li>
 </ul>
 
 <hr>
 
 <h2>Support &amp; Contact</h2>
 <ul>
-  <li><strong>Driver Version:</strong> 7</li>
+  <li><strong>Driver Version:</strong> 8</li>
   <li><strong>Maintainer:</strong> Slomins</li>
   <li><strong>Website:</strong> <a href="https://www.slomins.com">www.slomins.com</a></li>
   <li><strong>Email:</strong> <a href="mailto:support@slomins.com">support@slomins.com</a></li>

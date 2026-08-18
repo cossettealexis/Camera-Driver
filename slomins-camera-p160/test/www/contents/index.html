@@ -318,6 +318,16 @@
                 <p>P160 Camera Controls</p>
             </div>
             <div class="list">
+                <div class="item" onclick="show('rebootPanel')">
+                    <div class="left">
+                        <i data-lucide="rotate-cw" class="icon"></i>
+                        <div>
+                            <div class="title">Reboot</div>
+                            <div class="subtitle">Restart device</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
                 <div class="item" onclick="show('micPanel')">
                     <div class="left">
                         <i data-lucide="mic" class="icon"></i>
@@ -338,24 +348,33 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-               
             </div>
         </section>
 
-        
-        <!-- MIC -->
-        <section id="micPanel" class="panel">
-
+        <section id="rebootPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
+                <i data-lucide="rotate-cw" class="bigIcon"></i>
+                <div class="h2">Reboot Device</div>
+                <div class="desc">This will restart the camera system.</div>
+                <button class="btn" id="rebootBtn">
+                    Reboot
+                </button>
+            </div>
+        </section>
+        <!-- MIC -->
+        <section id="micPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
-
                 <div class="h2">Microphone</div>
                 <div class="desc">Enable or disable audio capture.</div>
 
@@ -375,11 +394,8 @@
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
                 <i data-lucide="edit-3" class="bigIcon"></i>
-
                 <div class="h2">Device Name</div>
                 <div class="desc">Set a custom name for this device</div>
 
@@ -412,13 +428,9 @@
             <span id="releaseDate">Release: Loading...</span>
         </div>
     </footer>
-
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <script>
-
         lucide.createIcons();
-
         /* =========================
            NAVIGATION
         ========================= */
@@ -439,8 +451,6 @@
         function reboot() {
 
             console.log("REBOOT_DEVICE");
-
-            // C4JH.SendToProxy("REBOOT_DEVICE",{});
 
         }
 

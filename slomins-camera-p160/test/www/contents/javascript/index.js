@@ -1,8 +1,3 @@
-
-// =====================================================
-// VD05 CAMERA SETTINGS UI (CONTROL4 - CLEAN VERSION)
-// =====================================================
-
 // ==========================
 // STATE (UI ONLY CACHE)
 // ==========================
@@ -21,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     requestInitialState();
     initDeviceName();
     initDeviceInfo();
+     initReboot();
 });
 
 // =====================================================
@@ -165,6 +161,7 @@ function sendMicCommand(muted) {
     }
 }
 
+
 function updateMicUI(muted) {
 
     isMicMuted = !!muted;
@@ -187,6 +184,62 @@ function updateMicUI(muted) {
     }
 }
 
+//Reboot
+function initReboot() {
+    const btn = document.getElementById('rebootBtn');
+    if (!btn) {
+        console.warn("rebootBtn not found");
+        return;
+    }
+
+    btn.removeEventListener('click', handleReboot);
+    btn.addEventListener('click', handleReboot);
+}
+
+function handleReboot() {
+    console.log('Reboot requested');
+
+    const btn = document.getElementById('rebootBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Rebooting...";
+    }
+
+    try {
+        C4.sendCommand(
+            'REBOOT_DEVICE',
+            '',
+            false,
+            true
+        );
+
+        console.log(" REBOOT_DEVICE command sent");
+
+        // Show success modal immediately (optimistic – device will go offline)
+        showModal(
+            "Reboot command sent successfully.\nThe device will restart shortly.",
+            "Reboot Initiated"
+        );
+
+        // Optional: re-enable the button after a few seconds
+        setTimeout(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Reboot";
+            }
+        }, 4000);
+
+    } catch (e) {
+        console.error("Reboot command error", e);
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Reboot";
+        }
+
+        showModal("Failed to send reboot command", "Error");
+    }
+}
 
 // =====================================================
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
