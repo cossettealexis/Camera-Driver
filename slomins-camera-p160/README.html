@@ -71,7 +71,7 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
 
-<p><strong>Version:</strong> 8<br>
+<p><strong>Version:</strong> 9<br>
 <strong>Package:</strong> Slomins-indoor-P160.c4z<br>
 <strong>Minimum Control4 OS:</strong> 3.3.2+</p>
 
@@ -625,12 +625,14 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v8 (Current)</h3>
+<h3>v9 (Current)</h3>
 <ul>
- <li>Fixed MQTT initialization to use OnDriverLateInit() instead of OnDriverInit()</li>
- <li>Resolved MQTT connection failures (props not initialized issue)</li>
- <li>Improved debug logging for MQTT connection flow</li>
- <li>Added comprehensive event reception tracking</li>
+ <li>Updated documentation to align with the device features.</li>
+</ul>
+
+<h3>v8</h3>
+<ul>
+ <li>Fixed the issue where events (Camera Offline, Camera Online, Human Detected, Motion Detected, Memory Card Not Detected) not triggering.</li>
 </ul>
 
 <h3>v6</h3>
@@ -678,7 +680,7 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Support &amp; Contact</h2>
 <ul>
-  <li><strong>Driver Version:</strong> 8</li>
+  <li><strong>Driver Version:</strong> 9</li>
   <li><strong>Maintainer:</strong> Slomins</li>
   <li><strong>Website:</strong> <a href="https://www.slomins.com">www.slomins.com</a></li>
   <li><strong>Email:</strong> <a href="mailto:support@slomins.com">support@slomins.com</a></li>

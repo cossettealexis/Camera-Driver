@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>6</version>
+    <version>9</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>07/30/2026 12:00 AM</modified>
+    <modified>08/18/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -46,10 +46,6 @@
         <show_test_url>true</show_test_url>
         <supports_streaming>true</supports_streaming>
         <hasHistory>true</hasHistory>
-        <has_motion_sensor>true</has_motion_sensor>
-        <has_playback>true</has_playback>
-        <can_seek>true</can_seek>
-        <can_pause>true</can_pause>
         <navigator_display_option proxybindingid="5005">
             <display_icons>
                 <Icon width="70" height="70">
@@ -62,7 +58,6 @@
         </navigator_display_option>
         <web_view_url proxybindingid="5005">controller://driver/Slomins-indoor-P160/contents/index.html</web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
-        
         <network>true</network>
         <address_required>true</address_required>
     </capabilities>
@@ -114,7 +109,6 @@
             <description>When NAME detects memory card is missing</description>
         </event>
     </events>
-
     <conditionals>
         <conditional>
             <name>MOTION_DETECTED</name>
@@ -289,6 +283,18 @@
                 <default>Not Detected</default>
                 <readonly>true</readonly>
             </property>
+            <property>
+                <name>Software Version</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
+            <property>
+                <name>Release Date</name>
+                <type>STRING</type>
+                <default></default>
+                <readonly>true</readonly>
+            </property>
         </properties>
         <actions>
             <action>
@@ -315,26 +321,6 @@
                 <name>Turn down speaker volume</name>
                 <command>SPEAKER_VOLUME_DOWN</command>
             </action>
-            <!-- <action>
-                <name>Test Motion Event</name>
-                <command>TEST_MOTION</command>
-            </action>
-            <action>
-                <name>Test Human Detection Event</name>
-                <command>TEST_HUMAN</command>
-            </action>
-            <action>
-                <name>Test Memory Card Missing Event</name>
-                <command>TEST_MEMORY_CARD</command>
-            </action>
-            <action>
-                <name>Test Camera Online Event</name>
-                <command>TEST_CAMERA_ONLINE</command>
-            </action>
-            <action>
-                <name>Test Camera Offline Event</name>
-                <command>TEST_CAMERA_OFFLINE</command>
-            </action> -->
         </actions>
         <commands>
             <command>
@@ -373,26 +359,10 @@
                 <name>SET_DEVICE_NAME</name>
                 <description>Change device name</description>
             </command>
-            <!-- <command>
-                <name>TEST_MOTION</name>
-                <description>Test Motion Event</description>
-            </command>
             <command>
-                <name>TEST_HUMAN</name>
-                <description>Test Human Detection Event</description>
+                <name>REBOOT_DEVICE</name>
+                <description>Restart the device</description>
             </command>
-            <command>
-                <name>TEST_MEMORY_CARD</name>
-                <description>Test Memory Card Missing Event</description>
-            </command>
-            <command>
-                <name>TEST_CAMERA_ONLINE</name>
-                <description>Test Camera Online Event</description>
-            </command>
-            <command>
-                <name>TEST_CAMERA_OFFLINE</name>
-                <description>Test Camera Offline Event</description>
-            </command> -->
         </commands>
         <interfaces>
             <interface>
@@ -406,81 +376,6 @@
         </interfaces>
     </config>
     <connections>
-        <connection>
-            <id>1</id>
-            <facing>6</facing>
-            <connectionname>Motion Detection</connectionname>
-            <type>1</type>
-            <consumer>False</consumer>
-            <audiosource>False</audiosource>
-            <videosource>False</videosource>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>CONTACT_SENSOR</classname>
-                </class>
-            </classes>
-        </connection>
-        <connection>
-            <id>2</id>
-            <facing>6</facing>
-            <connectionname>Human Detection</connectionname>
-            <type>1</type>
-            <consumer>False</consumer>
-            <audiosource>False</audiosource>
-            <videosource>False</videosource>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>CONTACT_SENSOR</classname>
-                </class>
-            </classes>
-        </connection>
-        <connection>
-            <id>3</id>
-            <facing>6</facing>
-            <connectionname>Camera Online</connectionname>
-            <type>1</type>
-            <consumer>False</consumer>
-            <audiosource>False</audiosource>
-            <videosource>False</videosource>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>CONTACT_SENSOR</classname>
-                </class>
-            </classes>
-        </connection>
-        <connection>
-            <id>4</id>
-            <facing>6</facing>
-            <connectionname>Camera Offline</connectionname>
-            <type>1</type>
-            <consumer>False</consumer>
-            <audiosource>False</audiosource>
-            <videosource>False</videosource>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>CONTACT_SENSOR</classname>
-                </class>
-            </classes>
-        </connection>
-        <connection>
-            <id>6</id>
-            <facing>6</facing>
-            <connectionname>Memory Card Missing</connectionname>
-            <type>1</type>
-            <consumer>False</consumer>
-            <audiosource>False</audiosource>
-            <videosource>False</videosource>
-            <linelevel>False</linelevel>
-            <classes>
-                <class>
-                    <classname>CONTACT_SENSOR</classname>
-                </class>
-            </classes>
-        </connection>
          <connection>
             <id>5005</id>
             <facing>6</facing>

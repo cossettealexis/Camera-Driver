@@ -54,12 +54,13 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 
 ## Version History
 
-### v8 (Current)
+### v9 (Current)
 
-- Fixed MQTT initialization to use OnDriverLateInit() instead of OnDriverInit()
-- Resolved MQTT connection failures (props not initialized issue)
-- Improved debug logging for MQTT connection flow
-- Added comprehensive event reception tracking
+- Updated documentation to align with the device features.
+
+### v8
+
+- Fixed the issue where events (Camera Offline, Camera Online, Human Detected, Motion Detected, Memory Card Not Detected) not triggering.
 
 ### v6
 
@@ -70,7 +71,7 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 
 ## Support & Contact
 
-- **Driver Version:** 8
+- **Driver Version:** 9
 - **Maintainer:** Slomins
 - **Website:** [www.slomins.com](https://www.slomins.com)
 - **Email:** [support@slomins.com](mailto:support@slomins.com)

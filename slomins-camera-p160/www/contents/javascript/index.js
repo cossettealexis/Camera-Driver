@@ -1,8 +1,3 @@
-
-// =====================================================
-// VD05 CAMERA SETTINGS UI (CONTROL4 - CLEAN VERSION)
-// =====================================================
-
 // ==========================
 // STATE (UI ONLY CACHE)
 // ==========================
@@ -15,13 +10,13 @@ let isMicMuted = false;
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    console.log('VD05 Settings UI Loaded');
 
     initializeControl4();
     initMicrophone();
     requestInitialState();
     initDeviceName();
     initDeviceInfo();
+     initReboot();
 });
 
 // =====================================================
@@ -32,13 +27,11 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
 
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-
-        console.log('Control4 initialized');
 
     } catch (e) {
         console.log('Control4 init error', e);
@@ -49,7 +42,6 @@ function requestInitialState() {
     // Ask driver for current Anti-Pry and Mic state
     try {
         C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
-        console.log('Requested initial Anti-Pry / Mic state');
     } catch (e) {
         console.log('Request initial state failed', e);
     }
@@ -67,8 +59,6 @@ function initDeviceName() {
         console.error("ERROR: Device name elements not found");
         return;
     }
-
-    console.log("Device Name module initialized");
 
     btn.addEventListener('click', function () {
       
@@ -95,8 +85,6 @@ function initDeviceName() {
                 false,
                 true
             );
-
-            console.log("SET_DEVICE_NAME sent:", newName);
 
             // Show Modal
             showModal("Device name updated successfully!", "Success");
@@ -128,8 +116,6 @@ function initDeviceName() {
 // =====================================================
 
 function initDeviceInfo() {
-    console.log("📋 Requesting device info (name + firmware)");
-
     try {
         C4.sendCommand('GET_DEVICE_INFO', '', false, true);
     } catch (e) {
@@ -156,8 +142,6 @@ function handleMicToggle(e) {
 
     const muted = !e.target.checked;
 
-    console.log('Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
-
     sendMicCommand(muted);
 }
 
@@ -176,6 +160,7 @@ function sendMicCommand(muted) {
         console.log('Mic command error', e);
     }
 }
+
 
 function updateMicUI(muted) {
 
@@ -199,6 +184,62 @@ function updateMicUI(muted) {
     }
 }
 
+//Reboot
+function initReboot() {
+    const btn = document.getElementById('rebootBtn');
+    if (!btn) {
+        console.warn("rebootBtn not found");
+        return;
+    }
+
+    btn.removeEventListener('click', handleReboot);
+    btn.addEventListener('click', handleReboot);
+}
+
+function handleReboot() {
+    console.log('Reboot requested');
+
+    const btn = document.getElementById('rebootBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Rebooting...";
+    }
+
+    try {
+        C4.sendCommand(
+            'REBOOT_DEVICE',
+            '',
+            false,
+            true
+        );
+
+        console.log(" REBOOT_DEVICE command sent");
+
+        // Show success modal immediately (optimistic – device will go offline)
+        showModal(
+            "Reboot command sent successfully.\nThe device will restart shortly.",
+            "Reboot Initiated"
+        );
+
+        // Optional: re-enable the button after a few seconds
+        setTimeout(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Reboot";
+            }
+        }, 4000);
+
+    } catch (e) {
+        console.error("Reboot command error", e);
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Reboot";
+        }
+
+        showModal("Failed to send reboot command", "Error");
+    }
+}
 
 // =====================================================
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
@@ -206,11 +247,17 @@ function updateMicUI(muted) {
 
 function onDataToUi(value) {
 
-    console.log('p160 DATA:', value);
-
     try {
 
-        const obj = JSON.parse(value);
+        const jsonObject = JSON.parse(value);
+
+        // Handle icon_description wrapper (NotificationHistory pattern)
+        let obj;
+        if (jsonObject.hasOwnProperty('icon_description')) {
+            obj = JSON.parse(jsonObject.icon_description);
+        } else {
+            obj = jsonObject;
+        }
 
        
 
@@ -219,23 +266,27 @@ function onDataToUi(value) {
         // =========================
         if (obj.type === "device_info" && obj.success) {
 
-            console.log("📋 Device Info received:", obj);
-
             // Update current device name in input field
             const input = document.getElementById('deviceNameInput');
             if (input && obj.device_name) {
                 input.value = obj.device_name;
-                console.log("Device name loaded:", obj.device_name);
             }
 
-            // Show Firmware Version (you need to add an element in HTML)
-            if (obj.version) {
-                const firmwareEl = document.getElementById('firmwareVersion');
-                if (firmwareEl) {
-                    firmwareEl.innerText = obj.version;
-                } else {
-                    console.warn("WARNING: No element with id='firmwareVersion' found");
-                }
+            // Update footer elements
+            const devEl = document.getElementById('deviceVersion');
+            const fwEl = document.getElementById('firmwareVersion');
+            const relEl = document.getElementById('releaseDate');
+
+            if (devEl) {
+                devEl.innerText = "Device: " + (obj.device_name || "Unknown");
+            }
+
+            if (fwEl) {
+                fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
+            }
+
+            if (relEl) {
+                relEl.innerText = "Release: " + (obj.release_date || "N/A");
             }
         }
 
@@ -245,8 +296,6 @@ function onDataToUi(value) {
         if (obj.type === "mic_update" || obj.mic_muted !== undefined) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
-
-            console.log("Mic UI UPDATE ->", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
         }
@@ -281,7 +330,8 @@ function onDataToUi(value) {
        
 
     } catch (e) {
-        console.log('onDataToUi parse error', e);
+        console.error('[DEBUG] onDataToUi ERROR:', e);
+        console.error('[DEBUG] Raw value:', value);
     }
 }
 

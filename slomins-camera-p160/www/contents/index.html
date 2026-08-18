@@ -37,7 +37,8 @@
             height: 100%;
             background: var(--bg);
             color: var(--text);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* =========================
@@ -46,38 +47,6 @@
         .app {
             width: 100%;
             height: 100%;
-        }
-
-        /* DEBUG CONSOLE */
-        #debugConsole {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 200px;
-            background: rgba(0, 0, 0, 0.95);
-            border-top: 2px solid #ad1c42;
-            color: #0f0;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            overflow-y: auto;
-            padding: 10px;
-            z-index: 9999;
-            display: block;
-        }
-        #debugConsole div {
-            margin: 2px 0;
-            border-bottom: 1px solid #333;
-            padding: 2px 0;
-        }
-        #debugConsole .error {
-            color: #f00;
-        }
-        #debugConsole .success {
-            color: #0f0;
-        }
-        #debugConsole .info {
-            color: #0ff;
         }
 
         /* =========================
@@ -284,20 +253,24 @@
         }
 
         .footer {
-            padding: 12px 16px;
+            padding: 20px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: -80px !important;
+            margin-top: auto;
         }
 
         .version-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            line-height: 1.4;
+            display: inline-block;
+            text-align: left;
+            line-height: 1.5;
+        }
+        
+        .version-info span {
+            display: block;
+            margin: 4px 0;
         }
 
 
@@ -345,6 +318,16 @@
                 <p>P160 Camera Controls</p>
             </div>
             <div class="list">
+                <div class="item" onclick="show('rebootPanel')">
+                    <div class="left">
+                        <i data-lucide="rotate-cw" class="icon"></i>
+                        <div>
+                            <div class="title">Reboot</div>
+                            <div class="subtitle">Restart device</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
                 <div class="item" onclick="show('micPanel')">
                     <div class="left">
                         <i data-lucide="mic" class="icon"></i>
@@ -365,24 +348,33 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-               
             </div>
         </section>
 
-        
-        <!-- MIC -->
-        <section id="micPanel" class="panel">
-
+        <section id="rebootPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
+                <i data-lucide="rotate-cw" class="bigIcon"></i>
+                <div class="h2">Reboot Device</div>
+                <div class="desc">This will restart the camera system.</div>
+                <button class="btn" id="rebootBtn">
+                    Reboot
+                </button>
+            </div>
+        </section>
+        <!-- MIC -->
+        <section id="micPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
-
                 <div class="h2">Microphone</div>
                 <div class="desc">Enable or disable audio capture.</div>
 
@@ -402,11 +394,8 @@
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-
             <div class="content">
-
                 <i data-lucide="edit-3" class="bigIcon"></i>
-
                 <div class="h2">Device Name</div>
                 <div class="desc">Set a custom name for this device</div>
 
@@ -439,46 +428,9 @@
             <span id="releaseDate">Release: Loading...</span>
         </div>
     </footer>
-
-    <!-- DEBUG CONSOLE -->
-    <div id="debugConsole"></div>
-
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <script>
-
-        // Debug console on screen
-        const debugDiv = document.getElementById('debugConsole');
-        const originalLog = console.log;
-        const originalError = console.error;
-        
-        function addDebug(msg, type = 'info') {
-            const line = document.createElement('div');
-            line.className = type;
-            line.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
-            debugDiv.appendChild(line);
-            debugDiv.scrollTop = debugDiv.scrollHeight;
-            
-            // Keep only last 50 lines
-            while (debugDiv.children.length > 50) {
-                debugDiv.removeChild(debugDiv.firstChild);
-            }
-        }
-        
-        console.log = function(...args) {
-            originalLog.apply(console, args);
-            addDebug(args.join(' '), 'info');
-        };
-        
-        console.error = function(...args) {
-            originalError.apply(console, args);
-            addDebug('ERROR: ' + args.join(' '), 'error');
-        };
-
         lucide.createIcons();
-
-        addDebug('UI Loaded', 'success');
-
         /* =========================
            NAVIGATION
         ========================= */
@@ -500,112 +452,23 @@
 
             console.log("REBOOT_DEVICE");
 
-            // C4JH.SendToProxy("REBOOT_DEVICE",{});
-
         }
 
-        // Handle data from driver - MUST be defined before subscription
-        function onDataToUi(value) {
-            console.log('[DEBUG] ==========================================');
-            console.log('[DEBUG] onDataToUi CALLED!');
-            console.log('[DEBUG] Raw value received:', value);
-            console.log('[DEBUG] Value type:', typeof value);
-            console.log('[DEBUG] ==========================================');
-            try {
-                const jsonObject = JSON.parse(value);
-                console.log('[DEBUG] Parsed outer JSON:', jsonObject);
-                
-                // Check for icon_description wrapper (NotificationHistory pattern)
-                let obj;
-                if (jsonObject.hasOwnProperty('icon_description')) {
-                    console.log('[DEBUG] Found icon_description wrapper, parsing...');
-                    obj = JSON.parse(jsonObject.icon_description);
-                    console.log('[DEBUG] Parsed icon_description:', obj);
-                } else {
-                    console.log('[DEBUG] No icon_description wrapper, using direct object');
-                    obj = jsonObject;
-                }
-                
-                console.log('[DEBUG] Final object.type =', obj.type);
-                console.log('[DEBUG] Final object.success =', obj.success);
-                
-                if (obj.type === "device_info" && obj.success) {
-                    console.log('[DEBUG] Device info condition matched!');
-                    console.log('[DEBUG] Device name:', obj.device_name);
-                    console.log('[DEBUG] Version:', obj.version);
-                    console.log('[DEBUG] Release date:', obj.release_date);
+        /* =========================
+           TOGGLES
+        ========================= */
+        document.addEventListener('DOMContentLoaded', () => {
 
-                    const devEl = document.getElementById("deviceVersion");
-                    const fwEl = document.getElementById("firmwareVersion");
-                    const relEl = document.getElementById("releaseDate");
+            document.getElementById('mic').addEventListener('change', function () {
 
-                    console.log('[DEBUG] DOM elements found:', {
-                        deviceVersion: !!devEl,
-                        firmwareVersion: !!fwEl,
-                        releaseDate: !!relEl
-                    });
+                document.getElementById('micStatus').innerText =
+                    this.checked ? "Enabled" : "Disabled";
 
-                    if (devEl) {
-                        const deviceText = "Device: " + (obj.device_name || "Unknown");
-                        devEl.innerText = deviceText;
-                        devEl.style.backgroundColor = '#0f0';
-                        devEl.style.color = '#000';
-                        setTimeout(() => {
-                            devEl.style.backgroundColor = '';
-                            devEl.style.color = '';
-                        }, 1000);
-                        console.log('[DEBUG] Updated deviceVersion element to:', deviceText);
-                    } else {
-                        console.error('[DEBUG] deviceVersion element NOT FOUND');
-                    }
+                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
 
-                    if (fwEl) {
-                        const fwText = "Firmware: " + (obj.version || "N/A");
-                        fwEl.innerText = fwText;
-                        fwEl.style.backgroundColor = '#0f0';
-                        fwEl.style.color = '#000';
-                        setTimeout(() => {
-                            fwEl.style.backgroundColor = '';
-                            fwEl.style.color = '';
-                        }, 1000);
-                        console.log('[DEBUG] Updated firmwareVersion element to:', fwText);
-                    } else {
-                        console.error('[DEBUG] firmwareVersion element NOT FOUND');
-                    }
-                    
-                    if (relEl) {
-                        const relText = "Release: " + (obj.release_date || "N/A");
-                        relEl.innerText = relText;
-                        relEl.style.backgroundColor = '#0f0';
-                        relEl.style.color = '#000';
-                        setTimeout(() => {
-                            relEl.style.backgroundColor = '';
-                            relEl.style.color = '';
-                        }, 1000);
-                        console.log('[DEBUG] Updated releaseDate element to:', relText);
-                    } else {
-                        console.error('[DEBUG] releaseDate element NOT FOUND');
-                    }
-                    
-                    console.log('[DEBUG] Footer update complete!');
-                } else {
-                    console.log('[DEBUG] Not device_info or success=false, skipping');
-                }
-            } catch (e) {
-                console.error('[DEBUG] onDataToUi ERROR:', e);
-                console.error('[DEBUG] Error parsing value:', value);
-            }
-        }
+            });
 
-        // Subscribe to driver updates - MUST be after onDataToUi is defined
-        try {
-            if (typeof C4 !== 'undefined') {
-                C4.subscribeToDataToUi(false);
-                console.log('[DEBUG] Subscribed to DataToUi with false');
-            }
-        } catch (e) {
-            console.error('[DEBUG] Control4 subscription error:', e);
-        }
+        });
 
         // Modal Functions
         function showModal(message, title = "Success") {
