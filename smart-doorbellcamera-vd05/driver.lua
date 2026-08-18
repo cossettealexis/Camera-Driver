@@ -2303,6 +2303,13 @@ local function handle_device_status(msg)
         local key = s.status_key
         local val = s.status_val
 
+        -- ====================== ONLINE / OFFLINE ======================
+        if key == "is_online" then
+            local isOnline = (tonumber(val) == 1)
+            print("[STATUS] is_online =", isOnline and "ONLINE" or "OFFLINE")
+            handle_online_status(isOnline)         
+        end
+
         -- ====================== ANTI-PRY ======================
         if key == "tamper_swt" or key == "tamper_switch" or 
            key == "antipry" or key == "tamper" or key == "tamper_alarm" then
@@ -2480,23 +2487,14 @@ function HANDLE_JSON_EVENT(payload)
 
     
 
-    ------------------------------------------------
-    -- DEVICE STATUS (ONLINE / OFFLINE)
-    ------------------------------------------------
-    
-    --[[if msg.method == "updateDeviceStatus" then
-        handle_device_status(msg, now)
-        return true
-    end
-
-    return false--]]
 
     ------------------------------------------------
     -- DEVICE STATUS (ONLINE / OFFLINE + ANTI-PRY etc.)
     ------------------------------------------------
     if msg.method == "updateDeviceStatus" then
-        handle_device_status(msg)   -- Removed unused 'now' parameter
-
+       
+        handle_device_status(msg, now)
+       
         -- === IMPROVED ANTI-PRY SYNC ===
         local hasTamperUpdate = false
         
@@ -2510,13 +2508,6 @@ function HANDLE_JSON_EVENT(payload)
                 end
             end
         end
-
-        
-        --[[if hasTamperUpdate then
-            print("[ANTI-PRY] Tamper status changed via cloud → scheduling full sync")
-            C4:SetTimer(1200, GET_DEVICE_STATUS)   
-            C4:SetTimer(3500, GET_DEVICE_STATUS)   
-        end--]]
 
         return true
     end
@@ -3738,131 +3729,6 @@ end
 
 
 -- =====================================================
--- ANTI-PRY STATE (VD05) - CLEAN FINAL VERSION
--- =====================================================
-
---[[function SET_ANTI_PRY_STATE(tParams)
-
-    print("[ANTI-PRY] Toggle requested")
-
-    -- =========================
-    -- DEFAULT RAW VALUE
-    -- =========================
-    local raw = false
-
-    -- =========================
-    -- SAFE PARAM PARSING
-    -- =========================
-    if type(tParams) == "string" then
-
-        local ok, data = pcall(function()
-            return json.decode(tParams)
-        end)
-
-        if ok and data then
-            raw = data.state
-        end
-
-    elseif type(tParams) == "table" then
-
-        raw = tParams.state
-
-    elseif type(tParams) == "boolean" or type(tParams) == "number" then
-
-        raw = tParams
-    end
-
-    -- =========================
-    -- FORCE STRICT 0 / 1
-    -- =========================
-    local tamper_swt = 0
-
-    if raw == true or raw == 1 or raw == "1" or raw == "true" then
-        tamper_swt = 1
-    end
-
-    print("[ANTI-PRY] RAW =", raw)
-    print("[ANTI-PRY] FINAL tamper_swt =", tamper_swt)
-
-    -- =========================
-    -- VALIDATE DEVICE INFO
-    -- =========================
-    local vid   = _props["VID"] or Properties["VID"]
-    local token = _props["Auth Token"] or Properties["Auth Token"]
-
-    if not vid or vid == "" then
-        print("[ANTI-PRY] ERROR: Missing VID")
-        return false
-    end
-
-    if not token or token == "" then
-        print("[ANTI-PRY] ERROR: Missing Auth Token")
-        return false
-    end
-
-    -- =========================
-    -- API URL
-    -- =========================
-    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
-                "/api/v3/openapi/device/do-property"
-
-    -- =========================
-    -- REQUIRED API FORMAT
-    -- data MUST be stringified JSON
-    -- =========================
-    local body = {
-        vid = vid,
-        data = json.encode({
-            tamper_swt = tamper_swt
-        })
-    }
-
-    local headers = {
-        ["Content-Type"]  = "application/json",
-        ["Authorization"] = "Bearer " .. token,
-        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
-    }
-
-    print("[ANTI-PRY] Sending request:", json.encode(body))
-
-    -- =========================
-    -- REQUEST
-    -- =========================
-    transport.execute({
-        url     = url,
-        method  = "POST",
-        headers = headers,
-        body    = json.encode(body)
-    }, function(code, resp, _, err)
-
-        print("[ANTI-PRY] Response code:", code)
-
-        if resp then
-            print("[ANTI-PRY] Response:", resp)
-        end
-
-        if code == 200 or code == 20000 then
-
-            -- update state
-            conditional_state.ANTI_PRY_ENABLED = (tamper_swt == 1)
-
-            -- push to UI
-            PushAntiPryStateToUI()
-
-            C4:UpdateProperty(
-                "Status",
-                "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled")
-            )
-
-        else
-            print("[ANTI-PRY] ERROR: Failed:", tostring(err))
-            C4:UpdateProperty("Status", "Anti-Pry failed")
-        end
-    end)
-
-    return true
-end--]] 
--- =====================================================
 -- ANTI-PRY STATE (VD05) - FIXED & RELIABLE
 -- =====================================================
 
@@ -3945,28 +3811,7 @@ function PushAntiPryStateToUI()
     C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
     C4:SetTimer(1500, function() C4:SendDataToUI(payload) end)
 end
---[[function PushAntiPryStateToUI()
-    local state = conditional_state.ANTI_PRY_ENABLED and 1 or 0
 
-     print("[DEBUG] PushAntiPryStateToUI")
-    print("conditional_state.ANTI_PRY_ENABLED =", tostring(conditional_state.ANTI_PRY_ENABLED))
-    print("state =", state)
-
-
-    local payload = json.encode({
-        tamper_swt = state,
-        anti_pry_enabled = (state == 1),
-        type = "anti_pry_update"   -- extra identifier
-    })
-
-    print("[ANTI-PRY] Pushing to UI:", payload)
-
-    C4:SendDataToUI(payload)
-
-    -- Triple push with delays for reliability
-    C4:SetTimer(400, function() C4:SendDataToUI(payload) end)
-    C4:SetTimer(900, function() C4:SendDataToUI(payload) end)
-end --]]
 
 -- =====================================================
 -- INITIAL UI SYNC

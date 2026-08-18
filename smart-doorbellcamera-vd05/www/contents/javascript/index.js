@@ -15,15 +15,17 @@ let isMicMuted = false;
 
 document.addEventListener('DOMContentLoaded', function () {
 
+    console.log('VD05 Settings UI Loaded');
+
     initializeControl4();
 
     initAntiPry();
     initMicrophone();
     initReboot();
-    initDeviceInfo();
-
-    // Request initial state from driver
     requestInitialState();
+    initDeviceName();
+    initDeviceInfo();
+    initSnapshot();
 });
 
 // =====================================================
@@ -34,11 +36,13 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(false);
+        C4.subscribeToDataToUi(true);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
 
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+
+        console.log('Control4 initialized');
 
     } catch (e) {
         console.log('Control4 init error', e);
@@ -49,19 +53,11 @@ function requestInitialState() {
     // Ask driver for current Anti-Pry and Mic state
     try {
         C4.sendCommand('REQUEST_INITIAL_STATE', '', false, true);
+        console.log('📤 Requested initial Anti-Pry / Mic state');
     } catch (e) {
         console.log('Request initial state failed', e);
     }
 }
-
-function initDeviceInfo() {
-    try {
-        C4.sendCommand('GET_DEVICE_INFO', '', false, true);
-    } catch (e) {
-        console.error("Failed to request device info", e);
-    }
-}
-
 // =====================================================
 // ANTI-PRY
 // =====================================================
@@ -69,18 +65,105 @@ function initDeviceInfo() {
 function initAntiPry() {
     const toggle = document.getElementById('antiPry');
     if (!toggle) {
-        console.error("ERROR: antiPry toggle not found in DOM!");
+        console.error("❌ antiPry toggle not found in DOM!");
         return;
     }
+
+    console.log("✅ antiPry toggle initialized");
 
     // Remove old listener if exists
     toggle.removeEventListener('change', handleAntiPryToggle);
     toggle.addEventListener('change', handleAntiPryToggle);
 }
 
+
+function initDeviceName() {
+
+    const input = document.getElementById('deviceNameInput');
+    const btn = document.getElementById('updateNameBtn');
+    const statusEl = document.getElementById('deviceNameStatus');
+
+    if (!btn || !input) {
+        console.error("❌ Device name elements not found");
+        return;
+    }
+
+    console.log("✅ Device Name module initialized");
+
+    btn.addEventListener('click', function () {
+        setTimeout(function () {
+            showModal("Device name updated successfully", "Success");
+        }, 5000);
+        const newName = input.value.trim();
+
+        if (!newName) {
+            if (statusEl) {
+                statusEl.innerText = "Please enter a device name";
+                statusEl.style.color = "#ff6b6b";
+            }
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.innerText = "Updating...";
+            statusEl.style.color = "#ffffff";
+        }
+
+        try {
+
+            C4.sendCommand(
+                "SET_DEVICE_NAME",
+                JSON.stringify({ name: newName }),
+                false,
+                true
+            );
+
+            console.log("📤 SET_DEVICE_NAME sent:", newName);
+
+            // Show Modal
+            showModal("Device name updated successfully!", "Success");
+
+        } catch (e) {
+
+            console.error("Send error", e);
+
+            if (statusEl) {
+                statusEl.innerText = "Failed to send command";
+                statusEl.style.color = "#ff6b6b";
+            }
+
+            // Or show an error modal instead
+            showModal("Failed to send command", "Error");
+        }
+    });
+
+    // Allow Enter key
+    input.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            btn.click();
+        }
+    });
+}
+
+// =====================================================
+// DEVICE INFO (Name + Firmware)
+// =====================================================
+
+function initDeviceInfo() {
+    console.log("📋 Requesting device info (name + firmware)");
+
+    try {
+        C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+    } catch (e) {
+        console.error("Failed to request device info", e);
+    }
+}
+
 function handleAntiPryToggle(e) {
 
     const state = e.target.checked;
+
+    console.log('🛡 Anti-Pry toggle clicked:', state);
 
     // DO NOT assume success — Lua will confirm
     sendAntiPryCommand(state);
@@ -104,17 +187,29 @@ function sendAntiPryCommand(state) {
     }
 }
 
-/*function updateAntiPryUI(state) {
-
+function updateAntiPryUI(state) {
     antiPryEnabled = !!state;
 
     const toggle = document.getElementById('antiPry');
     const status = document.getElementById('antiPryStatus');
 
-    if (toggle) toggle.checked = antiPryEnabled;
-    if (status) status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
-} */
+    if (toggle) {
+        const wasChecked = toggle.checked;
+        toggle.checked = antiPryEnabled;
+        
+        console.log(`[UI] Toggle updated: ${wasChecked} → ${toggle.checked} (desired: ${antiPryEnabled})`);
+        
+        // Extra force for stubborn Control4 WebView
+        if (toggle.checked !== antiPryEnabled) {
+            console.warn("[UI] Toggle didn't stick - forcing again");
+            setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
+        }
+    }
 
+    if (status) {
+        status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
+    }
+}
 
 // =====================================================
 // MICROPHONE
@@ -125,12 +220,15 @@ function initMicrophone() {
     const toggle = document.getElementById('mic');
     if (!toggle) return;
 
+    toggle.removeEventListener('change', handleMicToggle);
     toggle.addEventListener('change', handleMicToggle);
 }
 
 function handleMicToggle(e) {
 
     const muted = !e.target.checked;
+
+    console.log('🎤 Mic toggle clicked:', muted ? 'MUTE' : 'UNMUTE');
 
     sendMicCommand(muted);
 }
@@ -153,13 +251,24 @@ function sendMicCommand(muted) {
 
 function updateMicUI(muted) {
 
-    isMicMuted = muted;
+    isMicMuted = !!muted;
 
     const toggle = document.getElementById('mic');
     const status = document.getElementById('micStatus');
 
-    if (toggle) toggle.checked = !muted;
-    if (status) status.innerText = muted ? 'Muted' : 'Enabled';
+    if (toggle) {
+        toggle.checked = !isMicMuted;
+
+        if (toggle.checked !== !isMicMuted) {
+            setTimeout(() => {
+                toggle.checked = !isMicMuted;
+            }, 50);
+        }
+    }
+
+    if (status) {
+        status.innerText = isMicMuted ? 'Muted' : 'Enabled';
+    }
 }
 
 // =====================================================
@@ -176,6 +285,8 @@ function initReboot() {
 
 function handleReboot() {
 
+    console.log('🔄 Reboot requested');
+
     try {
 
         C4.sendCommand(
@@ -191,41 +302,75 @@ function handleReboot() {
 }
 
 // =====================================================
+// SNAPSHOT
+// =====================================================
+
+function initSnapshot() {
+    const snapshotBtn = document.getElementById('snapshotBtn');
+    if (!snapshotBtn) {
+        console.warn("⚠️ Snapshot button not found");
+        return;
+    }
+
+    console.log("📸 Snapshot button initialized");
+
+    
+    snapshotBtn.removeEventListener('click', handleTakeSnapshot);
+    snapshotBtn.addEventListener('click', handleTakeSnapshot);
+}
+
+function handleTakeSnapshot() {
+    console.log('📸 Take Snapshot requested');
+
+    const btn = document.getElementById('snapshotBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Capturing...";
+    }
+
+    try {
+        // Send command to Lua driver
+        C4.sendCommand(
+            'TAKE_SNAPSHOT',   
+            JSON.stringify({}), // empty params
+            false,
+            true
+        );
+
+        console.log("📤 TAKE_SNAPSHOT command sent");
+
+    } catch (e) {
+        console.error("Snapshot command error", e);
+        resetSnapshotButton();
+        showModal("Failed to send snapshot command", "Error");
+    }
+}
+
+// Reset button after action
+function resetSnapshotButton() {
+    const btn = document.getElementById('snapshotBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerText = "Take Snapshot";
+    }
+}
+
+
+// =====================================================
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
 // =====================================================
 
-
 function onDataToUi(value) {
+
+    console.log('📥 VD05 DATA:', value);
+
     try {
-        const jsonObject = JSON.parse(value);
 
-        // Handle icon_description wrapper (NotificationHistory pattern)
-        let obj;
-        if (jsonObject.hasOwnProperty('icon_description')) {
-            obj = JSON.parse(jsonObject.icon_description);
-        } else {
-            obj = jsonObject;
-        }
+        const obj = JSON.parse(value);
 
-        // Device Info (Name + Firmware)
-        if (obj.type === "device_info" && obj.success) {
-            const devEl = document.getElementById('deviceVersion');
-            const fwEl = document.getElementById('firmwareVersion');
-            const relEl = document.getElementById('releaseDate');
-
-            if (devEl) {
-                devEl.innerText = "Device: " + (obj.device_name || "Unknown");
-            }
-
-            if (fwEl) {
-                fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
-            }
-
-            if (relEl) {
-                relEl.innerText = "Release: " + (obj.release_date || "N/A");
-            }
-        }
-
+        // =========================
+        // ANTI-PRY SYNC
+        // =========================
         if (obj.type === "anti_pry_update" || 
             obj.tamper_swt !== undefined || 
             obj.anti_pry_enabled !== undefined) {
@@ -239,72 +384,93 @@ function onDataToUi(value) {
                 state = !!obj.anti_pry_enabled;
             }
 
+            console.log('🛡 Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
             updateAntiPryUI(state);
         }
 
-        // Mic handling
-        if (obj.mic_muted !== undefined) {
-            updateMicUI(!!obj.mic_muted);
-        }
+                // =========================
+        // DEVICE INFO (Name + Firmware)
+        // =========================
+        if (obj.type === "device_info" && obj.success) {
 
-    } catch (e) {
-        console.error('ERROR: onDataToUi ERROR:', e, 'Raw value:', value);
-    }
-}
+            console.log("📋 Device Info received:", obj);
 
-function updateAntiPryUI(state) {
-    antiPryEnabled = !!state;
-
-    const toggle = document.getElementById('antiPry');
-    const status = document.getElementById('antiPryStatus');
-
-    if (toggle) {
-        const wasChecked = toggle.checked;
-        toggle.checked = antiPryEnabled;
-        
-        // Extra force for stubborn Control4 WebView
-        if (toggle.checked !== antiPryEnabled) {
-            setTimeout(() => { toggle.checked = antiPryEnabled; }, 50);
-        }
-    }
-
-    if (status) {
-        status.innerText = antiPryEnabled ? 'Enabled' : 'Disabled';
-    }
-}
-/*function onDataToUi(value) {
-
-    console.log('VD05 DATA:', value);
-
-    try {
-
-        const obj = JSON.parse(value);
-
-        if (obj.tamper_swt !== undefined || obj.anti_pry_enabled !== undefined) {
-
-            let state = false;
-
-            if (obj.tamper_swt !== undefined) {
-                state = Number(obj.tamper_swt) === 1;
-            } else if (obj.anti_pry_enabled !== undefined) {
-                state = !!obj.anti_pry_enabled;
+            // Update current device name in input field
+            const input = document.getElementById('deviceNameInput');
+            if (input && obj.device_name) {
+                input.value = obj.device_name;
+                console.log("✅ Device name loaded:", obj.device_name);
             }
 
-            updateAntiPryUI(state);
+            // Show Firmware Version (you need to add an element in HTML)
+            if (obj.version) {
+                const firmwareEl = document.getElementById('firmwareVersion');
+                if (firmwareEl) {
+                    firmwareEl.innerText = obj.version;
+                } else {
+                    console.warn("⚠️ No element with id='firmwareVersion' found");
+                }
+            }
         }
 
-    
-        if (obj.mic_muted !== undefined) {
+        // =========================
+        // MICROPHONE SYNC
+        // =========================
+        if (obj.type === "mic_update" || obj.mic_muted !== undefined) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
+
+            console.log("🎤 Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
         }
 
+
+        // Device Name Feedback
+                // Device Name Feedback
+        if (obj.device_name_updated) {
+            const statusEl = document.getElementById('deviceNameStatus');
+            if (statusEl) {
+                statusEl.innerText = "✓ Name updated successfully";
+                statusEl.style.color = "#4ade80";
+            }
+
+            // Show Modal
+            showModal("Device name updated successfully!", "Success");
+
+            // Optional: clear input
+            const input = document.getElementById('deviceNameInput');
+            if (input) input.value = "";
+        }
+
+        // Error handling
+        if (obj.error) {
+            const statusEl = document.getElementById('deviceNameStatus');
+            if (statusEl) {
+                statusEl.innerText = "✗ Update failed";
+                statusEl.style.color = "#ff6b6b";
+            }
+            showModal(obj.error || "Failed to update device name", "Error");
+        }
+
+        if (obj.type === "snapshot_success" || obj.snapshot_taken === true) {
+            console.log("📸 Snapshot captured successfully");
+            resetSnapshotButton();
+            showModal("Snapshot captured successfully!", "Snapshot");
+        }
+
+        // Optional: Handle failure
+        if (obj.snapshot_error) {
+            console.error("Snapshot failed:", obj.snapshot_error);
+            resetSnapshotButton();
+            showModal(obj.snapshot_error || "Failed to capture snapshot", "Error");
+        }
+
     } catch (e) {
-        // Parse error - silently ignore
+        console.log('onDataToUi parse error', e);
     }
-} */
+}
+
 
 // =====================================================
 // ERROR HANDLERS
