@@ -1737,6 +1737,11 @@ function GET_DEVICES(p_vid)
                     end
                     print("DF511 properties updated successfully")
 
+                    -- Fetch firmware version from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
+
                     --call the helper
                     if not _props.full_init_complete then
                         _props.full_init_complete = true
@@ -5198,7 +5203,8 @@ function GET_DEVICE_INFO()
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
-            version        = d.version or "",                    -- Firmware version
+            version        = d.version or "N/A",                    -- Firmware version
+            release_date   = d.release_date or d.update_time or "N/A",  -- Release date
             battery        = tonumber(d.power) or 0,
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -5210,10 +5216,18 @@ function GET_DEVICE_INFO()
             can_update     = (d.can_update == 1)
         }
 
-        print("✅ Device Info Parsed:")
+        print("Device Info Parsed:")
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
+        print("   Release:", payload.release_date)
         print("   Battery:", payload.battery .. "%")
+
+        -- Update Control4 driver properties
+        C4:UpdateProperty("Software Version", payload.version)
+        print("[FIRMWARE] Software Version updated:", payload.version)
+        
+        C4:UpdateProperty("Release Date", payload.release_date)
+        print("[FIRMWARE] Release Date updated:", payload.release_date)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")

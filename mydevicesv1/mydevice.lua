@@ -4,6 +4,10 @@ local auth      = require("CldBusApi.auth")
 local transport = require("CldBusApi.transport_c4")
 local util      = require("CldBusApi.util")
 sha256          = require("sha256")
+
+-- Load environment configuration
+local ENV_CONFIG = require("config")
+print("[CONFIG] Environment config loaded")
  
 GlobalObject = {}
 GlobalObject.ClientID = ""
@@ -48,12 +52,22 @@ GlobalObject.LNDU = {
 
 function OnDriverInit()
     print("SetupProperties:")
+    
     GlobalObject.ClientID = Properties["Tuya ClientId"]
     GlobalObject.ClientSecret = Properties["Tuya ClientSecret"]
     C4:UpdateProperty("Tcp Port", "8081")
     GlobalObject.TCP_SERVER_PORT = Properties["Tcp Port"]
 
-   
+    -- Initialize Environment URLs from config.lua
+    local env = Properties["Environment"] or "PROD"
+    if ENV_CONFIG and ENV_CONFIG[env] then
+        local config = ENV_CONFIG[env]
+        C4:UpdateProperty("Validation API URL", config.ValidationApiUrl)
+        C4:UpdateProperty("Base API URL", config.BaseApiUrl)
+        print("Initialized with " .. env .. " environment from config.lua")
+    else
+        print("[ERROR] Failed to load environment config")
+    end
 
     TcpConnection()
 
@@ -73,9 +87,12 @@ function OnDriverInit()
 end
 
 function OnDriverLateInit()
-    C4:UpdateProperty("MacAddress", C4:GetUniqueMAC())
+    local macAddress = C4:GetUniqueMAC()
+    print("OnDriverLateInit(): MAC Address:", macAddress)
+    C4:UpdateProperty("MacAddress", macAddress)
+    print("OnDriverLateInit(): Validating MAC Address...")
     
-     ValidateMacAddress(Properties["MacAddress"], function(isValid)
+    ValidateMacAddress(macAddress, function(isValid)
         if not isValid then
             ClearDeviceList()
         end
@@ -84,11 +101,45 @@ end
 
 function OnPropertyChanged(strName)
     print("OnPropertyChange():", strName, Properties[strName])
+    
+    if strName == "Environment" then
+        local env = Properties["Environment"]
+        local macAddress = Properties["MacAddress"]
+
+        print("Environment changed to: " .. env)
+        
+        -- Load URLs from config.lua
+        if ENV_CONFIG and ENV_CONFIG[env] then
+            local config = ENV_CONFIG[env]
+            C4:UpdateProperty("Validation API URL", config.ValidationApiUrl)
+            C4:UpdateProperty("Base API URL", config.BaseApiUrl)
+            print("URLs loaded from config.lua for: " .. env)
+            print("  Validation API: " .. config.ValidationApiUrl)
+            print("  Base API: " .. config.BaseApiUrl)
+
+            ClearDeviceList()
+            ValidateMacAddress(macAddress, function(isValid)
+                if isValid then
+                    InitializeCamera()
+                end
+            end)
+        else
+            print("[ERROR] Environment config not found for: " .. env)
+        end
+        
+        C4:UpdateProperty("Status", "Environment: " .. env)
+        
+        -- Broadcast environment change to all drivers via TCP
+        BroadcastEnvironmentChange(env)
+        return
+    end
+    
     if (strName == "MacAddress") then
-        C4:UpdateProperty("MacAddress", Properties[strName])
+        local macAddress = Properties[strName]
+        print("MacAddress changed to: " .. tostring(macAddress))
 
         ClearDeviceList()
-        ValidateMacAddress(Properties["MacAddress"], function(isValid)
+        ValidateMacAddress(macAddress, function(isValid)
              if isValid then
                 InitializeCamera()
             end
@@ -822,7 +873,53 @@ function LoginOrRegister(country_code)
     end)
 end
 
-
+function BroadcastEnvironmentChange(env)
+    print("[BROADCAST] Broadcasting environment change: " .. env)
+    -- Get URLs from config.lua
+    local validationUrl = ""
+    local baseApiUrl = ""
+    
+    if ENV_CONFIG and ENV_CONFIG[env] then
+        validationUrl = ENV_CONFIG[env].ValidationApiUrl
+        baseApiUrl = ENV_CONFIG[env].BaseApiUrl
+    else
+        print("[BROADCAST] Error: Environment config not found")
+        validationUrl = "https://api.slomins.com/OntechSvcs/1.2/ontech/IsValidControl4MacAddress"
+        baseApiUrl = "https://api.arpha-tech.com"
+    end
+    
+    local url = "http://54.90.205.243:3000/send-to-control4"
+    
+    local body = {
+        message = {
+            EventName = "UpdateEnvironment",
+            Environment = env,
+            ValidationApiUrl = validationUrl,
+            BaseApiUrl = baseApiUrl,
+            C4UniqueMac = Properties["MacAddress"] or ""
+        }
+    }
+    
+    local req = {
+        url = url,
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json"
+        },
+        body = json.encode(body),
+        timeout = 10
+    }
+    
+    print("[BROADCAST] Sending environment update to Node API...")
+    
+    transport.execute(req, function(code, resp, headers, err)
+        if code == 200 then
+            print("[BROADCAST] SUCCESS: Environment change broadcasted!")
+        else
+            print(string.format("[BROADCAST] Failed: %s | Error: %s", tostring(code), tostring(err)))
+        end
+    end)
+end
 
 function SendTokenToNodeAPI(token)
     local attempt = 1
@@ -1036,6 +1133,13 @@ function MakeSSDPDiscoverable(deviceVid, deviceName, callback)
         },
         body = json.encode(body)
     }, function(code, resp)
+        print("================================================================")
+        print("[SSDP RESPONSE] Device:", deviceName, "VID:", deviceVid)
+        print("[SSDP RESPONSE] HTTP Code:", tostring(code))
+        print("[SSDP RESPONSE] Response Body:")
+        print(resp or "(empty)")
+        print("================================================================")
+        
         if code == 200 or code == 20000 then
             print("[SSDP] Successfully enabled SSDP for:", deviceName, "VID:", deviceVid)
             if callback then callback(true, deviceName) end

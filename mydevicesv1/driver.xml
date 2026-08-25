@@ -6,8 +6,8 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>07/03/2026 12:00 PM</modified>
-  <version>10</version>
+  <modified>08/12/2026 12:00 PM</modified>
+  <version>11</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
   <auto_update>true</auto_update>
@@ -63,6 +63,16 @@
         <type>STRING</type>
         <default>Initializing...</default>
         <readonly>true</readonly>
+      </property>
+      <property>
+        <name>Environment</name>
+        <type>LIST</type>
+        <default>QA</default>
+        <readonly>false</readonly>
+        <items>
+          <item>QA</item>
+          <item>PROD</item>
+        </items>
       </property>
       <property>
         <name>Validation API URL</name>

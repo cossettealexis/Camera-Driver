@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LNDU Devices and Slomins Video App - Release Notes</title>
+<style>
+:root{--ink:#17201d;--muted:#68716d;--paper:#f6f4ee;--card:#fff;--line:#dedfd9;--green:#1f6b50;--mint:#dff2e8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px Arial,sans-serif}
+.top{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 max(5vw,24px);border-bottom:1px solid var(--line);background:#faf9f5}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700}
+.mark{display:grid;place-items:center;width:30px;height:30px;background:var(--ink);color:white;border-radius:8px;font:700 17px Georgia}
+.hero{padding:70px max(7vw,24px) 48px;max-width:1120px;margin:auto}
+.eyebrow{font-size:11px;letter-spacing:.2em;color:var(--green);font-weight:800;margin:0 0 18px}
+.hero h1{font:400 clamp(30px,4vw,44px)/1.08 Georgia;letter-spacing:-.035em;margin:0}
+.hero h1 em{color:var(--green)}
+.sub{color:var(--muted);font-size:18px;line-height:1.65;max-width:610px}
+.stats{display:flex;gap:28px;margin-top:30px;color:var(--muted);font-size:13px}
+.stats b{color:var(--ink)}
+.feed{max-width:970px;margin:auto;padding:10px 24px 80px}
+.release{display:grid;grid-template-columns:66px 1fr;gap:24px;margin-bottom:40px}
+.rail{text-align:center;padding-top:8px}
+.rail small{display:block;font-size:9px;letter-spacing:.15em;color:var(--green);font-weight:800;margin-bottom:4px}
+.rail b{display:block;font:700 26px/1 Georgia;color:var(--ink)}
+.rail i{display:block;width:1px;background:var(--line);height:100%;margin:14px auto 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 28px 28px}
+.cardtop{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.product{font-weight:800;font-size:13px;letter-spacing:.05em}
+.status{font-size:11px;margin-left:12px;color:var(--muted)}
+.status.published{color:var(--green)}
+.card h2{font:500 20px/1.25 Georgia;margin:0 0 20px}
+.card ul{list-style:none;padding:0;margin:0}
+.card li{display:grid;grid-template-columns:26px 1fr;gap:12px;margin-bottom:10px;line-height:1.55}
+.num{color:var(--muted);font-size:11px;font-weight:700;padding-top:2px}
+.hint{max-width:970px;margin:auto;padding:0 24px 60px;color:var(--muted);font-size:13px;font-style:italic}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="mark">L</span>
+    <span>LNDU Devices and Slomins Video App</span>
+  </div>
+</header>
+
+<section class="hero">
+  <p class="eyebrow">PRODUCT CHANGELOG</p>
+  <h1>What shipped, <em>clearly.</em></h1>
+  <p class="sub">A living record of firmware, app and platform updates—easy to scan, search and keep current.</p>
+  <div class="stats">
+    <span><b>13</b> releases</span>
+    <span><b>5</b> products</span>
+    <span>Updated <b>Aug 18</b></span>
+  </div>
+</section>
+
+<section class="feed">
+
+  <article class="release">
+    <div class="rail">
+      <small>AUG</small>
+      <b>18</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">DF511</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.25.15.10</h2>
+      <ul>
+        <li><span class="num">01</span><span>Changed 'Face Detected Event' to 'Stranger Detected'.</span></li>
+        <li><span class="num">02</span><span>Changed 'Person Loitering' to 'Human Detected Event'.</span></li>
+        <li><span class="num">03</span><span>Adjusted Human Detected Event duration from 10s to 15s.</span></li>
+        <li><span class="num">04</span><span>Fixed jagged edges on photos.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUL</small>
+      <b>29</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K15</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.0.0.8</h2>
+      <ul>
+        <li><span class="num">01</span><span>Fixed PTZ returning to center when setting the smart tracking return point to (0,0).</span></li>
+        <li><span class="num">02</span><span>Resolved difficulty adding presets when smart tracking auto-return triggered too soon.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUL</small>
+      <b>21</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K26</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.17.41.34</h2>
+      <ul>
+        <li><span class="num">01</span><span>Fixed incomplete videos shorter than 15 seconds saved to TF card.</span></li>
+        <li><span class="num">02</span><span>Fixed RTP H.264 compliance.</span></li>
+        <li><span class="num">03</span><span>Fixed prolonged offline status while the device is idle.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUL</small>
+      <b>7</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">DF511</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.22.14.9</h2>
+      <ul>
+        <li><span class="num">01</span><span>Refactored low-power and WIFICTRL logic.</span></li>
+        <li><span class="num">02</span><span>Improved Wi-Fi reconnection, OTA reliability, photo uploads and linger detection.</span></li>
+        <li><span class="num">03</span><span>Added serial-port login protection and removed plaintext credentials.</span></li>
+        <li><span class="num">04</span><span>Added MCU message caching, fallback handling and battery reporting improvements.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUN</small>
+      <b>30</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">Slomins Video · iOS</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 1.0.3</h2>
+      <ul>
+        <li><span class="num">01</span><span>Added default images and reduced image size for K15 preset points.</span></li>
+        <li><span class="num">02</span><span>Updated default avatar and added app-version update prompt.</span></li>
+        <li><span class="num">03</span><span>Doorbell events now start recording automatically in live preview.</span></li>
+        <li><span class="num">04</span><span>Fixed video playback and download issues.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUN</small>
+      <b>30</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">Slomins Video · Android</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 1.0.3</h2>
+      <ul>
+        <li><span class="num">01</span><span>Added K15 preset images and app-version update prompt.</span></li>
+        <li><span class="num">02</span><span>Improved notification list and event file identifiers.</span></li>
+        <li><span class="num">03</span><span>Fixed localization, missing titles and an Android 16 startup crash.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUN</small>
+      <b>25</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K26</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.17.38.33</h2>
+      <ul>
+        <li><span class="num">01</span><span>Upgraded K26 and VD05 from loose binding to strong binding.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>JUN</small>
+      <b>25</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">VD05</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.33.52.36</h2>
+      <ul>
+        <li><span class="num">01</span><span>Upgraded K26 and VD05 from loose binding to strong binding.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>MAY</small>
+      <b>21</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K26</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.17.38.32</h2>
+      <ul>
+        <li><span class="num">01</span><span>Transmit H.264 video data according to RFC 6184.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>MAY</small>
+      <b>9</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">DF511</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.16.12.8</h2>
+      <ul>
+        <li><span class="num">01</span><span>Improved Wi-Fi compatibility, sleep/wake behavior and low-power testing.</span></li>
+        <li><span class="num">02</span><span>Fixed time zone, Bluetooth binding, motion detection and playback issues.</span></li>
+        <li><span class="num">03</span><span>Improved RTSP upload and recording reliability.</span></li>
+        <li><span class="num">04</span><span>Added low-battery reporting and Wi-Fi wake-up fallback.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>MAY</small>
+      <b>5</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K26</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.17.37.32</h2>
+      <ul>
+        <li><span class="num">01</span><span>Updated Wi-Fi driver to restore automatic reconnection.</span></li>
+        <li><span class="num">02</span><span>Resolved time zone errors.</span></li>
+        <li><span class="num">03</span><span>Aligned notification thumbnails with video files.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>APR</small>
+      <b>30</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">VD05</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.33.52.35</h2>
+      <ul>
+        <li><span class="num">01</span><span>Fixed time zone errors.</span></li>
+        <li><span class="num">02</span><span>Aligned notification thumbnails with video files.</span></li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="release">
+    <div class="rail">
+      <small>APR</small>
+      <b>11</b>
+      <i></i>
+    </div>
+    <div class="card">
+      <div class="cardtop">
+        <div>
+          <span class="product">K15</span>
+          <span class="status published">● Published</span>
+        </div>
+      </div>
+      <h2>Version 0.0.0.6</h2>
+      <ul>
+        <li><span class="num">01</span><span>Fixed the time zone error issue.</span></li>
+      </ul>
+    </div>
+  </article>
+
+</section>
+
+<p class="hint">This is a static snapshot for viewing in OneDrive. For full editing features, use the interactive version locally.</p>
+
+</body>
+</html>
