@@ -1630,9 +1630,20 @@ function GET_DEVICES(p_vid)
                     end
                 end
                 
-                if not target_device and ip then
+                if not target_device and ip and ip ~= "" then
                     print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                    print("Clearing IP and VID - device not in account")
+                    
+                    -- Clear IP and VID properties
+                    SET_CAMERA_IP("")
+                    _props["VID"] = ""
+                    C4:UpdateProperty("VID", "")
+                    
+                    -- Show account mismatch message
+                    local account = _props["Account"] or Properties["Account"] or GlobalObject.CustomerEmail or "unknown"
+                    local status_msg = string.format("This device is not in account %s", account)
+                    C4:UpdateProperty("Status", status_msg)
+                    print("[STATUS] " .. status_msg)
                     return
                 end
                 

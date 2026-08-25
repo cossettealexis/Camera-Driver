@@ -71,7 +71,7 @@
 <h2>Overview</h2>
 <p>Complete Control4 driver for Slomins P160-SL IP Camera with full API integration, authentication, streaming, PTZ support, and real-time MQTT event detection.</p>
 
-<p><strong>Version:</strong> 9<br>
+<p><strong>Version:</strong> 10<br>
 <strong>Package:</strong> Slomins-indoor-P160.c4z<br>
 <strong>Minimum Control4 OS:</strong> 3.3.2+</p>
 
@@ -625,7 +625,23 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Version History</h2>
 
-<h3>v9 (Current)</h3>
+<h3>v10 (Current)</h3>
+<ul>
+ <li><strong>Fixed Discovery IP Address Mismatch</strong>
+   <ul>
+     <li>When discovering a P160 camera on the network, the IP address shown in the "Discovered" tab conflicts between the P160 device in the network and the one that was discovered via mydevices driver.</li>
+     <li>The driver now handles the following scenarios:
+       <ul>
+         <li>If the discovered camera belongs to your account → Uses the discovered IP and populates device information</li>
+         <li>If the discovered camera belongs to a different account → Shows "This device is not in account {your-email}" in the Status field</li>
+         <li>If manually adding a camera (not discovered) → Automatically finds and populates the IP from your cloud account</li>
+       </ul>
+     </li>
+   </ul>
+ </li>
+</ul>
+
+<h3>v9</h3>
 <ul>
  <li>Updated documentation to align with the device features.</li>
 </ul>
@@ -680,7 +696,7 @@ Rename-Item "temp.zip" "Smart-Camera-P160-SL.c4z"</code></pre>
 
 <h2>Support &amp; Contact</h2>
 <ul>
-  <li><strong>Driver Version:</strong> 9</li>
+  <li><strong>Driver Version:</strong> 10</li>
   <li><strong>Maintainer:</strong> Slomins</li>
   <li><strong>Website:</strong> <a href="https://www.slomins.com">www.slomins.com</a></li>
   <li><strong>Email:</strong> <a href="mailto:support@slomins.com">support@slomins.com</a></li>
