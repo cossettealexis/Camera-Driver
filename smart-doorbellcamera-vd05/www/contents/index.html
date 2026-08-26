@@ -251,12 +251,12 @@
          .version-info {
             display: inline-block;
             text-align: left;
-            line-height: 1.5;
+            line-height: 0.9;
         }
         
         .version-info span {
             display: block;
-            margin: 4px 0;
+            margin: 0 !important;
         }
 
         /* Modal */
@@ -475,7 +475,6 @@
                 <p>VD05 Camera Controls</p>
             </div>
             <div class="list">
-
                 <div class="item" onclick="show('rebootPanel')">
                     <div class="left">
                         <i data-lucide="rotate-cw" class="icon"></i>
@@ -523,6 +522,16 @@
                         <div>
                             <div class="title">Facial Recognition</div>
                             <div class="subtitle">Face detection & management</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" id="snapshotHomeBtn">
+                    <div class="left">
+                        <i data-lucide="camera" class="icon"></i>
+                        <div>
+                            <div class="title">Take Snapshot</div>
+                            <div class="subtitle">Capture current view</div>
                         </div>
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
@@ -681,6 +690,19 @@
         </div>
     </div>
 
+    <div id="snapshotModal" class="modal">
+        <div class="modal-content">
+            <div class="h2" id="snapshotModalTitle">Snapshot</div>
+    
+            <img id="snapshotModalImage"
+                style="width:100%; max-height:280px; object-fit:contain; border-radius:12px; margin:16px 0; background:#000;"
+                alt="Camera Snapshot" />
+    
+            <div class="desc" id="snapshotModalMessage">Capturing...</div>
+            <br>
+            <button class="btn" onclick="closeSnapshotModal()">Close</button>
+        </div>
+    </div>
     <footer class="footer">
         <div class="version-info">
             <span id="deviceVersion">Device: Loading...</span><br>

@@ -280,6 +280,9 @@ function OnDriverInit()
     )
 
     C4:UpdateConditional("SPEAKER_VOLUME", "4")
+     C4:SetTimer(8000, function()
+        GET_DEVICE_INFO()
+    end)
 end
 
 function OnDriverDestroyed()
@@ -421,6 +424,7 @@ function OnDriverLateInit()
         print("Camera Proxy configuration complete!")
     end
     C4:UpdateConditional("SPEAKER_VOLUME", 4)
+
 end
 
 local function update_prop(name, value)
@@ -722,7 +726,10 @@ function ExecuteCommand(strCommand, tParams)
     end
 
     if strCommand == "GET_CAMERA_SNAPSHOT" or strCommand == "TAKE_SNAPSHOT" then
-        GET_CAMERA_SNAPSHOT(idBinding or 5001, tParams)
+        --GET_CAMERA_SNAPSHOT(idBinding or 5001, tParams)
+        --return
+        TAKE_SNAPSHOT_FOR_UI()
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
 
@@ -1351,10 +1358,6 @@ function GET_DEVICES(p_vid)
 
                     print("VD05 properties updated successfully")
                     
-                    -- Fetch firmware version and release date from device
-                    C4:SetTimer(2000, function()
-                        GET_DEVICE_INFO()
-                    end)
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
                 end
@@ -3862,7 +3865,6 @@ function REQUEST_INITIAL_STATE()
     print("[UI] REQUEST_INITIAL_STATE called")
     PushAntiPryStateToUI()
     PushMicStateToUI()
-    
     C4:SetTimer(800, GET_DEVICE_STATUS)
     C4:SetTimer(2000, GET_DEVICE_STATUS)
     C4:SetTimer(4500, GET_DEVICE_STATUS)
@@ -3944,7 +3946,6 @@ function ForceUIAntiPryRefresh()
     PushAntiPryStateToUI()
 end
 
---get device info
 function GET_DEVICE_INFO()
     print("===================================================")
     print("GET_DEVICE_INFO CALLED")
@@ -4024,7 +4025,7 @@ function GET_DEVICE_INFO()
     end)
 end
 
--- Reliable send to UI Proxy (Binding 5005)
+
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
 
@@ -4146,72 +4147,6 @@ function SET_DEVICE_NAME(tParams)
 end
 
 
---enabling device pairing mode
--- This does not solve the very first Composer discovery
-function ENABLE_SDDP_PAIRING()
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    local vid = _props["VID"] or Properties["VID"]
-
-    if not auth_token or auth_token == "" then
-        print("[SDDP] ERROR: No auth token available")
-        return
-    end
-
-    if not vid or vid == "" then
-        print("[SDDP] ERROR: No VID available")
-        return
-    end
-
-    local base_url = GlobalObject.LnduBaseUrl
-    local url = base_url .. "/api/v3/openapi/device/do-property"
-
-    local appId, appSecret = GetCldBusCredentials()
-
-    if appId == "" or appSecret == "" then
-        print("[SDDP] ERROR: No CldBus credentials available")
-        return
-    end
-
-    local body = {
-        vid = vid,
-        sddp_swt = 1
-    }
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Accept-Language"] = "en",
-        ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = appId
-    }
-
-    local req = {
-        url = url,
-        method = "POST",
-        headers = headers,
-        body = json.encode(body)
-    }
-
-    print("[SDDP] Enabling device pairing mode")
-    print("[SDDP] VID: " .. tostring(vid))
-    print("[SDDP] Request: " .. json.encode(body))
-
-    transport.execute(req, function(code, resp, resp_headers, err)
-        print("[SDDP] Response code: " .. tostring(code))
-        print("[SDDP] Response: " .. tostring(resp))
-
-        if err then
-            print("[SDDP] Error: " .. tostring(err))
-        end
-
-        if code == 200 or code == 20000 then
-            print("[SDDP] Device pairing mode enabled")
-            C4:UpdateProperty("Status", "SDDP pairing mode enabled")
-        else
-            print("[SDDP] Failed to enable device pairing mode")
-        end
-    end)
-end
-
 function REBOOT_DEVICE(tParams)
     print("[REBOOT] Reboot requested from UI")
 
@@ -4261,4 +4196,50 @@ function REBOOT_DEVICE(tParams)
     end)
 
     return true
+end
+
+function TAKE_SNAPSHOT_FOR_UI()
+    local ip        = _props["IP Address"] or Properties["IP Address"] or "192.168.1.6"
+    local http_port = "8080"
+    local username  =  "SystemConnect"
+    local password  =  "123456"
+    local path      = Properties["Snapshot URL Path"] or "/tmp/snap.jpeg"
+
+     if ip == "" then
+        SendSnapshotResultToUI(false, nil, "No IP Address configured")
+        return
+    end
+
+    local snapshot_url
+    if username ~= "" and password ~= "" then
+        snapshot_url = string.format("http://%s:%s@%s:%s%s",
+            username, password, ip, http_port, path)
+    else
+        snapshot_url = string.format("http://%s:%s%s", ip, http_port, path)
+    end
+
+    C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+    SendSnapshotResultToUI(true, snapshot_url, nil)
+end
+
+function SendSnapshotResultToUI(success, image_url, error_msg)
+    local payload = {
+        type      = "snapshot_result",
+        success   = success,
+        image_url = image_url or "",
+        debug_text = "test text",   --  path string for debugging
+        error     = error_msg or "",
+        timestamp = os.time()
+    }
+
+    local jsonData = json.encode(payload)
+
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
 end

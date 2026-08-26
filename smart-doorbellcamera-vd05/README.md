@@ -5,10 +5,10 @@
 Complete Control4 driver for Slomins VD05 Video Doorbell Camera with full CldBus API integration, MQTT event streaming, RTSP video streaming, doorbell functionality, and two-way audio support.
 
 **Model:** VD05  
-**Version:** 11  
+**Version:** 12 
 **Minimum Control4 OS:** 3.3.2+  
 **Device Type:** Video Doorbell with Camera  
-**Last Updated:** August 18, 2026
+**Last Updated:** August 19, 2026
 
 ---
 

@@ -1,11 +1,4 @@
 
-// =====================================================
-// VD05 CAMERA SETTINGS UI (CONTROL4 - CLEAN VERSION)
-// =====================================================
-
-// ==========================
-// STATE (UI ONLY CACHE)
-// ==========================
 let antiPryEnabled = false;
 let isMicMuted = false;
 
@@ -25,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
     requestInitialState();
     initDeviceName();
     initDeviceInfo();
-   // initSnapshot();
+    initSnapshot();
 });
 
 // =====================================================
@@ -36,12 +29,10 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
-
         C4.sendCommand('REQUEST_SETTINGS', '', false, false);
-
         console.log('Control4 initialized');
 
     } catch (e) {
@@ -334,57 +325,80 @@ function handleReboot() {
 
 
 
-// =====================================================
-// SNAPSHOT
-// =====================================================
-
 function initSnapshot() {
-    const snapshotBtn = document.getElementById('snapshotBtn');
-    if (!snapshotBtn) {
-        console.warn("⚠️ Snapshot button not found");
+    const btn = document.getElementById('snapshotHomeBtn');
+    if (!btn) {
+        console.warn("snapshotHomeBtn not found");
         return;
     }
 
-    console.log("📸 Snapshot button initialized");
-
-    
-    snapshotBtn.removeEventListener('click', handleTakeSnapshot);
-    snapshotBtn.addEventListener('click', handleTakeSnapshot);
+    btn.removeEventListener('click', handleTakeSnapshot);
+    btn.addEventListener('click', handleTakeSnapshot);
 }
 
 function handleTakeSnapshot() {
     console.log('📸 Take Snapshot requested');
 
-    const btn = document.getElementById('snapshotBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Capturing...";
-    }
+    // Open snapshot modal in loading state
+    openSnapshotModal(null, "Capturing snapshot...");
 
     try {
-        // Send command to Lua driver
         C4.sendCommand(
-            'TAKE_SNAPSHOT',   
-            JSON.stringify({}), // empty params
+            'TAKE_SNAPSHOT',
+            JSON.stringify({}),
             false,
             true
         );
-
         console.log("📤 TAKE_SNAPSHOT command sent");
-
     } catch (e) {
         console.error("Snapshot command error", e);
-        resetSnapshotButton();
-        showModal("Failed to send snapshot command", "Error");
+        openSnapshotModal(null, "Failed to send snapshot command");
     }
 }
 
-// Reset button after action
-function resetSnapshotButton() {
-    const btn = document.getElementById('snapshotBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.innerText = "Take Snapshot";
+function openSnapshotModal(imageUrl, message) {
+    const modal   = document.getElementById('snapshotModal');
+    const img     = document.getElementById('snapshotModalImage');
+    const msgEl   = document.getElementById('snapshotModalMessage');
+    const titleEl = document.getElementById('snapshotModalTitle');
+
+    console.log('[Snapshot] openSnapshotModal called');
+    console.log('[Snapshot] imageUrl =', imageUrl);
+    console.log('[Snapshot] img element found?', !!img);
+
+    if (titleEl) titleEl.innerText = "Snapshot";
+    if (msgEl)   msgEl.innerText = message || "";
+
+    if (img) {
+        if (imageUrl) {
+            // Clear first, then set (helps some webviews)
+            img.removeAttribute('src');
+            img.src = imageUrl + (imageUrl.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
+            img.style.display = 'block';
+            console.log('[Snapshot] src set to:', img.src);
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+        }
+    } else {
+        console.error('[Snapshot] ERROR: #snapshotModalImage not found in DOM!');
+    }
+
+    if (modal) {
+        modal.classList.add('show');
+    } else {
+        console.error('[Snapshot] ERROR: #snapshotModal not found in DOM!');
+    }
+}
+
+function closeSnapshotModal() {
+    const modal = document.getElementById('snapshotModal');
+    const img   = document.getElementById('snapshotModalImage');
+
+    if (modal) modal.classList.remove('show');
+    if (img) {
+        img.src = '';
+        img.style.display = 'none';
     }
 }
 
@@ -400,6 +414,7 @@ function onDataToUi(value) {
         //const obj = JSON.parse(value);
         const jsonObject = JSON.parse(value);
 
+        // Handle icon_description wrapper (NotificationHistory pattern)
         let obj;
         if (jsonObject.hasOwnProperty('icon_description')) {
             obj = JSON.parse(jsonObject.icon_description);
@@ -407,8 +422,19 @@ function onDataToUi(value) {
             obj = jsonObject;
         }
 
-        // Device Info (Name + Firmware)
+      
+        // =========================
+        // DEVICE INFO (Name + Firmware)
+        // =========================
         if (obj.type === "device_info" && obj.success) {
+
+            // Update current device name in input field
+            const input = document.getElementById('deviceNameInput');
+            if (input && obj.device_name) {
+                input.value = obj.device_name;
+            }
+
+            // Update footer elements
             const devEl = document.getElementById('deviceVersion');
             const fwEl = document.getElementById('firmwareVersion');
             const relEl = document.getElementById('releaseDate');
@@ -452,7 +478,7 @@ function onDataToUi(value) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
 
-            console.log("🎤 Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
+            console.log("Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
         }
@@ -472,6 +498,16 @@ function onDataToUi(value) {
             // Optional: clear input
             const input = document.getElementById('deviceNameInput');
             if (input) input.value = "";
+        }
+
+         if (obj.type === "snapshot_result") {
+            console.log('[Snapshot] Received result:', obj);
+
+            if (obj.success && obj.image_url) {
+                openSnapshotModal(obj.image_url, "Snapshot captured");
+            } else {
+                openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+            }
         }
 
         // Error handling
