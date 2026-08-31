@@ -35,6 +35,13 @@ It allows show all devices of user base on userid.
 
 ### Change log
 
+**Version 12 (August 30, 2026)**  
+- Removed default user id.
+- Fixed an issue where serial number is showing empty for shared devices.
+
+**Version 11 (August 28, 2026)**  
+- Added serial number to the device information.
+
 **Version 10 (July 3, 2026)**  
 - Added Enable C4 Discovery button for SDDP device enablement.
 

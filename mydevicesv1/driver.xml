@@ -6,8 +6,8 @@
   <model>My Devices</model>
   <creator>Control4</creator>
   <created>02/12/2025 19:00</created>
-  <modified>08/12/2026 12:00 PM</modified>
-  <version>11</version>
+  <modified>08/30/2026 12:00 PM</modified>
+  <version>12</version>
   <control>lua_gen</control>
   <driver>DriverWorks</driver>
   <auto_update>true</auto_update>
@@ -55,7 +55,7 @@
         <name>UserId</name>
         <type>STRING</type>
         <readonly>false</readonly>
-        <default>az1761647452663A2Gjh</default>
+        <default></default>
       </property>
       <!-- === NEW LNDU PROPERTIES === -->
       <property>
@@ -64,7 +64,7 @@
         <default>Initializing...</default>
         <readonly>true</readonly>
       </property>
-      <property>
+      <!-- <property>
         <name>Environment</name>
         <type>LIST</type>
         <default>QA</default>
@@ -73,7 +73,7 @@
           <item>QA</item>
           <item>PROD</item>
         </items>
-      </property>
+      </property> -->
       <property>
         <name>Validation API URL</name>
         <type>STRING</type>

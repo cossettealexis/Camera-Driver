@@ -59,7 +59,7 @@ function OnDriverInit()
     GlobalObject.TCP_SERVER_PORT = Properties["Tcp Port"]
 
     -- Initialize Environment URLs from config.lua
-    local env = Properties["Environment"] or "PROD"
+    local env = Properties["Environment"] or "QA"
     if ENV_CONFIG and ENV_CONFIG[env] then
         local config = ENV_CONFIG[env]
         C4:UpdateProperty("Validation API URL", config.ValidationApiUrl)
@@ -1029,7 +1029,14 @@ local function FormatDeviceLine(device)
     local name = device.device_name or device.name or "Unknown"
     local ip = device.local_ip or "N/A"
     local vid = device.vid or device.id or "N/A"
-    return string.format("%s | Name: %s | IP: %s | VID: %s", prefix, name, ip, vid)
+    
+    -- Only show serial number for LNDU devices
+    if prefix == "[LNDU]" then
+        local sn = device.device_sn or "N/A"
+        return string.format("%s | Name: %s | IP: %s | VID: %s | SN: %s", prefix, name, ip, vid, sn)
+    else
+        return string.format("%s | Name: %s | IP: %s | VID: %s", prefix, name, ip, vid)
+    end
 end
 
 function UpdateDeviceProperties(devices)
@@ -1067,7 +1074,7 @@ function UpdateDeviceProperties(devices)
     -- Update status with filter info
     local filterName = CurrentFilter == "ALL" and "All Devices" or 
                       (CurrentFilter == "TUYA" and "Tuya Devices" or "Camera Devices")
-    C4:UpdateProperty("Status", string.format("Showing %s: %d total (%d displayed, %d in overflow)", 
+    C4:UpdateProperty("Status", string.format("Active Filter: %s | %d total (%d displayed, %d in overflow)", 
                       filterName, #filteredDevices, math.min(20, #filteredDevices), math.max(0, #filteredDevices - 20)))
 end
 
@@ -1345,14 +1352,74 @@ function GET_DEVICES(tParams, do_awake)
                     local cameraDevices = parsed.data.devices
                     print("[LNDU] Cameras fetched:", #cameraDevices)
 
-                    for _, d in ipairs(cameraDevices) do
-                        table.insert(combined, {
+                    local serialsFetched = 0
+                    local totalDevices = #cameraDevices
+                    
+                    -- Process TUYA devices after LNDU devices are complete
+                    local function processTuyaDevices()
+                        -- ====================== TUYA DEVICES (Now Active) ======================
+                        GetTuyaDevices(function(tuyaDevices)
+                            print("[TUYA] Received", #(tuyaDevices or {}), "Tuya device(s)")
+
+                            for _, d in ipairs(tuyaDevices or {}) do
+                                table.insert(combined, {
+                                    prefix = "[TUYA]",
+                                    name   = d.name or "Unknown Tuya Device",
+                                    id     = d.id or ""
+                                })
+                            end
+
+                            -- Final update
+                            UpdateDeviceProperties(combined)
+                            
+                            -- Status is already set by UpdateDeviceProperties based on current filter
+                            print("[COMBINED] Total devices processed:", #combined)
+                        end)
+                    end
+
+                    for i, d in ipairs(cameraDevices) do
+                        local device = {
                             prefix      = "[LNDU]",
                             device_name = d.device_name or "Unknown Camera",
                             local_ip    = d.local_ip or "",
-                            vid         = d.vid or ""
-                            
-                        })
+                            vid         = d.vid or "",
+                            device_sn   = ""
+                        }
+                        table.insert(combined, device)
+                        
+                        -- Fetch serial number for this device
+                        if d.vid and d.vid ~= "" then
+                            local detailUrl = baseUrl .. "/api/v3/openapi/devices?vid=" .. d.vid
+                            transport.execute({
+                                url = detailUrl,
+                                method = "GET",
+                                headers = { ["Authorization"] = "Bearer " .. auth_token }
+                            },
+                            function(snCode, snResp)
+                                if snCode == 200 then
+                                    local snOk, snParsed = pcall(C4.JsonDecode, C4, snResp)
+                                    if snOk and snParsed and snParsed.data then
+                                        -- Check devices array first
+                                        if snParsed.data.devices and snParsed.data.devices[1] then
+                                            device.device_sn = snParsed.data.devices[1].device_sn or ""
+                                        -- Check share_devices array if devices is empty
+                                        elseif snParsed.data.share_devices and snParsed.data.share_devices[1] then
+                                            device.device_sn = snParsed.data.share_devices[1].device_sn or ""
+                                        end
+                                    end
+                                end
+                                
+                                serialsFetched = serialsFetched + 1
+                                if serialsFetched == totalDevices then
+                                    processTuyaDevices()
+                                end
+                            end)
+                        else
+                            serialsFetched = serialsFetched + 1
+                            if serialsFetched == totalDevices then
+                                processTuyaDevices()
+                            end
+                        end
                         
                         -- Wake LNDU device if requested
                         if do_awake == true and d.vid and d.vid ~= "" then
@@ -1365,6 +1432,11 @@ function GET_DEVICES(tParams, do_awake)
                             end)
                         end
                     end
+                    
+                    -- If no devices, go straight to TUYA
+                    if totalDevices == 0 then
+                        processTuyaDevices()
+                    end
                 else
                     print("[LNDU] Invalid response format")
                 end
@@ -1372,24 +1444,5 @@ function GET_DEVICES(tParams, do_awake)
                 print("[LNDU] Request failed with code:", code)
                 if resp then print("Response:", resp) end
             end
-
-            -- ====================== TUYA DEVICES (Now Active) ======================
-            GetTuyaDevices(function(tuyaDevices)
-                print("[TUYA] Received", #(tuyaDevices or {}), "Tuya device(s)")
-
-                for _, d in ipairs(tuyaDevices or {}) do
-                    table.insert(combined, {
-                        prefix = "[TUYA]",
-                        name   = d.name or "Unknown Tuya Device",
-                        id     = d.id or ""
-                    })
-                end
-
-                -- Final update
-                UpdateDeviceProperties(combined)
-
-                C4:UpdateProperty("Status", "Updated: " .. tostring(#combined) .. " total devices (LNDU + TUYA)")
-                print("[COMBINED] Total devices processed:", #combined)
-            end)
         end)
 end
