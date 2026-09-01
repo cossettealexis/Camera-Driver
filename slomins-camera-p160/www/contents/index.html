@@ -50,6 +50,13 @@
         }
 
         /* =========================
+   DEBUG CONSOLE (HIDDEN)
+========================= */
+        #debugConsole {
+            display: none;
+        }
+
+        /* =========================
    PANELS
 ========================= */
         .panel {
@@ -307,9 +314,105 @@
             width: 50px;
             height: 50px;
         }
+
+        /* =========================
+   LIVE STREAM PANEL
+========================= */
+        .stream-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .video-wrapper {
+            flex: 0 1 auto;
+            max-height: 60vh;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #videoCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: auto;
+        }
+
+        .stream-controls {
+            padding: 16px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--surface2);
+            border-radius: 12px;
+        }
+
+        .control-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .control-label i {
+            width: 18px;
+            height: 18px;
+            color: var(--accent);
+        }
+
+        .stream-status {
+            text-align: center;
+            padding: 12px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 5px;
+            background: var(--border);
+            outline: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+        }
     </style>
 </head>
 <body>
+    <div id="debugConsole" style="display:none;"></div>
     <div class="app">
         <!-- HOME -->
         <section id="homePanel" class="panel active">
@@ -318,6 +421,16 @@
                 <p>P160 Camera Controls</p>
             </div>
             <div class="list">
+                <div class="item" onclick="show('liveStreamPanel')">
+                    <div class="left">
+                        <i data-lucide="video" class="icon"></i>
+                        <div>
+                            <div class="title">Live View</div>
+                            <div class="subtitle">Stream with mic control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
                 <div class="item" onclick="show('rebootPanel')">
                     <div class="left">
                         <i data-lucide="rotate-cw" class="icon"></i>
@@ -351,6 +464,48 @@
             </div>
         </section>
 
+        <!-- LIVE STREAM -->
+        <section id="liveStreamPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="stopStream(); show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div style="flex: 1; text-align: center; font-weight: 600;">Live View</div>
+            </div>
+            
+            <!-- MICROPHONE CONTROLS AT TOP -->
+            <div style="background: var(--surface); padding: 16px; border-bottom: 2px solid var(--border);">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--surface2); border-radius: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="mic" id="streamMicIcon" style="width: 18px; height: 18px; color: var(--accent);"></i>
+                        <span style="font-size: 14px; font-weight: 500;">Microphone</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="streamMicToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--surface2); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="volume-2" id="streamVolumeIcon" style="width: 18px; height: 18px; color: var(--accent);"></i>
+                        <span style="font-size: 14px; font-weight: 500;">Speaker Volume</span>
+                    </div>
+                    <div style="flex: 1; max-width: 200px; margin-left: 12px;">
+                        <input type="range" min="0" max="10" value="5" class="volume-slider" id="streamVolumeSlider">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- VIDEO AREA -->
+            <div style="flex: 1; display: flex; flex-direction: column; background: #000; min-height: 400px;">
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px;">
+                    <canvas id="videoCanvas" style="max-width: 100%; max-height: 100%; width: 100%; height: 100%; background: #222; border: 2px solid #0f0;"></canvas>
+                </div>
+                <div id="streamStatus" style="text-align: center; padding: 12px; font-size: 14px; color: #0f0; background: rgba(0,0,0,0.8); font-weight: bold;">● LIVE STREAM AREA - Connecting to ws://192.168.1.13:8081/ws ●</div>
+            </div>
+        </section>
+
+        <!-- REBOOT -->
         <section id="rebootPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
@@ -432,15 +587,62 @@
     <script>
         lucide.createIcons();
         /* =========================
+           DEBUG LOGGER
+        ========================= */
+        function debugLog(msg, type = 'info') {
+            const console = document.getElementById('debugConsole');
+            if (console) {
+                const div = document.createElement('div');
+                div.className = type;
+                div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+                console.appendChild(div);
+                console.scrollTop = console.scrollHeight;
+            }
+            
+            // Also log to live view debug
+            const logEntries = document.getElementById('logEntries');
+            if (logEntries) {
+                const div = document.createElement('div');
+                div.style.color = type === 'error' ? '#f00' : '#00f';
+                div.style.marginTop = '3px';
+                div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+                logEntries.appendChild(div);
+                
+                const liveDebug = document.getElementById('liveDebugLog');
+                if (liveDebug) liveDebug.scrollTop = liveDebug.scrollHeight;
+            }
+        }
+
+        // Override console.error to show on screen
+        window.addEventListener('error', function(e) {
+            debugLog('ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno, 'error');
+        });
+
+        /* =========================
            NAVIGATION
         ========================= */
         function show(id) {
+            debugLog('show() called with id: ' + id);
+            // Get current panel before switching
+            const liveStreamPanel = document.getElementById('liveStreamPanel');
+            const wasOnLiveStream = liveStreamPanel && liveStreamPanel.classList.contains('active');
 
+            // Switch panels
             document.querySelectorAll('.panel')
                 .forEach(p => p.classList.remove('active'));
 
             document.getElementById(id)
                 .classList.add('active');
+
+            // Stop stream when leaving live stream panel
+            if (wasOnLiveStream && id !== 'liveStreamPanel' && typeof stopStream === 'function') {
+                stopStream();
+            }
+
+            // Start stream when entering live stream panel
+            if (id === 'liveStreamPanel' && typeof startStream === 'function') {
+                setTimeout(startStream, 300); // Small delay to ensure panel is visible
+            }
 
             lucide.createIcons();
         }
@@ -488,6 +690,11 @@
                     if (modal) modal.classList.remove('show');
                 }
     </script>
+    <!-- Streaming libraries: uncomment the one you're using -->
+    <!-- Option 1: HLS.js (for HLS streams) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Option 2: JSMpeg (for WebSocket MPEG1 streams) -->
+    <script src="js/jsmpeg.min.js" type="text/javascript"></script>
     <script src="javascript/index.js" type="text/javascript"></script>
 </body>
 
