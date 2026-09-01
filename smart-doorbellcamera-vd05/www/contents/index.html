@@ -633,6 +633,9 @@
                     <span class="slider"></span>
                 </label>
                 <div class="status" id="faceRecStatus">Disabled</div>
+                
+                <!-- DEBUG LOG -->
+                <div id="faceDebugLog" style="margin: 15px 0; padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; font-family: monospace; font-size: 11px; color: #0f0; max-height: 150px; overflow-y: auto;"></div>
 
                 <!-- Settings that appear only when enabled -->
                 <div class="settings-section" id="faceSettings">
@@ -759,6 +762,9 @@
             const faceStatus = document.getElementById('faceRecStatus');
             const faceSettings = document.getElementById('faceSettings');
 
+            // Request initial state from driver
+            C4.sendCommand('REQUEST_FACIAL_REC_STATE', '', false, true);
+
             faceEnable.addEventListener('change', function () {
                 const enabled = this.checked;
                 faceStatus.innerText = enabled ? "Enabled" : "Disabled";
@@ -766,6 +772,11 @@
 
                 console.log(enabled ? "FACE_REC_ON" : "FACE_REC_OFF");
                 console.log(enabled ? "FACE_API_MQTT_LOGS_ON" : "FACE_API_MQTT_LOGS_OFF");
+
+                // Save state to driver
+                C4.sendCommand('SET_FACIAL_RECOGNITION', JSON.stringify({
+                    ENABLED: enabled ? 'true' : 'false'
+                }), false, true);
 
                 if (enabled) {
                     loadFaces();

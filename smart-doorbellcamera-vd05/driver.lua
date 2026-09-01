@@ -278,6 +278,18 @@ function OnDriverInit()
             }
         end
     )
+    
+    -- Load initial device state (including facial recognition)
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid = _props["VID"] or Properties["VID"]
+    if auth_token and auth_token ~= "" and vid and vid ~= "" then
+        print("[INIT] Loading initial device state from cloud...")
+        C4:SetTimer(2000, function()
+            GET_DEVICE_STATUS()
+        end)
+    else
+        print("[INIT] Skipping device status load - no auth token or VID")
+    end
 
     C4:UpdateConditional("SPEAKER_VOLUME", "4")
      C4:SetTimer(8000, function()
@@ -702,6 +714,41 @@ function ExecuteCommand(strCommand, tParams)
 
         print("[COMMAND] Anti-Pry toggle requested")
         SET_ANTI_PRY_STATE(tParams)
+        return
+    end
+
+    if strCommand == "SET_FACIAL_RECOGNITION" then
+        print("[COMMAND] Facial Recognition toggle requested")
+        print("[FACIAL_REC] DEBUG - tParams.ENABLED value: " .. tostring(tParams and tParams.ENABLED or "nil"))
+        print("[FACIAL_REC] DEBUG - tParams.ENABLED type: " .. type(tParams and tParams.ENABLED or "nil"))
+        
+        -- Handle both string "True"/"true" and boolean true
+        local enabled = false
+        if tParams and tParams.ENABLED then
+            local val = tParams.ENABLED
+            if type(val) == "boolean" then
+                enabled = val
+            elseif type(val) == "string" then
+                enabled = (val == "true" or val == "True")
+            end
+        end
+        
+        -- Update state (will be overwritten by device status on next poll)
+        conditional_state.FACIAL_REC_ENABLED = enabled
+        print("[FACIAL_REC] Local state set to: " .. (enabled and "ENABLED" or "DISABLED"))
+        
+        -- TODO: Send command to actual device via MQTT/API to enable/disable facial rec
+        -- For now, just update UI with local state
+        PushFacialRecStateToUI()
+        
+        -- Force device status refresh to get actual state
+        C4:SetTimer(1000, GET_DEVICE_STATUS)
+        return
+    end
+
+    if strCommand == "REQUEST_FACIAL_REC_STATE" then
+        print("[FACIAL_REC] State requested from UI")
+        PushFacialRecStateToUI()
         return
     end
 
@@ -1960,14 +2007,28 @@ function GetImageForEvent(extp, done)
     local token = Properties["Auth Token"]
     local base  = Properties["Base API URL"] or "https://api.arpha-tech.com"
 
+    print("[IMAGE] GetImageForEvent called with extp:", tostring(extp))
+
     if not extp then
+        print("[IMAGE] ERROR: No extp provided")
         return done(nil)
+    end
+
+    -- If extp is already a full valid URL, use it directly as fallback
+    local is_full_url = extp:match("^https?://") ~= nil
+    if is_full_url then
+        print("[IMAGE] extp is full URL, using directly:", extp)
+        local normalized = normalize_http_url(extp)
+        return done(normalized)
     end
 
     local wanted_file = extp:match("([^/]+%.jpg)")
     if not wanted_file then
+        print("[IMAGE] ERROR: Could not extract filename from extp:", extp)
         return done(nil)
     end
+
+    print("[IMAGE] Looking for filename:", wanted_file)
 
     local url = base .. "/api/v3/openapi/notifications/query"
 
@@ -1979,31 +2040,42 @@ function GetImageForEvent(extp, done)
             ["Authorization"] = "Bearer " .. token,
             ["App-Name"]      = GlobalObject.CldBusAppId
         },
-        body = json.encode({ page = 1, page_size = 10, vids = { vid } })
+        body = json.encode({ page = 1, page_size = 20, vids = { vid } })
     }, function(code, resp)
+        print("[IMAGE] Notifications API response code:", code)
+        
         if code ~= 200 and code ~= 20000 then
+            print("[IMAGE] ERROR: API returned code:", code)
             return done(nil)
         end
 
         local ok, parsed = pcall(json.decode, resp or "")
         if not ok or not parsed or not parsed.data then
+            print("[IMAGE] ERROR: Failed to parse API response")
             return done(nil)
         end
 
         local list = parsed.data.notifications
-        if not list then return done(nil) end
+        if not list then 
+            print("[IMAGE] ERROR: No notifications in response")
+            return done(nil) 
+        end
+
+        print("[IMAGE] Checking", #list, "notifications for match")
 
         for _, n in ipairs(list) do
             local img = normalize_http_url(n.image_url)
             local fname = extract_filename(img)
 
+            print("[IMAGE] Checking notification - filename:", fname, "wanted:", wanted_file)
+
             if fname == wanted_file then
-                print("[MATCH] Found image for event:", fname)
+                print("[IMAGE] ✓ MATCH FOUND! URL:", img)
                 return done(img)
             end
         end
 
-        print("[MATCH] No matching image yet")
+        print("[IMAGE] ✗ No matching image found in", #list, "notifications")
         return done(nil)
     end)
 end
@@ -2036,7 +2108,11 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
    -- if not can_notify(cooldown_key, cooldown_sec) then return end
 
-    print("[TIMELINE] Sending native Camera Proxy notification for: " .. event_name)
+    print("================================================================")
+    print("[NOTIFICATION] Event:", event_name)
+    print("[NOTIFICATION] Filename:", tostring(filename))
+    print("[NOTIFICATION] ext_p:", tostring(extp))
+    print("================================================================")
     
     -- Record history for Event History tab
     local history_severity = (category == NOTIFY.ALERT) and "Critical" or "Info"
@@ -2063,13 +2139,17 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
 
     -- Asynchronously fetch and attach image snapshot
     local tries = 0
+    local max_tries = 20  -- Increased from 15
+    local retry_delay = 1000  -- Increased from 700ms to 1 second
 
     local function fetch()
         tries = tries + 1
+        print("[NOTIFY] Image fetch attempt", tries, "/", max_tries)
 
         GetImageForEvent(extp, function(url)
-            if not url and tries < 15 then
-                C4:SetTimer(700, fetch)
+            if not url and tries < max_tries then
+                print("[NOTIFY] No URL yet, retry in", retry_delay, "ms (attempt", tries, ")")
+                C4:SetTimer(retry_delay, fetch)
                 return
             end
 
@@ -2079,9 +2159,11 @@ local function send_notification(category, event_name, cooldown_key, cooldown_se
             if url then
                 NOTIFICATION_URLS[id] = url
                 table.insert(NOTIFICATION_QUEUE, id)
-                print("[NOTIFY] image attached", url)
+                print("[NOTIFY] ✓ Image attached successfully:", url)
+                print("[NOTIFY] Queue ID:", id, "Total in queue:", #NOTIFICATION_QUEUE)
             else
-                print("[NOTIFY] no image after retry")
+                print("[NOTIFY] ✗ FAILED: No image URL after", tries, "attempts")
+                print("[NOTIFY] ext_p was:", tostring(extp))
             end
         end)
     end
@@ -2402,8 +2484,16 @@ function HANDLE_JSON_EVENT(payload)
         if params.type == 5 then
             local filename = nil
             local extp = params.ext_p
+            
+            print("[EVENT] Anti-pry alert received")
+            print("[EVENT] ext_p:", tostring(extp))
+            print("[EVENT] Full params:", json.encode(params))
+            
             if extp then
                 filename = extp:match("([^/]+%.jpg)")
+                print("[EVENT] Extracted filename:", tostring(filename))
+            else
+                print("[EVENT] WARNING: No ext_p in anti-pry params!")
             end
 
             handle_antipry(filename, extp, params)
@@ -2417,11 +2507,19 @@ function HANDLE_JSON_EVENT(payload)
             local filename = nil
             local extp = params.ext_p
 
+            print("[EVENT] log_rec received - type:", params.type)
+            print("[EVENT] ext_p:", tostring(extp))
+            print("[EVENT] Full params:", json.encode(params))
+
             if extp then
                 filename = extp:match("([^/]+%.jpg)")
+                print("[EVENT] Extracted filename:", tostring(filename))
+            else
+                print("[EVENT] WARNING: No ext_p in params!")
             end
 
             if params.type == 10021 then
+                print("[EVENT] Motion detected")
                 handle_motion(filename, extp, params)
                 return true
             end
@@ -2432,11 +2530,13 @@ function HANDLE_JSON_EVENT(payload)
             end
 
             if params.type == 10022 then
+                print("[EVENT] Human detected")
                 handle_human(filename, extp, params)
                 return true
             end
 
             if params.type == 10024 then
+                print("[EVENT] Doorbell pressed")
                 handle_doorbell(filename, extp, params)
                 return true
             end
@@ -3826,12 +3926,63 @@ function PushAntiPryStateToUI()
 
     print("[ANTI-PRY] Pushing to UI:", payload)
 
-    C4:SendDataToUI(payload)
+    -- Use ICON_CHANGED pattern (same as device_info)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
 
     -- Staggered pushes for reliability
-    C4:SetTimer(300, function() C4:SendDataToUI(payload) end)
-    C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
-    C4:SetTimer(1500, function() C4:SendDataToUI(payload) end)
+    C4:SetTimer(300, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
+    C4:SetTimer(800, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
+    C4:SetTimer(1500, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
+end
+
+function PushFacialRecStateToUI()
+    -- Read from device state, not from property
+    local enabled = conditional_state.FACIAL_REC_ENABLED or false
+    
+    local payload = json.encode({
+        FACIAL_REC_ENABLED = enabled and "true" or "false",
+        timestamp          = os.time()
+    })
+
+    print("[FACIAL_REC] Pushing to UI:", payload)
+
+    -- Use ICON_CHANGED pattern (same as device_info)
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    -- Staggered pushes for reliability
+    C4:SetTimer(300, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
+    C4:SetTimer(800, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
+    C4:SetTimer(1500, function() 
+        pcall(function()
+            C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = payload })
+        end)
+    end)
 end
 
 
@@ -3865,6 +4016,7 @@ function REQUEST_INITIAL_STATE()
     print("[UI] REQUEST_INITIAL_STATE called")
     PushAntiPryStateToUI()
     PushMicStateToUI()
+    PushFacialRecStateToUI()
     C4:SetTimer(800, GET_DEVICE_STATUS)
     C4:SetTimer(2000, GET_DEVICE_STATUS)
     C4:SetTimer(4500, GET_DEVICE_STATUS)
@@ -3907,7 +4059,15 @@ function GET_DEVICE_STATUS()
 
         local status_data = type(device.status) == "string" and json.decode(device.status) or device.status
 
+        -- DEBUG: Log ALL status keys to find facial recognition field
+        print("[GET_DEVICE_STATUS] ===== ALL STATUS KEYS =====")
+        for _, s in ipairs(status_data or {}) do
+            print("[GET_DEVICE_STATUS] status_key:", s.status_key, "= value:", s.status_val)
+        end
+        print("[GET_DEVICE_STATUS] =============================")
+
         local antiPryUpdated = false
+        local facialRecUpdated = false
 
         for _, s in ipairs(status_data or {}) do
             local key = tostring(s.status_key or "")
@@ -3929,11 +4089,25 @@ function GET_DEVICE_STATUS()
                 conditional_state.MIC_MUTED   = not micOn
                 conditional_state.MIC_UNMUTED = micOn
             end
+            
+            -- FACIAL RECOGNITION (look for possible keys)
+            if key == "face_detect" or key == "face_recognition" or key == "facial_rec" or 
+               key == "face_rec" or key == "fd" or key == "ai_face" then
+                local enabled = (tonumber(val) == 1)
+                if conditional_state.FACIAL_REC_ENABLED ~= enabled then
+                    conditional_state.FACIAL_REC_ENABLED = enabled
+                    facialRecUpdated = true
+                end
+                print("[FACIAL_REC] Synced from device:", enabled and "ENABLED" or "DISABLED")
+            end
         end
 
         -- Push UI updates ONCE at the end (more efficient)
         if antiPryUpdated or true then   -- always push for safety
             PushAntiPryStateToUI()
+        end
+        if facialRecUpdated or true then  -- always push for safety
+            PushFacialRecStateToUI()
         end
         ForceUIAntiPryRefresh()
         

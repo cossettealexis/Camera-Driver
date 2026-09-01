@@ -410,6 +410,17 @@ function closeSnapshotModal() {
 function onDataToUi(value) {
 
     try {
+        // VISIBLE DEBUG
+        const debugLog = document.getElementById('faceDebugLog');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        if (debugLog) {
+            debugLog.innerHTML += `[${timestamp}] onDataToUi CALLED<br>`;
+            // Show first 100 chars of raw data
+            const preview = value.substring(0, 100);
+            debugLog.innerHTML += `<span style="color:#888">${preview}...</span><br>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
 
         //const obj = JSON.parse(value);
         const jsonObject = JSON.parse(value);
@@ -420,6 +431,22 @@ function onDataToUi(value) {
             obj = JSON.parse(jsonObject.icon_description);
         } else {
             obj = jsonObject;
+        }
+        
+        // Show what fields are in the object
+        if (debugLog) {
+            const fields = Object.keys(obj).join(', ');
+            debugLog.innerHTML += `<span style="color:#ff0">Fields: ${fields}</span><br>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+        
+        // DEBUG: Check for FACIAL_REC_ENABLED specifically
+        if (debugLog && obj.FACIAL_REC_ENABLED !== undefined) {
+            debugLog.innerHTML += `<span style="color:#0f0">[${timestamp}] FACIAL_REC_ENABLED = ${obj.FACIAL_REC_ENABLED}</span><br>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        } else if (debugLog) {
+            debugLog.innerHTML += `<span style="color:#f00">[${timestamp}] NO FACIAL_REC_ENABLED field!</span><br>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
         }
 
       
@@ -481,6 +508,43 @@ function onDataToUi(value) {
             console.log("Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
+        }
+
+        // =========================
+        // FACIAL RECOGNITION SYNC
+        // =========================
+        if (obj.FACIAL_REC_ENABLED !== undefined) {
+            const enabled = obj.FACIAL_REC_ENABLED === "true" || obj.FACIAL_REC_ENABLED === true;
+            console.log("Facial Recognition UI UPDATE →", enabled ? "ENABLED" : "DISABLED");
+            
+            const debugLog = document.getElementById('faceDebugLog');
+            if (debugLog) {
+                const timestamp = new Date().toLocaleTimeString();
+                debugLog.innerHTML += `[${timestamp}] UPDATE UI → ${enabled ? 'ENABLED' : 'DISABLED'}<br>`;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+            
+            const faceToggle = document.getElementById('faceRecEnable');
+            const faceStatus = document.getElementById('faceRecStatus');
+            const faceSettings = document.getElementById('faceSettings');
+            
+            if (faceToggle) {
+                faceToggle.checked = enabled;
+                if (debugLog) {
+                    debugLog.innerHTML += `[${timestamp}] Checkbox set to: ${enabled}<br>`;
+                    debugLog.scrollTop = debugLog.scrollHeight;
+                }
+            } else if (debugLog) {
+                debugLog.innerHTML += `[${timestamp}] ERROR: faceRecEnable not found!<br>`;
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+            
+            if (faceStatus) {
+                faceStatus.innerText = enabled ? "Enabled" : "Disabled";
+            }
+            if (faceSettings) {
+                faceSettings.classList.toggle('visible', enabled);
+            }
         }
 
 
@@ -547,3 +611,25 @@ function onSubscribeToDataToUi(msg) {
 function onSubscribeToVariableError(v, msg) {
     console.log('Variable Error', v, msg);
 }
+
+// =====================================================
+// EXPOSE CONTROL4 CALLBACKS GLOBALLY
+// =====================================================
+// Control4 looks for these functions on the window object
+window.onDataToUi = onDataToUi;
+window.onVariable = onVariable;
+window.onSendCommandError = onSendCommandError;
+window.onSubscribeToDataToUi = onSubscribeToDataToUi;
+window.onSubscribeToVariableError = onSubscribeToVariableError;
+
+console.log("✅ Control4 callbacks exposed globally");
+console.log("window.onDataToUi =", typeof window.onDataToUi);
+
+// Write to visible debug log
+setTimeout(function() {
+    const debugLog = document.getElementById('faceDebugLog');
+    if (debugLog) {
+        debugLog.innerHTML = '[INIT] Control4 callbacks registered<br>';
+        debugLog.innerHTML += '[INIT] window.onDataToUi = ' + (typeof window.onDataToUi) + '<br>';
+    }
+}, 500);
