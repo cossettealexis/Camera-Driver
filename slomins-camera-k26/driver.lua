@@ -688,6 +688,7 @@ function ExecuteCommand(strCommand, tParams)
     end
     if strCommand == "TAKE_SNAPSHOT" then
         print("[COMMAND] Take Snapshot requested")
+        TAKE_SNAPSHOT_FOR_UI()
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
@@ -1228,11 +1229,6 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("K26 properties updated successfully")
-
-                    -- Fetch firmware version from device
-                    C4:SetTimer(2000, function()
-                        GET_DEVICE_INFO()
-                    end)
                 else
                     print("ERROR: No K26 camera device found or vid missing")
                 end
@@ -3681,4 +3677,51 @@ function REBOOT_DEVICE(tParams)
     end)
 
     return true
+end
+
+function TAKE_SNAPSHOT_FOR_UI()
+    local ip        = _props["IP Address"] or Properties["IP Address"] or ""
+    local http_port = Properties["HTTP Port"] or "8080"
+    local username  = Properties["Username"] or "SystemConnect"
+    local password  = Properties["Password"] or "123456"
+    local path      = Properties["Snapshot URL Path"] or "/tmp/snap.jpeg"
+   
+
+    if ip == "" then
+        SendSnapshotResultToUI(false, nil, "No IP Address configured")
+        return
+    end
+
+    local snapshot_url
+    if username ~= "" and password ~= "" then
+        snapshot_url = string.format("http://%s:%s@%s:%s%s",
+            username, password, ip, http_port, path)
+    else
+        snapshot_url = string.format("http://%s:%s%s", ip, http_port, path)
+    end
+
+    C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+    SendSnapshotResultToUI(true, snapshot_url, nil)
+end
+
+function SendSnapshotResultToUI(success, image_url, error_msg)
+    local payload = {
+        type      = "snapshot_result",
+        success   = success,
+        image_url = image_url or "",
+        debug_text = "test text",   --  path string for debugging
+        error     = error_msg or "",
+        timestamp = os.time()
+    }
+
+    local jsonData = json.encode(payload)
+
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
 end
