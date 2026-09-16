@@ -22,20 +22,12 @@ local EVENT_DELAY_MS     = tonumber(Properties["Event Interval (ms)"]) or 3000
 local last_ip_refresh    = 0
 local MIN_REFRESH_GAP    = 5  -- seconds (small gap, not too strict)
 -- Camera wake timing constants (global)
-CAMERA_WAKE_DURATION_SEC = 12
-CAMERA_WAKE_COOLDOWN_SEC = 3 
-CAMERA_KEEP_ALIVE_INTERVAL_MS = 8000   -- re-wake every 8 seconds
-CAMERA_KEEP_ALIVE_DURATION_SEC = 180   -- keep alive 3 min after last stream request
-CAMERA_WAKE_BURST_RETRIES = 3
-CAMERA_WAKE_BURST_GAP_MS = 2500
+CAMERA_WAKE_DURATION_SEC = 10 -- Camera stays awake for 10 seconds after wake call
+CAMERA_WAKE_COOLDOWN_SEC = 5  -- Must wait 5 seconds before next wake call
 
 
 -- Track first RTSP call to skip wake on initial attempt
 local rtsp_first_call       = true
-local _lastWakeTime         = 0
-local _keepAliveTimer       = nil
-local _keepAliveStopAt      = 0
-local _wakeInFlight         = false
 
 local NOTIFY                = {
     ALERT = "ALERT",
@@ -159,159 +151,28 @@ conditional_state.MIC_MUTED   = true      -- default muted for safety
 conditional_state.MIC_UNMUTED = false
 
 
-------------------------------------------------
--- AGGRESSIVE WAKE SYSTEM (battery camera)
-------------------------------------------------
-
-local function StopKeepAlive()
-    if type(_keepAliveTimer) == "number" then
-        print("[WAKE] Stopping keep-alive timer:", _keepAliveTimer)
-        C4:KillTimer(_keepAliveTimer)
-    end
-    _keepAliveTimer = nil
-    _keepAliveStopAt = 0
-end
-
-function AWAKE_CAMERA(tParams)
-    local force = tParams and (tParams.force == true or tParams.FORCE == true)
-
-    local now = os.time()
-    if not force and (now - _lastWakeTime) < CAMERA_WAKE_COOLDOWN_SEC then
-        print(string.format("[WAKE] Cooldown active (%ds left) — skip", CAMERA_WAKE_COOLDOWN_SEC - (now - _lastWakeTime)))
-        return
-    end
-
-    if _wakeInFlight and not force then
-        print("[WAKE] Wake already in flight — skip")
-        return
-    end
-
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-    if not auth_token or auth_token == "" then
-        print("[WAKE] ERROR: No auth token")
-        return
-    end
-
-    local vid = _props["VID"] or Properties["VID"]
-    if not vid or vid == "" then
-        print("[WAKE] ERROR: No VID")
-        return
-    end
-
-    _wakeInFlight = true
-    _lastWakeTime = now
-
-    local base_url = Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
-    local url = base_url .. "/api/v3/openapi/device/do-action"
-
-    local body = {
-        vid = vid,
-        action_id = "ac_wakelocal",
-        input_params = json.encode({ t = os.time(), type = 0 }),
-        check_t = 0,
-        is_async = 0
-    }
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Accept-Language"] = "en",
-        ["Authorization"] = "Bearer " .. auth_token,
-        ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or ""
-    }
-
-    print(string.format("[WAKE] Sending ac_wakelocal  vid=%s  t=%d", tostring(vid), os.time()))
-
-    transport.execute({
-        url     = url,
-        method  = "POST",
-        headers = headers,
-        body    = json.encode(body)
-    }, function(code, resp, _, err)
-        _wakeInFlight = false
-        if err then
-            print("[WAKE] Error:", tostring(err))
-        end
-        if code == 200 or code == 20000 then
-            print("[WAKE] SUCCESS — camera should be awake ~" .. CAMERA_WAKE_DURATION_SEC .. "s")
-            C4:UpdateProperty("Status", "Camera awake")
-        else
-            print("[WAKE] FAILED code=" .. tostring(code) .. " resp=" .. tostring(resp))
-            C4:UpdateProperty("Status", "Wake failed: " .. tostring(code))
-        end
-    end)
-end
-
 function WakeCamera(retry)
-    retry = retry or CAMERA_WAKE_BURST_RETRIES or 3
-    local attempt = 0
-    local gap = CAMERA_WAKE_BURST_GAP_MS or 2500
-
-    local function try_wake()
-        attempt = attempt + 1
-        print(string.format("[WAKE-BURST] Attempt %d/%d", attempt, retry))
-        AWAKE_CAMERA({ force = true })
-
-        if attempt < retry then
-            C4:SetTimer(gap, try_wake)
-        else
-            print("[WAKE-BURST] Finished burst sequence")
-        end
-    end
-
-    try_wake()
-end
-
-function StartKeepAliveWake()
-    local now = os.time()
-    _keepAliveStopAt = now + (CAMERA_KEEP_ALIVE_DURATION_SEC or 180)
-
-    WakeCamera(CAMERA_WAKE_BURST_RETRIES)
-
-    if type(_keepAliveTimer) == "number" then
-        print("[WAKE] Keep-alive already running, extended until", _keepAliveStopAt)
-        return
-    end
-
-    local interval = CAMERA_KEEP_ALIVE_INTERVAL_MS or 8000
-    print(string.format("[WAKE] Starting keep-alive every %dms for %ds", interval, CAMERA_KEEP_ALIVE_DURATION_SEC or 180))
-
-    _keepAliveTimer = C4:SetTimer(interval, function()
-        local t = os.time()
-        if t >= _keepAliveStopAt then
-            print("[WAKE] Keep-alive window expired — stopping")
-            StopKeepAlive()
-            return
-        end
-        print(string.format("[WAKE] Keep-alive tick (%ds remaining)", _keepAliveStopAt - t))
-        AWAKE_CAMERA({})
-    end, true)
-end
-
-function EnsureCameraAwakeForStream()
-    print("[WAKE] EnsureCameraAwakeForStream()")
-    StartKeepAliveWake()
-end
-
---[[function WakeCamera(retry)
-    retry = retry or 2
+    retry = retry or 1
     local attempt = 0
 
     local function try_wake()
         attempt = attempt + 1
-        print(string.format("[WAKE] Attempt %d/%d", attempt, retry))
+
         AWAKE_CAMERA({})
 
         if attempt < retry then
-            -- Space-wake a few seconds later so the camera stays up while RTSP negotiates
-            C4:SetTimer(4500, try_wake)
+            local next_wake_delay = (WAKE_DURATION + WAKE_INTERVAL) * 1000 -- Convert to milliseconds
+            C4:SetTimer(next_wake_delay, function(timer)
+                try_wake()
+            end)
         else
-            print("[WAKE] Finished wake sequence")
-          
+            print("Wake retry " .. retry .. " times done")
         end
     end
 
+    -- Start first attempt immediately (runs in parallel with RTSP connection)
     try_wake()
-end--]]
+end
 
 --Establishes a TCP connection to the configured server.
 
@@ -331,7 +192,11 @@ function TcpConnection()
     C4:NetConnect(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT)
 end
 
-
+--[[
+    Logs property changes for debugging purposes.
+    Displays the property name and its new value, or indicates
+    when the property is hidden and its value should not be shown.
+]]
 
 
 function SET_CAMERA_IP(ip)
@@ -781,7 +646,18 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-    
+    --[[if strCommand == "UNMUTE_MIC" then
+        print("[COMMAND] Unmute Mic requested")
+        UpdateConditional("MIC_MUTED", false)
+        UpdateConditional("MIC_UNMUTED", true)
+        return
+    end
+    if strCommand == "MUTE_MIC" then
+        print("[COMMAND] Mute Mic requested")
+        UpdateConditional("MIC_MUTED", true)
+        UpdateConditional("MIC_UNMUTED", false)
+        return
+    end--]]
     if strCommand == "SPEAKER_VOLUME_UP" then
         print("[COMMAND] Speaker Volume Up requested")
         GET_DEVICE_PROPERTY("beep_vol", function(current_val)
@@ -845,7 +721,7 @@ function ExecuteCommand(strCommand, tParams)
     end
 
     if strCommand == "SET_DEVICE_NAME" then
-        SET_DEVICE_NAME(tParams)        
+        SET_DEVICE_NAME(tParams)        -- ← This calls your function
         return
     end
 
@@ -854,18 +730,6 @@ function ExecuteCommand(strCommand, tParams)
         --return
         TAKE_SNAPSHOT_FOR_UI()
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
-        return
-    end
-
-    if strCommand == "GET_STRANGER_FACES" then
-        print("[COMMAND] GET_STRANGER_FACES requested")
-        GET_STRANGER_FACES(tParams)
-        return
-    end
-
-    if strCommand == "UPDATE_STRANGER_NOTE" then
-        print("[COMMAND] UPDATE_STRANGER_NOTE requested")
-        UPDATE_STRANGER_NOTE(tParams)
         return
     end
 
@@ -1691,7 +1555,7 @@ function STOP_BATTERY_POLL()
 end
 
 -- Set Device Property
---[[function AWAKE_CAMERA(tParams)
+function AWAKE_CAMERA(tParams)
     print("================================================================")
     print("              AWAKE_CAMERA CALLED                        ")
     print("================================================================")
@@ -1767,7 +1631,7 @@ end
     end)
 
     print("================================================================")
-end --]]
+end
 
 -- -----------------------
 --  Apply MQTT Info
@@ -3333,7 +3197,33 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
 
         return
     end
-    
+    -- Handle camera proxy commands
+    -- if strCommand == "CAMERA_ON" then
+    --     CAMERA_ON(idBinding, tParams)
+    -- elseif strCommand == "CAMERA_OFF" then
+    --     CAMERA_OFF(idBinding, tParams)
+    -- elseif strCommand == "GET_CAMERA_SNAPSHOT" then
+    --     return GET_CAMERA_SNAPSHOT(idBinding, tParams)
+    -- elseif strCommand == "GET_SNAPSHOT_QUERY_STRING" then
+    --     local result = "<snapshot_query_string>" ..
+    --     C4:XmlEscapeString(GET_SNAPSHOT_QUERY_STRING(5001, tParams)) .. "</snapshot_query_string>"
+    --     return result
+    -- elseif strCommand == "GET_STREAM_URLS" then
+    --     GET_STREAM_URLS(idBinding, tParams)
+    -- elseif strCommand == "GET_RTSP_H264_QUERY_STRING" then
+    --     local result = "<rtsp_h264_query_string>" ..
+    --     C4:XmlEscapeString(GET_RTSP_H264_QUERY_STRING(5001, tParams)) .. "</rtsp_h264_query_string>"
+    --     return result
+    -- elseif strCommand == "GET_MJPEG_QUERY_STRING" then
+    --     return "<mjpeg_query_string>" ..
+    --     C4:XmlEscapeString(GET_MJPEG_QUERY_STRING(idBinding, tParams)) .. "</mjpeg_query_string>"
+    -- elseif strCommand == "URL_GET" then
+    --     URL_GET(idBinding, tParams)
+    -- elseif strCommand == "RTSP_URL_PUSH" then
+    --     RTSP_URL_PUSH(idBinding, tParams)
+    -- else
+    --     print("Unknown command from proxy: " .. strCommand)
+    -- end
 end
 
 -- GET_SNAPSHOT_QUERY_STRING - Return snapshot URL query string
@@ -3444,7 +3334,6 @@ end
 
 -- GET_RTSP_H264_QUERY_STRING - Return H264 RTSP stream URL
 function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
-    EnsureCameraAwakeForStream()
     print("================================================================")
     print("         GET_RTSP_H264_QUERY_STRING CALLED                      ")
     print("================================================================")
@@ -3471,13 +3360,24 @@ function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
         return
     end
 
-    
+    -- -- Skip wake on first call, only wake on subsequent calls
+    -- if rtsp_first_call then
+    --     print("[RTSP] First call - skipping wake")
+    --     rtsp_first_call = false
+    -- else
+    --     print("[RTSP] Subsequent call - waking camera for streaming session...")
+    --     WakeCamera(1)
+    -- end
+
+    -- Determine stream type based on resolution
+    -- Higher resolution -> main stream (stream0)
+    -- Lower resolution -> sub stream (stream1)
     local streamtype = 0
     if width >= 1280 or height >= 720 then
         streamtype = 0
         print("Using main stream (high quality)")
     else
-        streamtype = 0
+        streamtype = 1
         print("Using sub stream (low quality)")
     end
 
@@ -3494,7 +3394,6 @@ end
 
 -- GET_MJPEG_QUERY_STRING - Return MJPEG stream URL
 function GET_MJPEG_QUERY_STRING(idBinding, tParams)
-    EnsureCameraAwakeForStream()
     print("================================================================")
     print("           GET_MJPEG_QUERY_STRING CALLED                        ")
     print("================================================================")
@@ -3556,7 +3455,6 @@ end
 
 -- URL_GET - Control4 app requests camera URLs for streaming
 function URL_GET(idBinding, tParams)
-    EnsureCameraAwakeForStream()
     print("================================================================")
     print("                  URL_GET CALLED                                ")
     print("================================================================")
@@ -3630,7 +3528,6 @@ end
 
 -- RTSP_URL_PUSH - Push RTSP URL to Control4 app for streaming
 function RTSP_URL_PUSH(idBinding, tParams)
-    EnsureCameraAwakeForStream()
     print("================================================================")
     print("               RTSP_URL_PUSH CALLED                             ")
     print("================================================================")
@@ -4332,263 +4229,6 @@ function SendSnapshotResultToUI(success, image_url, error_msg)
         image_url = image_url or "",
         debug_text = "test text",   --  path string for debugging
         error     = error_msg or "",
-        timestamp = os.time()
-    }
-
-    local jsonData = json.encode(payload)
-
-    pcall(function()
-        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
-        C4:SendToProxy(5005, "UPDATE_UI", {})
-    end)
-
-    pcall(function()
-        C4:SendDataToUI(jsonData)
-    end)
-end
-
--- =====================================================
--- GET STRANGER FACE LIST (OP27)
--- =====================================================
-function GET_STRANGER_FACES(tParams)
-    print("===================================================")
-    print("GET_STRANGER_FACES CALLED")
-    print("===================================================")
-
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
-    local vid        = _props["VID"] or Properties["VID"] or ""
-    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
-
-    -- Parse optional page / page_size from UI
-    local page      = 1
-    local page_size = 50
-
-    if type(tParams) == "string" then
-        local ok, data = pcall(json.decode, tParams)
-        if ok and data then
-            page      = tonumber(data.page) or 1
-            page_size = tonumber(data.page_size) or 50
-        end
-    elseif type(tParams) == "table" then
-        page      = tonumber(tParams.page) or 1
-        page_size = tonumber(tParams.page_size) or 50
-    end
-
-    if auth_token == "" or vid == "" then
-        print("[FACES] ERROR: Missing Auth Token or VID")
-        SendStrangerFacesToUI({
-            type    = "stranger_faces",
-            success = false,
-            error   = "Missing Auth Token or VID"
-        })
-        return
-    end
-
-    local url = string.format(
-        "%s/api/v3/openapi/stranger-note/list?vid=%s&page=%d&page_size=%d",
-        baseUrl, vid, page, page_size
-    )
-
-    print("[FACES] Requesting:", url)
-
-    transport.execute({
-        url     = url,
-        method  = "GET",
-        headers = {
-            ["Content-Type"]  = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
-        }
-    }, function(code, response, _, err)
-        print("[FACES] HTTP Code:", code)
-
-        if err or (code ~= 200 and code ~= 20000) then
-            print("[FACES] Request failed:", err or code)
-            SendStrangerFacesToUI({
-                type    = "stranger_faces",
-                success = false,
-                error   = "HTTP Error: " .. tostring(err or code)
-            })
-            return
-        end
-
-        local ok, result = pcall(json.decode, response or "")
-if not ok or not result then
-    print("[FACES] JSON Parse Error")
-    SendStrangerFacesToUI({
-        type    = "stranger_faces",
-        success = false,
-        error   = "JSON Parse Error"
-    })
-    return
-end
-
--- Accept both 0 and 20000 as success (same as your other APIs)
-if result.code ~= 0 and result.code ~= 20000 then
-    print("[FACES] API Error:", result.message or "Unknown", "code:", tostring(result.code))
-    SendStrangerFacesToUI({
-        type    = "stranger_faces",
-        success = false,
-        error   = result.message or "API returned error",
-        code    = result.code
-    })
-    return
-end
-
-local notes = {}
-local total = 0
-
-if result.data then
-    notes = result.data.notes or {}
-    total = result.data.total or 0
-end
-
-print(string.format("[FACES] Success — received %d notes (total=%d)", #notes, total))
-
--- Optional: cache face names
-if not _G.FACE_NAME_CACHE then
-    _G.FACE_NAME_CACHE = {}
-end
-for _, n in ipairs(notes) do
-    if n.face_id and n.note and n.note ~= "" then
-        _G.FACE_NAME_CACHE[n.face_id] = n.note
-    end
-end
-
-SendStrangerFacesToUI({
-    type    = "stranger_faces",
-    success = true,
-    data    = {
-        notes = notes,
-        total = total
-    }
-})
-    end)
-end
-
-function SendStrangerFacesToUI(data)
-    local jsonData = json.encode(data)
-
-    -- Same reliable pattern you use for device_info / snapshot
-    pcall(function()
-        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
-        C4:SendToProxy(5005, "UPDATE_UI", {})
-    end)
-
-    pcall(function()
-        C4:SendDataToUI(jsonData)
-    end)
-
-    print("[FACES] Sent result to UI")
-end
-
-
--- =====================================================
--- UPDATE STRANGER NOTE (OP12)
--- =====================================================
-function UPDATE_STRANGER_NOTE(tParams)
-    print("===================================================")
-    print("UPDATE_STRANGER_NOTE CALLED")
-    print("===================================================")
-
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
-    local vid        = _props["VID"] or Properties["VID"] or ""
-    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
-
-    local face_id = nil
-    local note    = nil
-
-    if type(tParams) == "string" then
-        local ok, data = pcall(json.decode, tParams)
-        if ok and data then
-            face_id = data.face_id
-            note    = data.note
-            if data.vid and data.vid ~= "" then
-                vid = data.vid
-            end
-        end
-    elseif type(tParams) == "table" then
-        face_id = tParams.face_id
-        note    = tParams.note
-        if tParams.vid and tParams.vid ~= "" then
-            vid = tParams.vid
-        end
-    end
-
-    if auth_token == "" or vid == "" then
-        print("[FACES] ERROR: Missing Auth Token or VID")
-        SendStrangerNoteResultToUI(false, "Missing Auth Token or VID")
-        return
-    end
-
-    if not face_id or face_id == "" then
-        print("[FACES] ERROR: Missing face_id")
-        SendStrangerNoteResultToUI(false, "Missing face_id")
-        return
-    end
-
-    if note == nil then
-        note = ""
-    end
-
-    local url = baseUrl .. "/api/v3/openapi/stranger-note"
-
-    local body = {
-        vid     = vid,
-        face_id = face_id,
-        note    = note
-    }
-
-    print("[FACES] Updating note →", json.encode(body))
-
-    transport.execute({
-        url     = url,
-        method  = "POST",
-        headers = {
-            ["Content-Type"]  = "application/json",
-            ["Authorization"] = "Bearer " .. auth_token,
-            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
-        },
-        body    = json.encode(body)
-    }, function(code, response, _, err)
-        print("[FACES] Update note HTTP Code:", code)
-        if response then print("[FACES] Response:", response) end
-
-        if err or (code ~= 200 and code ~= 20000) then
-            print("[FACES] Update note failed:", err or code)
-            SendStrangerNoteResultToUI(false, "HTTP Error: " .. tostring(err or code))
-            return
-        end
-
-        local ok, result = pcall(json.decode, response or "")
-        if not ok or not result then
-            SendStrangerNoteResultToUI(false, "JSON Parse Error")
-            return
-        end
-
-        if result.code ~= 0 and result.code ~= 20000 then
-            SendStrangerNoteResultToUI(false, result.message or "API error")
-            return
-        end
-
-        -- Update local cache
-        if not _G.FACE_NAME_CACHE then
-            _G.FACE_NAME_CACHE = {}
-        end
-        _G.FACE_NAME_CACHE[face_id] = note
-
-        print("[FACES] Note updated successfully for face_id:", face_id)
-        SendStrangerNoteResultToUI(true, nil, face_id, note)
-    end)
-end
-
-function SendStrangerNoteResultToUI(success, error_msg, face_id, note)
-    local payload = {
-        type     = "stranger_note_updated",
-        success  = success,
-        error    = error_msg or "",
-        face_id  = face_id or "",
-        note     = note or "",
         timestamp = os.time()
     }
 

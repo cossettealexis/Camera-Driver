@@ -315,8 +315,6 @@
             border-radius: 14px;
             padding: 16px;
             text-align: left;
-            max-height: 280px;
-            overflow-y: scroll;
         }
 
         .setting-label {
@@ -627,51 +625,50 @@
             <div class="content">
                 <i data-lucide="scan-face" class="bigIcon"></i>
                 <div class="h2">Facial Recognition</div>
-                <!--<div class="desc">Enable face detection, manage enrolled faces and tune thresholds.</div>-->
-                <div class="desc">Enable face detection and manage enrolled faces.</div>
-                <!-- Master Enable (disabled – face list always visible)
-            <label class="toggle">
-                <input type="checkbox" id="faceRecEnable">
-                <span class="slider"></span>
-            </label>
-            <div class="status" id="faceRecStatus">Disabled</div>
-            -->
-            
+                <div class="desc">Enable face detection, manage enrolled faces and tune thresholds.</div>
+
+                <!-- Master Enable -->
+                <label class="toggle">
+                    <input type="checkbox" id="faceRecEnable">
+                    <span class="slider"></span>
+                </label>
+                <div class="status" id="faceRecStatus">Disabled</div>
+
                 <!-- Settings that appear only when enabled -->
-                <div class="settings-section visible" id="faceSettings">
-            
+                <div class="settings-section" id="faceSettings">
+
                     <!-- Similarity Threshold -->
-                    <!--<div class="setting-card">
-                                    <div class="setting-label">Face Similarity Threshold</div>
-                                    <div class="setting-desc">Minimum match confidence required to identify a face</div>
-                                    <div class="range-wrap">
-                                        <input type="range" id="similarityThreshold" min="0" max="100" value="75">
-                                        <span class="range-value" id="similarityValue">75%</span>
-                                    </div>
-                                    <button class="btn small" id="saveSimilarityBtn">Save Threshold</button>
-                                </div>-->
-            
+                    <div class="setting-card">
+                        <div class="setting-label">Face Similarity Threshold</div>
+                        <div class="setting-desc">Minimum match confidence required to identify a face</div>
+                        <div class="range-wrap">
+                            <input type="range" id="similarityThreshold" min="0" max="100" value="75">
+                            <span class="range-value" id="similarityValue">75%</span>
+                        </div>
+                        <button class="btn small" id="saveSimilarityBtn">Save Threshold</button>
+                    </div>
+
                     <!-- Quality Threshold -->
-                    <!--<div class="setting-card">
-                                    <div class="setting-label">Face Image Quality Threshold</div>
-                                    <div class="setting-desc">Minimum quality required for a face to be accepted</div>
-                                    <div class="segmented" id="qualitySegmented">
-                                        <button data-value="low">Low</button>
-                                        <button data-value="medium" class="active">Medium</button>
-                                        <button data-value="high">High</button>
-                                    </div>
-                                    <button class="btn small" id="saveQualityBtn">Save Quality</button>
-                                </div>-->
-            
+                    <div class="setting-card">
+                        <div class="setting-label">Face Image Quality Threshold</div>
+                        <div class="setting-desc">Minimum quality required for a face to be accepted</div>
+                        <div class="segmented" id="qualitySegmented">
+                            <button data-value="low">Low</button>
+                            <button data-value="medium" class="active">Medium</button>
+                            <button data-value="high">High</button>
+                        </div>
+                        <button class="btn small" id="saveQualityBtn">Save Quality</button>
+                    </div>
+
                     <!-- Face Management -->
                     <div class="setting-card">
                         <div class="setting-label">Face Management</div>
                         <div class="setting-desc">Edit names of detected faces. Changes are sent to the API when you save.</div>
-            
+
                         <div class="face-list" id="faceList">
                             <!-- Populated by JS -->
                         </div>
-            
+
                         <button class="btn small" id="saveFacesBtn" disabled>
                             Save Name Changes
                         </button>
@@ -757,62 +754,150 @@
                 console.log(this.checked ? "MIC_ON" : "MIC_OFF");
             });
 
-            
-        /*
-        // ---- Facial Recognition Enable (commented out) ----
-        const faceEnable = document.getElementById('faceRecEnable');
-        const faceStatus = document.getElementById('faceRecStatus');
-        const faceSettings = document.getElementById('faceSettings');
+            // ---- Facial Recognition Enable ----
+            const faceEnable = document.getElementById('faceRecEnable');
+            const faceStatus = document.getElementById('faceRecStatus');
+            const faceSettings = document.getElementById('faceSettings');
 
-        faceEnable.addEventListener('change', function () {
-            const enabled = this.checked;
-            faceStatus.innerText = enabled ? "Enabled" : "Disabled";
-            faceSettings.classList.toggle('visible', enabled);
+            faceEnable.addEventListener('change', function () {
+                const enabled = this.checked;
+                faceStatus.innerText = enabled ? "Enabled" : "Disabled";
+                faceSettings.classList.toggle('visible', enabled);
 
-            console.log(enabled ? "FACE_REC_ON" : "FACE_REC_OFF");
+                console.log(enabled ? "FACE_REC_ON" : "FACE_REC_OFF");
+                console.log(enabled ? "FACE_API_MQTT_LOGS_ON" : "FACE_API_MQTT_LOGS_OFF");
 
-            if (enabled && typeof loadFaces === 'function') {
-                loadFaces();
-            }
-        });
-        */
-
-        // ---- Similarity Threshold ----
-        const similaritySlider = document.getElementById('similarityThreshold');
-        const similarityValue = document.getElementById('similarityValue');
-        const saveSimilarityBtn = document.getElementById('saveSimilarityBtn');
-
-        let currentSimilarity = 75;
-
-        similaritySlider.addEventListener('input', function () {
-            similarityValue.innerText = this.value + '%';
-        });
-
-        saveSimilarityBtn.addEventListener('click', function () {
-            currentSimilarity = parseInt(similaritySlider.value);
-            console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
-            
-            showModal(`Similarity threshold set to ${currentSimilarity}%`, "Threshold Saved");
-        });
-
-        // ---- Quality Threshold ----
-         const qualityButtons = document.querySelectorAll('#qualitySegmented button');
-        const saveQualityBtn = document.getElementById('saveQualityBtn');
-        let currentQuality = 'medium';
-
-        qualityButtons.forEach(btn => {
-            btn.addEventListener('click', function () {
-                qualityButtons.forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                currentQuality = this.dataset.value;
+                if (enabled) {
+                    loadFaces();
+                }
             });
-        });
 
-        saveQualityBtn.addEventListener('click', function () {
-            console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
-            // C4JH.SendToProxy("SET_FACE_QUALITY", { value: currentQuality });
-            showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");
-        });
+            // ---- Similarity Threshold ----
+            const similaritySlider = document.getElementById('similarityThreshold');
+            const similarityValue = document.getElementById('similarityValue');
+            const saveSimilarityBtn = document.getElementById('saveSimilarityBtn');
+
+            let currentSimilarity = 75;
+
+            similaritySlider.addEventListener('input', function () {
+                similarityValue.innerText = this.value + '%';
+            });
+
+            saveSimilarityBtn.addEventListener('click', function () {
+                currentSimilarity = parseInt(similaritySlider.value);
+                console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
+                // C4JH.SendToProxy("SET_FACE_SIMILARITY", { value: currentSimilarity });
+                showModal(`Similarity threshold set to ${currentSimilarity}%`, "Threshold Saved");
+            });
+
+            // ---- Quality Threshold ----
+            const qualityButtons = document.querySelectorAll('#qualitySegmented button');
+            const saveQualityBtn = document.getElementById('saveQualityBtn');
+            let currentQuality = 'medium';
+
+            qualityButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    qualityButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentQuality = this.dataset.value;
+                });
+            });
+
+            saveQualityBtn.addEventListener('click', function () {
+                console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
+                // C4JH.SendToProxy("SET_FACE_QUALITY", { value: currentQuality });
+                showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");
+            });
+
+            // ---- Face Management ----
+            // Mock data – replace with real API response later
+            // Expected shape from API: { id, name, imageUrl }  or  { id, name, imageBase64 }
+            let faces = [
+                {
+                    id: "f1",
+                    name: "John Doe",
+                    imageUrl: "https://i.pravatar.cc/150?img=12"
+                },
+                {
+                    id: "f2",
+                    name: "Jane Smith",
+                    imageUrl: "https://i.pravatar.cc/150?img=5"
+                },
+                {
+                    id: "f3",
+                    name: "Unknown Person",
+                    imageUrl: "https://i.pravatar.cc/150?img=33"
+                }
+            ];
+
+            let facesDirty = false;
+            const faceListEl = document.getElementById('faceList');
+            const saveFacesBtn = document.getElementById('saveFacesBtn');
+
+            function renderFaces() {
+                faceListEl.innerHTML = '';
+
+                if (faces.length === 0) {
+                    faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
+                    saveFacesBtn.disabled = true;
+                    return;
+                }
+
+                faces.forEach((face, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'face-item';
+
+                    // Support both imageUrl and imageBase64
+                    const imgSrc = face.imageUrl || (face.imageBase64 ? `data:image/jpeg;base64,${face.imageBase64}` : '');
+
+                    item.innerHTML = `
+                        <div class="face-avatar">
+                            ${imgSrc
+                            ? `<img src="${imgSrc}" alt="${face.name}" onerror="this.style.display='none'">`
+                            : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
+                        }
+                        </div>
+                        <div class="face-info">
+                            <input type="text" class="face-name-input" value="${face.name}" data-index="${index}" maxlength="40" placeholder="Enter name">
+                            <div class="face-meta">ID: ${face.id}</div>
+                        </div>
+                    `;
+                    faceListEl.appendChild(item);
+                });
+
+                lucide.createIcons();
+
+                // Name change listeners
+                faceListEl.querySelectorAll('.face-name-input').forEach(input => {
+                    input.addEventListener('input', function () {
+                        const idx = parseInt(this.dataset.index);
+                        faces[idx].name = this.value.trim();
+                        facesDirty = true;
+                        saveFacesBtn.disabled = false;
+                    });
+                });
+            }
+
+            function loadFaces() {
+                // In real app replace with:
+                // fetch('/api/faces').then(r => r.json()).then(data => { faces = data; renderFaces(); })
+                console.log("LOAD_FACES_FROM_API");
+                renderFaces();
+            }
+
+            saveFacesBtn.addEventListener('click', function () {
+                if (!facesDirty) return;
+
+                console.log("SAVE_FACES_TO_API", faces);
+                // C4JH.SendToProxy("UPDATE_FACES", { faces: faces });
+
+                facesDirty = false;
+                this.disabled = true;
+                showModal("Face names updated successfully!", "Faces Saved");
+            });
+
+            // Initial render (still hidden until enabled)
+            renderFaces();
         });
 
         // Modal Functions
