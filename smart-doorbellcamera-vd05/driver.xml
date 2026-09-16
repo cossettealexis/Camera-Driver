@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins VD05 Video Doorbell</name>
-    <version>12</version>
+    <version>13</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>VD05</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>08/20/2026 12:00 AM</modified>
+    <modified>09/07/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -489,6 +489,14 @@
             <command>
                 <name>REBOOT_DEVICE</name>
                 <description>Restart the device</description>
+            </command>
+            <command>
+                <name>GET_STRANGER_FACES</name>
+                <description>Get list of captured faces</description>
+            </command>
+            <command>
+                <name>UPDATE_STRANGER_NOTE</name>
+                <description>Update face name</description>
             </command>
             <command>
                 <name>TEST_PUSH_NOTIFICATION</name>
