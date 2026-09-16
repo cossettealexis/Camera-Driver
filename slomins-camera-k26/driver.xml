@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
     <created>11/11/2025 12:00 AM</created>
-    <modified>08/19/2026 12:00 AM</modified>
+    <modified>09/08/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -24,7 +24,7 @@
     <capabilities>
         <modes>H265, SNAPSHOT, MJPEG, H264</modes>
         <default_http_port>8080</default_http_port>
-        <default_rtsp_port>8554</default_rtsp_port>
+        <default_rtsp_port>554</default_rtsp_port>
         <default_authentication_required>False</default_authentication_required>
         <default_authentication_type>NONE</default_authentication_type>
         <default_username>SystemConnect</default_username>
@@ -502,6 +502,14 @@
             <command>
                 <name>REBOOT_DEVICE</name>
                 <description>Restart the device</description>
+            </command>
+            <command>
+                <name>GET_STRANGER_FACES</name>
+                <description>Get list of captured faces</description>
+            </command>
+            <command>
+                <name>UPDATE_STRANGER_NOTE</name>
+                <description>Update face name</description>
             </command>
         </commands>
         <interfaces>

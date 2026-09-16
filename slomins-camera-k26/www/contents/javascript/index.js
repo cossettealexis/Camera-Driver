@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', function () {
     initMicrophone();
     initReboot();
     initDeviceName();
-     initSnapshot();
+    initSnapshot();
+    loadFaces();
+    initSaveFacesButton();
 });
 
 function initializeControl4() {
@@ -35,7 +37,7 @@ function initDeviceName() {
     const statusEl = document.getElementById('deviceNameStatus');
 
     if (!btn || !input) {
-        console.error("❌ Device name elements not found");
+        console.error(" Device name elements not found");
         return;
     }
 
@@ -159,7 +161,7 @@ function updateMicUI(muted) {
 function initReboot() {
     const btn = document.getElementById('rebootBtn');
     if (!btn) {
-        console.warn("⚠️ rebootBtn not found");
+        console.warn("rebootBtn not found");
         return;
     }
 
@@ -291,6 +293,137 @@ function closeSnapshotModal() {
     }
 }
 
+function renderFaces() {
+    // Always re-query in case they were null
+    faceListEl = document.getElementById('faceList');
+    saveFacesBtn = document.getElementById('saveFacesBtn');
+
+    if (!faceListEl) {
+        console.warn("faceList element not found");
+        return;
+    }
+
+    faceListEl.innerHTML = '';
+
+    if (faces.length === 0) {
+        faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
+        if (saveFacesBtn) saveFacesBtn.disabled = true;
+        return;
+    }
+
+    faces.forEach((face, index) => {
+        const item = document.createElement('div');
+        item.className = 'face-item';
+
+        const imgSrc = face.imageUrl || '';
+        
+
+        item.innerHTML = `
+            <div class="face-avatar">
+                ${imgSrc
+                    ? `<img src="${imgSrc}" alt="${face.name || ''}" onerror="this.style.display='none'">`
+                    : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
+                }
+            </div>
+            <div class="face-info">
+                <input type="text" class="face-name-input" 
+                       value="${face.name || ''}" 
+                       data-index="${index}" 
+                       maxlength="40" 
+                       placeholder="Enter name">
+                <div class="face-meta">ID: ${face.id || face.face_id || '-'}</div>
+            </div>
+        `;
+        faceListEl.appendChild(item);
+    });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    faceListEl.querySelectorAll('.face-name-input').forEach(input => {
+        input.addEventListener('input', function () {
+            const idx = parseInt(this.dataset.index);
+            faces[idx].name = this.value.trim();
+            facesDirty = true;
+            if (saveFacesBtn) saveFacesBtn.disabled = false;
+        });
+    });
+}
+
+function loadFaces() {
+  
+
+    faceListEl = document.getElementById('faceList');
+    if (faceListEl) {
+        faceListEl.innerHTML = `<div class="empty-faces">Loading faces...</div>`;
+    }
+
+    try {
+        C4.sendCommand(
+            'GET_STRANGER_FACES',
+            JSON.stringify({ page: 1, page_size: 50 }),
+            false,
+            true
+        );
+    } catch (e) {
+        console.error("Failed to request stranger faces", e);
+        if (faceListEl) {
+            faceListEl.innerHTML = `<div class="empty-faces">Failed to request faces</div>`;
+        }
+    }
+}
+
+function updateFacesFromDriver(notes) {
+    console.log("updateFacesFromDriver received notes:", notes);
+
+    faces = (notes || []).map(n => ({
+        id: n.id || n.face_id,
+        face_id: n.face_id,
+        name: n.note || '',
+        imageUrl: n.face_img_url || '',
+        updated_at: n.updated_at
+    }));
+
+    facesDirty = false;
+    saveFacesBtn = document.getElementById('saveFacesBtn');
+    if (saveFacesBtn) saveFacesBtn.disabled = true;
+
+    renderFaces();
+}
+
+function initSaveFacesButton() {
+    const btn = document.getElementById('saveFacesBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        if (!facesDirty) return;
+
+        console.log("SAVE_FACES_TO_API", faces);
+
+        // Send one update per changed face
+        faces.forEach(face => {
+            if (!face.face_id) return;
+
+            try {
+                C4.sendCommand(
+                    'UPDATE_STRANGER_NOTE',
+                    JSON.stringify({
+                        face_id: face.face_id,
+                        note: face.name || ''
+                    }),
+                    false,
+                    true
+                );
+            } catch (e) {
+                console.error("Failed to update note for", face.face_id, e);
+            }
+        });
+
+        facesDirty = false;
+        btn.disabled = true;
+        showModal("Saving face names...", "Please wait");
+    });
+}
+
 function onDataToUi(value) {
     try {
         const jsonObject = JSON.parse(value);
@@ -358,6 +491,35 @@ function onDataToUi(value) {
                 openSnapshotModal(obj.image_url, "Snapshot captured");
             } else {
                 openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+            }
+        }
+
+        // =========================
+        // STRANGER FACES LIST
+        // =========================
+        if (obj.type === "stranger_faces") {
+            if (obj.success && obj.data && obj.data.notes) {
+                updateFacesFromDriver(obj.data.notes);
+            } else {
+                showModal(obj.error || obj.message || "Failed to load faces", "Error");
+                faces = [];
+                renderFaces();
+            }
+        }
+
+        // =========================
+        // STRANGER NOTE UPDATED
+        // =========================
+        if (obj.type === "stranger_note_updated") {
+            console.log("[UI] stranger_note_updated:", obj);
+
+            if (obj.success) {
+                showModal("Face name updated successfully!", "Success");
+
+                // Optional: refresh list
+                // loadFaces();
+            } else {
+                showModal(obj.error || "Failed to update face name", "Error");
             }
         }
 
