@@ -1396,10 +1396,29 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
+                local requested_vid = p_vid or _props["VID"] or Properties["VID"]
+                local vid_matched = false
                 local ip_matched = false
-                
-                -- First try: Match by IP if IP is set
-                if ip and ip ~= "" then
+
+                -- First priority: match by stable VID before trusting cached IP
+                if requested_vid and requested_vid ~= "" then
+                    for i, device in ipairs(devices) do
+                        local device_vid = device.vid and tostring(device.vid) or ""
+                        if string.lower(device_vid) == string.lower(tostring(requested_vid)) then
+                            target_device = device
+                            vid_matched = true
+                            print("Found device matching VID " .. tostring(requested_vid) .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                -- Second priority: if no VID match, fallback to cached IP matching
+                if not target_device and ip and ip ~= "" then
                     for i, device in ipairs(devices) do
                         if device.local_ip == ip then
                             target_device = device
@@ -1412,8 +1431,8 @@ function GET_DEVICES(p_vid)
                         end
                     end
                 end
-                
-                -- Second try: If no IP match, fall back to model/product_subtype matching
+
+                -- Last fallback: model/product_subtype matching
                 if not target_device then
                     for i, device in ipairs(devices) do
                         local model_match = device.model and
