@@ -1202,25 +1202,19 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
-                for i, device in ipairs(devices) do
-                    -- If IP is set, match by IP address
-                    if ip and ip ~= "" and device.local_ip == ip then
-                        target_device = device
-                        print("Found device matching IP " .. ip .. " at index " .. i)
-                        print("  Device Name: " .. (device.device_name or "N/A"))
-                        print("  Model: " .. (device.model or "N/A"))
-                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                        break
-                        -- If no IP set, filter by model or product subtype
-                    elseif (not ip or ip == "") then
-                        local model_match = device.model and
-                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and
-                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                local requested_vid = p_vid or _props["VID"] or Properties["VID"]
+                local vid_matched = false
+                local ip_matched = false
 
-                        if model_match or subtype_match then
+                -- First priority: match by stable VID before trusting cached IP
+                if requested_vid and requested_vid ~= "" then
+                    for i, device in ipairs(devices) do
+                        local device_vid = device.vid and tostring(device.vid) or ""
+                        if string.lower(device_vid) == string.lower(tostring(requested_vid)) then
                             target_device = device
-                            print("Found K26 device (no IP filter) at index " .. i)
+                            vid_matched = true
+                            print("Found device matching VID " .. tostring(requested_vid) .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
                             print("  Model: " .. (device.model or "N/A"))
                             print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                             print("  Local IP: " .. (device.local_ip or "N/A"))
@@ -1229,21 +1223,66 @@ function GET_DEVICES(p_vid)
                     end
                 end
 
-                if not target_device and ip then
-                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                -- Second priority: if no VID match, fallback to cached IP matching
+                if not target_device and ip and ip ~= "" then
+                    for i, device in ipairs(devices) do
+                        if device.local_ip == ip then
+                            target_device = device
+                            ip_matched = true
+                            print("Found device matching IP " .. ip .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                -- Last fallback: model/product_subtype matching
+                if not target_device then
+                    for i, device in ipairs(devices) do
+                        local model_match = device.model and
+                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and
+                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+
+                        if model_match or subtype_match then
+                            target_device = device
+                            if ip and ip ~= "" then
+                                print("WARNING: IP mismatch - SDDP discovered " .. ip .. " but API shows " .. (device.local_ip or "N/A"))
+                                print("Found K26 device by product_subtype at index " .. i)
+                            else
+                                print("Found K26 device (no IP filter) at index " .. i)
+                            end
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                if not target_device then
+                    print("ERROR: No K26 device found in API response")
+                    if ip and ip ~= "" then
+                        print("  Searched for IP: " .. ip)
+                    end
+                    print("  Searched for product_subtype: " .. GlobalObject.ProductSubType)
                     return
                 end
 
                 if target_device and target_device.vid then
                     local newVid = target_device.vid
-
                     RESET_MQTT_AND_BATTERY(_batteryPollVid, newVid)
+
                     print("Storing device information for K26:")
-                    print("  VID: " .. newVid)
+                    print("  VID: " .. target_device.vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
+
+                    _props["VID"] = target_device.vid
+                    C4:UpdateProperty("VID", target_device.vid)
 
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
@@ -1251,24 +1290,29 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
-                    -- Set IP if needed
+                    -- Set IP Address from API response
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
+                        if not ip or ip == "" or ip ~= target_device.local_ip then
+                            if ip and ip ~= "" and ip ~= target_device.local_ip then
+                                print("  IP Address mismatch - updating from " .. ip .. " to " .. target_device.local_ip)
+                            end
                             SET_CAMERA_IP(target_device.local_ip)
                             print("  IP Address property updated to: " .. target_device.local_ip)
                         else
-                            print("  IP Address already set to: " .. ip)
+                            print("  IP Address already correct: " .. ip)
                         end
                     end
 
-
-
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
+
                         mqtt_enabled = true
                         MQTT_AUTO_ENABLED = true
+
                         C4:UpdateProperty("Enable MQTT", "True")
                         _props["Enable MQTT"] = "True"
+
+                        APPLY_MQTT_INFO()
                     end
 
                     print("K26 properties updated successfully")
