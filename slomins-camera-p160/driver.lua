@@ -140,12 +140,12 @@ function SET_CAMERA_IP(ip)
         return
     end
 
-    if Properties["IP Address"] == ip then
-        print("[CAMERA] IP already set:", ip)
-        return
+    local current_ip = _props["IP Address"] or Properties["IP Address"]
+    if current_ip == ip then
+        print("[CAMERA] IP matches current value, refreshing proxy binding anyway:", ip)
+    else
+        print("[CAMERA] Setting IP:", ip)
     end
-
-    print("[CAMERA] Setting IP:", ip)
 
     _props["IP Address"] = ip
     C4:UpdateProperty("IP Address", ip)
@@ -1605,23 +1605,19 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
-                for i, device in ipairs(devices) do
-                    -- If IP is set, match by IP address
-                    if ip and ip ~= "" and device.local_ip == ip then
-                        target_device = device
-                        print("Found device matching IP " .. ip .. " at index " .. i)
-                        print("  Device Name: " .. (device.device_name or "N/A"))
-                        print("  Model: " .. (device.model or "N/A"))
-                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                        break
-                    -- If no IP set, filter by model or product subtype
-                    elseif (not ip or ip == "") then
-                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
-                        
-                        if model_match or subtype_match then
+                local requested_vid = p_vid or _props["VID"] or Properties["VID"]
+                local vid_matched = false
+                local ip_matched = false
+
+                -- First priority: match by stable VID before trusting cached IP
+                if requested_vid and requested_vid ~= "" then
+                    for i, device in ipairs(devices) do
+                        local device_vid = device.vid and tostring(device.vid) or ""
+                        if string.lower(device_vid) == string.lower(tostring(requested_vid)) then
                             target_device = device
-                            print("Found P160 device (no IP filter) at index " .. i)
+                            vid_matched = true
+                            print("Found device matching VID " .. tostring(requested_vid) .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
                             print("  Model: " .. (device.model or "N/A"))
                             print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                             print("  Local IP: " .. (device.local_ip or "N/A"))
@@ -1629,16 +1625,51 @@ function GET_DEVICES(p_vid)
                         end
                     end
                 end
-                
+
+                -- Second priority: if no VID match, fallback to cached IP matching
                 if not target_device and ip and ip ~= "" then
-                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Clearing IP and VID - device not in account")
-                    
-                    -- Clear IP and VID properties
-                    SET_CAMERA_IP("")
-                    _props["VID"] = ""
-                    C4:UpdateProperty("VID", "")
-                    
+                    for i, device in ipairs(devices) do
+                        if device.local_ip == ip then
+                            target_device = device
+                            ip_matched = true
+                            print("Found device matching IP " .. ip .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                -- Last fallback: model/product_subtype matching
+                if not target_device then
+                    for i, device in ipairs(devices) do
+                        local model_match = device.model and string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+
+                        if model_match or subtype_match then
+                            target_device = device
+                            if ip and ip ~= "" then
+                                print("WARNING: IP mismatch - SDDP discovered " .. ip .. " but API shows " .. (device.local_ip or "N/A"))
+                                print("Found P160 device by product_subtype at index " .. i)
+                            else
+                                print("Found P160 device (no IP filter) at index " .. i)
+                            end
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                if not target_device then
+                    print("WARNING: No device found matching the current VID/IP in GET_DEVICES response")
+                    if ip and ip ~= "" then
+                        print("  Searched for IP: " .. ip)
+                    end
+                    print("  Searched for product_subtype: " .. GlobalObject.ProductSubType)
+
                     -- Show account mismatch message
                     local account = _props["Account"] or Properties["Account"] or GlobalObject.CustomerEmail or "unknown"
                     local status_msg = string.format("This device is not in account %s", account)
@@ -1646,7 +1677,7 @@ function GET_DEVICES(p_vid)
                     print("[STATUS] " .. status_msg)
                     return
                 end
-                
+
                 if target_device and target_device.vid then
                     print("Storing device information for P160:")
                     print("  VID: " .. target_device.vid)
@@ -1664,13 +1695,16 @@ function GET_DEVICES(p_vid)
                          GET_BATTERY_LEVEL()
                     end
 
-                    -- Set IP Address if found and not already set
+                    -- Set IP Address from API response
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
+                        if not ip or ip == "" or ip ~= target_device.local_ip then
+                            if ip and ip ~= "" and ip ~= target_device.local_ip then
+                                print("  IP Address mismatch - updating from " .. ip .. " to " .. target_device.local_ip)
+                            end
                             SET_CAMERA_IP(target_device.local_ip)
                             print("  IP Address property updated to: " .. target_device.local_ip)
                         else
-                            print("  IP Address already set to: " .. ip)
+                            print("  IP Address already correct: " .. ip)
                         end
                     end
                     
@@ -1853,22 +1887,29 @@ end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
+        local vid = Properties["VID"] or _props["VID"]
+        if vid and vid ~= "" then
+            print("[BINDING] VID available, refreshing device list before trusting binding IP")
+            GET_DEVICES(vid)
+            return
+        end
+
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
-        
+
         print("[BINDING] SSDP Property IP: " .. tostring(ssdp_ip))
         print("[BINDING] Binding Address IP: " .. tostring(binding_ip))
-        
+
         local ip_to_use = nil
-        
+
         if ssdp_ip and ssdp_ip ~= "" and ssdp_ip ~= "127.0.0.1" then
-            ip_to_use = ssdp_ip                
+            ip_to_use = ssdp_ip
         end
-        
+
         if not ip_to_use and binding_ip and binding_ip ~= "" and binding_ip ~= "127.0.0.1" then
             ip_to_use = binding_ip
         end
-        
+
         if ip_to_use then
             C4:UpdateProperty("IP Address", ip_to_use)
             _props["IP Address"] = ip_to_use
@@ -2201,61 +2242,53 @@ end
 
 
 local function handle_online_status(new_online)
-    local now = os.time()
-
-    -- Always handle ONLINE event
     if new_online then
-        print("[STATUS] ONLINE event received")
+        C4:UpdateProperty("Camera Status", "Reconnecting")
+        C4:SetTimer(60 * 1000, function()
+            local now = os.time()
+            print("[STATUS] ONLINE event received")
 
-        -- Prevent too frequent calls (very important)
-        if now - last_ip_refresh >= MIN_REFRESH_GAP then
-            print("[STATUS] Calling GET_DEVICES (allowed)")
-            GET_DEVICES(Properties["VID"] or _props["VID"])
-            last_ip_refresh = now
-        else
-            print("[STATUS] Skipped GET_DEVICES (too frequent)")
-        end
-    end
+            -- Prevent too frequent calls (very important)
+            if now - last_ip_refresh >= MIN_REFRESH_GAP then
+                print("[STATUS] Calling GET_DEVICES (allowed)")
+                GET_DEVICES(Properties["VID"] or _props["VID"])
+                last_ip_refresh = now
+            else
+                print("[STATUS] Skipped GET_DEVICES (too frequent)")
+            end
 
-    -- Detect real state change (for notifications)
-    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
-        last_confirmed_online = new_online
-
-        if new_online then
             C4:UpdateProperty("Camera Status", "Online")
             _props["Camera Status"] = "Online"
-            send_notification(
-                NOTIFY.INFO,
-                EVENT.CAMERA_ONLINE,
-                "online",
-                COOLDOWN.online
-            )
-            EventLogger.logCameraOnline()  
-        else
-            C4:UpdateProperty("Camera Status", "Offline")
-            _props["Camera Status"] = "Offline"
-            send_notification(
-                NOTIFY.ALERT,
-                EVENT.CAMERA_OFFLINE,
-                "offline",
-                COOLDOWN.offline
-            )
-            EventLogger.logCameraOffline()  
-        end
+
+            -- Detect real state change (for notifications)
+            if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+                last_confirmed_online = new_online
+                send_notification(
+                    NOTIFY.INFO,
+                    EVENT.CAMERA_ONLINE,
+                    "online",
+                    COOLDOWN.online
+                )
+                EventLogger.logCameraOnline()
+            end
+        end)
+        return
+    end
+
+    C4:UpdateProperty("Camera Status", "Offline")
+    _props["Camera Status"] = "Offline"
+
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+        last_confirmed_online = new_online
+        send_notification(
+            NOTIFY.ALERT,
+            EVENT.CAMERA_OFFLINE,
+            "offline",
+            COOLDOWN.offline
+        )
+        EventLogger.logCameraOffline()
     end
 end
-
---[[local function handle_device_status(msg)
-    if not msg.status then return end
-
-    for _, s in ipairs(msg.status) do
-        if s.status_key == "is_online" then
-            local is_online = (s.status_val == 1)
-            handle_online_status(is_online)
-            return
-        end
-    end
-end--]]
 
 
 local function handle_device_status(msg)

@@ -165,7 +165,7 @@ conditional_state.MIC_UNMUTED = false
 
 local function StopKeepAlive()
     if type(_keepAliveTimer) == "number" then
-        print("[WAKE] Stopping keep-alive timer:", _keepAliveTimer)
+        -- print("[WAKE] Stopping keep-alive timer:", _keepAliveTimer)
         C4:KillTimer(_keepAliveTimer)
     end
     _keepAliveTimer = nil
@@ -177,24 +177,24 @@ function AWAKE_CAMERA(tParams)
 
     local now = os.time()
     if not force and (now - _lastWakeTime) < CAMERA_WAKE_COOLDOWN_SEC then
-        print(string.format("[WAKE] Cooldown active (%ds left) — skip", CAMERA_WAKE_COOLDOWN_SEC - (now - _lastWakeTime)))
+        -- print(string.format("[WAKE] Cooldown active (%ds left) — skip", CAMERA_WAKE_COOLDOWN_SEC - (now - _lastWakeTime)))
         return
     end
 
     if _wakeInFlight and not force then
-        print("[WAKE] Wake already in flight — skip")
+        -- print("[WAKE] Wake already in flight — skip")
         return
     end
 
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
-        print("[WAKE] ERROR: No auth token")
+        -- print("[WAKE] ERROR: No auth token")
         return
     end
 
     local vid = _props["VID"] or Properties["VID"]
     if not vid or vid == "" then
-        print("[WAKE] ERROR: No VID")
+        -- print("[WAKE] ERROR: No VID")
         return
     end
 
@@ -219,7 +219,7 @@ function AWAKE_CAMERA(tParams)
         ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or ""
     }
 
-    print(string.format("[WAKE] Sending ac_wakelocal  vid=%s  t=%d", tostring(vid), os.time()))
+    -- print(string.format("[WAKE] Sending ac_wakelocal  vid=%s  t=%d", tostring(vid), os.time()))
 
     transport.execute({
         url     = url,
@@ -229,13 +229,13 @@ function AWAKE_CAMERA(tParams)
     }, function(code, resp, _, err)
         _wakeInFlight = false
         if err then
-            print("[WAKE] Error:", tostring(err))
+            -- print("[WAKE] Error:", tostring(err))
         end
         if code == 200 or code == 20000 then
-            print("[WAKE] SUCCESS — camera should be awake ~" .. CAMERA_WAKE_DURATION_SEC .. "s")
+            -- print("[WAKE] SUCCESS — camera should be awake ~" .. CAMERA_WAKE_DURATION_SEC .. "s")
             C4:UpdateProperty("Status", "Camera awake")
         else
-            print("[WAKE] FAILED code=" .. tostring(code) .. " resp=" .. tostring(resp))
+            -- print("[WAKE] FAILED code=" .. tostring(code) .. " resp=" .. tostring(resp))
             C4:UpdateProperty("Status", "Wake failed: " .. tostring(code))
         end
     end)
@@ -248,7 +248,7 @@ function WakeCamera(retry)
 
     local function try_wake()
         attempt = attempt + 1
-        print(string.format("[WAKE-BURST] Attempt %d/%d", attempt, retry))
+        -- print(string.format("[WAKE-BURST] Attempt %d/%d", attempt, retry))
         AWAKE_CAMERA({ force = true })
 
         if attempt < retry then
@@ -268,27 +268,27 @@ function StartKeepAliveWake()
     WakeCamera(CAMERA_WAKE_BURST_RETRIES)
 
     if type(_keepAliveTimer) == "number" then
-        print("[WAKE] Keep-alive already running, extended until", _keepAliveStopAt)
+        -- print("[WAKE] Keep-alive already running, extended until", _keepAliveStopAt)
         return
     end
 
     local interval = CAMERA_KEEP_ALIVE_INTERVAL_MS or 8000
-    print(string.format("[WAKE] Starting keep-alive every %dms for %ds", interval, CAMERA_KEEP_ALIVE_DURATION_SEC or 180))
+    -- print(string.format("[WAKE] Starting keep-alive every %dms for %ds", interval, CAMERA_KEEP_ALIVE_DURATION_SEC or 180))
 
     _keepAliveTimer = C4:SetTimer(interval, function()
         local t = os.time()
         if t >= _keepAliveStopAt then
-            print("[WAKE] Keep-alive window expired — stopping")
+            -- print("[WAKE] Keep-alive window expired — stopping")
             StopKeepAlive()
             return
         end
-        print(string.format("[WAKE] Keep-alive tick (%ds remaining)", _keepAliveStopAt - t))
+        -- print(string.format("[WAKE] Keep-alive tick (%ds remaining)", _keepAliveStopAt - t))
         AWAKE_CAMERA({})
     end, true)
 end
 
 function EnsureCameraAwakeForStream()
-    print("[WAKE] EnsureCameraAwakeForStream()")
+    -- print("[WAKE] EnsureCameraAwakeForStream()")
     StartKeepAliveWake()
 end
 
@@ -1512,6 +1512,11 @@ function GET_DEVICES(p_vid)
                     end
 
                     print("VD05 properties updated successfully")
+
+                    -- Fetch firmware version from device
+                    C4:SetTimer(2000, function()
+                        GET_DEVICE_INFO()
+                    end)
                     
                 else
                     print("ERROR: No VD05 camera device found or vid missing")
@@ -1916,6 +1921,13 @@ end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
+        local vid = Properties["VID"] or _props["VID"]
+        if vid and vid ~= "" then
+            print("[BINDING] VID available: ", vid)
+            GET_DEVICES(vid)
+            return
+        end
+
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
 
@@ -2282,47 +2294,51 @@ end
 
 
 local function handle_online_status(new_online)
-    local now = os.time()
-
-    -- Always handle ONLINE event
     if new_online then
-        print("[STATUS] ONLINE event received")
+        C4:UpdateProperty("Camera Status", "Reconnecting")
+        C4:SetTimer(60 * 1000, function()
+            local now = os.time()
+            print("[STATUS] ONLINE event received")
 
-        -- Prevent too frequent calls (very important)
-        if now - last_ip_refresh >= MIN_REFRESH_GAP then
-            print("[STATUS] Calling GET_DEVICES (allowed)")
-            GET_DEVICES(Properties["VID"] or _props["VID"])
-            last_ip_refresh = now
-        else
-            print("[STATUS] Skipped GET_DEVICES (too frequent)")
-        end
-    end
+            -- Prevent too frequent calls (very important)
+            if now - last_ip_refresh >= MIN_REFRESH_GAP then
+                print("[STATUS] Calling GET_DEVICES (allowed)")
+                GET_DEVICES(Properties["VID"] or _props["VID"])
+                last_ip_refresh = now
+            else
+                print("[STATUS] Skipped GET_DEVICES (too frequent)")
+            end
 
-    -- Detect real state change (for notifications)
-    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
-        last_confirmed_online = new_online
-
-        if new_online then
             C4:UpdateProperty("Camera Status", "Online")
             _props["Camera Status"] = "Online"
-            send_notification(
-                NOTIFY.INFO,
-                EVENT.CAMERA_ONLINE,
-                "online",
-                COOLDOWN.online
-            )
-              EventLogger.logCameraOnline() 
-        else
-            C4:UpdateProperty("Camera Status", "Offline")
-            _props["Camera Status"] = "Offline"
-            send_notification(
-                NOTIFY.ALERT,
-                EVENT.CAMERA_OFFLINE,
-                "offline",
-                COOLDOWN.offline
-            )
-                EventLogger.logCameraOffline()
-        end
+
+            -- Detect real state change (for notifications)
+            if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+                last_confirmed_online = new_online
+                send_notification(
+                    NOTIFY.INFO,
+                    EVENT.CAMERA_ONLINE,
+                    "online",
+                    COOLDOWN.online
+                )
+                EventLogger.logCameraOnline()
+            end
+        end)
+        return
+    end
+
+    C4:UpdateProperty("Camera Status", "Offline")
+    _props["Camera Status"] = "Offline"
+
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+        last_confirmed_online = new_online
+        send_notification(
+            NOTIFY.ALERT,
+            EVENT.CAMERA_OFFLINE,
+            "offline",
+            COOLDOWN.offline
+        )
+        EventLogger.logCameraOffline()
     end
 end
 

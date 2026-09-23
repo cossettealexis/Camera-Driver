@@ -298,12 +298,12 @@ function SET_CAMERA_IP(ip)
         return
     end
 
-    if Properties["IP Address"] == ip then
-        print("[CAMERA] IP already set:", ip)
-        return
+    local current_ip = _props["IP Address"] or Properties["IP Address"]
+    if current_ip == ip then
+        print("[CAMERA] IP matches current value, refreshing proxy binding anyway:", ip)
+    else
+        print("[CAMERA] Setting IP:", ip)
     end
-
-    print("[CAMERA] Setting IP:", ip)
 
     _props["IP Address"] = ip
     C4:UpdateProperty("IP Address", ip)
@@ -1795,6 +1795,13 @@ end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
+        local vid = Properties["VID"] or _props["VID"]
+        if vid and vid ~= "" then
+            print("[BINDING] VID available, refreshing device list before trusting binding IP")
+            GET_DEVICES(vid)
+            return
+        end
+
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
 
@@ -2153,53 +2160,51 @@ end
 
 
 local function handle_online_status(new_online)
-    local now = os.time()
-
-    -- Always handle ONLINE event
     if new_online then
-        print("[STATUS] ONLINE event received")
+        C4:UpdateProperty("Camera Status", "Reconnecting")
+        C4:SetTimer(60 * 1000, function()
+            local now = os.time()
+            print("[STATUS] ONLINE event received")
 
-        -- Prevent too frequent calls (very important)
-        if now - last_ip_refresh >= MIN_REFRESH_GAP then
-            print("[STATUS] Calling GET_DEVICES (allowed)")
-            GET_DEVICES(Properties["VID"] or _props["VID"])
-            last_ip_refresh = now
-        else
-            print("[STATUS] Skipped GET_DEVICES (too frequent)")
-        end
-    end
+            -- Prevent too frequent calls (very important)
+            if now - last_ip_refresh >= MIN_REFRESH_GAP then
+                print("[STATUS] Calling GET_DEVICES (allowed)")
+                GET_DEVICES(Properties["VID"] or _props["VID"])
+                last_ip_refresh = now
+            else
+                print("[STATUS] Skipped GET_DEVICES (too frequent)")
+            end
 
-    -- Detect real state change (for notifications)
-    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
-        last_confirmed_online = new_online
-
-        if new_online then
             C4:UpdateProperty("Camera Status", "Online")
             _props["Camera Status"] = "Online"
-            send_notification(
-                NOTIFY.INFO,
-                EVENT.CAMERA_ONLINE,
-                "online",
-                COOLDOWN.online,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOnline()         -- Log online event
-        else
-            C4:UpdateProperty("Camera Status", "Offline")
-            _props["Camera Status"] = "Offline"
-            send_notification(
-                NOTIFY.ALERT,
-                EVENT.CAMERA_OFFLINE,
-                "offline",
-                COOLDOWN.offline,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOffline()    
-        end
+
+            -- Detect real state change (for notifications)
+            if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+                last_confirmed_online = new_online
+                send_notification(
+                    NOTIFY.INFO,
+                    EVENT.CAMERA_ONLINE,
+                    "online",
+                    COOLDOWN.online
+                )
+                EventLogger.logCameraOnline()
+            end
+        end)
+        return
+    end
+
+    C4:UpdateProperty("Camera Status", "Offline")
+    _props["Camera Status"] = "Offline"
+
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+        last_confirmed_online = new_online
+        send_notification(
+            NOTIFY.ALERT,
+            EVENT.CAMERA_OFFLINE,
+            "offline",
+            COOLDOWN.offline
+        )
+        EventLogger.logCameraOffline()
     end
 end
 
