@@ -3874,8 +3874,113 @@ function SET_MIC_STATE(isMuted)
 end
 
 -- Push current mic state to WebView
+function UpdateMicStateFromLatestValue(raw_value, source)
+    local normalized = raw_value
+
+    if type(normalized) == "string" then
+        if normalized == "true" or normalized == "True" then
+            normalized = true
+        elseif normalized == "false" or normalized == "False" then
+            normalized = false
+        else
+            normalized = tonumber(normalized)
+        end
+    end
+
+    local mic_on = false
+
+    if normalized == nil then
+        return false
+    elseif type(normalized) == "boolean" then
+        mic_on = normalized
+    elseif type(normalized) == "number" then
+        mic_on = (normalized == 1)
+    elseif type(normalized) == "string" then
+        mic_on = (normalized == "1" or normalized == "on" or normalized == "true")
+    end
+
+    local muted = not mic_on
+    if conditional_state.MIC_MUTED ~= muted then
+        conditional_state.MIC_MUTED = muted
+        conditional_state.MIC_UNMUTED = not muted
+        print("[MIC] Synced from property-latest (" .. tostring(source) .. ") → mic_on=" .. tostring(mic_on) .. ", mic_muted=" .. tostring(muted))
+        return true
+    end
+
+    return false
+end
+
+function GET_LATEST_MIC_STATE(callback)
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid   = _props["VID"] or Properties["VID"]
+
+    if not token or token == "" or not vid or vid == "" then
+        print("[MIC] property-latest skipped: missing token or VID")
+        if callback then callback(false) end
+        return
+    end
+
+    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+                "/api/v3/openapi/device/property-latest"
+
+    local body = {
+        vid = vid,
+        data_ids = {"mic_on", "talk_on", "microphone", "ac_talk", "is_mic_on", "mic_state"},
+        data_source = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. token,
+        ["App-Name"] = Properties["AppId"] or GlobalObject.CldBusAppId or ""
+    }
+
+    print("[MIC] Fetching latest mic state via property-latest")
+
+    transport.execute({
+        url = url,
+        method = "POST",
+        headers = headers,
+        body = json.encode(body)
+    }, function(code, resp, _, err)
+        if code ~= 200 and code ~= 20000 then
+            print("[MIC] property-latest failed: code=" .. tostring(code) .. ", err=" .. tostring(err))
+            if callback then callback(false) end
+            return
+        end
+
+        local ok, parsed = pcall(json.decode, resp or "")
+        if not ok or not parsed or not parsed.data then
+            print("[MIC] property-latest response invalid")
+            if callback then callback(false) end
+            return
+        end
+
+        local changed = false
+
+        for _, item in ipairs(parsed.data or {}) do
+            local data_id = tostring(item.data_id or "")
+            local value = item.value
+
+            if data_id == "mic_on" or data_id == "talk_on" or data_id == "microphone" or data_id == "ac_talk" or
+               data_id == "is_mic_on" or data_id == "mic_state" then
+                if UpdateMicStateFromLatestValue(value, data_id) then
+                    changed = true
+                end
+            end
+        end
+
+        if changed then
+            PushMicStateToUI()
+        end
+
+        if callback then callback(changed) end
+    end)
+end
+
 function PushMicStateToUI()
     local payload = json.encode({
+        type = "mic_update",
         mic_muted = conditional_state.MIC_MUTED
     })
     
@@ -4003,6 +4108,7 @@ function REQUEST_INITIAL_STATE()
     print("[UI] REQUEST_INITIAL_STATE called")
     PushAntiPryStateToUI()
     PushMicStateToUI()
+    GET_LATEST_MIC_STATE()
     C4:SetTimer(800, GET_DEVICE_STATUS)
     C4:SetTimer(2000, GET_DEVICE_STATUS)
     C4:SetTimer(4500, GET_DEVICE_STATUS)
