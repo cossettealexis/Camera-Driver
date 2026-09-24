@@ -287,6 +287,179 @@
             width: 50px;
             height: 50px;
         }
+
+        /* =========================
+           FACIAL RECOGNITION STYLES
+        ========================= */
+        .settings-section {
+            width: 100%;
+            max-width: 340px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 4px;
+        }
+
+        .settings-section.visible {
+            display: flex;
+        }
+
+        .setting-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            text-align: left;
+            max-height: 280px;
+            overflow-y: scroll;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        /* Range slider */
+        .range-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .range-wrap input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #333;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        .range-wrap input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .range-value {
+            min-width: 42px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            text-align: right;
+        }
+
+        /* Quality segmented control */
+        .segmented {
+            display: flex;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+            margin-bottom: 4px;
+        }
+
+        .segmented button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: .15s;
+        }
+
+        .segmented button.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Face list */
+        .face-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            margin-bottom: 4px;
+        }
+
+        .face-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .face-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            background: var(--surface2);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .face-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .face-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .face-name-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            padding: 4px 0;
+            transition: border-color .15s;
+        }
+
+        .face-name-input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        .face-meta {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .empty-faces {
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            padding: 24px 0;
+        }
     </style>
 </head>
 <body>
@@ -324,6 +497,17 @@
                         <div>
                             <div class="title">Device Name</div>
                             <div class="subtitle">Device name control</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <!-- Facial Recognition -->
+                <div class="item" onclick="show('facialRecPanel')">
+                    <div class="left">
+                        <i data-lucide="scan-face" class="icon"></i>
+                        <div>
+                            <div class="title">Facial Recognition</div>
+                            <div class="subtitle">Face detection & management</div>
                         </div>
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
@@ -396,6 +580,47 @@
                 </button>
             </div>
         </section>
+        <!-- =========================
+             FACIAL RECOGNITION PANEL
+        ========================= -->
+        <section id="facialRecPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="scan-face" class="bigIcon"></i>
+                <div class="h2">Facial Recognition</div>
+                <!--<div class="desc">Enable face detection, manage enrolled faces and tune thresholds.</div>-->
+                <div class="desc">Enable face detection and manage enrolled faces.</div>
+                <!-- Master Enable (disabled – face list always visible)
+            <label class="toggle">
+                <input type="checkbox" id="faceRecEnable">
+                <span class="slider"></span>
+            </label>
+            <div class="status" id="faceRecStatus">Disabled</div>
+            -->
+            
+                
+                <div class="settings-section visible" id="faceSettings">
+
+                    <!-- Face Management -->
+                    <div class="setting-card">
+                        <div class="setting-label">Face Management</div>
+                        <div class="setting-desc">Edit names of detected faces. Changes are sent to the API when you save.</div>
+            
+                        <div class="face-list" id="faceList">
+                            <!-- Populated by JS -->
+                        </div>
+            
+                        <button class="btn small" id="saveFacesBtn" disabled>
+                            Save Name Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
         
     </div>
     <!-- SUCCESS MODAL -->
@@ -457,8 +682,6 @@
 
             console.log("REBOOT_DEVICE");
 
-            // C4JH.SendToProxy("REBOOT_DEVICE",{});
-
         }
 
         /* =========================
@@ -476,6 +699,41 @@
 
             });
 
+            // ---- Similarity Threshold ----
+            const similaritySlider = document.getElementById('similarityThreshold');
+            const similarityValue = document.getElementById('similarityValue');
+            const saveSimilarityBtn = document.getElementById('saveSimilarityBtn');
+
+            let currentSimilarity = 75;
+
+            similaritySlider.addEventListener('input', function () {
+                similarityValue.innerText = this.value + '%';
+            });
+
+            saveSimilarityBtn.addEventListener('click', function () {
+                currentSimilarity = parseInt(similaritySlider.value);
+                console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
+            
+                showModal(`Similarity threshold set to ${currentSimilarity}%`, "Threshold Saved");
+            });
+
+            // ---- Quality Threshold ----
+            const qualityButtons = document.querySelectorAll('#qualitySegmented button');
+            const saveQualityBtn = document.getElementById('saveQualityBtn');
+            let currentQuality = 'medium';
+
+            qualityButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    qualityButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentQuality = this.dataset.value;
+                });
+            });
+
+            saveQualityBtn.addEventListener('click', function () {
+                console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
+                showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");
+            });
 
 
         });

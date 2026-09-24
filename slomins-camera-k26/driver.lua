@@ -1,7 +1,4 @@
-
-			
-			
-			local _props                   = {}
+local _props                   = {}
 local json                     = require("CldBusApi.dkjson")
 local http                     = require("CldBusApi.http")
 local auth                     = require("CldBusApi.auth")
@@ -37,9 +34,9 @@ GlobalObject.BaseApi           = "https://qa2.slomins.com/QA/OntechSvcs/1.2/onte
 CameraDefaultProps             = {}
 CameraDefaultProps.IPAddress   = ""
 CameraDefaultProps.HTTPPort    = "8080"
-CameraDefaultProps.RTSPPort    = "8554"
-CameraDefaultProps.MainStream  = "stream0"
-CameraDefaultProps.SubStream   = "stream1"
+CameraDefaultProps.RTSPPort    = "554"
+CameraDefaultProps.MainStream  = "live"
+CameraDefaultProps.SubStream   = "live"
 CameraDefaultProps.SnapshotURL = "tmp/snap.jpeg"
 CameraDefaultProps.MJPEGURL    = "video.mjpg"
 
@@ -49,11 +46,21 @@ local EVENT_DELAY_MS           = 5000
 
 local last_ip_refresh          = 0
 local MIN_REFRESH_GAP          = 5 -- seconds (small gap, not too strict)
--- Track first RTSP call to skip wake on initial attempt
+
+
+-- Camera wake timing constants (global)
+CAMERA_WAKE_DURATION_SEC = 12
+CAMERA_WAKE_COOLDOWN_SEC = 3 
+CAMERA_KEEP_ALIVE_INTERVAL_MS = 8000   -- re-wake every 8 seconds
+CAMERA_KEEP_ALIVE_DURATION_SEC = 180   -- keep alive 3 min after last stream request
+CAMERA_WAKE_BURST_RETRIES = 3
+CAMERA_WAKE_BURST_GAP_MS = 2500
+
 local rtsp_first_call          = true
-GlobalObject.CldBusAppId = "cldbus"
-GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-GlobalObject.CustomerEmail = "cgabu@slomins.comw"
+local _lastWakeTime         = 0
+local _keepAliveTimer       = nil
+local _keepAliveStopAt      = 0
+local _wakeInFlight         = false
 
 
 local NOTIFY = {
@@ -137,6 +144,8 @@ local _lastLowBatteryAlert = 0
 local _batteryPollTimer    = nil
 local _batteryPollVid      = nil
 local _batteryAlertTimer   = nil
+
+
 function TcpConnection()
     print("TcpConnection established")
     local tPortParams = {
@@ -153,28 +162,135 @@ function TcpConnection()
 end
 
 -- Wake Camera with Retry and stop retry after retry attempts
+local function StopKeepAlive()
+    if type(_keepAliveTimer) == "number" then
+        print("[WAKE] Stopping keep-alive timer:", _keepAliveTimer)
+        C4:KillTimer(_keepAliveTimer)
+    end
+    _keepAliveTimer = nil
+    _keepAliveStopAt = 0
+end
+
+function AWAKE_CAMERA(tParams)
+    local force = tParams and (tParams.force == true or tParams.FORCE == true)
+
+    local now = os.time()
+    if not force and (now - _lastWakeTime) < CAMERA_WAKE_COOLDOWN_SEC then
+        print(string.format("[WAKE] Cooldown active (%ds left) — skip", CAMERA_WAKE_COOLDOWN_SEC - (now - _lastWakeTime)))
+        return
+    end
+
+    if _wakeInFlight and not force then
+        print("[WAKE] Wake already in flight — skip")
+        return
+    end
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("[WAKE] ERROR: No auth token")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("[WAKE] ERROR: No VID")
+        return
+    end
+
+    _wakeInFlight = true
+    _lastWakeTime = now
+
+    local base_url = Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/device/do-action"
+
+    local body = {
+        vid = vid,
+        action_id = "ac_wakelocal",
+        input_params = json.encode({ t = os.time(), type = 0 }),
+        check_t = 0,
+        is_async = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+    }
+
+    print(string.format("[WAKE] Sending ac_wakelocal  vid=%s  t=%d", tostring(vid), os.time()))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        _wakeInFlight = false
+        if err then
+            print("[WAKE] Error:", tostring(err))
+        end
+        if code == 200 or code == 20000 then
+            print("[WAKE] SUCCESS — camera should be awake ~" .. CAMERA_WAKE_DURATION_SEC .. "s")
+            C4:UpdateProperty("Status", "Camera awake")
+        else
+            print("[WAKE] FAILED code=" .. tostring(code) .. " resp=" .. tostring(resp))
+            C4:UpdateProperty("Status", "Wake failed: " .. tostring(code))
+        end
+    end)
+end
+
 function WakeCamera(retry)
-    retry = retry or 1
+    retry = retry or CAMERA_WAKE_BURST_RETRIES or 3
     local attempt = 0
+    local gap = CAMERA_WAKE_BURST_GAP_MS or 2500
 
     local function try_wake()
         attempt = attempt + 1
-
-        AwakeCamera({})
+        print(string.format("[WAKE-BURST] Attempt %d/%d", attempt, retry))
+        AWAKE_CAMERA({ force = true })
 
         if attempt < retry then
-            local next_wake_delay = (WAKE_DURATION + WAKE_INTERVAL) * 1000 -- Convert to milliseconds
-            C4:SetTimer(next_wake_delay, function(timer)
-                try_wake()
-            end)
+            C4:SetTimer(gap, try_wake)
         else
-            print("Wake retry " .. retry .. " times done")
+            print("[WAKE-BURST] Finished burst sequence")
         end
     end
 
-    -- Start first attempt immediately (runs in parallel with RTSP connection)
     try_wake()
 end
+
+function StartKeepAliveWake()
+    local now = os.time()
+    _keepAliveStopAt = now + (CAMERA_KEEP_ALIVE_DURATION_SEC or 180)
+
+    WakeCamera(CAMERA_WAKE_BURST_RETRIES)
+
+    if type(_keepAliveTimer) == "number" then
+        print("[WAKE] Keep-alive already running, extended until", _keepAliveStopAt)
+        return
+    end
+
+    local interval = CAMERA_KEEP_ALIVE_INTERVAL_MS or 8000
+    print(string.format("[WAKE] Starting keep-alive every %dms for %ds", interval, CAMERA_KEEP_ALIVE_DURATION_SEC or 180))
+
+    _keepAliveTimer = C4:SetTimer(interval, function()
+        local t = os.time()
+        if t >= _keepAliveStopAt then
+            print("[WAKE] Keep-alive window expired — stopping")
+            StopKeepAlive()
+            return
+        end
+        print(string.format("[WAKE] Keep-alive tick (%ds remaining)", _keepAliveStopAt - t))
+        AWAKE_CAMERA({})
+    end, true)
+end
+
+function EnsureCameraAwakeForStream()
+    print("[WAKE] EnsureCameraAwakeForStream()")
+    StartKeepAliveWake()
+end
+
 
 function SET_CAMERA_IP(ip)
     if not ip or ip == "" then
@@ -182,12 +298,12 @@ function SET_CAMERA_IP(ip)
         return
     end
 
-    if Properties["IP Address"] == ip then
-        print("[CAMERA] IP already set:", ip)
-        return
+    local current_ip = _props["IP Address"] or Properties["IP Address"]
+    if current_ip == ip then
+        print("[CAMERA] IP matches current value, refreshing proxy binding anyway:", ip)
+    else
+        print("[CAMERA] Setting IP:", ip)
     end
-
-    print("[CAMERA] Setting IP:", ip)
 
     _props["IP Address"] = ip
     C4:UpdateProperty("IP Address", ip)
@@ -387,24 +503,10 @@ end
 function OnDriverLateInit()
     C4:UpdateProperty("Status", "OnDriverLateInit...")
     print("=== K26 Driver Late Init ===")
-    C4:UpdateProperty("Camera Status", "false")
-
+     C4:UpdateProperty("Camera Status", "Unknown")
+   
     C4:UpdateProperty("MAC Address", C4:GetUniqueMAC())
     ValidateMacAddress(C4:GetUniqueMAC())
-
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-
-    -- ValidateMacAddress(C4:GetUniqueMAC())
-
-    _props["AppId"] = "cldbus"
-    _props["AppSecret"] = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
-    
-    GlobalObject.CldBusAppId = "cldbus"
-    GlobalObject.CldBusSecret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
     -- Wait for MAC validation to complete before initializing camera
     C4:SetTimer(5000, function(timer)
@@ -419,7 +521,7 @@ function OnDriverLateInit()
     -- Send camera configuration to Camera Proxy
     local ip = _props["IP Address"]
     local http_port = CameraDefaultProps.HTTPPort or "8080"
-    local rtsp_port = CameraDefaultProps.RTSPPort or "8554"
+    local rtsp_port = CameraDefaultProps.RTSPPort or "554"
 
     print("Sending camera configuration to Camera Proxy:")
     print("  IP Address: " .. ip)
@@ -439,84 +541,7 @@ function OnDriverLateInit()
     end)
 end
 
---[[function ValidateMacAddress(mac)
-    local requestBody = '{"MacAddress":"' .. mac .. '"}'
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
 
-    C4:urlPost(GlobalObject.BaseApi .. "/IsValidControl4MacAddress", requestBody, headers, true,
-        function(ticketId, strData, responseCode, tHeaders, strError)
-            if strError ~= nil and strError ~= "" then
-                print("Error calling API: " .. strError)
-                C4:UpdateProperty("Status", "Error calling API: " .. strError)
-                return
-            end
-
-            if responseCode ~= 200 then
-                print("HTTP Error: " .. tostring(responseCode))
-                C4:UpdateProperty("Status", "HTTP Error: " .. tostring(responseCode))
-                return
-            end
-
-            local response = C4:JsonDecode(strData)
-            if response then
-                if response.IsValidMacAddress == true then
-                    print("MAC Address is valid")
-                    C4:UpdateProperty("Status", "MAC Address is valid")
-
-                    local strData = response.EncryptMsg
-                    if string.sub(strData, -2) == "\r\n" then
-                        strData = string.sub(strData, 1, -3)
-                    end
-
-                    local cipher = 'AES-256-CBC'
-                    local options = {
-                        return_encoding = 'NONE',
-                        key_encoding = 'NONE',
-                        iv_encoding = 'NONE',
-                        data_encoding = 'BASE64',
-                        padding = true,
-                    }
-
-                    local decrypted_data, err = C4:Decrypt(cipher, GlobalObject.AES_KEY, GlobalObject.AES_IV, strData,
-                        options)
-
-                    if (decrypted_data ~= nil) then
-                        local data = C4:JsonDecode(decrypted_data)
-                        extractedData = {}
-
-                        if data and data.message and data.message.EventName == "UpdateClientSecretId" and
-                            data.message.MacAddress == C4:GetUniqueMAC() then
-                            print("ValidateMacAddress() ", data.message.EventName)
-
-                            GlobalObject.CldBusAppId = data.message.CldBusAppId
-                            GlobalObject.CldBusSecret = data.message.CldBusSecret
-                            GlobalObject.CustomerEmail = data.message.CustomerEmail or ""
-
-                            C4:UpdateProperty("AppId", data.message.CldBusAppId or "")
-                            C4:UpdateProperty("AppSecret", data.message.SecretId or "")
-                            C4:UpdateProperty("Account", GlobalObject.CustomerEmail)
-                            print("[MAC] Credentials loaded for: " .. GlobalObject.CustomerEmail)
-                        end
-                    end
-                else
-                    print("MAC Address is invalid")
-                    C4:UpdateProperty("Device Response", "MAC Address is invalid")
-                    GlobalObject.CldBusAppId = ""
-                    GlobalObject.CldBusSecret = ""
-                    GlobalObject.CustomerEmail = ""
-
-                C4:UpdateProperty("AppId",  "")
-                C4:UpdateProperty("AppSecret", "")
-                C4:UpdateProperty("Account", "")
-            end
-        else
-            print("Failed to parse JSON response")
-            C4:UpdateProperty("Device Response","Failed to parse JSON response")
-        end
-    end)
-end--]]
 
 local function update_prop(name, value)
     if not value then value = "" end
@@ -755,6 +780,24 @@ function ExecuteCommand(strCommand, tParams)
     if strCommand == "REBOOT_DEVICE" then
         print("[COMMAND] Rebooting requested")
         REBOOT_DEVICE(tParams)
+        return
+    end
+
+    if strCommand == "GET_CAMERA_SNAPSHOT" or strCommand == "TAKE_SNAPSHOT" then
+        TAKE_SNAPSHOT_FOR_UI()
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+        return
+    end
+
+    if strCommand == "GET_STRANGER_FACES" then
+        print("[COMMAND] GET_STRANGER_FACES requested")
+        GET_STRANGER_FACES(tParams)
+        return
+    end
+
+    if strCommand == "UPDATE_STRANGER_NOTE" then
+        print("[COMMAND] UPDATE_STRANGER_NOTE requested")
+        UPDATE_STRANGER_NOTE(tParams)
         return
     end
 
@@ -1159,25 +1202,19 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
-                for i, device in ipairs(devices) do
-                    -- If IP is set, match by IP address
-                    if ip and ip ~= "" and device.local_ip == ip then
-                        target_device = device
-                        print("Found device matching IP " .. ip .. " at index " .. i)
-                        print("  Device Name: " .. (device.device_name or "N/A"))
-                        print("  Model: " .. (device.model or "N/A"))
-                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                        break
-                        -- If no IP set, filter by model or product subtype
-                    elseif (not ip or ip == "") then
-                        local model_match = device.model and
-                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and
-                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                local requested_vid = p_vid or _props["VID"] or Properties["VID"]
+                local vid_matched = false
+                local ip_matched = false
 
-                        if model_match or subtype_match then
+                -- First priority: match by stable VID before trusting cached IP
+                if requested_vid and requested_vid ~= "" then
+                    for i, device in ipairs(devices) do
+                        local device_vid = device.vid and tostring(device.vid) or ""
+                        if string.lower(device_vid) == string.lower(tostring(requested_vid)) then
                             target_device = device
-                            print("Found K26 device (no IP filter) at index " .. i)
+                            vid_matched = true
+                            print("Found device matching VID " .. tostring(requested_vid) .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
                             print("  Model: " .. (device.model or "N/A"))
                             print("  Product Subtype: " .. (device.product_subtype or "N/A"))
                             print("  Local IP: " .. (device.local_ip or "N/A"))
@@ -1186,21 +1223,66 @@ function GET_DEVICES(p_vid)
                     end
                 end
 
-                if not target_device and ip then
-                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Keeping SDDP-discovered IP, waiting for correct device match")
+                -- Second priority: if no VID match, fallback to cached IP matching
+                if not target_device and ip and ip ~= "" then
+                    for i, device in ipairs(devices) do
+                        if device.local_ip == ip then
+                            target_device = device
+                            ip_matched = true
+                            print("Found device matching IP " .. ip .. " at index " .. i)
+                            print("  Device Name: " .. (device.device_name or "N/A"))
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                -- Last fallback: model/product_subtype matching
+                if not target_device then
+                    for i, device in ipairs(devices) do
+                        local model_match = device.model and
+                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and
+                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+
+                        if model_match or subtype_match then
+                            target_device = device
+                            if ip and ip ~= "" then
+                                print("WARNING: IP mismatch - SDDP discovered " .. ip .. " but API shows " .. (device.local_ip or "N/A"))
+                                print("Found K26 device by product_subtype at index " .. i)
+                            else
+                                print("Found K26 device (no IP filter) at index " .. i)
+                            end
+                            print("  Model: " .. (device.model or "N/A"))
+                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
+                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            break
+                        end
+                    end
+                end
+
+                if not target_device then
+                    print("ERROR: No K26 device found in API response")
+                    if ip and ip ~= "" then
+                        print("  Searched for IP: " .. ip)
+                    end
+                    print("  Searched for product_subtype: " .. GlobalObject.ProductSubType)
                     return
                 end
 
                 if target_device and target_device.vid then
                     local newVid = target_device.vid
-
                     RESET_MQTT_AND_BATTERY(_batteryPollVid, newVid)
+
                     print("Storing device information for K26:")
-                    print("  VID: " .. newVid)
+                    print("  VID: " .. target_device.vid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
                     print("  Local IP: " .. (target_device.local_ip or "N/A"))
+
+                    _props["VID"] = target_device.vid
+                    C4:UpdateProperty("VID", target_device.vid)
 
                     if target_device.device_name and target_device.device_name ~= "" then
                         _props["Device Name"] = target_device.device_name
@@ -1208,24 +1290,29 @@ function GET_DEVICES(p_vid)
                         print("  Device Name property updated to: " .. target_device.device_name)
                     end
 
-                    -- Set IP if needed
+                    -- Set IP Address from API response
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
+                        if not ip or ip == "" or ip ~= target_device.local_ip then
+                            if ip and ip ~= "" and ip ~= target_device.local_ip then
+                                print("  IP Address mismatch - updating from " .. ip .. " to " .. target_device.local_ip)
+                            end
                             SET_CAMERA_IP(target_device.local_ip)
                             print("  IP Address property updated to: " .. target_device.local_ip)
                         else
-                            print("  IP Address already set to: " .. ip)
+                            print("  IP Address already correct: " .. ip)
                         end
                     end
 
-
-
                     if not MQTT_AUTO_ENABLED and Properties["Enable MQTT"] ~= "True" then
                         print("[MQTT] Auto enabling MQTT after device discovery")
+
                         mqtt_enabled = true
                         MQTT_AUTO_ENABLED = true
+
                         C4:UpdateProperty("Enable MQTT", "True")
                         _props["Enable MQTT"] = "True"
+
+                        APPLY_MQTT_INFO()
                     end
 
                     print("K26 properties updated successfully")
@@ -1419,84 +1506,6 @@ function STOP_BATTERY_POLL()
     _batteryPollTimer = nil
 end
 
--- Set Device Property
-function AwakeCamera(tParams)
-    print("================================================================")
-    print("              AWAKE_CAMERA CALLED                        ")
-    print("================================================================")
-
-    -- Get auth token from properties (bearer token)
-    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
-
-    if not auth_token or auth_token == "" then
-        print("ERROR: No auth token available. Please run LoginOrRegister first.")
-        --C4:UpdateProperty("Status", "Set property failed: No auth token")
-        return
-    end
-
-    -- Get VID from properties
-    local vid = _props["VID"] or Properties["VID"]
-
-    if not vid or vid == "" then
-        print("ERROR: No VID available. Please set VID property.")
-        --C4:UpdateProperty("Status", "Set property failed: No VID")
-        return
-    end
-
-    print("Using bearer token: " .. auth_token)
-    print("Using VID: " .. vid)
-
-    -- Update status
-    --C4:UpdateProperty("Status", "Waking up camera...")
-
-    -- Build request
-    local base_url = GlobalObject.LnduBaseUrl
-    local url = base_url .. "/api/v3/openapi/device/do-action"
-
-    -- Build request body with ac_wakelocal action
-    local body = {
-        vid = vid,
-        action_id = "ac_wakelocal",
-        input_params = json.encode({ t = os.time(), type = 0 }),
-        check_t = 0,
-        is_async = 0
-    }
-
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Accept-Language"] = "en",
-        ["Authorization"] = "Bearer " .. auth_token
-    }
-
-    local req = {
-        url = url,
-        method = "POST",
-        headers = headers,
-        body = json.encode(body)
-    }
-
-    -- DEBUG: Print exact request being sent
-    print("[DEBUG] Wake Request URL: " .. url)
-    print("[DEBUG] Wake Request Body: " .. json.encode(body))
-    print("[DEBUG] Wake Request Headers: " .. json.encode(headers))
-
-
-    -- Send request
-    transport.execute(req, function(code, resp, resp_headers, err)
-        if err then
-            print("Error: " .. tostring(err))
-        end
-
-        if code == 200 or code == 20000 then
-            --C4:UpdateProperty("Status", "Camera wake-up successful")
-        else
-            print("Wake-up failed with code: " .. tostring(code))
-            --C4:UpdateProperty("Status", "Wake-up failed: " .. tostring(err or code))
-        end
-    end)
-
-    print("================================================================")
-end
 
 -- OP03. Device Control(properties)
 function SET_DEVICE_PROPERTY(property_data, success_callback)
@@ -1786,6 +1795,13 @@ end
 
 function OnNetworkBindingChanged(idBinding, bIsBound)
     if (idBinding == 6001 and bIsBound) then
+        local vid = Properties["VID"] or _props["VID"]
+        if vid and vid ~= "" then
+            print("[BINDING] VID available, refreshing device list before trusting binding IP")
+            GET_DEVICES(vid)
+            return
+        end
+
         local ssdp_ip = Properties["IP Address"] or _props["IP Address"]
         local binding_ip = C4:GetBindingAddress(6001)
 
@@ -2144,53 +2160,51 @@ end
 
 
 local function handle_online_status(new_online)
-    local now = os.time()
-
-    -- Always handle ONLINE event
     if new_online then
-        print("[STATUS] ONLINE event received")
+        C4:UpdateProperty("Camera Status", "Reconnecting")
+        C4:SetTimer(60 * 1000, function()
+            local now = os.time()
+            print("[STATUS] ONLINE event received")
 
-        -- Prevent too frequent calls (very important)
-        if now - last_ip_refresh >= MIN_REFRESH_GAP then
-            print("[STATUS] Calling GET_DEVICES (allowed)")
-            GET_DEVICES(Properties["VID"] or _props["VID"])
-            last_ip_refresh = now
-        else
-            print("[STATUS] Skipped GET_DEVICES (too frequent)")
-        end
-    end
+            -- Prevent too frequent calls (very important)
+            if now - last_ip_refresh >= MIN_REFRESH_GAP then
+                print("[STATUS] Calling GET_DEVICES (allowed)")
+                GET_DEVICES(Properties["VID"] or _props["VID"])
+                last_ip_refresh = now
+            else
+                print("[STATUS] Skipped GET_DEVICES (too frequent)")
+            end
 
-    -- Detect real state change (for notifications)
-    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
-        last_confirmed_online = new_online
-
-        if new_online then
             C4:UpdateProperty("Camera Status", "Online")
             _props["Camera Status"] = "Online"
-            send_notification(
-                NOTIFY.INFO,
-                EVENT.CAMERA_ONLINE,
-                "online",
-                COOLDOWN.online,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOnline()         -- Log online event
-        else
-            C4:UpdateProperty("Camera Status", "Offline")
-            _props["Camera Status"] = "Offline"
-            send_notification(
-                NOTIFY.ALERT,
-                EVENT.CAMERA_OFFLINE,
-                "offline",
-                COOLDOWN.offline,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOffline()    
-        end
+
+            -- Detect real state change (for notifications)
+            if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+                last_confirmed_online = new_online
+                send_notification(
+                    NOTIFY.INFO,
+                    EVENT.CAMERA_ONLINE,
+                    "online",
+                    COOLDOWN.online
+                )
+                EventLogger.logCameraOnline()
+            end
+        end)
+        return
+    end
+
+    C4:UpdateProperty("Camera Status", "Offline")
+    _props["Camera Status"] = "Offline"
+
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+        last_confirmed_online = new_online
+        send_notification(
+            NOTIFY.ALERT,
+            EVENT.CAMERA_OFFLINE,
+            "offline",
+            COOLDOWN.offline
+        )
+        EventLogger.logCameraOffline()
     end
 end
 
@@ -3017,48 +3031,29 @@ end
 
 -- GET_STREAM_URLS - Return streaming URLs for various codecs
 function GET_STREAM_URLS(idBinding, tParams)
+    EnsureCameraAwakeForStream()
     print("================================================================")
-    print("              GET_STREAM_URLS CALLED                            ")
+    print("              GET_STREAM_URLS CALLED (K26)                      ")
     print("================================================================")
 
-    if tParams then
-        print("Requested stream parameters:")
-        for k, v in pairs(tParams) do
-            print("  " .. k .. " = " .. tostring(v))
-        end
-    end
-
-    -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local rtsp_port = CameraDefaultProps.RTSPPort
+    local rtsp_port = CameraDefaultProps.RTSPPort or "554"
 
     if not ip or ip == "" then
         print("ERROR: IP Address not configured")
-        --C4:UpdateProperty("Status", "Get Stream URLs failed: No IP Address")
         return
     end
 
-    -- Build RTSP URLs for K26-SL camera
-    -- Main stream (high quality): stream0
-    -- Sub stream (low quality): stream1
+    local rtsp_main = CameraDefaultProps.MainStream or "live"
+    local rtsp_sub  = CameraDefaultProps.SubStream  or "live"
 
-    -- Check if authentication is required
+    print("Main Stream path: " .. rtsp_main)
+    print("Sub Stream path:  " .. rtsp_sub)
 
-    local rtsp_main, rtsp_sub
-
-    rtsp_main = CameraDefaultProps.MainStream
-    rtsp_sub = CameraDefaultProps.SubStream
-
-
-    print("Main Stream URL (H264): " .. rtsp_main)
-    print("Sub Stream URL (H264): " .. rtsp_sub)
-
-    -- Send response back to proxy
     if C4 and C4.SendToProxy then
-        -- Send H264 URLs
         C4:SendToProxy(idBinding, "RTSP_H264_URL", {
             URL = rtsp_main,
-            RESOLUTION = "1920x1080"
+            RESOLUTION = "3840x2160"
         })
 
         C4:SendToProxy(idBinding, "RTSP_H264_SUB_URL", {
@@ -3066,67 +3061,47 @@ function GET_STREAM_URLS(idBinding, tParams)
             RESOLUTION = "640x480"
         })
 
-        print("Sent stream URLs to proxy")
+        print("Sent stream paths to proxy")
     end
 
-    --C4:UpdateProperty("Status", "Stream URLs generated")
     print("================================================================")
-
     return {
         RTSP_H264_MAIN = rtsp_main,
-        RTSP_H264_SUB = rtsp_sub
+        RTSP_H264_SUB  = rtsp_sub
     }
 end
 
 -- GET_RTSP_H264_QUERY_STRING - Return H264 RTSP stream URL
 function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
+    EnsureCameraAwakeForStream()
     print("================================================================")
-    print("         GET_RTSP_H264_QUERY_STRING CALLED                      ")
+    print("         GET_RTSP_H264_QUERY_STRING CALLED (K26)                ")
     print("================================================================")
 
-    -- Control4 uses SIZE_X and SIZE_Y, not WIDTH and HEIGHT
-    local width = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or 320)
+    local width  = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or 320)
     local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 240)
-    local rate = tonumber((tParams and tParams.RATE) or 15)
-    local delay = tonumber((tParams and tParams.DELAY) or 0)
+    local rate   = tonumber((tParams and tParams.RATE) or 15)
 
     print("Requested H264 stream:")
     print("  Resolution: " .. width .. "x" .. height)
     print("  Frame rate: " .. rate .. " fps")
 
-    -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local rtsp_port = CameraDefaultProps.RTSPPort
+    local rtsp_port = Properties["RTSP Port"] or CameraDefaultProps.RTSPPort or "554"
 
     if not ip or ip == "" then
         print("ERROR: IP Address not configured")
-        --C4:UpdateProperty("Status", "Get H264 URL failed: No IP Address")
-        return
+        C4:UpdateProperty("Status", "Get H264 URL failed: No IP Address")
+        return ""
     end
 
-    -- Skip wake on first call, only wake on subsequent calls
-    if rtsp_first_call then
-        print("[RTSP] First call - skipping wake")
-        rtsp_first_call = false
-    else
-        print("[RTSP] Subsequent call - waking camera for streaming session...")
-        WakeCamera(1)
-    end
-
-    -- Determine stream type based on resolution
-    -- Higher resolution -> main stream (stream0)
-    -- Lower resolution -> sub stream (stream1)
-    local rtsp_path
-    if width >= 1280 or height >= 720 then
-        rtsp_path = CameraDefaultProps.MainStream
-        print("Using main stream (high quality)")
-    else
-        rtsp_path = CameraDefaultProps.SubStream
-        print("Using sub stream (low quality)")
-    end
+    
+    local rtsp_path = CameraDefaultProps.MainStream or "live"
 
     print("RTSP Path: " .. rtsp_path)
-    --C4:UpdateProperty("Status", "H264 stream path generated")
+    print("Camera Proxy will build: rtsp://ip:" .. rtsp_port .. "/" .. rtsp_path)
+
+    C4:UpdateProperty("Status", "H264 stream path generated")
     print("================================================================")
     return rtsp_path
 end
@@ -3168,10 +3143,7 @@ function URL_GET(idBinding, tParams)
     -- Build URLs for different stream types
     local rtsp_main_url, rtsp_sub_url, snapshot_url, mjpeg_url
 
-    -- rtsp_main_url = string.format("rtsp://%s:%s/stream0", ip, rtsp_port)
-    -- rtsp_sub_url = string.format("rtsp://%s:%s/stream1", ip, rtsp_port)
-    -- snapshot_url = string.format("http://%s:%s/tmp/snap.jpeg", ip, http_port)
-    -- mjpeg_url = string.format("http://%s:%s/video.mjpg", ip, http_port)
+    
     rtsp_main_url = CameraDefaultProps.MainStream
     rtsp_sub_url = CameraDefaultProps.SubStream
     snapshot_url = CameraDefaultProps.SnapshotURL
@@ -3216,41 +3188,35 @@ end
 
 -- RTSP_URL_PUSH - Push RTSP URL to Control4 app for streaming
 function RTSP_URL_PUSH(idBinding, tParams)
+    EnsureCameraAwakeForStream()
     print("================================================================")
-    print("               RTSP_URL_PUSH CALLED                             ")
+    print("               RTSP_URL_PUSH CALLED (K26)                       ")
     print("================================================================")
 
-    -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
-    local rtsp_port = CameraDefaultProps.RTSPPort
+    local rtsp_port = CameraDefaultProps.RTSPPort or "554"
 
     if not ip or ip == "" then
         print("ERROR: IP Address not configured")
-        --C4:UpdateProperty("Status", "RTSP_URL_PUSH failed: No IP Address")
         return
     end
 
-    -- Build RTSP URL for main stream (high quality for Control4 app)
-    local rtsp_url = CameraDefaultProps.MainStream
+    local rtsp_path = CameraDefaultProps.MainStream or "live"
 
-    print("Pushing RTSP URL: " .. rtsp_url)
+    print("Pushing RTSP path: " .. rtsp_path)
+    print("Full URL form: rtsp://" .. ip .. ":" .. rtsp_port .. "/" .. rtsp_path)
 
-    -- Send to Control4 app via proxy
     if C4 and C4.SendToProxy then
         C4:SendToProxy(idBinding, "RTSP_URL", {
-            URL = rtsp_url,
-            USERNAME = "",
-            PASSWORD = "",
-            IP = ip,
+            URL  = rtsp_path,
+            IP   = ip,
             PORT = rtsp_port
         })
-
-        print("RTSP URL pushed to Control4 app")
+        print("RTSP path pushed to Control4 app")
     end
 
-    --C4:UpdateProperty("Status", "RTSP streaming ready")
     print("================================================================")
-    return rtsp_url
+    return rtsp_path
 end
 
 function GetNotificationAttachmentURL(id)
@@ -3711,6 +3677,264 @@ function SendSnapshotResultToUI(success, image_url, error_msg)
         image_url = image_url or "",
         debug_text = "test text",   --  path string for debugging
         error     = error_msg or "",
+        timestamp = os.time()
+    }
+
+    local jsonData = json.encode(payload)
+
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
+end
+
+
+-- =====================================================
+-- GET STRANGER FACE LIST (OP27)
+-- =====================================================
+function GET_STRANGER_FACES(tParams)
+    print("===================================================")
+    print("GET_STRANGER_FACES CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    -- Parse optional page / page_size from UI
+    local page      = 1
+    local page_size = 50
+
+    if type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            page      = tonumber(data.page) or 1
+            page_size = tonumber(data.page_size) or 50
+        end
+    elseif type(tParams) == "table" then
+        page      = tonumber(tParams.page) or 1
+        page_size = tonumber(tParams.page_size) or 50
+    end
+
+    if auth_token == "" or vid == "" then
+        print("[FACES] ERROR: Missing Auth Token or VID")
+        SendStrangerFacesToUI({
+            type    = "stranger_faces",
+            success = false,
+            error   = "Missing Auth Token or VID"
+        })
+        return
+    end
+
+    local url = string.format(
+        "%s/api/v3/openapi/stranger-note/list?vid=%s&page=%d&page_size=%d",
+        baseUrl, vid, page, page_size
+    )
+
+    print("[FACES] Requesting:", url)
+
+    transport.execute({
+        url     = url,
+        method  = "GET",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+        }
+    }, function(code, response, _, err)
+        print("[FACES] HTTP Code:", code)
+
+        if err or (code ~= 200 and code ~= 20000) then
+            print("[FACES] Request failed:", err or code)
+            SendStrangerFacesToUI({
+                type    = "stranger_faces",
+                success = false,
+                error   = "HTTP Error: " .. tostring(err or code)
+            })
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+if not ok or not result then
+    print("[FACES] JSON Parse Error")
+    SendStrangerFacesToUI({
+        type    = "stranger_faces",
+        success = false,
+        error   = "JSON Parse Error"
+    })
+    return
+end
+
+-- Accept both 0 and 20000 as success (same as your other APIs)
+if result.code ~= 0 and result.code ~= 20000 then
+    print("[FACES] API Error:", result.message or "Unknown", "code:", tostring(result.code))
+    SendStrangerFacesToUI({
+        type    = "stranger_faces",
+        success = false,
+        error   = result.message or "API returned error",
+        code    = result.code
+    })
+    return
+end
+
+local notes = {}
+local total = 0
+
+if result.data then
+    notes = result.data.notes or {}
+    total = result.data.total or 0
+end
+
+print(string.format("[FACES] Success — received %d notes (total=%d)", #notes, total))
+
+-- Optional: cache face names
+if not _G.FACE_NAME_CACHE then
+    _G.FACE_NAME_CACHE = {}
+end
+for _, n in ipairs(notes) do
+    if n.face_id and n.note and n.note ~= "" then
+        _G.FACE_NAME_CACHE[n.face_id] = n.note
+    end
+end
+
+SendStrangerFacesToUI({
+    type    = "stranger_faces",
+    success = true,
+    data    = {
+        notes = notes,
+        total = total
+    }
+})
+    end)
+end
+
+function SendStrangerFacesToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Same reliable pattern you use for device_info / snapshot
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
+
+    print("[FACES] Sent result to UI")
+end
+
+
+-- =====================================================
+-- UPDATE STRANGER NOTE (OP12)
+-- =====================================================
+function UPDATE_STRANGER_NOTE(tParams)
+    print("===================================================")
+    print("UPDATE_STRANGER_NOTE CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    local face_id = nil
+    local note    = nil
+
+    if type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            face_id = data.face_id
+            note    = data.note
+            if data.vid and data.vid ~= "" then
+                vid = data.vid
+            end
+        end
+    elseif type(tParams) == "table" then
+        face_id = tParams.face_id
+        note    = tParams.note
+        if tParams.vid and tParams.vid ~= "" then
+            vid = tParams.vid
+        end
+    end
+
+    if auth_token == "" or vid == "" then
+        print("[FACES] ERROR: Missing Auth Token or VID")
+        SendStrangerNoteResultToUI(false, "Missing Auth Token or VID")
+        return
+    end
+
+    if not face_id or face_id == "" then
+        print("[FACES] ERROR: Missing face_id")
+        SendStrangerNoteResultToUI(false, "Missing face_id")
+        return
+    end
+
+    if note == nil then
+        note = ""
+    end
+
+    local url = baseUrl .. "/api/v3/openapi/stranger-note"
+
+    local body = {
+        vid     = vid,
+        face_id = face_id,
+        note    = note
+    }
+
+    print("[FACES] Updating note →", json.encode(body))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+        },
+        body    = json.encode(body)
+    }, function(code, response, _, err)
+        print("[FACES] Update note HTTP Code:", code)
+        if response then print("[FACES] Response:", response) end
+
+        if err or (code ~= 200 and code ~= 20000) then
+            print("[FACES] Update note failed:", err or code)
+            SendStrangerNoteResultToUI(false, "HTTP Error: " .. tostring(err or code))
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or not result then
+            SendStrangerNoteResultToUI(false, "JSON Parse Error")
+            return
+        end
+
+        if result.code ~= 0 and result.code ~= 20000 then
+            SendStrangerNoteResultToUI(false, result.message or "API error")
+            return
+        end
+
+        -- Update local cache
+        if not _G.FACE_NAME_CACHE then
+            _G.FACE_NAME_CACHE = {}
+        end
+        _G.FACE_NAME_CACHE[face_id] = note
+
+        print("[FACES] Note updated successfully for face_id:", face_id)
+        SendStrangerNoteResultToUI(true, nil, face_id, note)
+    end)
+end
+
+function SendStrangerNoteResultToUI(success, error_msg, face_id, note)
+    local payload = {
+        type     = "stranger_note_updated",
+        success  = success,
+        error    = error_msg or "",
+        face_id  = face_id or "",
+        note     = note or "",
         timestamp = os.time()
     }
 
