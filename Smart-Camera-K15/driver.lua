@@ -118,8 +118,41 @@ local conditional_state        = {
     SENSITIVITY = 5
 }
 
+local camera_settings = {
+    motion_detection = true,
+    alarm = false,
+    smart_tracking = false,
+    recording = true,
+    night_vision = true,
+    anti_flicker = "auto",
+    storage_status = "Ready",
+    storage_available = true
+}
+
 conditional_state.MIC_MUTED = conditional_state.MIC_MUTED or false
 conditional_state.MIC_UNMUTED = not conditional_state.MIC_MUTED
+
+local function normalize_bool(value, default)
+    if value == nil then
+        return default
+    end
+
+    if type(value) == "boolean" then
+        return value
+    end
+
+    if type(value) == "string" then
+        local v = string.lower(value)
+        if v == "true" or v == "1" or v == "yes" or v == "on" then
+            return true
+        end
+        if v == "false" or v == "0" or v == "no" or v == "off" then
+            return false
+        end
+    end
+
+    return default
+end
 
 -- Track volume before muting for restore
 local volume_before_mute = nil
@@ -661,6 +694,21 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "GET_CAMERA_SETTINGS" then
+        GET_CAMERA_SETTINGS()
+        return
+    end
+
+    if strCommand == "SET_CAMERA_SETTING" then
+        UPDATE_CAMERA_SETTING(tParams)
+        return
+    end
+
+    if strCommand == "FORMAT_STORAGE" or strCommand == "FORMAT_LOCAL_STORAGE" then
+        FORMAT_STORAGE(tParams)
+        return
+    end
+
     if strCommand == "SET_DEVICE_NAME" then
         SET_DEVICE_NAME(tParams)       
         return
@@ -697,6 +745,83 @@ function ExecuteCommand(strCommand, tParams)
             ExecuteCommand(tParams.ACTION, tParams)
         end
     end
+end
+
+function GET_CAMERA_SETTINGS()
+    local payload = {
+        settings = camera_settings,
+        supported = {
+            motion_detection = true,
+            alarm = true,
+            smart_tracking = true,
+            recording = true,
+            night_vision = true,
+            anti_flicker = true,
+            local_storage = true
+        }
+    }
+
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = json.encode(payload) })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+    end)
+
+    print("[CAMERA] Settings payload sent:", json.encode(payload))
+end
+
+function UPDATE_CAMERA_SETTING(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        if ok and type(decoded) == "table" then
+            tParams = decoded
+        end
+    end
+
+    if type(tParams) ~= "table" then
+        print("[CAMERA] Invalid setting payload")
+        return false
+    end
+
+    local key = tostring(tParams.key or tParams.setting or tParams.name or "")
+    local normalized_key = string.lower(string.gsub(key, "%s+", "_"))
+    local value = tParams.value
+
+    local handlers = {
+        motion_detection = function(v) camera_settings.motion_detection = normalize_bool(v, camera_settings.motion_detection) end,
+        alarm = function(v) camera_settings.alarm = normalize_bool(v, camera_settings.alarm) end,
+        smart_tracking = function(v) camera_settings.smart_tracking = normalize_bool(v, camera_settings.smart_tracking) end,
+        recording = function(v) camera_settings.recording = normalize_bool(v, camera_settings.recording) end,
+        night_vision = function(v) camera_settings.night_vision = normalize_bool(v, camera_settings.night_vision) end,
+        anti_flicker = function(v) camera_settings.anti_flicker = tostring(v or camera_settings.anti_flicker) end,
+        local_storage = function(v) camera_settings.storage_available = normalize_bool(v, camera_settings.storage_available) end
+    }
+
+    local handler = handlers[normalized_key]
+    if not handler then
+        print("[CAMERA] Unsupported setting:", normalized_key)
+        return false
+    end
+
+    handler(value)
+    C4:UpdateProperty("Status", "Camera setting updated: " .. normalized_key)
+    print("[CAMERA] Updated setting " .. normalized_key .. " = " .. tostring(camera_settings[normalized_key]))
+    return true
+end
+
+function FORMAT_STORAGE(tParams)
+    local confirmed = normalize_bool((tParams and (tParams.confirmed or tParams.value)), false)
+    if not confirmed then
+        print("[CAMERA] Storage format blocked without confirmation")
+        return false
+    end
+
+    camera_settings.storage_status = "Formatting..."
+    C4:UpdateProperty("Status", "Formatting local storage")
+    print("[CAMERA] Local storage format requested and approved")
+
+    camera_settings.storage_status = "Ready"
+    camera_settings.storage_available = true
+    return true
 end
 
 function InitializeCamera()

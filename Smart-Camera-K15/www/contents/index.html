@@ -496,6 +496,16 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
+                <div class="item" onclick="show('cameraSettingsPanel')">
+                    <div class="left">
+                        <i data-lucide="settings" class="icon"></i>
+                        <div>
+                            <div class="title">Camera Settings</div>
+                            <div class="subtitle">Motion, tracking, recording, storage</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
                 <div class="item" onclick="show('deviceNamePanel')">
                     <div class="left">
                         <i data-lucide="smartphone" class="icon"></i>
@@ -563,6 +573,81 @@
                 <div class="status" id="micStatus">Enabled</div>
             </div>
         </section>
+        <!-- CAMERA SETTINGS -->
+        <section id="cameraSettingsPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content">
+                <i data-lucide="sliders-horizontal" class="bigIcon"></i>
+                <div class="h2">Camera Settings</div>
+                <div class="desc">Manage the supported camera features for this model.</div>
+
+                <div style="width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 12px; text-align: left;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div>
+                            <div style="font-weight:600;">Motion Detection</div>
+                            <div style="font-size:12px; color:var(--muted);">Detect movement and trigger alerts</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="motionDetection" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div>
+                            <div style="font-weight:600;">Alarm</div>
+                            <div style="font-size:12px; color:var(--muted);">Enable camera alarm notifications</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="alarmToggle"><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div>
+                            <div style="font-weight:600;">Smart Tracking</div>
+                            <div style="font-size:12px; color:var(--muted);">Auto-follow movement targets</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="smartTrackingToggle"><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div>
+                            <div style="font-weight:600;">Recording</div>
+                            <div style="font-size:12px; color:var(--muted);">Store events and motion clips</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="recordingToggle" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div>
+                            <div style="font-weight:600;">Night Vision</div>
+                            <div style="font-size:12px; color:var(--muted);">Use IR mode in low light</div>
+                        </div>
+                        <label class="toggle"><input type="checkbox" id="nightVisionToggle" checked><span class="slider"></span></label>
+                    </div>
+
+                    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div style="font-weight:600; margin-bottom: 8px;">Anti-Flicker</div>
+                        <select id="antiFlicker" style="width:100%; padding:10px 12px; border-radius:10px; background:var(--bg); color:var(--text); border:1px solid var(--border);">
+                            <option value="auto">Auto</option>
+                            <option value="50hz">50 Hz</option>
+                            <option value="60hz">60 Hz</option>
+                        </select>
+                    </div>
+
+                    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                            <div>
+                                <div style="font-weight:600;">Local Storage</div>
+                                <div id="storageStatus" style="font-size:12px; color:var(--muted);">Ready</div>
+                            </div>
+                            <button class="btn small" id="formatStorageBtn" style="width:auto; padding:10px 16px; margin:0;">Format</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- DEVICE NAME -->
         <section id="deviceNamePanel" class="panel">
             <div class="topbar">

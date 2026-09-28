@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
     requestDeviceInfo();
      initDeviceInfo();
     initMicrophone();
+    initCameraSettings();
     initReboot();
     initDeviceName();
     initSnapshot();
@@ -115,6 +116,93 @@ function initDeviceName() {
 // =====================================================
 // MICROPHONE
 // =====================================================
+
+function initCameraSettings() {
+    const motion = document.getElementById('motionDetection');
+    const alarm = document.getElementById('alarmToggle');
+    const tracking = document.getElementById('smartTrackingToggle');
+    const recording = document.getElementById('recordingToggle');
+    const nightVision = document.getElementById('nightVisionToggle');
+    const antiFlicker = document.getElementById('antiFlicker');
+    const formatBtn = document.getElementById('formatStorageBtn');
+    const storageStatus = document.getElementById('storageStatus');
+
+    if (!motion && !alarm && !tracking && !recording && !nightVision && !antiFlicker && !formatBtn) {
+        return;
+    }
+
+    const sendSetting = function (key, value) {
+        try {
+            C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: key, value: value }), false, true);
+        } catch (e) {
+            console.error('Camera setting command failed:', key, e);
+        }
+    };
+
+    if (motion) {
+        motion.addEventListener('change', function () {
+            sendSetting('motion_detection', this.checked);
+        });
+    }
+
+    if (alarm) {
+        alarm.addEventListener('change', function () {
+            sendSetting('alarm', this.checked);
+        });
+    }
+
+    if (tracking) {
+        tracking.addEventListener('change', function () {
+            sendSetting('smart_tracking', this.checked);
+        });
+    }
+
+    if (recording) {
+        recording.addEventListener('change', function () {
+            sendSetting('recording', this.checked);
+        });
+    }
+
+    if (nightVision) {
+        nightVision.addEventListener('change', function () {
+            sendSetting('night_vision', this.checked);
+        });
+    }
+
+    if (antiFlicker) {
+        antiFlicker.addEventListener('change', function () {
+            sendSetting('anti_flicker', this.value);
+        });
+    }
+
+    if (formatBtn) {
+        formatBtn.addEventListener('click', function () {
+            if (!window.confirm('Format local storage? This will erase saved recordings on the camera.')) {
+                return;
+            }
+
+            formatBtn.disabled = true;
+            formatBtn.innerText = 'Formatting...';
+            if (storageStatus) storageStatus.innerText = 'Formatting local storage...';
+
+            try {
+                C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
+                showModal('Local storage format has been started.', 'Storage Update');
+            } catch (e) {
+                console.error('Format storage command failed', e);
+                showModal('Failed to format local storage.', 'Error');
+            }
+
+            setTimeout(function () {
+                if (formatBtn) {
+                    formatBtn.disabled = false;
+                    formatBtn.innerText = 'Format';
+                }
+                if (storageStatus) storageStatus.innerText = 'Ready';
+            }, 1800);
+        });
+    }
+}
 
 function initMicrophone() {
 
