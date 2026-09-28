@@ -166,8 +166,14 @@ function MQTT.unsubscribe(vid, on_done)
 
     C4:SendToNetwork(MQTT.BINDING, MQTT.props.MQTT.port, packet)
     print("[MQTT] UNSUBSCRIBE →", topic)
-     C4:SetTimer(300, function()
+
+    C4:SetTimer(300, function()
         MQTT.disconnect()
+        -- Reset manual_disconnect AFTER disconnect so reconnect is allowed
+        C4:SetTimer(200, function()
+            MQTT.state.manual_disconnect = false
+            if on_done then on_done() end
+        end)
     end)
 end
 
