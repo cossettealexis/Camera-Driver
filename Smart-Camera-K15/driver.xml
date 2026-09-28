@@ -2,13 +2,13 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>7</version>
+    <version>8</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>03/17/2026 12:00 AM</created>
-    <modified>08/18/2026 12:00 AM</modified>
-    <minimum_os_version>3.3.2</minimum_os_version>
+    <modified>09/11/2026 12:00 AM</modified>
+    <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
     <auto_update>true</auto_update>
@@ -17,14 +17,14 @@
     <composer_categories>
         <category>Cameras</category>
     </composer_categories>
-    <proxies qty="2">
+    <proxies>
         <proxy proxybindingid="5001" name="Slomins K15-SL PTZ Camera">camera</proxy>
         <proxy proxybindingid="5005" name="K15 Settings">uibutton</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
         <modes>H265, SNAPSHOT, MJPEG, H264</modes>
-        <default_http_port>3333</default_http_port>
+        <default_http_port>8080</default_http_port>
         <default_rtsp_port>554</default_rtsp_port>
         <default_authentication_required>True</default_authentication_required>
         <default_authentication_type>BASIC</default_authentication_type>
@@ -44,7 +44,7 @@
         <number_presets>8</number_presets>
         <can_view>true</can_view>
         <show_test_url>true</show_test_url>
-           <hasHistory>true</hasHistory>
+        <hasHistory>true</hasHistory>
         <navigator_display_option proxybindingid="5005">
             <display_icons>
                 <Icon width="70" height="70">
@@ -60,18 +60,18 @@
     </capabilities>
     <notification_attachment_provider>True</notification_attachment_provider>
     <notification_attachments>
-    <attachment>
-      <id>1001</id>
-      <type>IMAGE_JPEG</type>
-      <description>Current Snapshot</description>
-      <source>MEMORY</source>
-    </attachment>
-    <attachment>
-      <id>1002</id>
-      <type>IMAGE_JPEG</type>
-      <description>Snapshot (File)</description>
-      <source>FILE</source>
-    </attachment>
+        <attachment>
+            <id>1001</id>
+            <type>IMAGE_JPEG</type>
+            <description>Current Snapshot</description>
+            <source>MEMORY</source>
+        </attachment>
+        <attachment>
+            <id>1002</id>
+            <type>IMAGE_JPEG</type>
+            <description>Snapshot (File)</description>
+            <source>FILE</source>
+        </attachment>
         <attachment>
             <id>1003</id>
             <type>IMAGE_JPEG</type>
@@ -79,7 +79,7 @@
             <source>URL</source>
         </attachment>
     </notification_attachments>
-  <events>
+    <events>
     <event>
         <id>1</id>
         <name>Motion Detected</name>
@@ -179,9 +179,9 @@
     </conditionals>
 
     <config>
-        <script file="driver.lua"/>
+        <script file="driver.lua" />
         <documentation file="README.html">Slomins K15-SL Camera Documentation</documentation>
-       <properties>
+        <properties>
             <property>
                 <name>IP Address</name>
                 <type>STRING</type>
@@ -215,7 +215,7 @@
             <property>
                 <name>Account</name>
                 <type>STRING</type>
-                <default>pyabu@slomins.com</default>
+                <default></default>
                 <readonly>false</readonly>
             </property>
             <property>
@@ -411,6 +411,10 @@
                 <name>Set Device active (SDDP)</name>
                 <command>SET_DEVICE_PROPERTY</command>
             </action>
+             <action>
+                <name>Restart Device</name>
+                <command>REBOOT_DEVICE</command>
+            </action>
         </actions>
         <variables>
             <variable>
@@ -458,7 +462,7 @@
                         <type>INTEGER</type>
                     </param>
                 </params>
-        </command>
+            </command>
             <command>
                 <name>PRESET</name>
                 <description>Move camera to a preset using ac_ptz sequence</description>
@@ -467,7 +471,6 @@
                         <name>INDEX</name>  <!-- Preset number -->
                         <type>INTEGER</type>
                     </param>
-                    <!-- Optional: override step counts per direction -->
                     <param>
                         <name>Right</name>
                         <type>INTEGER</type>
@@ -542,6 +545,10 @@
             <command>
                 <name>SET_DEVICE_NAME</name>
                 <description>Change device name</description>
+            </command>
+             <command>
+                <name>REBOOT_DEVICE</name>
+                <description>Restart the device</description>
             </command>
         </commands>
         <interfaces>
