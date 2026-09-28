@@ -280,23 +280,36 @@
             padding: 18px 16px 6px;
         }
 
+        .camera-footer-left,
+        .camera-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .camera-footer-right {
+            margin-left: auto;
+        }
+
         .chip {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 66px;
-            height: 30px;
+            min-width: 72px;
+            height: 32px;
             border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.38);
-            background: rgba(255,255,255,0.04);
-            color: white;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 0 12px;
+            border: 2px solid rgba(255,255,255,0.72);
+            background: rgba(12, 18, 27, 0.28);
+            color: rgba(255,255,255,0.96);
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 0 14px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
         }
 
         .chip.small {
-            min-width: 58px;
+            min-width: 60px;
         }
 
         .toolbar {
@@ -308,31 +321,66 @@
         }
 
         .tool-btn {
-            width: 52px;
-            height: 52px;
-            border: none;
+            width: 58px;
+            height: 58px;
+            border: 2px solid rgba(255,255,255,0.8);
             border-radius: 50%;
-            background: rgba(255,255,255,0.12);
+            background: rgba(0,0,0,0.28);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 22px;
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+            line-height: 1;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+            padding: 0;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .tool-btn svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .tool-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Segoe UI Symbol", "Apple Symbols", "Arial Unicode MS", sans-serif;
+            font-size: 28px;
+            line-height: 1;
+            transform: translateY(-1px);
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.96;
         }
 
         .tool-btn.primary {
-            width: 68px;
-            height: 68px;
-            background: rgba(255,255,255,0.22);
-            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+            width: 66px;
+            height: 66px;
+            background: rgba(255,255,255,0.18);
+            border-color: rgba(255,255,255,0.8);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+
+        .tool-btn.primary svg {
+            width: 28px;
+            height: 28px;
         }
 
         .tool-btn.gear {
-            width: 52px;
-            height: 52px;
-            border: 1px solid rgba(255,255,255,0.35);
-            background: rgba(255,255,255,0.02);
+            width: 58px;
+            height: 58px;
+            border: 2px solid rgba(255,255,255,0.8);
+            background: rgba(0,0,0,0.28);
         }
 
         .title {
@@ -467,6 +515,7 @@
         }
 
         .footer {
+            display: none;
             padding: 20px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
@@ -474,6 +523,118 @@
             font-size: 12px;
             color: var(--muted);
             margin-top: auto;
+        }
+
+        .settings-panel {
+            background: rgba(3, 11, 20, 0.98);
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .settings-header .title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .settings-card {
+            margin: 16px 18px 0;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .device-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 16px;
+        }
+
+        .device-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .device-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .device-subname {
+            font-size: 16px;
+            color: rgba(255,255,255,0.76);
+        }
+
+        .settings-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            padding: 0 18px;
+        }
+
+        .settings-action {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.02);
+            border-radius: 20px;
+            padding: 18px 12px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .settings-list {
+            margin: 14px 18px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 16px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 18px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .settings-item .value {
+            color: rgba(255,255,255,0.65);
+            font-size: 15px;
+        }
+
+        .settings-item.danger {
+            justify-content: center;
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+
+        .footer.visible {
+            display: block;
         }
 
         .version-info {
@@ -531,7 +692,7 @@
                 <div class="header-row">
                     <button class="back-btn" aria-label="Back">&#8249;</button>
                     <h1>Plug-In Camera</h1>
-                    <button class="gear-btn" aria-label="Settings">
+                            <button class="gear-btn" aria-label="Settings" onclick="show('settingsPanel')">
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.39 1.1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.39-1.1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.39H2.82a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.1-.39 1.65 1.65 0 0 0 .6-1A1.65 1.65 0 0 0 4.6 7.2l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .39-1.1V2.82a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .39 1.1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.25.25.6.4 1 .4h.09a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1 .4 1.65 1.65 0 0 0-.33 1.82z"></path>
@@ -548,18 +709,77 @@
                 </div>
 
                 <div class="camera-footer">
-                    <div class="chip small">HD</div>
-                    <div class="chip">1.0X</div>
-                    <div class="chip small">[]</div>
+                    <div class="camera-footer-left">
+                        <div class="chip small">HD</div>
+                        <div class="chip">1.0X</div>
+                    </div>
+                    <div class="camera-footer-right">
+                        <div class="chip small">[]</div>
+                    </div>
                 </div>
 
                 <div class="toolbar">
-                    <button class="tool-btn" aria-label="Zoom">◌</button>
-                    <button class="tool-btn primary" aria-label="Power">◉</button>
-                    <button class="tool-btn" aria-label="Mic">◍</button>
-                    <button class="tool-btn" aria-label="Volume">◔</button>
-                    <button class="tool-btn gear" aria-label="Settings">⚙</button>
+                    <button class="tool-btn" aria-label="Zoom">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" style="width:28px;height:28px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+                            <circle cx="7" cy="6" r="2.8"></circle>
+                            <circle cx="7" cy="18" r="2.8"></circle>
+                            <path d="M10 12L17 6"></path>
+                            <path d="M10 12L17 18"></path>
+                            <path d="M16 6.2L15 7.4"></path>
+                            <path d="M16 17.8L15 16.6"></path>
+                        </svg>
+                    </button>
+                    <button class="tool-btn primary" aria-label="Power">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>
+                    </button>
+                    <button class="tool-btn" aria-label="Mic">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
+                    </button>
+                    <button class="tool-btn" aria-label="Volume">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 9.5a5 5 0 0 1 0 5"/><path d="M18 7a8 8 0 0 1 0 10"/></svg>
+                    </button>
+                    <button class="tool-btn gear" aria-label="Settings" onclick="show('settingsPanel')">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.39 1.1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.39-1.1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.39H2.82a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.1-.39 1.65 1.65 0 0 0 .6-1A1.65 1.65 0 0 0 4.6 7.2l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .39-1.1V2.82a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .39 1.1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.25.25.6.4 1 .4h.09a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1 .4 1.65 1.65 0 0 0-.33 1.82z"/></svg>
+                    </button>
                 </div>
+            </div>
+        </section>
+
+        <section id="settingsPanel" class="panel settings-panel">
+            <div class="settings-header">
+                <button class="back" onclick="show('homePanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Settings</div>
+                <div style="width: 38px;"></div>
+            </div>
+
+            <div class="settings-card">
+                <div class="device-row">
+                    <div class="device-avatar">◉</div>
+                    <div>
+                        <div class="device-name">Plug-In Camera</div>
+                        <div class="device-subname">Plug-In Camera</div>
+                    </div>
+                    <div style="margin-left:auto; font-size:22px; color:rgba(255,255,255,0.8);">↗</div>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <div class="settings-action"><span>●</span><span>Motion Detection</span></div>
+                <div class="settings-action"><span>◔</span><span>Event Time Settings</span></div>
+            </div>
+
+            <div class="settings-list">
+                <div class="settings-item"><span>Video Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Audio Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Notification Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Internal Storage</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Device Information</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Check Firmware Update</span><span class="value">The current version is the latest.</span></div>
+                <div class="settings-item"><span>C4 Authentication Service</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Restart</span><span class="value">›</span></div>
+                <div class="settings-item danger"><span>Delete Device</span></div>
             </div>
         </section>
 
@@ -651,8 +871,13 @@
             document.querySelectorAll('.panel')
                 .forEach(p => p.classList.remove('active'));
 
-            document.getElementById(id)
-                .classList.add('active');
+            const nextPanel = document.getElementById(id);
+            if (nextPanel) nextPanel.classList.add('active');
+
+            const footer = document.querySelector('.footer');
+            if (footer) {
+                footer.classList.toggle('visible', id === 'settingsPanel');
+            }
 
             lucide.createIcons();
         }

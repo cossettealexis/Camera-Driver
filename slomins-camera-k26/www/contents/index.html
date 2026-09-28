@@ -57,19 +57,254 @@
    HEADER
 ========================= */
         .header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border);
+            padding: 18px 20px 8px;
+            border-bottom: none;
+            background: rgba(3, 11, 20, 0.94);
+            position: relative;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-height: 52px;
+        }
+
+        .back-btn {
+            width: 42px;
+            height: 42px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 34px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.95;
+            padding: 0;
         }
 
         .header h1 {
-            font-size: 22px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
             font-weight: 700;
+            letter-spacing: 0.01em;
         }
 
         .header p {
             font-size: 13px;
             color: var(--muted);
             margin-top: 4px;
+        }
+
+        .gear-btn {
+            width: 38px;
+            height: 38px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.9;
+            padding: 0;
+            margin-left: auto;
+        }
+
+        .camera-view {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 0 10px 18px;
+            background: #030b14;
+        }
+
+        .camera-stage {
+            position: relative;
+            flex: 1;
+            min-height: 280px;
+            border-radius: 18px 18px 0 0;
+            overflow: hidden;
+            background:
+                linear-gradient(180deg, rgba(18, 28, 40, 0.55) 0%, rgba(12, 18, 25, 0.75) 100%),
+                radial-gradient(circle at 50% 24%, rgba(237, 245, 255, 0.65), rgba(167, 182, 200, 0.2) 24%, rgba(93, 103, 115, 0.18) 54%, rgba(0, 0, 0, 0) 70%);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .camera-stage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+                linear-gradient(90deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            opacity: 0.3;
+        }
+
+        .stream-glow {
+            position: absolute;
+            left: 50%;
+            top: 58%;
+            width: 180px;
+            height: 180px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            background: rgba(0,0,0,0.45);
+            border: 7px solid rgba(255,255,255,0.78);
+            box-shadow: inset 0 0 0 10px rgba(255,255,255,0.08);
+        }
+
+        .stream-glow::before {
+            content: '';
+            position: absolute;
+            inset: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 50% 35%, rgba(255,255,255,0.5), rgba(31, 43, 55, 0.86) 54%, rgba(0,0,0,0.96) 78%);
+            box-shadow: inset 0 0 30px rgba(255,255,255,0.06);
+        }
+
+        .stream-glow::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 0;
+            height: 0;
+            transform: translate(-30%, -50%);
+            border-top: 22px solid transparent;
+            border-bottom: 22px solid transparent;
+            border-left: 34px solid rgba(255,255,255,0.95);
+        }
+
+        .camera-status {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.72);
+            letter-spacing: 0.03em;
+            z-index: 2;
+        }
+
+        .bitrate {
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: rgba(255,255,255,0.9);
+            z-index: 2;
+            letter-spacing: 0.02em;
+        }
+
+        .camera-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 18px 16px 6px;
+        }
+
+        .camera-footer-left,
+        .camera-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .camera-footer-right {
+            margin-left: auto;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            height: 32px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.72);
+            background: rgba(12, 18, 27, 0.28);
+            color: rgba(255,255,255,0.96);
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 0 14px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+        }
+
+        .chip.small {
+            min-width: 60px;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 10px 0 6px;
+        }
+
+        .tool-btn {
+            width: 58px;
+            height: 58px;
+            border: 2px solid rgba(255,255,255,0.8);
+            border-radius: 50%;
+            background: rgba(0,0,0,0.28);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            line-height: 1;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
+            padding: 0;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .tool-btn svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.96;
+        }
+
+        .tool-btn.primary {
+            width: 66px;
+            height: 66px;
+            background: rgba(255,255,255,0.18);
+            border-color: rgba(255,255,255,0.8);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+
+        .tool-btn.primary svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .tool-btn.gear {
+            width: 58px;
+            height: 58px;
+            border: 2px solid rgba(255,255,255,0.8);
+            background: rgba(0,0,0,0.28);
         }
 
         /* =========================
@@ -237,13 +472,18 @@
         }
 
         .footer {
+            display: none;
             padding: 12px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: -80px !important;
+            margin-top: auto;
+        }
+
+        .footer.visible {
+            display: block;
         }
 
         .version-info {
@@ -251,6 +491,172 @@
             flex-direction: column;
             gap: 4px;
             line-height: 1.4;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .header-row h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .gear-btn {
+            width: 38px;
+            height: 38px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 18px 16px 0;
+        }
+
+        .tool-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.02);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .tool-btn svg {
+            width: 30px;
+            height: 30px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .settings-panel {
+            background: rgba(3, 11, 20, 0.98);
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .settings-header .title {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .settings-card {
+            margin: 16px 18px 0;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px;
+            overflow: hidden;
+        }
+
+        .device-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 18px 16px;
+        }
+
+        .device-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .device-name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .device-subname {
+            font-size: 16px;
+            color: rgba(255,255,255,0.76);
+        }
+
+        .settings-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+            padding: 0 18px;
+        }
+
+        .settings-action {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.02);
+            border-radius: 20px;
+            padding: 18px 12px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .settings-list {
+            margin: 14px 18px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 16px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 18px;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .settings-item .value {
+            color: rgba(255,255,255,0.65);
+            font-size: 15px;
+        }
+
+        .settings-item.danger {
+            justify-content: center;
+            color: #ff6b6b;
+            font-weight: 600;
         }
 
 
@@ -467,61 +873,95 @@
         <!-- HOME -->
         <section id="homePanel" class="panel active">
             <div class="header">
-                <h1>Device Settings</h1>
-                <p>K26 Camera Controls</p>
+                <div class="header-row">
+                    <h1>K26 Camera</h1>
+                    <button class="gear-btn" aria-label="Settings" onclick="show('settingsPanel')">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.39 1.1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.39-1.1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.39H2.82a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.1-.39 1.65 1.65 0 0 0 .6-1A1.65 1.65 0 0 0 4.6 7.2l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .39-1.1V2.82a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .39 1.1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.25.25.6.4 1 .4h.09a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1 .4 1.65 1.65 0 0 0-.33 1.82z"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
-            <div class="list">
-                <div class="item" onclick="show('rebootPanel')">
-                    <div class="left">
-                        <i data-lucide="rotate-cw" class="icon"></i>
-                        <div>
-                            <div class="title">Reboot</div>
-                            <div class="subtitle">Restart device</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+
+            <div class="camera-view">
+                <div class="camera-stage">
+                    <div class="camera-status">2026-09-10 19:58:34</div>
+                    <div class="bitrate">14KB/S</div>
+                    <div class="stream-glow" aria-hidden="true"></div>
                 </div>
-                <div class="item" onclick="show('micPanel')">
-                    <div class="left">
-                        <i data-lucide="mic" class="icon"></i>
-                        <div>
-                            <div class="title">Microphone</div>
-                            <div class="subtitle">Audio capture control</div>
-                        </div>
+
+                <div class="camera-footer">
+                    <div class="camera-footer-left">
+                        <div class="chip small">HD</div>
+                        <div class="chip">1.0X</div>
                     </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
-                </div>
-                <div class="item" onclick="show('deviceNamePanel')">
-                    <div class="left">
-                        <i data-lucide="smartphone" class="icon"></i>
-                        <div>
-                            <div class="title">Device Name</div>
-                            <div class="subtitle">Device name control</div>
-                        </div>
+                    <div class="camera-footer-right">
+                        <div class="chip small">[]</div>
                     </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
-                <!-- Facial Recognition -->
-                <div class="item" onclick="show('facialRecPanel')">
-                    <div class="left">
-                        <i data-lucide="scan-face" class="icon"></i>
-                        <div>
-                            <div class="title">Facial Recognition</div>
-                            <div class="subtitle">Face detection & management</div>
-                        </div>
+
+                <div class="toolbar">
+                    <button class="tool-btn" aria-label="Zoom">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="7" cy="6" r="2.8"></circle>
+                            <circle cx="7" cy="18" r="2.8"></circle>
+                            <path d="M10 12L17 6"></path>
+                            <path d="M10 12L17 18"></path>
+                            <path d="M16 6.2L15 7.4"></path>
+                            <path d="M16 17.8L15 16.6"></path>
+                        </svg>
+                    </button>
+                    <button class="tool-btn primary" aria-label="Power">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>
+                    </button>
+                    <button class="tool-btn" aria-label="Mic">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
+                    </button>
+                    <button class="tool-btn" aria-label="Volume">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 9.5a5 5 0 0 1 0 5"/><path d="M18 7a8 8 0 0 1 0 10"/></svg>
+                    </button>
+                    <button class="tool-btn gear" aria-label="Settings" onclick="show('settingsPanel')">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.39 1.1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.39-1.1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.1-.39H2.82a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.1-.39 1.65 1.65 0 0 0 .6-1A1.65 1.65 0 0 0 4.6 7.2l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .39-1.1V2.82a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .39 1.1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.25.25.6.4 1 .4h.09a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1 .4 1.65 1.65 0 0 0-.33 1.82z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="settingsPanel" class="panel settings-panel">
+            <div class="settings-header">
+                <button class="back" onclick="show('homePanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Settings</div>
+                <div style="width: 38px;"></div>
+            </div>
+
+            <div class="settings-card">
+                <div class="device-row">
+                    <div>
+                        <div class="device-name">K26 Camera</div>
+                        <div class="device-subname">K26 Camera</div>
                     </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                    <div style="margin-left:auto; font-size:22px; color:rgba(255,255,255,0.8);">↗</div>
                 </div>
-                <div class="item" id="snapshotHomeBtn">
-                    <div class="left">
-                        <i data-lucide="camera" class="icon"></i>
-                        <div>
-                            <div class="title">Take Snapshot</div>
-                            <div class="subtitle">Capture current view</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
-                </div>
+            </div>
+
+            <div class="settings-actions">
+                <div class="settings-action"><span>●</span><span>Motion Detection</span></div>
+                <div class="settings-action"><span>◔</span><span>Event Time Settings</span></div>
+            </div>
+
+            <div class="settings-list">
+                <div class="settings-item"><span>Video Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Audio Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Notification Settings</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Internal Storage</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Device Information</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Check Firmware Update</span><span class="value">The current version is the latest.</span></div>
+                <div class="settings-item"><span>C4 Authentication Service</span><span class="value">›</span></div>
+                <div class="settings-item"><span>Restart</span><span class="value">›</span></div>
+                <div class="settings-item danger"><span>Delete Device</span></div>
             </div>
         </section>
 
@@ -669,8 +1109,13 @@
             document.querySelectorAll('.panel')
                 .forEach(p => p.classList.remove('active'));
 
-            document.getElementById(id)
-                .classList.add('active');
+            const nextPanel = document.getElementById(id);
+            if (nextPanel) nextPanel.classList.add('active');
+
+            const footer = document.querySelector('.footer');
+            if (footer) {
+                footer.classList.toggle('visible', id === 'settingsPanel');
+            }
 
             lucide.createIcons();
         }
