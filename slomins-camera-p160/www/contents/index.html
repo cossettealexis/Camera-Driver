@@ -713,8 +713,30 @@
                         <div class="chip small">HD</div>
                         <div class="chip">1.0X</div>
                     </div>
+<<<<<<< Updated upstream
                     <div class="camera-footer-right">
                         <div class="chip small">[]</div>
+=======
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" onclick="show('videoSettingsPanel')">
+                    <div class="left">
+                        <i data-lucide="video" class="icon"></i>
+                        <div>
+                            <div class="title">Video Settings</div>
+                            <div class="subtitle">Recording and image controls</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
+                <div class="item" onclick="show('deviceNamePanel')">
+                    <div class="left">
+                        <i data-lucide="smartphone" class="icon"></i>
+                        <div>
+                            <div class="title">Device Name</div>
+                            <div class="subtitle">Device name control</div>
+                        </div>
+>>>>>>> Stashed changes
                     </div>
                 </div>
 
@@ -819,6 +841,49 @@
 
             </div>
         </section>
+        <!-- VIDEO SETTINGS -->
+        <section id="videoSettingsPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+            </div>
+            <div class="content" style="display:flex; align-items:stretch; justify-content:flex-start; padding:0; width:100%;">
+                <div style="width:100%; max-width: 100%; display:flex; flex-direction:column; gap:0;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
+                        <div style="font-size:15px; font-weight:600;">Recording Mode</div>
+                        <div style="font-size:13px; color:var(--muted);">Event Recording</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
+                        <div style="font-size:15px; font-weight:600;">Night Vision Mode</div>
+                        <div style="font-size:13px; color:var(--muted);">Automatic</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
+                        <div style="font-size:15px; font-weight:600;">Anti-Flicker</div>
+                        <div style="font-size:13px; color:var(--muted);">OFF</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
+                        <div style="font-size:15px; font-weight:600;">Flip Image</div>
+                        <label class="toggle">
+                            <input type="checkbox" id="flipImageToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
+                        <div style="font-size:15px; font-weight:600;">Time Watermark</div>
+                        <label class="toggle">
+                            <input type="checkbox" id="timeWatermarkToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- DEVICE NAME -->
         <section id="deviceNamePanel" class="panel">
             <div class="topbar">
@@ -904,6 +969,21 @@
                 console.log(this.checked ? "MIC_ON" : "MIC_OFF");
 
             });
+
+            const flipImageToggle = document.getElementById('flipImageToggle');
+            const timeWatermarkToggle = document.getElementById('timeWatermarkToggle');
+
+            if (flipImageToggle) {
+                flipImageToggle.addEventListener('change', function () {
+                    console.log(this.checked ? "FLIP_IMAGE_ON" : "FLIP_IMAGE_OFF");
+                });
+            }
+
+            if (timeWatermarkToggle) {
+                timeWatermarkToggle.addEventListener('change', function () {
+                    console.log(this.checked ? "TIME_WATERMARK_ON" : "TIME_WATERMARK_OFF");
+                });
+            }
 
         });
 
