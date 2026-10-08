@@ -8,6 +8,16 @@ let lockStatus   = null;
 let deviceNameInput = null;
 let updateNameBtn = null;
 
+
+// ---- Face Management ----
+
+let faces = [];
+let facesDirty = false;
+
+
+let faceListEl = null;
+let saveFacesBtn = null;
+
 document.addEventListener('DOMContentLoaded', function () {
     smartLockBtn = document.querySelector('.smart_lock_btn');
     lockStatus   = smartLockBtn ? smartLockBtn.querySelector('.lock_status') : null;
@@ -20,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Device Name
     initDeviceName();
+    requestDeviceInfo();
+     loadFaces();
+    initSaveFacesButton();
 
 });
 
@@ -139,7 +152,7 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
 
@@ -152,70 +165,259 @@ function initializeControl4() {
     }
 }
 
-// ── Main data receiver ───────────────────────────────
+function requestDeviceInfo() {
+    try {
+        C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+    } catch (e) {
+        console.error("Failed to request device info", e);
+    }
+}
+
+
+
+
+function renderFaces() {
+    faceListEl = document.getElementById('faceList');
+    saveFacesBtn = document.getElementById('saveFacesBtn');
+
+    if (!faceListEl) {
+        console.warn("faceList element not found");
+        return;
+    }
+
+    faceListEl.innerHTML = '';
+
+    if (faces.length === 0) {
+        faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
+        if (saveFacesBtn) saveFacesBtn.disabled = true;
+        return;
+    }
+
+    faces.forEach((face, index) => {
+        const item = document.createElement('div');
+        item.className = 'face-item';
+
+        const imgSrc = face.imageUrl || '';
+        alert(imgSrc);
+
+        item.innerHTML = `
+            <div class="face-avatar">
+                ${imgSrc
+                    ? `<img src="${imgSrc}" alt="${face.name || ''}" onerror="this.style.display='none'">`
+                    : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
+                }
+            </div>
+            <div class="face-info">
+                <input type="text" class="face-name-input" 
+                       value="${face.name || ''}" 
+                       data-index="${index}" 
+                       maxlength="40" 
+                       placeholder="Enter name">
+                <div class="face-meta">ID: ${face.id || face.face_id || '-'}</div>
+            </div>
+        `;
+        faceListEl.appendChild(item);
+    });
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    faceListEl.querySelectorAll('.face-name-input').forEach(input => {
+        input.addEventListener('input', function () {
+            const idx = parseInt(this.dataset.index);
+            faces[idx].name = this.value.trim();
+            facesDirty = true;
+            if (saveFacesBtn) saveFacesBtn.disabled = false;
+        });
+    });
+}
+
+function loadFaces() {
+  
+
+    faceListEl = document.getElementById('faceList');
+    if (faceListEl) {
+        faceListEl.innerHTML = `<div class="empty-faces">Loading faces...</div>`;
+    }
+
+    try {
+        C4.sendCommand(
+            'GET_STRANGER_FACES',
+            JSON.stringify({ page: 1, page_size: 50 }),
+            false,
+            true
+        );
+    } catch (e) {
+        console.error("Failed to request stranger faces", e);
+        if (faceListEl) {
+            faceListEl.innerHTML = `<div class="empty-faces">Failed to request faces</div>`;
+        }
+    }
+}
+
+function updateFacesFromDriver(notes) {
+    console.log("updateFacesFromDriver received notes:", notes);
+
+    faces = (notes || []).map(n => ({
+        id: n.id || n.face_id,
+        face_id: n.face_id,
+        name: n.note || '',
+        imageUrl: n.face_img_url || '',
+        updated_at: n.updated_at
+    }));
+
+    facesDirty = false;
+    saveFacesBtn = document.getElementById('saveFacesBtn');
+    if (saveFacesBtn) saveFacesBtn.disabled = true;
+
+    renderFaces();
+}
+
+function initSaveFacesButton() {
+    const btn = document.getElementById('saveFacesBtn');
+    if (!btn) return;
+
+    btn.addEventListener('click', function () {
+        if (!facesDirty) return;
+
+        console.log("SAVE_FACES_TO_API", faces);
+
+        // Send one update per changed face
+        faces.forEach(face => {
+            if (!face.face_id) return;
+
+            try {
+                C4.sendCommand(
+                    'UPDATE_STRANGER_NOTE',
+                    JSON.stringify({
+                        face_id: face.face_id,
+                        note: face.name || ''
+                    }),
+                    false,
+                    true
+                );
+            } catch (e) {
+                console.error("Failed to update note for", face.face_id, e);
+            }
+        });
+
+        facesDirty = false;
+        btn.disabled = true;
+        showModal("Saving face names...", "Please wait");
+    });
+}
+
+
+
 function onDataToUi(value) {
     try {
-        // Always try to show UI when data arrives
-        // showUI();
+        
+       
+        const jsonObject = JSON.parse(value);
+    
+        // Handle icon_description wrapper (NotificationHistory pattern)
+        let obj;
+        if (jsonObject.hasOwnProperty('icon_description')) {
+            obj = JSON.parse(jsonObject.icon_description);
+        } else {
+            obj = jsonObject;
+        }
 
-        var obj = JSON.parse(value);
+        
+        if (obj.type === "device_info" && obj.success) {
 
-        // ── Battery update (real-time from Lua C4:SendDataToUI) ──
+            // Update current device name in input field
+            const input = document.getElementById('deviceNameInput');
+            if (input && obj.device_name) {
+                input.value = obj.device_name;
+            }
+
+            // Update footer elements
+            const devEl = document.getElementById('deviceVersion');
+            const fwEl = document.getElementById('firmwareVersion');
+            const relEl = document.getElementById('releaseDate');
+
+            if (devEl) {
+                devEl.innerText = "Device: " + (obj.device_name || "Unknown");
+            }
+
+            if (fwEl) {
+                fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
+            }
+
+            if (relEl) {
+                relEl.innerText = "Release: " + (obj.release_date || "N/A");
+            }
+        }
+
+        // ========== BATTERY ==========
         if (obj.battery !== undefined) {
             updateBatteryUI(obj.battery);
             return;
         }
 
-        // ── NEW: Timestamp Support ──
-        if (obj.time || obj.event) {
-            updateLastEventTime(obj);
-        }
-
-        // ── Stream info ──
-        if (obj.C4Message && obj.C4Message.Data) {
-            try {
-                var d = JSON.parse(obj.C4Message.Data);
-                if (d.stream_url && d.video_quality) video_quality = d.video_quality;
-            } catch (e) {}
-            return;
-        }
-
-        // ── Lock state ──
+        // ========== LOCK STATE ==========
         var state = obj.icon || obj.state;
         if (state && state !== 'unknown') {
             applyLockState(state);
             window._lastKnownState = state;
         }
 
-        // =============================================
-        // DEVICE NAME SUPPORT (NEW)
-        // =============================================
-
-        // ==================== DEVICE NAME ====================
-        // ==================== DEVICE NAME ====================
-        if (obj.type === "device_info" && obj.device_name) {
-            if (deviceNameInput) {
-                deviceNameInput.value = obj.device_name;
-                console.log("✅ Device name loaded:", obj.device_name);
-            }
-        }
-
-        if (obj.device_name_updated === true || obj.device_name_updated === "success") {
-            console.log("✅ Device name updated");
+        // ========== DEVICE NAME UPDATED ==========
+        if (obj.device_name_updated === true || obj.type === "device_name_updated") {
             showSuccessPopup("Device Name Updated Successfully!");
             if (deviceNameInput) deviceNameInput.value = "";
         }
 
-        if (obj.error && obj.error.toLowerCase().includes("name")) {
+        if (obj.error && String(obj.error).toLowerCase().includes("name")) {
             showSuccessPopup("Failed to update device name");
         }
 
+        if (obj.type === "snapshot_result") {
+            console.log('[Snapshot] Received result:', obj);
+
+            if (obj.success && obj.image_url) {
+                openSnapshotModal(obj.image_url, "Snapshot captured");
+            } else {
+                openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+            }
+        }
+
+        // =========================
+        // STRANGER FACES LIST
+        // =========================
+        if (obj.type === "stranger_faces") {
+            if (obj.success && obj.data && obj.data.notes) {
+                updateFacesFromDriver(obj.data.notes);
+            } else {
+                showModal(obj.error || obj.message || "Failed to load faces", "Error");
+                faces = [];
+                renderFaces();
+            }
+        }
+
+        // =========================
+        // STRANGER NOTE UPDATED
+        // =========================
+        if (obj.type === "stranger_note_updated") {
+            console.log("[UI] stranger_note_updated:", obj);
+
+            if (obj.success) {
+                showModal("Face name updated successfully!", "Success");
+
+                // Optional: refresh list
+                // loadFaces();
+            } else {
+                showModal(obj.error || "Failed to update face name", "Error");
+            }
+        }
+
     } catch (e) {
+        alert("ERROR in onDataToUi: " + e.message);
         dbg('onDataToUi ERR: ' + e.message);
     }
 }
 
-// ── Touch / mouse handlers ───────────────────────────
+
 window.addEventListener('mouseup', resetUnlocking);
 window.addEventListener('touchend', resetUnlocking);
 
@@ -265,13 +467,8 @@ function sendLockCommand(action) {
     }
 }
 
-// ── C4 callbacks ─────────────────────────────────────
-function onVariable(v)                        { console.log('onVariable:', v); }
-function onSendCommandError(m)                { dbg('cmdErr: ' + m); }
-function onSubscribeToDataToUi(m)             { dbg('subErr: ' + m); }
-function onSubscribeToVariableError(v, m)     { dbg('varErr: ' + v + ' ' + m); }
 
-// ── jQuery helpers ───────────────────────────────────
+
 $(document).ready(function () {
     $('body').disableSelection();
 });
@@ -289,7 +486,7 @@ $.fn.extend({
 
 
 
-// ── Battery UI renderer ──────────────────────────────
+
 function updateBatteryUI(power) {
     var icon = document.getElementById('batteryIcon');
     var text = document.getElementById('batteryText');
@@ -342,7 +539,7 @@ function initDeviceName() {
         return;
     }
 
-    console.log("✅ Device Name module initialized");
+    console.log("Device Name module initialized");
 
     btn.addEventListener('click', function () {
       
@@ -418,7 +615,7 @@ function handleDeviceNameUpdate() {
     }
 }
 
- 
+
 // ====================== SUCCESS POPUP ======================
 
 function showSuccessPopup(message = "Success") {
@@ -429,5 +626,14 @@ function showSuccessPopup(message = "Success") {
         setTimeout(() => { popup.style.display = 'none'; }, 2500);
     }
 }
+
+
+
+// ── C4 callbacks ─────────────────────────────────────
+function onVariable(v)                        { console.log('onVariable:', v); }
+function onSendCommandError(m)                { dbg('cmdErr: ' + m); }
+function onSubscribeToDataToUi(m)             { dbg('subErr: ' + m); }
+function onSubscribeToVariableError(v, m)     { dbg('varErr: ' + v + ' ' + m); }
+
 
 

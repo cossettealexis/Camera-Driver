@@ -208,6 +208,64 @@
             opacity: 0.4;
             cursor: not-allowed;
         }
+
+        /* Snapshot Modal */
+        .snapshot-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .snapshot-modal.show {
+            display: flex;
+        }
+
+        .snapshot-modal-content {
+            background: #1a2228;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 640px;
+            max-height: 90vh;
+            overflow: auto;
+            color: #fff;
+        }
+
+        .snapshot-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .snapshot-modal-header h5 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .snapshot-close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+
+        .snapshot-modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .snapshot-modal-footer {
+            padding: 12px 20px 20px;
+            text-align: right;
+        }
     </style>
 </head>
 
@@ -246,7 +304,7 @@
 
 
         <div class="bottom-controls">
-            <button id="screenshotBtn" class="control-btn">
+            <button id="snapshotHomeBtn" class="control-btn">
                 <i data-lucide="camera"></i>
 
             </button>
@@ -259,31 +317,18 @@
         </div>
     </div>
 
-    <div class="modal fade" id="screenshotModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title">Latest Camera Screenshot</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center p-2">
-                    <img id="screenshotImage" src="http://192.168.1.2:3333/wps-cgi/image.cgi?resolution=640x480"
-                        class="img-fluid rounded" style="max-height: 70vh; width: auto;" alt="Camera Screenshot">
-                    <div id="screenshotLoading" class="text-center py-4">
-                        <div class="spinner-border text-light" role="status"></div>
-                        <p class="mt-2">Capturing latest image...</p>
-                    </div>
-                    <div id="urlDisplayContainer" class="mt-3 px-3">
-                        <div id="urlDisplay"
-                            style="background:#1a2228; padding:8px; border-radius:6px; font-size:11px; word-break:break-all; color:#0f0; text-align:left; max-height:80px; overflow:auto;">
-                            Waiting for URL...
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                   
-                </div>
+    <div id="snapshotModal" class="snapshot-modal">
+        <div class="snapshot-modal-content">
+            <div class="snapshot-modal-header">
+                <h5 id="snapshotModalTitle">Snapshot</h5>
+                <button type="button" class="snapshot-close-btn" onclick="closeSnapshotModal()">&times;</button>
+            </div>
+            <div class="snapshot-modal-body">
+                <img id="snapshotModalImage" alt="Snapshot" style="display:none; max-width:100%; border-radius:8px;">
+                <p id="snapshotModalMessage" class="text-center mt-3"></p>
+            </div>
+            <div class="snapshot-modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeSnapshotModal()">Close</button>
             </div>
         </div>
     </div>

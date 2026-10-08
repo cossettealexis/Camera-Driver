@@ -72,7 +72,7 @@
 <p>Complete Control4 driver for Slomins DF511 Door Video Lock with full CldBus API integration, MQTT event streaming, RTSP video streaming, lock control, doorbell functionality, face recognition, and two-way audio support.</p>
 
 <p><strong>Model:</strong> DF511<br>
-<strong>Version:</strong> 6<br>
+<strong>Version:</strong> 9<br>
 <strong>Minimum Control4 OS:</strong> 3.3.2+<br>
 <strong>Device Type:</strong> Door Video Lock with Camera<br>
 <strong>Last Updated:</strong> August 18, 2026</p>
@@ -916,7 +916,24 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 
 <h1>Version History</h1>
 
-<h3>v6 (Current)</h3>
+<h3>v9 (Current)</h3>
+<ul>
+<li>Updated live stream url. Now uses /live instead of /streamtype.</li>
+</ul>
+
+<h3>v8</h3>
+<ul>
+<li>Fixed the streaming path using streamtype 1.</li>
+<li>Added Face management feature.</li>
+</ul>
+
+<h3>v7</h3>
+<ul>
+<li>Added device and firmware info.</li>
+<li>Added snapshot feature on preview ui.</li>
+</ul>
+
+<h3>v6</h3>
 <ul>
 <li>Bug fixes and improvements</li>
 </ul>
@@ -1042,7 +1059,7 @@ local app_secret = "hg4IwDpf2tvbVdBGc6nwP5x2XGCIlNv8"
 <hr>
 
 <h1>Support</h1>
-<p><strong>Driver Version:</strong> 6<br>
+<p><strong>Driver Version:</strong> 9<br>
 <strong>Manufacturer:</strong> Slomins<br>
 <strong>Model:</strong> DF511-SL<br>
 <strong>Control4 OS:</strong> 3.3.2+</p>

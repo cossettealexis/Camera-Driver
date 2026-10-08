@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('pointerup', onPointerUp);
 
     applyLockState('locked');
-    initScreenshot();
+    initSnapshot();
    
 });
 
@@ -44,7 +44,7 @@ function initializeControl4() {
 
     try {
 
-        C4.subscribeToDataToUi(true);
+        C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
 
@@ -216,6 +216,187 @@ function sendLockCommand(action) {
 
 
 
+
+
+function updateUrlDisplay(url) {
+    if (urlDisplay) {
+        urlDisplay.textContent = url || "No URL received";
+        console.log('📍 URL shown in modal:', url);
+    }
+}
+
+function initSnapshot() {
+    const btn = document.getElementById('snapshotHomeBtn');
+    if (!btn) {
+        console.warn("snapshotHomeBtn not found");
+        return;
+    }
+
+    btn.removeEventListener('click', handleTakeSnapshot);
+    btn.addEventListener('click', handleTakeSnapshot);
+}
+
+function handleTakeSnapshot() {
+    console.log('📸 Take Snapshot requested');
+
+    // Open snapshot modal in loading state
+    openSnapshotModal(null, "Capturing snapshot...");
+
+    try {
+        C4.sendCommand(
+            'TAKE_SNAPSHOT',
+            JSON.stringify({}),
+            false,
+            true
+        );
+        console.log("TAKE_SNAPSHOT command sent");
+    } catch (e) {
+        console.error("Snapshot command error", e);
+        openSnapshotModal(null, "Failed to send snapshot command");
+    }
+}
+
+function openSnapshotModal(imageUrl, message) {
+    const modal   = document.getElementById('snapshotModal');
+    const img     = document.getElementById('snapshotModalImage');
+    const msgEl   = document.getElementById('snapshotModalMessage');
+    const titleEl = document.getElementById('snapshotModalTitle');
+
+    console.log('[Snapshot] openSnapshotModal called');
+    console.log('[Snapshot] imageUrl =', imageUrl);
+    console.log('[Snapshot] img element found?', !!img);
+
+    if (titleEl) titleEl.innerText = "Snapshot";
+    if (msgEl)   msgEl.innerText = message || "";
+
+    if (img) {
+        if (imageUrl) {
+            // Clear first, then set (helps some webviews)
+            img.removeAttribute('src');
+            img.src = imageUrl + (imageUrl.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
+            img.style.display = 'block';
+            console.log('[Snapshot] src set to:', img.src);
+        } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+        }
+    } else {
+        console.error('[Snapshot] ERROR: #snapshotModalImage not found in DOM!');
+    }
+
+    if (modal) {
+        modal.classList.add('show');
+    } else {
+        console.error('[Snapshot] ERROR: #snapshotModal not found in DOM!');
+    }
+}
+
+function closeSnapshotModal() {
+    const modal = document.getElementById('snapshotModal');
+    const img   = document.getElementById('snapshotModalImage');
+
+    if (modal) modal.classList.remove('show');
+    if (img) {
+        img.src = '';
+        img.style.display = 'none';
+    }
+}
+
+/**
+ * Converts a .cgi (or any image URL) into a displayable JPEG data/object URL
+ */
+async function convertCgiToJpegUrl(cgiUrl) {
+    try {
+        const response = await fetch(cgiUrl, {
+            method: 'GET',
+            cache: 'no-store',          // important – always get fresh image
+            mode: 'cors'                // may need to be 'no-cors' in some environments
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+
+       
+        const jpegBlob = new Blob([blob], { type: 'image/jpeg' });
+
+        
+        return URL.createObjectURL(jpegBlob);
+
+    
+    } catch (err) {
+        console.error('Failed to convert CGI to JPEG:', err);
+        return null;
+    }
+}
+
+// Helper if you prefer base64
+function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function onDataToUi(value) {
+
+    console.log('RAW LUA DATA:', value);
+
+    try {
+
+        const jsonObject = JSON.parse(value);
+    
+        // Handle icon_description wrapper (NotificationHistory pattern)
+        let obj;
+        if (jsonObject.hasOwnProperty('icon_description')) {
+            obj = JSON.parse(jsonObject.icon_description);
+        } else {
+            obj = jsonObject;
+        }
+       
+
+        if (obj.state) {
+            applyLockState(obj.state);
+        }
+
+        if (obj.icon) {
+            applyLockState(obj.icon);
+        }
+
+        if (obj.battery !== undefined) {
+            updateBatteryUI(obj.battery);
+        }
+
+        if (obj.type === "snapshot_result") {
+            alert('[Snapshot] Received result:', obj.image_url);
+
+            if (obj.success && obj.image_url) {
+                openSnapshotModal(obj.image_url, "Loading snapshot...");
+            } else {
+                openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+            }
+        }
+
+
+        if (obj.type === "test_url" && obj.url) {
+            console.log(' Test URL received:', obj.url);
+            return;
+        }
+
+    } catch (e) {
+
+        console.log('onDataToUi parse error', e);
+
+    }
+
+}
+
+
+
 function onVariable(v) {
     console.log('onVariable', v);
 }
@@ -230,107 +411,4 @@ function onSubscribeToDataToUi(msg) {
 
 function onSubscribeToVariableError(v, msg) {
     console.log('Variable Error', v, msg);
-}
-
-// =====================================================
-// SCREENSHOT FUNCTIONALITY
-// =====================================================
-
-let screenshotModal = null;
-let screenshotImg = null;
-let screenshotLoading = null;
-let urlDisplay = null;
-
-function initScreenshot() {
-    screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
-    screenshotImg = document.getElementById('screenshotImage');
-    screenshotLoading = document.getElementById('screenshotLoading');
-    urlDisplay = document.getElementById('urlDisplay');
-
-    const btn = document.getElementById('screenshotBtn');
-    if (btn) btn.addEventListener('click', takeScreenshot);
-
-
-    if (screenshotImg) {
-        screenshotImg.addEventListener('load', function() {
-            screenshotLoading.style.display = 'none';
-            this.style.display = 'block';
-        });
-    }
-}
-
-function takeScreenshot() {
-    if (!screenshotModal || !screenshotImg || !screenshotLoading) {
-        console.error("Screenshot elements not found");
-        return;
-    }
-
-    screenshotImg.style.display = 'none';
-    screenshotLoading.style.display = 'block';
-    if (urlDisplay) urlDisplay.textContent = "Capturing...";
-    screenshotModal.show();
-
-    try {
-        C4.sendCommand('TAKE_SCREENSHOT', '', false, true);
-        console.log('📸 TAKE_SCREENSHOT sent');
-    } catch (e) {
-        console.error('Send command failed', e);
-    }
-}
-
-function updateUrlDisplay(url) {
-    if (urlDisplay) {
-        urlDisplay.textContent = url || "No URL received";
-        console.log('📍 URL shown in modal:', url);
-    }
-}
-
-function onDataToUi(value) {
-
-    console.log('RAW LUA DATA:', value);
-    
-    // Show alert with raw data (for debugging)
-    alert("Data received from Lua:\n\n" + value);
-
-    try {
-
-        const obj = JSON.parse(value);
-
-        if (obj.state) {
-            applyLockState(obj.state);
-        }
-
-        if (obj.icon) {
-            applyLockState(obj.icon);
-        }
-
-        if (obj.battery !== undefined) {
-            updateBatteryUI(obj.battery);
-        }
-
-        // ==================== SCREENSHOT RESPONSE ====================
-        if (obj.type === "screenshot" && obj.url) {
-           console.log('✅ Screenshot URL received:', obj.url);
-            updateUrlDisplay(obj.url);                    // Show in modal
-
-            if (screenshotImg && screenshotLoading) {
-                screenshotLoading.style.display = 'none';
-                screenshotImg.style.display = 'block';
-                screenshotImg.src = obj.url;
-            }
-        }
-
-        if (obj.type === "test_url" && obj.url) {
-            console.log('✅ Test URL received:', obj.url);
-            alert("✅ Test URL from Lua:\n\n" + obj.url);
-            return;
-        }
-
-    } catch (e) {
-
-        console.log('onDataToUi parse error', e);
-        alert("Parse Error: " + e.message + "\n\nRaw data: " + value);
-    }
-
-
 }

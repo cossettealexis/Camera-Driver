@@ -22,6 +22,7 @@ local IMAGE_RETRY_COUNT = tonumber(Properties["Image Retry Count"]) or 5
 local IMAGE_RETRY_DELAY = tonumber(Properties["Image Retry Interval (ms)"]) or 400
 
 local CAMERA_BINDING    = 5001
+local RTSP_MAIN_PATH    = "live"
 local EVENT_DELAY_MS    = tonumber(Properties["Event Interval (ms)"]) or 3000
 local _pendingAuthToken = nil
 local _tcpConnected     = false
@@ -108,7 +109,6 @@ local EVENT                   = {
     LOW_BATTERY         = "Low Battery",
     POWER_ON            = "Power On",
     POWER_OFF           = "Power Off",
-    -- 🔐 Lock / Unlock Events
     UNLOCK_PASSWORD     = "Unlock with Password",
     UNLOCK_OFFLINE_PASS = "Offline Password Unlock",
     UNLOCK_DURESS       = "Duress Unlock",
@@ -203,6 +203,20 @@ local last_log_rec_time = 0
 
 
 
+-- Camera wake timing constants (global)
+CAMERA_WAKE_DURATION_SEC = 12
+CAMERA_WAKE_COOLDOWN_SEC = 3 
+CAMERA_KEEP_ALIVE_INTERVAL_MS = 8000   -- re-wake every 8 seconds
+CAMERA_KEEP_ALIVE_DURATION_SEC = 180   -- keep alive 3 min after last stream request
+CAMERA_WAKE_BURST_RETRIES = 3
+CAMERA_WAKE_BURST_GAP_MS = 2500
+
+local rtsp_first_call       = true
+local _lastWakeTime         = 0
+local _keepAliveTimer       = nil
+local _keepAliveStopAt      = 0
+local _wakeInFlight         = false
+
 
 function IsTokenValid()
     local token = _props["Auth Token"] or Properties["Auth Token"] or ""
@@ -264,8 +278,8 @@ function EnsureValidToken(callback)
     return true
 end
 
--- ====================== UPDATED WAKE CAMERA (with token protection) ======================
-function WakeCamera(retry)
+
+--[[function WakeCamera(retry)
     retry = retry or 3 -- default 3 attempts
 
     print("[WAKE] WakeCamera requested (" .. retry .. " attempts)")
@@ -296,18 +310,18 @@ function WakeCamera(retry)
                 local next_wake_delay = (WAKE_DURATION + WAKE_INTERVAL) * 1000
                 wake_timer_id = C4:SetTimer(next_wake_delay, try_wake)
             else
-                print("[WAKE] ✅ Wake retry sequence completed (" .. retry .. " attempts)")
+                print("[WAKE]  Wake retry sequence completed (" .. retry .. " attempts)")
                 wake_timer_id = nil
                 C4:UpdateProperty("Status", "Wake sequence completed")
             end
         end
 
-        -- Start immediately
+        
         try_wake()
     end)
-end
+end--]]
 
---Establishes a TCP connection to the configured server.
+
 
 function TcpConnection()
     print("TcpConnection established")
@@ -322,6 +336,136 @@ function TcpConnection()
     C4:CreateNetworkConnection(TCP_BINDING_ID, GlobalObject.TCP_SERVER_IP, "TCP")
     C4:NetPortOptions(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT, "TCP", tPortParams)
     C4:NetConnect(TCP_BINDING_ID, GlobalObject.TCP_SERVER_PORT)
+end
+
+
+local function StopKeepAlive()
+    if type(_keepAliveTimer) == "number" then
+        print("[WAKE] Stopping keep-alive timer:", _keepAliveTimer)
+        C4:KillTimer(_keepAliveTimer)
+    end
+    _keepAliveTimer = nil
+    _keepAliveStopAt = 0
+end
+
+function AWAKE_CAMERA(tParams)
+    local force = tParams and (tParams.force == true or tParams.FORCE == true)
+
+    local now = os.time()
+    if not force and (now - _lastWakeTime) < CAMERA_WAKE_COOLDOWN_SEC then
+        print(string.format("[WAKE] Cooldown active (%ds left) — skip", CAMERA_WAKE_COOLDOWN_SEC - (now - _lastWakeTime)))
+        return
+    end
+
+    if _wakeInFlight and not force then
+        print("[WAKE] Wake already in flight — skip")
+        return
+    end
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    if not auth_token or auth_token == "" then
+        print("[WAKE] ERROR: No auth token")
+        return
+    end
+
+    local vid = _props["VID"] or Properties["VID"]
+    if not vid or vid == "" then
+        print("[WAKE] ERROR: No VID")
+        return
+    end
+
+    _wakeInFlight = true
+    _lastWakeTime = now
+
+    local base_url = Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+    local url = base_url .. "/api/v3/openapi/device/do-action"
+
+    local body = {
+        vid = vid,
+        action_id = "ac_wakelocal",
+        input_params = json.encode({ t = os.time(), type = 0 }),
+        check_t = 0,
+        is_async = 0
+    }
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+    }
+
+    print(string.format("[WAKE] Sending ac_wakelocal  vid=%s  t=%d", tostring(vid), os.time()))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = headers,
+        body    = json.encode(body)
+    }, function(code, resp, _, err)
+        _wakeInFlight = false
+        if err then
+            print("[WAKE] Error:", tostring(err))
+        end
+        if code == 200 or code == 20000 then
+            print("[WAKE] SUCCESS — camera should be awake ~" .. CAMERA_WAKE_DURATION_SEC .. "s")
+            C4:UpdateProperty("Status", "Camera awake")
+        else
+            print("[WAKE] FAILED code=" .. tostring(code) .. " resp=" .. tostring(resp))
+            C4:UpdateProperty("Status", "Wake failed: " .. tostring(code))
+        end
+    end)
+end
+
+function WakeCamera(retry)
+    retry = retry or CAMERA_WAKE_BURST_RETRIES or 3
+    local attempt = 0
+    local gap = CAMERA_WAKE_BURST_GAP_MS or 2500
+
+    local function try_wake()
+        attempt = attempt + 1
+        print(string.format("[WAKE-BURST] Attempt %d/%d", attempt, retry))
+        AWAKE_CAMERA({ force = true })
+
+        if attempt < retry then
+            C4:SetTimer(gap, try_wake)
+        else
+            print("[WAKE-BURST] Finished burst sequence")
+        end
+    end
+
+    try_wake()
+end
+
+function StartKeepAliveWake()
+    local now = os.time()
+    _keepAliveStopAt = now + (CAMERA_KEEP_ALIVE_DURATION_SEC or 180)
+
+    WakeCamera(CAMERA_WAKE_BURST_RETRIES)
+
+    if type(_keepAliveTimer) == "number" then
+        print("[WAKE] Keep-alive already running, extended until", _keepAliveStopAt)
+        return
+    end
+
+    local interval = CAMERA_KEEP_ALIVE_INTERVAL_MS or 8000
+    print(string.format("[WAKE] Starting keep-alive every %dms for %ds", interval, CAMERA_KEEP_ALIVE_DURATION_SEC or 180))
+
+    _keepAliveTimer = C4:SetTimer(interval, function()
+        local t = os.time()
+        if t >= _keepAliveStopAt then
+            print("[WAKE] Keep-alive window expired — stopping")
+            StopKeepAlive()
+            return
+        end
+        print(string.format("[WAKE] Keep-alive tick (%ds remaining)", _keepAliveStopAt - t))
+        AWAKE_CAMERA({})
+    end, true)
+end
+
+function EnsureCameraAwakeForStream()
+    print("[WAKE] EnsureCameraAwakeForStream()")
+    StartKeepAliveWake()
 end
 
 function SET_CAMERA_IP(ip)
@@ -608,25 +752,26 @@ function OnDriverLateInit()
     --local snapshot_url = string.format("http://%s:%s%s", ip, http_port, snapshot_path)
     local snapshot_url = string.format("http://%s:%s/wps-cgi/image.cgi?resolution=640x480&transport=tcp", ip, http_port)
     -- Step 1: Force Camera Proxy Auth and Port settings (VD05 Fix)
-    C4:SendToProxy(CAMERA_BINDING, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
-    C4:SendToProxy(CAMERA_BINDING, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
-    C4:SendToProxy(CAMERA_BINDING, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
-    C4:SendToProxy(CAMERA_BINDING, "USERNAME_CHANGED", { USERNAME = username })
-    C4:SendToProxy(CAMERA_BINDING, "PASSWORD_CHANGED", { PASSWORD = password })
+    C4:SendToProxy(5001, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
+    C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "BASIC" })
+    C4:SendToProxy(5001, "AUTHENTICATION_REQUIRED", { REQUIRED = "False" })
+    C4:SendToProxy(5001, "USERNAME_CHANGED", { USERNAME = username })
+    C4:SendToProxy(5001, "PASSWORD_CHANGED", { PASSWORD = password })
 
-    C4:SendToProxy(CAMERA_BINDING, "ADDRESS_CHANGED", { ADDRESS = ip })
-    C4:SendToProxy(CAMERA_BINDING, "HTTP_PORT_CHANGED", { PORT = http_port })
-    C4:SendToProxy(CAMERA_BINDING, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+    C4:SendToProxy(5001, "ADDRESS_CHANGED", { ADDRESS = ip })
+    C4:SendToProxy(5001, "HTTP_PORT_CHANGED", { PORT = http_port })
+    C4:SendToProxy(5001, "RTSP_PORT_CHANGED", { PORT = rtsp_port })
+    C4:SendToProxy(5001, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
+    C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
 
-    C4:SendToProxy(CAMERA_BINDING, "GET_VIDEO_MODES", {})
-    C4:SendToProxy(CAMERA_BINDING, "RTSP_AUDIO_ENABLED", { ENABLED = "False" })
+    
 
     C4:UpdateProperty("Status", "MAC validation started - will auto login after...")
     C4:UpdateProperty("Snapshot URL", snapshot_url)
        
 end
 
-local function CompleteCameraSetup()
+--[[local function CompleteCameraSetup()
     print("=== COMPLETE CAMERA SETUP (post-auth) ===")
 
     -- Proxy configuration (safe to run again)
@@ -669,7 +814,7 @@ local function CompleteCameraSetup()
         end
     end)
     return true
-end
+end--]]
 
 local function update_prop(name, value)
     if not value then value = "" end
@@ -810,9 +955,9 @@ function OnPropertyChanged(strProperty)
 
         local rtsp_url
         if auth_type ~= "NONE" then
-            rtsp_url = string.format("rtsp://%s:%s@%s:%s/streamtype=0", username, password, ip, rtsp_port)
+            rtsp_url = string.format("rtsp://%s:%s@%s:%s/%s", username, password, ip, rtsp_port, RTSP_MAIN_PATH)
         else
-            rtsp_url = string.format("rtsp://%s:%s/streamtype=0", ip, rtsp_port)
+            rtsp_url = string.format("rtsp://%s:%s/%s", ip, rtsp_port, RTSP_MAIN_PATH)
         end
 
 
@@ -827,7 +972,7 @@ function OnPropertyChanged(strProperty)
 
 
         C4:UpdateProperty("Main Stream URL", rtsp_url)
-        C4:UpdateProperty("Sub Stream URL", rtsp_url) -- Set Sub stream to use streamtype=0 as well
+        C4:UpdateProperty("Sub Stream URL", rtsp_url) -- Set Sub stream to use 1 as well
         print("Locked RTSP to: " .. rtsp_url)
 
 
@@ -1124,6 +1269,7 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "TAKE_SNAPSHOT" then
         print("[COMMAND] Take Snapshot requested")
+         TAKE_SNAPSHOT_FOR_UI()
         C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
         return
     end
@@ -1227,13 +1373,25 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-     if strCommand == "GET_DEVICE_INFO" then
+    if strCommand == "GET_DEVICE_INFO" then
         GET_DEVICE_INFO()
         return
     end
 
     if strCommand == "SET_DEVICE_NAME" then
         SET_DEVICE_NAME(tParams)        -- ← This calls your function
+        return
+    end
+
+    if strCommand == "GET_STRANGER_FACES" then
+        print("[COMMAND] GET_STRANGER_FACES requested")
+        GET_STRANGER_FACES(tParams)
+        return
+    end
+
+    if strCommand == "UPDATE_STRANGER_NOTE" then
+        print("[COMMAND] UPDATE_STRANGER_NOTE requested")
+        UPDATE_STRANGER_NOTE(tParams)
         return
     end
 
@@ -1737,7 +1895,6 @@ function GET_DEVICES(p_vid)
                     end
                     print("DF511 properties updated successfully")
 
-                    -- Fetch firmware version from device
                     C4:SetTimer(2000, function()
                         GET_DEVICE_INFO()
                     end)
@@ -1745,7 +1902,7 @@ function GET_DEVICES(p_vid)
                     --call the helper
                     if not _props.full_init_complete then
                         _props.full_init_complete = true
-                        CompleteCameraSetup()
+                       
                     end
                 else
                     print("ERROR: No DF511 camera device found or vid missing")
@@ -3422,8 +3579,8 @@ function TEST_MAIN_STREAM(tParams)
         return
     end
 
-    -- Build RTSP URL for main stream (stream0)
-    local rtsp_url = string.format("rtsp://%s:%s/streamtype=0", ip, port)
+    
+    local rtsp_url = string.format("rtsp://%s:%s/%s", ip, port, RTSP_MAIN_PATH)
 
     print("Main Stream RTSP URL: " .. rtsp_url)
     C4:UpdateProperty("Status", "Main stream URL generated")
@@ -3452,7 +3609,7 @@ function TEST_SUB_STREAM(tParams)
     end
 
     -- Build RTSP URL for sub stream (stream1)
-    local rtsp_url = string.format("rtsp://%s:%s/streamtype=0", ip, port)
+    local rtsp_url = string.format("rtsp://%s:%s/%s", ip, port, RTSP_MAIN_PATH)
 
     print("Sub Stream RTSP URL: " .. rtsp_url)
     C4:UpdateProperty("Status", "Sub stream URL generated")
@@ -4001,11 +4158,11 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
 
             local main_rtsp, sub_rtsp
             if auth_required and username ~= "" and password ~= "" then
-                main_rtsp = string.format("rtsp://%s:%s@%s:%s/streamtype=0", username, password, ip, rtsp_port)
-                sub_rtsp  = string.format("rtsp://%s:%s@%s:%s/streamtype=1", username, password, ip, rtsp_port)
+                main_rtsp = string.format("rtsp://%s:%s@%s:%s/%s", username, password, ip, rtsp_port, RTSP_MAIN_PATH)
+                sub_rtsp  = string.format("rtsp://%s:%s@%s:%s/%s", username, password, ip, rtsp_port, RTSP_MAIN_PATH)
             else
-                main_rtsp = string.format("rtsp://%s:%s/streamtype=0", ip, rtsp_port)
-                sub_rtsp  = string.format("rtsp://%s:%s/streamtype=1", ip, rtsp_port)
+                main_rtsp = string.format("rtsp://%s:%s/%s", ip, rtsp_port, RTSP_MAIN_PATH)
+                sub_rtsp  = string.format("rtsp://%s:%s/%s", ip, rtsp_port, RTSP_MAIN_PATH)
             end
 
             print("Sending Stream URLs")
@@ -4621,15 +4778,15 @@ function GET_STREAM_URLS(idBinding, tParams)
 
     local rtsp_main, rtsp_sub
     if auth_required and username ~= "" and password ~= "" then
-        rtsp_main = string.format("rtsp://%s:%s@%s:%s/streamtype=0",
-            username, password, ip, rtsp_port)
-        rtsp_sub = string.format("rtsp://%s:%s@%s:%s/streamtype=1",
-            username, password, ip, rtsp_port)
+        rtsp_main = string.format("rtsp://%s:%s@%s:%s/%s",
+            username, password, ip, rtsp_port, RTSP_MAIN_PATH)
+        rtsp_sub = string.format("rtsp://%s:%s@%s:%s/%s",
+            username, password, ip, rtsp_port, RTSP_MAIN_PATH)
     else
-        rtsp_main = string.format("rtsps://%s:%s/streamtype=0",
-            ip, rtsp_port)
-        rtsp_sub = string.format("rtsps://%s:%s/streamtype=0",
-            ip, rtsp_port)
+        rtsp_main = string.format("rtsp://%s:%s/%s",
+            ip, rtsp_port, RTSP_MAIN_PATH)
+        rtsp_sub = string.format("rtsp://%s:%s/%s",
+            ip, rtsp_port, RTSP_MAIN_PATH)
     end
 
     print("Main Stream URL (H264): " .. rtsp_main)
@@ -4666,28 +4823,40 @@ end
 
 -- GET_RTSP_H264_QUERY_STRING - Return H264 RTSP stream URL
 function GET_RTSP_H264_QUERY_STRING(idBinding, tParams)
+    EnsureCameraAwakeForStream()
+     print("================================================================")
+    print("         GET_RTSP_H264_QUERY_STRING CALLED                      ")
     print("================================================================")
-    print("        GET_RTSP_H264_QUERY_STRING (WITH CREDENTIALS)           ")
+
+    -- Control4 uses SIZE_X and SIZE_Y, not WIDTH and HEIGHT
+   local width  = tonumber((tParams and (tParams.SIZE_X or tParams.WIDTH)) or 640)
+    local height = tonumber((tParams and (tParams.SIZE_Y or tParams.HEIGHT)) or 480)
+    local rate = tonumber((tParams and tParams.RATE) or 15)
+
+    print("Requested H264 stream:")
+    print("  Resolution: " .. width .. "x" .. height)
+    print("  Frame rate: " .. rate .. " fps")
+
+    -- Get camera properties
+    local ip = _props["IP Address"] or Properties["IP Address"]
+    local rtsp_port = Properties["RTSP Port"] or "554"
+    local username = Properties["Username"] or "SystemConnect"
+    local password = Properties["Password"] or "123456"
+    local wake_delay = tonumber(Properties["Event Interval (ms)"]) or 5000
+
+    if not ip or ip == "" then
+        print("ERROR: IP Address not configured")
+        C4:UpdateProperty("Status", "Get H264 URL failed: No IP Address")
+        return
+    end
+
+    
+    local rtsp_path = RTSP_MAIN_PATH
+
+    print("RTSP Path: " .. rtsp_path)
+    C4:UpdateProperty("Status", "H264 stream path generated")
     print("================================================================")
 
-    local user = Properties["Username"] or "SystemConnect"
-    local pass = Properties["Password"] or "123456"
-
-    -- 1. Setup the Protocol FIRST
-    C4:SendToProxy(5001, "AUTHENTICATION_TYPE_CHANGED", { TYPE = "NONE" })
-    C4:SendToProxy(5001, "RTSP_TRANSPORT", { TRANSPORT = "TCP" })
-
-    -- 2. Push the Credentials (Only if you feel the proxy 'forgot' them)
-    C4:SendToProxy(5001, "USERNAME_CHANGED", { USERNAME = user })
-    C4:SendToProxy(5001, "PASSWORD_CHANGED", { PASSWORD = pass })
-
-    -- 3. Wake the hardware
-    WakeCamera(3)
-
-
-    local rtsp_path = "streamtype=0"
-
-    print("RTSP Path generated: " .. rtsp_path)
     return rtsp_path
 end
 
@@ -4721,6 +4890,7 @@ end
 
 -- URL_GET - Control4 app requests camera URLs for streaming
 function URL_GET(idBinding, tParams)
+    EnsureCameraAwakeForStream()
     print("================================================================")
     print("                  URL_GET CALLED                                ")
     print("================================================================")
@@ -4735,6 +4905,7 @@ function URL_GET(idBinding, tParams)
     -- Get camera properties
     local ip = _props["IP Address"] or Properties["IP Address"]
     local rtsp_port = Properties["RTSP Port"] or "554"
+    local http_port = Properties["HTTP Port"] or "3333"
     local username = Properties["Username"] or "SystemConnect"
     local password = Properties["Password"] or "123456"
 
@@ -4749,24 +4920,10 @@ function URL_GET(idBinding, tParams)
 
     -- Build URLs for different stream types
     local rtsp_main_url, rtsp_sub_url, snapshot_url, mjpeg_url
-
-    if auth_required and username ~= "" and password ~= "" then
-        rtsp_main_url = string.format("rtsp://%s:%s@%s:%s/streamtype=1",
-            username, password, ip, rtsp_port)
-        rtsp_sub_url = string.format("rtsp://%s:%s@%s:%s/streamtype=1",
-            username, password, ip, rtsp_port)
-
-        mjpeg_url = string.format("http://%s:%s@%s:%s/video.mjpg",
-            username, password, ip, http_port)
-    else
-        rtsp_main_url = string.format("rtsp://%s:%s/streamtype=1",
-            ip, rtsp_port)
-        rtsp_sub_url = string.format("rtsp://%s:%s/streamtype=1",
-            ip, rtsp_port)
-
-        mjpeg_url = string.format("http://%s:%s/video.mjpg",
-            ip, http_port)
-    end
+    rtsp_main_url = "1"
+    rtsp_sub_url = "1"
+    snapshot_url = "wps-cgi/image.cgi"
+    mjpeg_url = "/video.mjpg"
 
     print("Generated URLs:")
     print("  RTSP Main: " .. rtsp_main_url)
@@ -4777,13 +4934,17 @@ function URL_GET(idBinding, tParams)
     -- Send URLs back to proxy for Control4 app
     if C4 and C4.SendToProxy then
         -- Send primary RTSP URL for main stream
-        C4:SendToProxy(5001, "RTSP_H264_URL", {
+        C4:SendToProxy(idBinding, "RTSP_H264_URL", {
             URL = rtsp_main_url
         })
 
+        -- Send snapshot URL
+        C4:SendToProxy(idBinding, "SNAPSHOT_URL", {
+            URL = snapshot_url
+        })
 
         -- Send MJPEG URL for live view
-        C4:SendToProxy(5001, "MJPEG_URL", {
+        C4:SendToProxy(idBinding, "MJPEG_URL", {
             URL = mjpeg_url
         })
 
@@ -4803,6 +4964,7 @@ end
 
 -- RTSP_URL_PUSH - Push RTSP URL to Control4 app for streaming
 function RTSP_URL_PUSH(idBinding, tParams)
+     EnsureCameraAwakeForStream()
     print("================================================================")
     print("               RTSP_URL_PUSH CALLED                             ")
     print("================================================================")
@@ -4825,11 +4987,11 @@ function RTSP_URL_PUSH(idBinding, tParams)
     -- Build RTSP URL for main stream (high quality for Control4 app)
     local rtsp_url
     if auth_required and username ~= "" and password ~= "" then
-        rtsp_url = string.format("rtsp://%s:%s@%s:%s/streamtype=0",
-            username, password, ip, rtsp_port)
+        rtsp_url = string.format("rtsp://%s:%s@%s:%s/%s",
+            username, password, ip, rtsp_port, RTSP_MAIN_PATH)
     else
-        rtsp_url = string.format("rtsp://%s:%s/streamtype=0",
-            ip, rtsp_port)
+        rtsp_url = string.format("rtsp://%s:%s/%s",
+            ip, rtsp_port, RTSP_MAIN_PATH)
     end
 
     print("Pushing RTSP URL: " .. rtsp_url)
@@ -4856,14 +5018,20 @@ function RTSP_URL_PUSH(idBinding, tParams)
 end
 
 function GetRtspUrl()
-    local ip = _props["IP Address"] or Properties["IP Address"]
+    
+
+    -- Original logic
+    local ip   = _props["IP Address"] or Properties["IP Address"]
     local port = Properties["RTSP Port"] or "554"
-    local user = Properties["Username"] or "SystemConnect" -- or whatever DF511 uses
+    local user = Properties["Username"] or "SystemConnect"
     local pass = Properties["Password"] or "123456"
+
     if user and pass and pass ~= "" then
-        return string.format("rtsp://%s:%s@%s:%s/streamtype=0", user, pass, ip, port)
+     return string.format("rtsp://%s:%s@%s:%s/%s", user, pass, ip, port, RTSP_MAIN_PATH)
+    
     else
-        return string.format("rtsp://%s:%s/streamtype=0", ip, port)
+    return string.format("rtsp://%s:%s/%s", ip, port, RTSP_MAIN_PATH)
+    
     end
 end
 
@@ -4895,9 +5063,6 @@ function FireC4Event(event_name)
     end
 end
 
--- ================================================
--- FINAL AGGRESSIVE CONDITIONAL HANDLING
--- ================================================
 
 function UpdateConditional(cond_name, value)
     if not cond_name then return end
@@ -4986,7 +5151,6 @@ function FormatEventTimestamp(ts)
     return os.date("%Y-%m-%d %H:%M:%S", ts)
 end
 
---screenshot
 
 -- ==================== SCREENSHOT FOR WEB UI ====================
 function TakeScreenshotForUI()
@@ -5237,27 +5401,30 @@ end
 -- Reliable send to UI Proxy (Binding 5005)
 function SendDeviceInfoToUI(data)
     local jsonData = json.encode(data)
+    print("[UI] Sending device_info to WebView:", jsonData)
 
-    -- Primary method - Send to UIBUTTON proxy
-    local success = pcall(function()
-        C4:SendToProxy(5005, "SEND_DATA", { DATA = jsonData })
+    -- 1. The method that is proven to work on proxy 5003
+    pcall(function()
+        C4:SendToProxy(5003, "ICON_CHANGED", {
+            icon = "locked",                          -- keep current icon
+            icon_description = jsonData               -- ← real data goes here
+        })
+        C4:SendToProxy(5003, "UPDATE_UI", {})
+         C4:SendToProxy(5005, "ICON_CHANGED", {
+            icon = "locked",                          -- keep current icon
+            icon_description = jsonData               -- ← real data goes here
+        })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
     end)
 
-    -- Fallback methods
-    if not success then
-        pcall(function()
-            C4:SendToProxy(5005, "DATA", { data = jsonData })
-        end)
+    -- 2. Also try the normal way (belt + suspenders)
+    if C4 and C4.SendDataToUI then
+        C4:SendDataToUI(jsonData)
+        C4:SetTimer(500,  function() C4:SendDataToUI(jsonData) end)
+        C4:SetTimer(1500, function() C4:SendDataToUI(jsonData) end)
     end
-
-    if C4.SendDataToUI then
-        pcall(function()
-            C4:SendDataToUI(jsonData)
-        end)
-    end
-
-    print("[UI] Device info sent to proxy 5005")
 end
+
 
 function SET_DEVICE_NAME(tParams)
     print("================================================================")
@@ -5361,4 +5528,330 @@ function SET_DEVICE_NAME(tParams)
 
     print("================================================================")
     return true
+end
+
+function TAKE_SNAPSHOT_FOR_UI()
+    print("========================================")
+    print("[SNAPSHOT] TAKE_SNAPSHOT_FOR_UI started")
+    
+    local ip        = _props["IP Address"] or Properties["IP Address"] or ""
+    local http_port = Properties["HTTP Port"] or "3333"
+    local username  = Properties["Username"] or "SystemConnect"
+    local password  = Properties["Password"] or "123456"
+    local path      = Properties["Snapshot URL Path"] or "/wps-cgi/image.cgi"
+
+    print("[SNAPSHOT] IP Address   =", ip)
+    print("[SNAPSHOT] HTTP Port    =", http_port)
+    print("[SNAPSHOT] Username     =", username)
+    print("[SNAPSHOT] Path         =", path)
+
+    if ip == "" then
+        print("[SNAPSHOT] ERROR: No IP Address configured")
+        SendSnapshotResultToUI(false, nil, "No IP Address configured")
+        return
+    end
+
+    local snapshot_url
+    if username ~= "" and password ~= "" then
+        snapshot_url = string.format("http://%s:%s@%s:%s%s",
+            username, password, ip, http_port, path)
+    else
+        snapshot_url = string.format("http://%s:%s%s", ip, http_port, path)
+    end
+
+    print("[SNAPSHOT] Final URL =", snapshot_url)
+
+    C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+    print("[SNAPSHOT] Sent SNAPSHOT_INVALIDATE to proxy 5001")
+
+    SendSnapshotResultToUI(true, snapshot_url, nil)
+    print("[SNAPSHOT] Sent result to UI")
+    print("========================================")
+end
+
+function SendSnapshotResultToUI(success, image_url, error_msg)
+    print("[SNAPSHOT UI] success     =", tostring(success))
+    print("[SNAPSHOT UI] image_url   =", tostring(image_url))
+    print("[SNAPSHOT UI] error_msg   =", tostring(error_msg))
+
+    local payload = {
+        type       = "snapshot_result",
+        success    = success,
+        image_url  = image_url or "",
+        debug_text = "test text",
+        error      = error_msg or "",
+        timestamp  = os.time()
+    }
+
+    local jsonData = json.encode(payload)
+    print("[SNAPSHOT UI] JSON payload =", jsonData)
+
+    pcall(function()
+        C4:SendToProxy(5005, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5005, "UPDATE_UI", {})
+        print("[SNAPSHOT UI] Sent via proxy 5005 (ICON_CHANGED + UPDATE_UI)")
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+        print("[SNAPSHOT UI] Sent via C4:SendDataToUI")
+    end)
+end
+
+-- =====================================================
+-- GET STRANGER FACE LIST (OP27)
+-- =====================================================
+function GET_STRANGER_FACES(tParams)
+    print("===================================================")
+    print("GET_STRANGER_FACES CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    -- Parse optional page / page_size from UI
+    local page      = 1
+    local page_size = 50
+
+    if type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            page      = tonumber(data.page) or 1
+            page_size = tonumber(data.page_size) or 50
+        end
+    elseif type(tParams) == "table" then
+        page      = tonumber(tParams.page) or 1
+        page_size = tonumber(tParams.page_size) or 50
+    end
+
+    if auth_token == "" or vid == "" then
+        print("[FACES] ERROR: Missing Auth Token or VID")
+        SendStrangerFacesToUI({
+            type    = "stranger_faces",
+            success = false,
+            error   = "Missing Auth Token or VID"
+        })
+        return
+    end
+
+    local url = string.format(
+        "%s/api/v3/openapi/stranger-note/list?vid=%s&page=%d&page_size=%d",
+        baseUrl, vid, page, page_size
+    )
+
+    print("[FACES] Requesting:", url)
+
+    transport.execute({
+        url     = url,
+        method  = "GET",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+        }
+    }, function(code, response, _, err)
+        print("[FACES] HTTP Code:", code)
+
+        if err or (code ~= 200 and code ~= 20000) then
+            print("[FACES] Request failed:", err or code)
+            SendStrangerFacesToUI({
+                type    = "stranger_faces",
+                success = false,
+                error   = "HTTP Error: " .. tostring(err or code)
+            })
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+if not ok or not result then
+    print("[FACES] JSON Parse Error")
+    SendStrangerFacesToUI({
+        type    = "stranger_faces",
+        success = false,
+        error   = "JSON Parse Error"
+    })
+    return
+end
+
+-- Accept both 0 and 20000 as success (same as your other APIs)
+if result.code ~= 0 and result.code ~= 20000 then
+    print("[FACES] API Error:", result.message or "Unknown", "code:", tostring(result.code))
+    SendStrangerFacesToUI({
+        type    = "stranger_faces",
+        success = false,
+        error   = result.message or "API returned error",
+        code    = result.code
+    })
+    return
+end
+
+local notes = {}
+local total = 0
+
+if result.data then
+    notes = result.data.notes or {}
+    total = result.data.total or 0
+end
+
+print(string.format("[FACES] Success — received %d notes (total=%d)", #notes, total))
+
+-- Optional: cache face names
+if not _G.FACE_NAME_CACHE then
+    _G.FACE_NAME_CACHE = {}
+end
+for _, n in ipairs(notes) do
+    if n.face_id and n.note and n.note ~= "" then
+        _G.FACE_NAME_CACHE[n.face_id] = n.note
+    end
+end
+
+SendStrangerFacesToUI({
+    type    = "stranger_faces",
+    success = true,
+    data    = {
+        notes = notes,
+        total = total
+    }
+})
+    end)
+end
+
+function SendStrangerFacesToUI(data)
+    local jsonData = json.encode(data)
+
+    -- Same reliable pattern you use for device_info / snapshot
+    pcall(function()
+        C4:SendToProxy(5003, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5003, "UPDATE_UI", {})
+       
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
+
+    print("[FACES] Sent result to UI")
+end
+
+
+-- =====================================================
+-- UPDATE STRANGER NOTE (OP12)
+-- =====================================================
+function UPDATE_STRANGER_NOTE(tParams)
+    print("===================================================")
+    print("UPDATE_STRANGER_NOTE CALLED")
+    print("===================================================")
+
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid        = _props["VID"] or Properties["VID"] or ""
+    local baseUrl    = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    local face_id = nil
+    local note    = nil
+
+    if type(tParams) == "string" then
+        local ok, data = pcall(json.decode, tParams)
+        if ok and data then
+            face_id = data.face_id
+            note    = data.note
+            if data.vid and data.vid ~= "" then
+                vid = data.vid
+            end
+        end
+    elseif type(tParams) == "table" then
+        face_id = tParams.face_id
+        note    = tParams.note
+        if tParams.vid and tParams.vid ~= "" then
+            vid = tParams.vid
+        end
+    end
+
+    if auth_token == "" or vid == "" then
+        print("[FACES] ERROR: Missing Auth Token or VID")
+        SendStrangerNoteResultToUI(false, "Missing Auth Token or VID")
+        return
+    end
+
+    if not face_id or face_id == "" then
+        print("[FACES] ERROR: Missing face_id")
+        SendStrangerNoteResultToUI(false, "Missing face_id")
+        return
+    end
+
+    if note == nil then
+        note = ""
+    end
+
+    local url = baseUrl .. "/api/v3/openapi/stranger-note"
+
+    local body = {
+        vid     = vid,
+        face_id = face_id,
+        note    = note
+    }
+
+    print("[FACES] Updating note →", json.encode(body))
+
+    transport.execute({
+        url     = url,
+        method  = "POST",
+        headers = {
+            ["Content-Type"]  = "application/json",
+            ["Authorization"] = "Bearer " .. auth_token,
+            ["App-Name"]      = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+        },
+        body    = json.encode(body)
+    }, function(code, response, _, err)
+        print("[FACES] Update note HTTP Code:", code)
+        if response then print("[FACES] Response:", response) end
+
+        if err or (code ~= 200 and code ~= 20000) then
+            print("[FACES] Update note failed:", err or code)
+            SendStrangerNoteResultToUI(false, "HTTP Error: " .. tostring(err or code))
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or not result then
+            SendStrangerNoteResultToUI(false, "JSON Parse Error")
+            return
+        end
+
+        if result.code ~= 0 and result.code ~= 20000 then
+            SendStrangerNoteResultToUI(false, result.message or "API error")
+            return
+        end
+
+        -- Update local cache
+        if not _G.FACE_NAME_CACHE then
+            _G.FACE_NAME_CACHE = {}
+        end
+        _G.FACE_NAME_CACHE[face_id] = note
+
+        print("[FACES] Note updated successfully for face_id:", face_id)
+        SendStrangerNoteResultToUI(true, nil, face_id, note)
+    end)
+end
+
+function SendStrangerNoteResultToUI(success, error_msg, face_id, note)
+    local payload = {
+        type     = "stranger_note_updated",
+        success  = success,
+        error    = error_msg or "",
+        face_id  = face_id or "",
+        note     = note or "",
+        timestamp = os.time()
+    }
+
+    local jsonData = json.encode(payload)
+
+    pcall(function()
+        C4:SendToProxy(5003, "ICON_CHANGED", { icon_description = jsonData })
+        C4:SendToProxy(5003, "UPDATE_UI", {})
+    end)
+
+    pcall(function()
+        C4:SendDataToUI(jsonData)
+    end)
 end

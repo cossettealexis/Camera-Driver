@@ -16,6 +16,14 @@
             margin: 0;
             padding: 0;
         }
+          :root {
+            --accent: #ad1c42;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+        }
 
         img {
             max-width: 100%;
@@ -158,7 +166,7 @@
         }
 
         .smart_lock_wrap {
-            min-height: calc(100vh - 105px);
+            min-height: calc(100vh - 205px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -173,8 +181,8 @@
 
         .smart_lock_btn {
             width: 100%;
-            max-width: 280px;
-            height: 280px;
+            max-width: 250px;
+            height: 250px;
             border-radius: 100%;
             background: radial-gradient(ellipse at center, #fbe6d2 0%, #eb819d 100%);
             display: flex;
@@ -194,7 +202,7 @@
         }
 
         .smart_lock_btn span {
-            width: 100%;
+           
             text-align: center;
         }
 
@@ -211,19 +219,19 @@
         }
 
         .lock_status {
-            margin-top: 10px;
+            margin-top: -5px;
             font-size: 14px;
             color: #455a64;
             font-weight: 600;
         }
 
         .smart_lock_btn img {
-            max-width: 130px;
+            max-width: 100px;
         }
 
         .circle-shade {
             position: absolute;
-            width: 280px !important;
+            width: 250px !important;
         }
 
         .circle-shade circle {
@@ -248,22 +256,39 @@
         }
 
         /* Bottom Menu */
-        .bottom-menu {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 8px;
-            padding: 10px 20px;
-            box-shadow: 0 8px 8px rgba(0, 0, 0, 0.25);
+         .bottom-menu {
+            position: fixed;
+            bottom: 22px;
+            left: 0;
+            right: 0;
             display: flex;
-            gap: 24px;
+            justify-content: center;
+            gap: 16px;
+            padding: 0 20px;
+            z-index: 50;
         }
-
         .menu-item {
+            background: white;
+            border-radius: 16px;
+            padding: 14px 22px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
             text-align: center;
             cursor: pointer;
+            min-width: 120px;
+            transition: transform 0.15s;
+        }
+        .menu-item:active { transform: scale(0.96); }
+        .menu-item i {
+            width: 24px;
+            height: 24px;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        .menu-item span {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
         }
 
         /* Device Name Panel */
@@ -364,6 +389,212 @@
             font-weight: 600;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
+      
+
+        .version-info {
+            display: inline-block;
+            text-align: left;
+        }
+
+        .version-info span {
+            display: block;
+            font-size: 13px;
+            color: #98a2b3;
+            margin: 0 !important;
+        }
+
+        /* Panels */
+        .panel {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel.active { transform: translateY(0); }
+
+        .panel-header {
+            background: #111827;
+            color: white;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .panel-header button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            padding: 0 4px;
+            line-height: 1;
+        }
+        .panel-header h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* Device Name card */
+        .form-card {
+            background: white;
+            border-radius: 18px;
+            padding: 28px 22px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+        .form-card input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            margin: 18px 0 14px;
+            outline: none;
+        }
+        .form-card input:focus { border-color: var(--accent); }
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 15px;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* Face list */
+        .face-card {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        }
+        .face-card .label {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .face-card .desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        .face-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 340px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+        }
+
+        .face-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f9fafb;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 12px;
+        }
+
+        .face-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: #e5e7eb;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .face-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .face-info { flex: 1; min-width: 0; }
+
+        .face-name-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            padding: 4px 0;
+        }
+        .face-name-input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        .face-meta {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .empty-faces {
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            padding: 40px 0;
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            width: 100%;
+            cursor: pointer;
+        }
+        .btn-save:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #111827;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 
@@ -381,6 +612,11 @@
             <div class="battery-wrapper">
                 <i class="battery-icon" id="batteryIcon" data-percent="100"></i>
                 <span class="battery-percent" id="batteryText"></span>
+            </div>
+             <div class="version-info">
+                <span id="deviceVersion">Device: Loading...</span>
+                <span id="firmwareVersion">Firmware: Loading...</span>
+                <span id="releaseDate">Release: Loading...</span>
             </div>
         </div>
 
@@ -408,10 +644,15 @@
     <!-- Bottom Menu -->
     <div class="bottom-menu">
         <div class="menu-item" onclick="showDeviceNamePanel()">
-            <i data-lucide="edit-3" style="width:28px;height:28px;color:#333;"></i>
-            <div style="font-size:13px;color:#333;margin-top: 12px;">Device Name</div>
+             <i data-lucide="edit-3"></i>
+            <span>Device Name</span>
+        </div>
+        <div class="menu-item" onclick="showFacePanel()">
+            <i data-lucide="scan-face"></i>
+            <span>Face</span>
         </div>
     </div>
+   
 
     <!-- Device Name Panel -->
     <div id="deviceNamePanel" class="panel">
@@ -429,6 +670,31 @@
             <button class="btn" id="updateNameBtn">Update Name</button>
         </div>
     </div>
+     <!-- Face Panel -->
+    <div id="facePanel" class="panel">
+        <div class="panel-header">
+            <button onclick="hideFacePanel()">←</button>
+            <h3>Registered Faces</h3>
+        </div>
+        <div class="panel-body">
+            <div class="face-card">
+                <div class="label">Face Management</div>
+                <div class="desc">Edit names of registered faces. Changes are saved when you press the button.</div>
+
+                <div class="face-list" id="faceList">
+                    <div class="empty-faces">
+                        No faces registered yet
+                    </div>
+                </div>
+
+                <button class="btn-save" id="saveFacesBtn" disabled>
+                    Save Name Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    
 
     <!-- Success Modal -->
     <div id="successModal" class="modal">
@@ -461,6 +727,14 @@
 
         function hideDeviceNamePanel() {
             document.getElementById('deviceNamePanel').classList.remove('active');
+        }
+
+         function showFacePanel() {
+            document.getElementById('facePanel').classList.add('active');
+        }
+
+        function hideFacePanel() {
+            document.getElementById('facePanel').classList.remove('active');
         }
 
 
