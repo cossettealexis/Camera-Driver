@@ -6,10 +6,16 @@ let isMicMuted = false;
 
 let faces = [];
 let facesDirty = false;
+let latestDeviceSettings = {};
+let confirmedFaceSwitch;
+let faceUpdatePending = false;
+let faceUpdateAttempt = 0;
 
 
 let faceListEl = null;
 let saveFacesBtn = null;
+let lastFaceRequest = 0;
+const FACE_REFRESH_GAP_MS = 1500;
 
 // =====================================================
 // INIT
@@ -23,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     initAntiPry();
     initMicrophone();
+    initFacialRecognition();
     initReboot();
     requestInitialState();
     initDeviceName();
@@ -471,10 +478,11 @@ function renderFaces() {
 }
 
 function loadFaces() {
-  
+    if (!document.getElementById('faceList')) return;
+    lastFaceRequest = Date.now();
 
     faceListEl = document.getElementById('faceList');
-    if (faceListEl) {
+    if (faceListEl && faces.length === 0) {
         faceListEl.innerHTML = `<div class="empty-faces">Loading faces...</div>`;
     }
 
@@ -493,7 +501,22 @@ function loadFaces() {
     }
 }
 
+function refreshFaces() {
+    if (facesDirty) return;
+    if (Date.now() - lastFaceRequest < FACE_REFRESH_GAP_MS) return;
+    loadFaces();
+}
+
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') refreshFaces();
+});
+
+window.addEventListener('pageshow', refreshFaces);
+window.addEventListener('focus', refreshFaces);
+
 function updateFacesFromDriver(notes) {
+    if (facesDirty) return;
+
     console.log("updateFacesFromDriver received notes:", notes);
 
     faces = (notes || []).map(n => ({
@@ -509,6 +532,48 @@ function updateFacesFromDriver(notes) {
     if (saveFacesBtn) saveFacesBtn.disabled = true;
 
     renderFaces();
+}
+
+function updateFaceRecognitionState(value, errorMessage) {
+    const toggle = document.getElementById('faceRecEnable');
+    const toggleStatus = document.getElementById('faceRecStatus');
+    const faceSwitch = value === 0 || value === 1 || value === '0' || value === '1' ? Number(value) : undefined;
+    if (toggle && toggleStatus) {
+        const available = faceSwitch === 0 || faceSwitch === 1;
+        confirmedFaceSwitch = faceSwitch;
+        toggle.checked = available && faceSwitch === 1;
+        toggle.disabled = !available;
+        toggleStatus.innerText = errorMessage || (available ? (toggle.checked ? 'Enabled' : 'Disabled') : 'Unavailable');
+    }
+}
+
+function initFacialRecognition() {
+    const toggle = document.getElementById('faceRecEnable');
+    if (!toggle) return;
+    toggle.addEventListener('change', function () {
+        if (faceUpdatePending || confirmedFaceSwitch === undefined) return;
+        const attempt = ++faceUpdateAttempt;
+        faceUpdatePending = true;
+        toggle.disabled = true;
+        document.getElementById('faceRecStatus').innerText = 'Saving...';
+        try {
+            C4.sendCommand('SET_FACE_RECOGNITION', JSON.stringify({ unknow_snapswt: toggle.checked ? 1 : 0 }), false, true);
+        } catch (error) {
+            faceUpdatePending = false;
+            updateFaceRecognitionState(confirmedFaceSwitch, 'Failed to update facial recognition');
+        }
+        setTimeout(function () {
+            if (!faceUpdatePending || attempt !== faceUpdateAttempt) return;
+            faceUpdatePending = false;
+            updateFaceRecognitionState(confirmedFaceSwitch, 'Update timed out');
+            C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+        }, 15000);
+    });
+}
+
+function updateDeviceSettingsFromDriver(settings) {
+    latestDeviceSettings = settings || {};
+    if (!faceUpdatePending) updateFaceRecognitionState(latestDeviceSettings.unknow_snapswt);
 }
 
 function initSaveFacesButton() {
@@ -655,12 +720,27 @@ function onDataToUi(value) {
         // STRANGER FACES LIST
         // =========================
         if (obj.type === "stranger_faces") {
+            if (!document.getElementById('faceList')) return;
             if (obj.success && obj.data && obj.data.notes) {
                 updateFacesFromDriver(obj.data.notes);
             } else {
                 showModal(obj.error || obj.message || "Failed to load faces", "Error");
-                faces = [];
-                renderFaces();
+                if (faces.length === 0) renderFaces();
+            }
+        }
+
+        if (obj.type === 'device_settings') {
+            updateDeviceSettingsFromDriver(obj.settings);
+        }
+
+        if (obj.type === 'face_recognition_updated') {
+            faceUpdatePending = false;
+            if (obj.success) {
+                latestDeviceSettings.unknow_snapswt = obj.unknow_snapswt;
+                updateFaceRecognitionState(obj.unknow_snapswt);
+                C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+            } else {
+                updateFaceRecognitionState(confirmedFaceSwitch, obj.error || 'Failed to update facial recognition');
             }
         }
 
@@ -704,6 +784,7 @@ function onDataToUi(value) {
 
 function onVariable(v) {
     console.log('onVariable', v);
+    refreshFaces();
 }
 
 function onSendCommandError(msg) {

@@ -829,6 +829,11 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "SET_FACE_RECOGNITION" then
+        SET_FACE_RECOGNITION(tParams)
+        return
+    end
+
      if strCommand == "REBOOT_DEVICE" then
         print("[COMMAND] Rebooting requested")
         REBOOT_DEVICE(tParams)
@@ -878,7 +883,7 @@ function ExecuteCommand(strCommand, tParams)
 end
 
 -- OP03. Device Control(properties)
-function SET_DEVICE_PROPERTY(property_data, success_callback)
+function SET_DEVICE_PROPERTY(property_data, success_callback, failure_callback)
     print("================================================================")
     print("           SET_DEVICE_PROPERTY CALLED                           ")
     print("================================================================")
@@ -886,16 +891,17 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
         print("ERROR: No auth token available")
+        if failure_callback then failure_callback("Missing Auth Token") end
         return
     end
 
     local vid = _props["VID"] or Properties["VID"]
     if not vid or vid == "" then
         print("ERROR: No VID available")
+        if failure_callback then failure_callback("Missing VID") end
         return
     end
 
-    print("Using bearer token: " .. auth_token)
     print("Using VID: " .. vid)
     print("Property data: " .. json.encode(property_data))
 
@@ -906,6 +912,7 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
 
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
+        if failure_callback then failure_callback("Missing CldBus credentials") end
         return
     end
 
@@ -940,13 +947,17 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
         end
         print("----------------------------------------------------------------")
 
-        if code == 200 or code == 20000 then
+        local ok, result = pcall(json.decode, resp or "")
+        local api_code = ok and type(result) == "table" and tonumber(result.code)
+        local api_success = api_code == 0 or api_code == 200 or api_code == 20000
+        if (code == 200 or code == 20000) and api_success then
             print("Property set successfully")
             if success_callback then
                 success_callback()
             end
         else
             print("Failed to set property")
+            if failure_callback then failure_callback("Device property update failed") end
         end
     end)
     print("================================================================")
@@ -3352,6 +3363,29 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         end)
         return
     end
+
+    if strCommand == "REQUEST_SETTINGS" and idBinding == 5005 then
+        print("[UI] REQUEST_SETTINGS received; fetching property-latest")
+        GET_DEVICE_PROPERTY(nil, function(values)
+            local settings = values or {}
+            local face_settings = {}
+            for data_id, value in pairs(settings) do
+                local key = string.lower(tostring(data_id))
+                if key:find("face", 1, true) or key:find("recogn", 1, true) or
+                         key:find("similar", 1, true) or key:find("stranger", 1, true) or
+                         key == "unknow_snapswt" or key == "unknow_thld" then
+                    face_settings[data_id] = value
+                end
+            end
+            SendDeviceInfoToUI({
+                type = "device_settings",
+                success = values ~= nil,
+                settings = settings,
+                face_settings = face_settings
+            })
+        end)
+        return
+    end
     
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
@@ -4517,6 +4551,172 @@ function SendStrangerFacesToUI(data)
     print("[FACES] Sent result to UI")
 end
 
+function GET_DEVICE_PROPERTY(property_name, callback)
+    local appId, appSecret = GetCldBusCredentials()
+    local auth_token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid = _props["VID"] or Properties["VID"] or ""
+    local base_url = GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com"
+
+    if auth_token == "" or vid == "" or appId == "" or appSecret == "" then
+        print("[GET_DEVICE_PROPERTY] Missing Auth Token, VID, or CldBus credentials")
+        if callback then callback(nil) end
+        return
+    end
+
+    local headers = {
+        ["Content-Type"] = "application/json",
+        ["Accept-Language"] = "en",
+        ["Authorization"] = "Bearer " .. auth_token,
+        ["App-Name"] = appId
+    }
+    local request = {
+        url = base_url .. "/api/v3/openapi/devices?vid=" .. vid,
+        method = "GET",
+        headers = headers
+    }
+
+    if property_name == nil then
+        request.url = base_url .. "/api/v3/openapi/device/property-latest"
+        request.method = "POST"
+        request.body = json.encode({ vid = vid, data_source = 0 })
+        print("[GET_DEVICE_PROPERTY] Requesting property-latest for VID " .. tostring(vid))
+    end
+
+    transport.execute(request, function(code, response, _, err)
+        if property_name == nil then
+            print("[GET_DEVICE_PROPERTY] property-latest HTTP status: " .. tostring(code))
+            print("[GET_DEVICE_PROPERTY] property-latest raw response: " .. tostring(response))
+        end
+        if code ~= 200 and code ~= 20000 then
+            print("[GET_DEVICE_PROPERTY] Request failed: " .. tostring(err or code))
+            if callback then callback(nil) end
+            return
+        end
+
+        local ok, result = pcall(json.decode, response or "")
+        if not ok or type(result) ~= "table" then
+            print("[GET_DEVICE_PROPERTY] Response JSON parse failed")
+            if callback then callback(nil) end
+            return
+        end
+        local api_code = tonumber(result.code)
+        if api_code and api_code ~= 0 and api_code ~= 200 and api_code ~= 20000 then
+            print("[GET_DEVICE_PROPERTY] API error: " .. tostring(result.message))
+            if callback then callback(nil) end
+            return
+        end
+
+        local data = result.data or (result.result and result.result.data)
+        if type(data) ~= "table" then
+            print("[GET_DEVICE_PROPERTY] property-latest response data is missing or not an object/list")
+            if callback then callback(nil) end
+            return
+        end
+
+        local device = data
+        if device.devices or device.share_devices then
+            local matched
+            for _, list in ipairs({ device.devices or {}, device.share_devices or {} }) do
+                for _, candidate in ipairs(list) do
+                    if tostring(candidate.vid) == tostring(vid) then
+                        matched = candidate
+                        break
+                    end
+                end
+                if matched then break end
+            end
+            device = matched
+        end
+
+        local status = device and device.status
+        if property_name == nil and status == nil then
+            status = device
+            if status and status.data_id then status = { status } end
+        end
+        if type(status) == "string" then
+            local status_ok, decoded = pcall(json.decode, status)
+            status = status_ok and decoded or nil
+        end
+        if type(status) ~= "table" then
+            if callback then callback(nil) end
+            return
+        end
+
+        local values = {}
+        local definitions = {}
+        for key, item in pairs(status) do
+            if type(item) == "table" then
+                local name = item.data_id or item.status_key or item.name
+                local value = item.status_val
+                if value == nil then value = item.value end
+                if name then
+                    values[name] = value
+                    if item.define ~= nil then definitions[name] = item.define end
+                end
+            elseif type(key) == "string" then
+                values[key] = item
+            end
+        end
+        if property_name == nil then
+            local property_count = 0
+            local face_candidates = {}
+            for name, value in pairs(values) do
+                property_count = property_count + 1
+                print("[GET_DEVICE_PROPERTY] property-latest " .. tostring(name) .. " = " .. tostring(value))
+                local lowered = string.lower(tostring(name))
+                     if lowered:find("face", 1, true) or lowered:find("recogn", 1, true) or
+                         lowered == "unknow_snapswt" or lowered == "unknow_thld" then
+                    face_candidates[#face_candidates + 1] = tostring(name)
+                    print("[GET_DEVICE_PROPERTY] face-recognition candidate " .. tostring(name) .. " = " .. tostring(value))
+                    if definitions[name] ~= nil then
+                        print("[GET_DEVICE_PROPERTY] face-recognition define " .. tostring(name) .. " = " .. tostring(definitions[name]))
+                    end
+                end
+            end
+            print("[GET_DEVICE_PROPERTY] property-latest returned " .. tostring(property_count) .. " data_id values")
+            if #face_candidates == 0 then
+                print("[GET_DEVICE_PROPERTY] No face-recognition data_id values returned by property-latest")
+            end
+            print("[GET_DEVICE_PROPERTY] Parsed property-latest values: " .. json.encode(values))
+            local face_switch = tonumber(values.unknow_snapswt)
+            if face_switch == 0 or face_switch == 1 then
+                print("[GET_DEVICE_PROPERTY] Facial Recognition: " ..
+                    (face_switch == 1 and "ENABLED" or "DISABLED") .. " (unknow_snapswt=" .. tostring(face_switch) .. ")")
+            end
+            if callback then callback(values) end
+        elseif callback then
+            callback(values[property_name])
+        end
+    end)
+end
+
+
+function SET_FACE_RECOGNITION(tParams)
+    local params = tParams
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local state = type(params) == "table" and tonumber(params.unknow_snapswt) or nil
+    local function send_result(success, error_message)
+        SendDeviceInfoToUI({
+            type = "face_recognition_updated",
+            success = success,
+            unknow_snapswt = success and state or nil,
+            error = error_message
+        })
+    end
+    if state ~= 0 and state ~= 1 then
+        send_result(false, "Invalid facial recognition state")
+        return
+    end
+    SET_DEVICE_PROPERTY({ unknow_snapswt = state }, function()
+        print("[FACE] Facial Recognition: " .. (state == 1 and "ENABLED" or "DISABLED"))
+        send_result(true)
+    end, function(error_message)
+        send_result(false, error_message)
+    end)
+end
 
 -- =====================================================
 -- UPDATE STRANGER NOTE (OP12)
