@@ -273,6 +273,69 @@ function handleReboot() {
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
 // =====================================================
 
+function updateCameraSettingsUI(settings) {
+    const numeric = value => value === undefined || value === null || value === '' ? null : Number(value);
+    const isEnabled = value => value === true || Number(value) === 1;
+    const renderPicker = (key, value, labels) => {
+        const number = numeric(value);
+        if (number === null) return;
+        const label = labels[number];
+        if (label && typeof renderVideoSettingValue === 'function') renderVideoSettingValue(key, label);
+    };
+
+    renderPicker('recordingMode', settings.record_mode, { 0: 'Event Recording Mode', 1: '24hr Continuous Record' });
+        renderPicker('nightVisionMode', settings.icut_mode, { 0: 'Automatic', 2: 'OFF', 3: 'ON' });
+    renderPicker('antiFlicker', settings.anti_flicker, { 0: 'OFF', 1: '50Hz', 2: '60Hz' });
+    renderPicker('detectionType', settings.motion_type, { 0: 'Motion Detection', 1: 'Person Detection' });
+    renderPicker('detectionSensitivity', settings.motion_sen, { 0: 'Low', 1: 'Medium', 2: 'High' });
+
+    const motionToggle = document.getElementById('motionDetectionToggle');
+    if (motionToggle && settings.motion_switch !== undefined) {
+        motionToggle.checked = isEnabled(settings.motion_switch);
+        document.querySelectorAll('.motion-setting-row[data-setting]').forEach(row => {
+            row.hidden = !motionToggle.checked;
+        });
+    }
+
+    [['flipImageToggle', 'flip_swt'], ['timeWatermarkToggle', 'mark']].forEach(([id, key]) => {
+        const toggle = document.getElementById(id);
+        if (toggle && settings[key] !== undefined) toggle.checked = isEnabled(settings[key]);
+    });
+
+    [['eventRecordingLength', 'eventRecordingLengthValue', 'motion_rec_time'],
+        ['eventTriggerInterval', 'eventTriggerIntervalValue', 'motion_interval']].forEach(([sliderId, outputId, key]) => {
+        const slider = document.getElementById(sliderId);
+        const value = numeric(settings[key]);
+        if (!slider || value === null) return;
+        slider.value = String(value);
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+        const output = document.getElementById(outputId);
+        if (output) output.textContent = String(value);
+    });
+
+    const speaker = document.getElementById('speakerVolume');
+    const volume = numeric(settings.beep_vol);
+    if (speaker && volume !== null) {
+        speaker.value = String(volume);
+        speaker.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    const storageStatus = document.getElementById('storageCardStatus');
+    const storageStatusLabels = { 0: 'Normal', 1: 'No SD card', 2: 'Filesystem not initialized' };
+    if (storageStatus && settings.stored_status !== undefined) {
+        storageStatus.textContent = storageStatusLabels[settings.stored_status] || String(settings.stored_status);
+    }
+
+    const capacity = numeric(settings.stored_capacity);
+    const usage = numeric(settings.stored_usage);
+    const total = document.getElementById('storageTotal');
+    const available = document.getElementById('storageAvailable');
+    if (total && capacity !== null && capacity > 0) total.textContent = `${capacity} GB`;
+    if (available && capacity !== null && capacity > 0 && usage !== null && usage >= 0 && usage <= 100) {
+        available.textContent = `${Number((capacity * (1 - usage / 100)).toFixed(2))} GB`;
+    }
+}
+
 function onDataToUi(value) {
 
     try {
@@ -285,6 +348,30 @@ function onDataToUi(value) {
             obj = JSON.parse(jsonObject.icon_description);
         } else {
             obj = jsonObject;
+        }
+
+        if (obj.type === 'camera_settings' && obj.success) {
+            updateCameraSettingsUI(obj.settings || {});
+            if (obj.event_time_updated) {
+                const status = document.getElementById('eventTimeStatus');
+                if (status) status.textContent = 'Saved.';
+            }
+        }
+
+        if (obj.type === 'camera_setting_result' && !obj.success) {
+            const status = document.getElementById('eventTimeStatus');
+            if (status && !status.hidden) status.textContent = obj.error || 'Unable to save camera setting.';
+            console.error('Camera setting update failed', obj.error);
+            requestCameraSettings();
+        }
+
+        if (obj.type === 'storage_format') {
+            const status = document.getElementById('storageActionStatus');
+            if (status) {
+                status.textContent = obj.success ? 'Local storage format requested.' : (obj.error || 'Local storage format failed.');
+                status.hidden = false;
+            }
+            if (obj.success) requestCameraSettings();
         }
 
        
@@ -324,10 +411,6 @@ function onDataToUi(value) {
 
             let wifiSignal = obj.rssi;
             const signalValue = Number(obj.rssi);
-            const deviceNameDisplay = document.getElementById('deviceNameDisplay');
-            if (deviceNameDisplay && obj.device_name) {
-                deviceNameDisplay.textContent = obj.device_name;
-            }
             if (obj.rssi !== undefined && obj.rssi !== null && obj.rssi !== '' && Number.isFinite(signalValue)) {
                 if (signalValue >= 0) {
                     wifiSignal = signalValue >= 75 ? 'Very strong' : signalValue >= 50 ? 'Strong' : signalValue >= 25 ? 'Fair' : 'Weak';

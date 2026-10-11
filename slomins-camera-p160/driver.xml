@@ -253,42 +253,6 @@
                 <readonly>false</readonly>
             </property>
             <property>
-                <name>Enable Motion Notifications</name>
-                <type>LIST</type>
-                <items>
-                    <item>True</item>
-                    <item>False</item>
-                </items>
-                <default>True</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Enable Offline Notifications</name>
-                <type>LIST</type>
-                <items>
-                    <item>True</item>
-                    <item>False</item>
-                </items>
-                <default>True</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Enable Event Notifications</name>
-                <type>LIST</type>
-                <items>
-                    <item>True</item>
-                    <item>False</item>
-                </items>
-                <default>True</default>
-                <readonly>false</readonly>
-            </property>
-            <property>
-                <name>Event Interval (ms)</name>
-                <type>STRING</type>
-                <default>60000</default>
-                <readonly>true</readonly>
-            </property>
-            <property>
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
@@ -404,8 +368,16 @@
                 <description>Set a notification preference</description>
             </command>
             <command>
-                <name>SET_EVENT_TRIGGER_INTERVAL</name>
-                <description>Set the event trigger interval in seconds</description>
+                <name>GET_CAMERA_SETTINGS</name>
+                <description>Read current camera settings</description>
+            </command>
+            <command>
+                <name>SET_CAMERA_SETTING</name>
+                <description>Update a camera setting</description>
+            </command>
+            <command>
+                <name>FORMAT_STORAGE</name>
+                <description>Format local camera storage after confirmation</description>
             </command>
             <command>
                 <name>SET_DEVICE_NAME</name>

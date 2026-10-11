@@ -1904,8 +1904,8 @@
             <div class="storage-page-content">
                 <div class="storage-summary-card">
                     <i data-lucide="database" class="storage-summary-icon" aria-hidden="true"></i>
-                    <div class="storage-capacity-row"><span>Total:</span><span id="storageTotal">29 GB</span></div>
-                    <div class="storage-capacity-row"><span>Available:</span><span id="storageAvailable">6 GB</span></div>
+                    <div class="storage-capacity-row"><span>Total:</span><span id="storageTotal">...</span></div>
+                    <div class="storage-capacity-row"><span>Available:</span><span id="storageAvailable">...</span></div>
                 </div>
                 <div class="storage-retention-card">
                     <i data-lucide="shield-check" class="storage-retention-icon" aria-hidden="true"></i>
@@ -2138,12 +2138,24 @@
                 if (id === 'settingsPanel') nextPanel.scrollTop = 0;
             }
 
+            if (['videoSettingsPanel', 'audioSettingsPanel', 'eventTimeSettingsPanel', 'motionDetectionPanel', 'detectionZonePanel', 'internalStoragePanel'].includes(id)) {
+                requestCameraSettings();
+            }
+
             const footer = document.querySelector('.footer');
             if (footer) {
                 footer.classList.toggle('visible', id === 'settingsPanel');
             }
 
             lucide.createIcons();
+        }
+
+        function requestCameraSettings() {
+            try {
+                C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+            } catch (error) {
+                console.warn('Camera settings are unavailable outside Control4', error);
+            }
         }
 
         function openNotificationSettings() {
@@ -2218,20 +2230,31 @@
         }
 
         function confirmStorageFormat() {
-            closeStorageFormatConfirmation();
             const status = document.getElementById('storageActionStatus');
-            status.textContent = 'Storage formatting is not available through this driver.';
+            status.textContent = 'Formatting local storage...';
             status.hidden = false;
+            try {
+                C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
+                closeStorageFormatConfirmation();
+            } catch (error) {
+                status.textContent = 'Storage formatting is unavailable outside Control4.';
+                console.error('Failed to format storage', error);
+            }
         }
 
         function confirmEventTimeSettings() {
+            const recordingLength = Number(document.getElementById('eventRecordingLength').value);
             const intervalSeconds = Number(document.getElementById('eventTriggerInterval').value);
             const status = document.getElementById('eventTimeStatus');
             try {
-                C4.sendCommand('SET_EVENT_TRIGGER_INTERVAL', JSON.stringify({ seconds: intervalSeconds }), false, true);
-                status.textContent = 'Event trigger interval saved. Maximum recording length is not supported by this driver.';
+                C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({
+                    key: 'motion',
+                    rec_time: recordingLength,
+                    interval: intervalSeconds
+                }), false, true);
+                status.textContent = 'Saving event time settings...';
             } catch (error) {
-                status.textContent = 'Maximum recording length is not supported by this driver.';
+                status.textContent = 'Unable to save event time settings outside Control4.';
                 console.error('Failed to save event time settings', error);
             }
             status.hidden = false;
@@ -2339,14 +2362,31 @@
             }
         };
 
-        function updateVideoSettingValue(settingKey, value) {
+        const cameraSettingMap = {
+            recordingMode: { key: 'record_mode', values: { 'Event Recording Mode': 0, '24hr Continuous Record': 1 } },
+            nightVisionMode: { key: 'icut_mode', values: { Automatic: 0, OFF: 2, ON: 3 } },
+            antiFlicker: { key: 'anti_flicker', values: { OFF: 0, '50Hz': 1, '60Hz': 2 } },
+            detectionType: { key: 'motion.type', values: { 'Motion Detection': 0, 'Person Detection': 1 } },
+            detectionSensitivity: { key: 'motion.sen', values: { Low: 0, Medium: 1, High: 2 } }
+        };
+
+        function renderVideoSettingValue(settingKey, value) {
             const config = videoSettingConfig[settingKey] || motionSettingConfig[settingKey];
             if (!config) return;
 
             config.value = value;
             const valueEl = document.getElementById(`${settingKey}Value`);
-            if (valueEl) {
-                valueEl.textContent = value;
+            if (valueEl) valueEl.textContent = value;
+        }
+
+        function updateVideoSettingValue(settingKey, value) {
+            const mapping = cameraSettingMap[settingKey];
+            const apiValue = mapping && mapping.values[value];
+            if (apiValue === undefined) return;
+            try {
+                C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: mapping.key, value: apiValue }), false, true);
+            } catch (error) {
+                console.error(`Failed to update ${settingKey}`, error);
             }
         }
 
@@ -2463,18 +2503,33 @@
                 };
 
                 updateMotionSettingsVisibility();
-                motionDetectionToggle.addEventListener('change', updateMotionSettingsVisibility);
+                motionDetectionToggle.addEventListener('change', () => {
+                    updateMotionSettingsVisibility();
+                    try {
+                        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'motion.switch', value: motionDetectionToggle.checked ? 1 : 0 }), false, true);
+                    } catch (error) {
+                        console.error('Failed to update motion detection', error);
+                    }
+                });
             }
 
             if (flipImageToggle) {
                 flipImageToggle.addEventListener('change', function () {
-                    console.log(this.checked ? "FLIP_IMAGE_ON" : "FLIP_IMAGE_OFF");
+                    try {
+                        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'flip_swt', value: this.checked ? 1 : 0 }), false, true);
+                    } catch (error) {
+                        console.error('Failed to update image flip', error);
+                    }
                 });
             }
 
             if (timeWatermarkToggle) {
                 timeWatermarkToggle.addEventListener('change', function () {
-                    console.log(this.checked ? "TIME_WATERMARK_ON" : "TIME_WATERMARK_OFF");
+                    try {
+                        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'mark', value: this.checked ? 1 : 0 }), false, true);
+                    } catch (error) {
+                        console.error('Failed to update time watermark', error);
+                    }
                 });
             }
 

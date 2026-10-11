@@ -18,7 +18,7 @@ MAX_TIME_DRIFT           = 600 -- seconds (acceptable drift)
 
 
 local CAMERA_BINDING = 5001
-local EVENT_DELAY_MS = tonumber(Properties["Event Interval (ms)"]) or 5000
+local EVENT_DELAY_MS = 5000
 
 local NOTIFY = {
     ALERT = "ALERT",
@@ -32,6 +32,24 @@ local user_settings = {
     enable_motion = true,
     enable_offline = true,
     enable_event = true
+}
+
+local camera_settings = {
+    motion_switch = 1,
+    motion_type = 0,
+    motion_sen = 1,
+    motion_x_y_w_h = "0:0:0:0",
+    motion_rec_time = 15,
+    motion_interval = 60,
+    record_mode = 0,
+    icut_mode = 0,
+    anti_flicker = 0,
+    flip_swt = 0,
+    mark = 1,
+    beep_vol = 8,
+    stored_status = 0,
+    stored_capacity = 0,
+    stored_usage = 0
 }
 
 -- Cooldown windows (seconds)
@@ -174,9 +192,6 @@ function OnDriverInit()
     end
     user_settings.enable_alerts = Properties["Enable Alert Notifications"] ~= "False"
     user_settings.enable_info = Properties["Enable Info Notifications"] ~= "False"
-    user_settings.enable_motion = Properties["Enable Motion Notifications"] ~= "False"
-    user_settings.enable_offline = Properties["Enable Offline Notifications"] ~= "False"
-    user_settings.enable_event = Properties["Enable Event Notifications"] ~= "False"
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -515,22 +530,6 @@ function OnPropertyChanged(strProperty)
         return
     end
 
-    local notification_setting_fields = {
-        ["Enable Motion Notifications"] = "enable_motion",
-        ["Enable Offline Notifications"] = "enable_offline",
-        ["Enable Event Notifications"] = "enable_event"
-    }
-    local notification_field = notification_setting_fields[strProperty]
-    if notification_field then
-        user_settings[notification_field] = Properties[strProperty] == "True"
-        return
-    end
-
-    if strProperty == "Event Interval (ms)" then
-        EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
-        print("[EVENT_DELAY_MS] Event interval updated to:", EVENT_DELAY_MS, "ms")
-        return
-    end
     if strProperty == "VID" then
     local newVid = Properties["VID"] or ""
     if newVid ~= "" then
@@ -623,7 +622,7 @@ end
 end
 
 -- OP03. Device Control(properties)
-function SET_DEVICE_PROPERTY(property_data, success_callback)
+function SET_DEVICE_PROPERTY(property_data, success_callback, failure_callback)
     print("================================================================")
     print("           SET_DEVICE_PROPERTY CALLED                           ")
     print("================================================================")
@@ -631,12 +630,14 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
         print("ERROR: No auth token available")
+        if failure_callback then failure_callback("Missing Auth Token") end
         return
     end
 
     local vid = _props["VID"] or Properties["VID"]
     if not vid or vid == "" then
         print("ERROR: No VID available")
+        if failure_callback then failure_callback("Missing VID") end
         return
     end
 
@@ -651,6 +652,7 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
     local appSecret = _props["AppSecret"] or Properties["AppSecret"] or ""
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
+        if failure_callback then failure_callback("Missing API credentials") end
         return
     end
 
@@ -685,13 +687,19 @@ function SET_DEVICE_PROPERTY(property_data, success_callback)
         end
         print("----------------------------------------------------------------")
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (parsed.code == nil or api_code == 200 or api_code == 20000) then
             print("Property set successfully")
             if success_callback then
                 success_callback()
             end
         else
             print("Failed to set property")
+            if failure_callback then
+                failure_callback(ok and type(parsed) == "table" and parsed.message or tostring(err or code))
+            end
         end
     end)
     print("================================================================")
@@ -735,6 +743,19 @@ function GET_DEVICE_PROPERTY(property_name, callback)
         headers = headers
     }
 
+    if property_name == nil then
+        req.url = base_url .. "/api/v3/openapi/device/property-latest"
+        req.method = "POST"
+        req.body = json.encode({
+            vid = vid,
+            data_ids = {
+                "motion", "record_mode", "icut_mode", "anti_flicker", "flip_swt", "mark",
+                "beep_vol", "stored"
+            },
+            data_source = 0
+        })
+    end
+
     transport.execute(req, function(code, resp, resp_headers, err)
         if code ~= 200 and code ~= 20000 then
             print("ERROR: Failed to get device properties")
@@ -742,18 +763,266 @@ function GET_DEVICE_PROPERTY(property_name, callback)
             return
         end
 
-        local ok, parsed = pcall(json.decode, resp)
-        if ok and parsed and parsed.data and parsed.data.status then
-            for _, prop in ipairs(parsed.data.status) do
-                if prop.status_key == property_name then
-                    if callback then callback(prop.status_val) end
-                    return
+        local ok, parsed = pcall(json.decode, resp or "")
+        if not ok or type(parsed) ~= "table" then
+            if callback then callback(nil) end
+            return
+        end
+
+        local data = parsed.data or (parsed.result and parsed.result.data)
+        if type(data) ~= "table" then
+            if callback then callback(nil) end
+            return
+        end
+
+        local device = data
+        if device.devices or device.share_devices then
+            local matched_device
+            for _, devices in ipairs({ device.devices or {}, device.share_devices or {} }) do
+                for _, candidate in ipairs(devices) do
+                    if tostring(candidate.vid) == tostring(vid) then
+                        matched_device = candidate
+                        break
+                    end
+                end
+                if matched_device then break end
+            end
+            device = matched_device
+        end
+
+        local status = device and device.status
+        if property_name == nil and status == nil then
+            status = device
+            if status and status.data_id then status = { status } end
+        end
+        if type(status) == "string" then
+            local decoded, value = pcall(json.decode, status)
+            status = decoded and value or nil
+        end
+        if type(status) ~= "table" then
+            if callback then callback(nil) end
+            return
+        end
+
+        local values = {}
+        for key, item in pairs(status) do
+            if type(item) == "table" then
+                local name = item.data_id or item.status_key or item.name
+                local value = item.status_val
+                if value == nil then value = item.value end
+                if name then values[name] = value end
+            elseif type(key) == "string" then
+                values[key] = item
+            end
+        end
+        if callback then
+            if property_name == nil then callback(values) else callback(values[property_name]) end
+        end
+    end)
+end
+
+function GET_CAMERA_SETTINGS()
+    GET_DEVICE_PROPERTY(nil, function(values)
+        if type(values) ~= "table" then
+            SendDeviceInfoToUI({ type = "camera_settings", success = false })
+            return
+        end
+
+        local settings = {}
+        for key, value in pairs(values) do
+            if key == "motion" or key == "stored" then
+                if type(value) == "string" then
+                    local ok, decoded = pcall(json.decode, value)
+                    value = ok and decoded or nil
+                end
+                if type(value) == "table" then
+                    for field, field_value in pairs(value) do
+                        local setting_key = key .. "_" .. field
+                        if camera_settings[setting_key] ~= nil then
+                            camera_settings[setting_key] = field_value
+                            settings[setting_key] = field_value
+                        end
+                    end
+                end
+            else
+                local setting_key = key:gsub("%.", "_")
+                if camera_settings[setting_key] ~= nil then
+                    camera_settings[setting_key] = value
+                    settings[setting_key] = value
                 end
             end
         end
-        
-        if callback then callback(nil) end
+
+        SendDeviceInfoToUI({ type = "camera_settings", success = true, settings = settings })
     end)
+end
+
+local motion_write_queue = {}
+local motion_write_busy = false
+
+local function process_motion_writes()
+    if motion_write_busy or #motion_write_queue == 0 then return end
+
+    local changes = motion_write_queue[1]
+    local motion = {}
+    for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+        motion[field] = changes[field]
+        if motion[field] == nil then motion[field] = camera_settings["motion_" .. field] end
+    end
+    motion_write_busy = true
+
+    local function finish()
+        table.remove(motion_write_queue, 1)
+        motion_write_busy = false
+        process_motion_writes()
+    end
+
+    SET_DEVICE_PROPERTY({ motion = motion }, function()
+        local settings = {}
+        for field, value in pairs(motion) do
+            camera_settings["motion_" .. field] = value
+            settings["motion_" .. field] = value
+        end
+        SendDeviceInfoToUI({
+            type = "camera_settings",
+            success = true,
+            setting_saved = true,
+            settings = settings,
+            event_time_updated = changes.rec_time ~= nil and changes.interval ~= nil
+        })
+        finish()
+    end, function(error_message)
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = error_message })
+        finish()
+    end)
+end
+
+function UPDATE_CAMERA_SETTING(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        tParams = ok and decoded or nil
+    end
+    if type(tParams) ~= "table" then
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = "Invalid setting payload" })
+        return false
+    end
+
+    local key = tostring(tParams.key or tParams.setting or "")
+    local value = tParams.value
+    local aliases = {
+        recording_mode = "record_mode",
+        night_vision_mode = "icut_mode",
+        antiflicker = "anti_flicker",
+        flip_image = "flip_swt",
+        time_watermark = "mark",
+        detection_type = "motion.type",
+        detection_sensitivity = "motion.sen",
+        motion_detection = "motion.switch",
+        record_max_len = "motion.rec_time",
+        record_interval = "motion.interval"
+    }
+    key = aliases[key] or key
+
+    local ranges = {
+        ["motion.switch"] = { 0, 1 }, ["motion.type"] = { 0, 1 },
+        ["motion.sen"] = { 0, 2 }, ["motion.rec_time"] = { 0, 60 },
+        ["motion.interval"] = { 0, 120 }, beep_vol = { 0, 10 },
+        record_mode = { 0, 1 }, anti_flicker = { 0, 2 }, flip_swt = { 0, 1 }, mark = { 0, 1 }
+    }
+
+    if key == "motion" then
+        local changes = {}
+        for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+            local candidate = tParams[field]
+            if candidate ~= nil then
+                if field == "x_y_w_h" then
+                    if type(candidate) ~= "string" or not candidate:match("^%d+:%d+:%d+:%d+$") then
+                        return false
+                    end
+                else
+                    candidate = tonumber(candidate) or (type(candidate) == "boolean" and (candidate and 1 or 0))
+                    local range = ranges["motion." .. field]
+                    if not range or not candidate or candidate % 1 ~= 0 or candidate < range[1] or candidate > range[2] then
+                        return false
+                    end
+                end
+                changes[field] = candidate
+            end
+        end
+        if next(changes) == nil then return false end
+        table.insert(motion_write_queue, changes)
+        process_motion_writes()
+        return true
+    end
+
+    local motion_field = key:match("^motion%.(.+)$")
+    if motion_field then
+        tParams[motion_field] = value
+        tParams.key = "motion"
+        return UPDATE_CAMERA_SETTING(tParams)
+    end
+
+    value = tonumber(value) or (type(value) == "boolean" and (value and 1 or 0))
+    local range = ranges[key]
+    if key == "icut_mode" then
+        if value ~= 0 and value ~= 2 and value ~= 3 then range = nil end
+    end
+    if not range or not value or value % 1 ~= 0 or value < range[1] or value > range[2] then
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = "Unsupported setting or value" })
+        return false
+    end
+
+    if camera_settings[key] == nil then return false end
+    SET_DEVICE_PROPERTY({ [key] = value }, function()
+        camera_settings[key] = value
+        SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = true, settings = { [key] = value } })
+    end, function(error_message)
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = error_message })
+    end)
+    return true
+end
+
+function FORMAT_STORAGE(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        tParams = ok and decoded or nil
+    end
+    local confirmed = type(tParams) == "table" and
+        (tParams.confirmed == true or tParams.confirmed == "true" or tParams.confirmed == "True")
+    if not confirmed then return false end
+
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid = _props["VID"] or Properties["VID"]
+    local appId = _props["AppId"] or Properties["AppId"] or ""
+    if not token or token == "" or not vid or vid == "" or appId == "" then
+        SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device credentials" })
+        return false
+    end
+
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = appId
+        },
+        body = json.encode({
+            vid = vid,
+            action_id = "ac_sd_reset",
+            input_params = json.encode({ t = os.time() })
+        })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local success = not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (tonumber(parsed.code) == 20000 or tonumber(parsed.code) == 200)
+        SendDeviceInfoToUI({
+            type = "storage_format",
+            success = success,
+            error = not success and (ok and parsed.message or tostring(err or "Format request failed")) or nil
+        })
+    end)
+    return true
 end
 
 function ExecuteCommand(strCommand, tParams)
@@ -812,6 +1081,18 @@ function ExecuteCommand(strCommand, tParams)
     end
     if strCommand == "SET_DEVICE_PROPERTY" then
         SET_DEVICE_PROPERTY(tParams)
+        return
+    end
+    if strCommand == "GET_CAMERA_SETTINGS" then
+        GET_CAMERA_SETTINGS()
+        return
+    end
+    if strCommand == "SET_CAMERA_SETTING" then
+        UPDATE_CAMERA_SETTING(tParams)
+        return
+    end
+    if strCommand == "FORMAT_STORAGE" then
+        FORMAT_STORAGE(tParams)
         return
     end
     if strCommand == "TEST_WAKE_LOCAL" then
@@ -880,20 +1161,6 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
-    if strCommand == "SET_EVENT_TRIGGER_INTERVAL" then
-        local requested_seconds = tonumber(tParams and (tParams.seconds or tParams.value))
-        if not requested_seconds then
-            print("[COMMAND] Invalid event trigger interval requested")
-            return
-        end
-
-        local interval_seconds = math.max(0, math.min(120, math.floor(requested_seconds + 0.5)))
-        EVENT_DELAY_MS = interval_seconds * 1000
-        C4:UpdateProperty("Event Interval (ms)", tostring(EVENT_DELAY_MS))
-        print("[EVENT_DELAY_MS] UI updated interval to:", EVENT_DELAY_MS, "ms")
-        return
-    end
-
     if strCommand == "GET_NOTIFICATION_SETTINGS" then
         C4:SendDataToUI(json.encode({
             type = "notification_settings",
@@ -914,16 +1181,15 @@ function ExecuteCommand(strCommand, tParams)
         if type(enabled) ~= "boolean" then return end
 
         local settings = {
-            alert = { field = "enable_alerts", property = "Enable Alert Notifications" },
-            motion = { field = "enable_motion", property = "Enable Motion Notifications" },
-            offline = { field = "enable_offline", property = "Enable Offline Notifications" },
-            event = { field = "enable_event", property = "Enable Event Notifications" }
+            alert = "enable_alerts",
+            motion = "enable_motion",
+            offline = "enable_offline",
+            event = "enable_event"
         }
-        local setting_config = settings[setting]
-        if not setting_config then return end
+        local setting_field = settings[setting]
+        if not setting_field then return end
 
-        user_settings[setting_config.field] = enabled
-        C4:UpdateProperty(setting_config.property, enabled and "True" or "False")
+        user_settings[setting_field] = enabled
         local update = { type = "notification_settings" }
         update[setting] = enabled
         C4:SendDataToUI(json.encode(update))
