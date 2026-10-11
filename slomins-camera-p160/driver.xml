@@ -283,6 +283,12 @@
                 <readonly>false</readonly>
             </property>
             <property>
+                <name>Event Interval (ms)</name>
+                <type>STRING</type>
+                <default>60000</default>
+                <readonly>true</readonly>
+            </property>
+            <property>
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
@@ -396,6 +402,10 @@
             <command>
                 <name>SET_NOTIFICATION_SETTING</name>
                 <description>Set a notification preference</description>
+            </command>
+            <command>
+                <name>SET_EVENT_TRIGGER_INTERVAL</name>
+                <description>Set the event trigger interval in seconds</description>
             </command>
             <command>
                 <name>SET_DEVICE_NAME</name>

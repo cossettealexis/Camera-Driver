@@ -880,6 +880,20 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "SET_EVENT_TRIGGER_INTERVAL" then
+        local requested_seconds = tonumber(tParams and (tParams.seconds or tParams.value))
+        if not requested_seconds then
+            print("[COMMAND] Invalid event trigger interval requested")
+            return
+        end
+
+        local interval_seconds = math.max(0, math.min(120, math.floor(requested_seconds + 0.5)))
+        EVENT_DELAY_MS = interval_seconds * 1000
+        C4:UpdateProperty("Event Interval (ms)", tostring(EVENT_DELAY_MS))
+        print("[EVENT_DELAY_MS] UI updated interval to:", EVENT_DELAY_MS, "ms")
+        return
+    end
+
     if strCommand == "GET_NOTIFICATION_SETTINGS" then
         C4:SendDataToUI(json.encode({
             type = "notification_settings",

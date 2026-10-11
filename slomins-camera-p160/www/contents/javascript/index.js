@@ -69,6 +69,7 @@ function initDeviceName() {
             if (statusEl) {
                 statusEl.innerText = "Please enter a device name";
                 statusEl.style.color = "#ff6b6b";
+                statusEl.hidden = false;
             }
             return;
         }
@@ -76,6 +77,7 @@ function initDeviceName() {
         if (statusEl) {
             statusEl.innerText = "Updating...";
             statusEl.style.color = "#ffffff";
+            statusEl.hidden = false;
         }
 
         try {
@@ -87,6 +89,10 @@ function initDeviceName() {
                 true
             );
 
+            const display = document.getElementById('deviceNameDisplay');
+            if (display) display.textContent = newName;
+            if (typeof closeDeviceNameEditor === 'function') closeDeviceNameEditor();
+
             // Show Modal
             showModal("Device name updated successfully!", "Success");
 
@@ -97,6 +103,7 @@ function initDeviceName() {
             if (statusEl) {
                 statusEl.innerText = "Failed to send command";
                 statusEl.style.color = "#ff6b6b";
+                statusEl.hidden = false;
             }
 
             // Or show an error modal instead
@@ -155,6 +162,7 @@ function initNotificationSettings() {
 }
 
 function handleMicToggle(e) {
+                statusEl.hidden = false;
 
     const muted = !e.target.checked;
 
@@ -165,6 +173,9 @@ function sendMicCommand(muted) {
 
     try {
 
+                const display = document.getElementById('deviceNameDisplay');
+                if (display) display.textContent = newName;
+                if (typeof closeDeviceNameEditor === 'function') closeDeviceNameEditor();
         C4.sendCommand(
             muted ? 'MUTE_MIC' : 'UNMUTE_MIC',
             '',
@@ -175,6 +186,7 @@ function sendMicCommand(muted) {
     } catch (e) {
         console.log('Mic command error', e);
     }
+                    statusEl.hidden = false;
 }
 
 
@@ -288,6 +300,11 @@ function onDataToUi(value) {
                 input.value = obj.device_name;
             }
 
+            const deviceNameDisplay = document.getElementById('deviceNameDisplay');
+            if (deviceNameDisplay && obj.device_name) {
+                deviceNameDisplay.textContent = obj.device_name;
+            }
+
             // Update footer elements
             const devEl = document.getElementById('deviceVersion');
             const fwEl = document.getElementById('firmwareVersion');
@@ -307,6 +324,10 @@ function onDataToUi(value) {
 
             let wifiSignal = obj.rssi;
             const signalValue = Number(obj.rssi);
+            const deviceNameDisplay = document.getElementById('deviceNameDisplay');
+            if (deviceNameDisplay && obj.device_name) {
+                deviceNameDisplay.textContent = obj.device_name;
+            }
             if (obj.rssi !== undefined && obj.rssi !== null && obj.rssi !== '' && Number.isFinite(signalValue)) {
                 if (signalValue >= 0) {
                     wifiSignal = signalValue >= 75 ? 'Very strong' : signalValue >= 50 ? 'Strong' : signalValue >= 25 ? 'Fair' : 'Weak';

@@ -527,6 +527,7 @@
 
         .settings-panel {
             background: rgba(3, 11, 20, 0.98);
+            overflow-y: auto;
         }
 
         .settings-header {
@@ -544,6 +545,7 @@
 
         .settings-card {
             margin: 16px 18px 0;
+            flex-shrink: 0;
             background: rgba(255,255,255,0.02);
             border: 1px solid rgba(255,255,255,0.06);
             border-radius: 18px;
@@ -754,6 +756,55 @@
             border: 0;
             border-radius: 50%;
             background: var(--accent);
+        }
+
+        .event-time-content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 16px 0 10px;
+        }
+
+        .event-time-field {
+            width: 100%;
+            margin-bottom: 26px;
+            padding: 0 10px;
+        }
+
+        .event-time-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .event-time-slider-wrap {
+            position: relative;
+            padding: 18px 8px 22px;
+        }
+
+        .event-time-bounds {
+            position: absolute;
+            right: 8px;
+            bottom: 0;
+            left: 8px;
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .event-time-status {
+            margin-top: auto;
+            padding: 0 6px 12px;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .event-time-content > .storage-format-button {
+            width: 100%;
         }
 
         .settings-detail-content {
@@ -995,7 +1046,7 @@
         }
 
         .storage-format-dialog {
-            width: min(100%, 320px);
+            width: min(77vw, 600px);
             padding: 14px 8px 10px;
             border-radius: 18px;
             background: #303236;
@@ -1100,6 +1151,126 @@
         .confirmation-confirm {
             border: 0;
             background: var(--accent);
+            color: white;
+        }
+
+        .device-edit-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            width: 36px;
+            height: 36px;
+            margin-left: auto;
+            padding: 0 10px;
+            flex-shrink: 0;
+            width: auto;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .device-edit-button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .device-name-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0 8px 8px;
+            background: rgba(0,0,0,0.72);
+        }
+
+        .device-name-overlay.show {
+            display: flex;
+        }
+
+        .device-name-sheet {
+            width: 100%;
+            max-width: 760px;
+            padding: 10px 8px 8px;
+            border-radius: 18px;
+            background: #303236;
+        }
+
+        .device-name-sheet-title {
+            margin-bottom: 26px;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .device-name-input-row {
+            display: flex;
+            align-items: center;
+            min-height: 42px;
+            margin-bottom: 10px;
+            padding: 0 8px;
+            border-radius: 12px;
+            background: #1c1c1c;
+        }
+
+        .device-name-input-row input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: white;
+            font-size: 14px;
+        }
+
+        .device-name-clear {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 50%;
+            background: #424449;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .device-name-sheet-status {
+            padding: 0 4px 8px;
+            color: #ff4b4b;
+            font-size: 12px;
+        }
+
+        .device-name-sheet-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .device-name-sheet-actions button {
+            min-height: 38px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .device-name-cancel {
+            border: 1px solid rgba(255,255,255,0.55);
+            background: transparent;
+            color: white;
+        }
+
+        .device-name-confirm {
+            border: 0;
+            background: linear-gradient(100deg, #ff1b5b, #d80c3d);
             color: white;
         }
 
@@ -1501,16 +1672,16 @@
                 <div class="device-row">
                     <div class="device-avatar">◉</div>
                     <div>
-                        <div class="device-name">Plug-In Camera</div>
+                        <div class="device-name" id="deviceNameDisplay">Bosslady P160</div>
                         <div class="device-subname">Plug-In Camera</div>
                     </div>
-                    <div style="margin-left:auto; font-size:22px; color:rgba(255,255,255,0.8);">↗</div>
+                    <button class="device-edit-button" type="button" onclick="openDeviceNameEditor()" aria-label="Edit device name" title="Edit device name"><i data-lucide="pencil"></i><span>Edit Name</span></button>
                 </div>
             </div>
 
             <div class="settings-actions">
                 <div class="settings-action" onclick="show('motionDetectionPanel')"><span>●</span><span>Motion Detection</span></div>
-                <div class="settings-action"><span>◔</span><span>Event Time Settings</span></div>
+                <div class="settings-action" onclick="show('eventTimeSettingsPanel')"><span>◔</span><span>Event Time Settings</span></div>
             </div>
 
             <div class="settings-list">
@@ -1522,7 +1693,7 @@
                 <div class="settings-item"><span>Check Firmware Update</span><span class="value">The current version is the latest.</span></div>
                 <div class="settings-item" onclick="openAuthenticationService()"><span>C4 Authentication Service</span><span class="value">›</span></div>
                 <div class="settings-item" onclick="openRestartConfirmation()"><span>Restart</span><span class="value">›</span></div>
-                <div class="settings-item danger"><span>Delete Device</span></div>
+                <div class="settings-item danger" onclick="openDeleteDeviceConfirmation()"><span>Delete Device</span></div>
             </div>
         </section>
 
@@ -1633,6 +1804,36 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section id="eventTimeSettingsPanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Event Time Settings</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="event-time-content">
+                <div class="event-time-field">
+                    <label class="event-time-label" for="eventRecordingLength">Maximum Event Recording Length</label>
+                    <div class="event-time-slider-wrap">
+                        <output class="audio-volume-current" id="eventRecordingLengthValue" for="eventRecordingLength">15</output>
+                        <input class="audio-volume-slider" id="eventRecordingLength" type="range" min="10" max="15" step="1" value="15" aria-label="Maximum Event Recording Length">
+                        <div class="event-time-bounds"><span>10s</span><span>15s</span></div>
+                    </div>
+                </div>
+                <div class="event-time-field">
+                    <label class="event-time-label" for="eventTriggerInterval">Event Trigger Interval</label>
+                    <div class="event-time-slider-wrap">
+                        <output class="audio-volume-current" id="eventTriggerIntervalValue" for="eventTriggerInterval">60</output>
+                        <input class="audio-volume-slider" id="eventTriggerInterval" type="range" min="0" max="120" step="1" value="60" aria-label="Event Trigger Interval">
+                        <div class="event-time-bounds"><span>0s</span><span>120s</span></div>
+                    </div>
+                </div>
+                <div class="event-time-status" id="eventTimeStatus" role="status" hidden></div>
+                <button class="storage-format-button" type="button" onclick="confirmEventTimeSettings()">Confirm</button>
             </div>
         </section>
 
@@ -1847,27 +2048,20 @@
             </div>
         </section>
 
-        <section id="deviceNamePanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
+    </div>
+    <div id="deviceNameModal" class="device-name-overlay" role="dialog" aria-modal="true" aria-labelledby="deviceNameModalTitle">
+        <div class="device-name-sheet">
+            <div class="device-name-sheet-title" id="deviceNameModalTitle">Change Device Name</div>
+            <div class="device-name-input-row">
+                <input type="text" id="deviceNameInput" maxlength="32" aria-label="Device name">
+                <button class="device-name-clear" type="button" onclick="clearDeviceNameInput()" aria-label="Clear device name">×</button>
             </div>
-            <div class="content">
-                <i data-lucide="edit-3" class="bigIcon"></i>
-                <div class="h2">Device Name</div>
-                <div class="desc">Set a custom name for this device</div>
-
-                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
-                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
-                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
-                </div>
-                <button class="btn" id="updateNameBtn">
-                    Update Name
-                </button>
+            <div class="device-name-sheet-status" id="deviceNameStatus" hidden></div>
+            <div class="device-name-sheet-actions">
+                <button class="device-name-cancel" type="button" onclick="closeDeviceNameEditor()">Cancel</button>
+                <button class="device-name-confirm" type="button" id="updateNameBtn">Confirm</button>
             </div>
-        </section>
-        
+        </div>
     </div>
     <!-- SUCCESS MODAL -->
     <div id="successModal" class="modal">
@@ -1888,6 +2082,17 @@
             <div class="confirmation-actions">
                 <button class="confirmation-cancel" type="button" onclick="closeRestartConfirmation()">Cancel</button>
                 <button class="confirmation-confirm" type="button" onclick="confirmRestart()">Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteDeviceConfirmModal" class="confirmation-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteDeviceConfirmTitle">
+        <div class="confirmation-card">
+            <div class="confirmation-title" id="deleteDeviceConfirmTitle">Confirm Deletion</div>
+            <div class="confirmation-message">Deleting this device will remove it from your account and clear all associated data.</div>
+            <div class="confirmation-actions">
+                <button class="confirmation-cancel" type="button" onclick="closeDeleteDeviceConfirmation()">Cancel</button>
+                <button class="confirmation-confirm" type="button" onclick="confirmDeviceDeletion()">Confirm</button>
             </div>
         </div>
     </div>
@@ -1928,7 +2133,10 @@
                 .forEach(p => p.classList.remove('active'));
 
             const nextPanel = document.getElementById(id);
-            if (nextPanel) nextPanel.classList.add('active');
+            if (nextPanel) {
+                nextPanel.classList.add('active');
+                if (id === 'settingsPanel') nextPanel.scrollTop = 0;
+            }
 
             const footer = document.querySelector('.footer');
             if (footer) {
@@ -1965,6 +2173,39 @@
             }
         }
 
+        function openDeviceNameEditor() {
+            const input = document.getElementById('deviceNameInput');
+            const currentName = document.getElementById('deviceNameDisplay').textContent.trim();
+            if (!input.value.trim()) input.value = currentName;
+            document.getElementById('deviceNameStatus').hidden = true;
+            document.getElementById('deviceNameModal').classList.add('show');
+            input.focus();
+            input.select();
+        }
+
+        function closeDeviceNameEditor() {
+            document.getElementById('deviceNameModal').classList.remove('show');
+        }
+
+        function clearDeviceNameInput() {
+            const input = document.getElementById('deviceNameInput');
+            input.value = '';
+            input.focus();
+        }
+
+        function openDeleteDeviceConfirmation() {
+            document.getElementById('deleteDeviceConfirmModal').classList.add('show');
+        }
+
+        function closeDeleteDeviceConfirmation() {
+            document.getElementById('deleteDeviceConfirmModal').classList.remove('show');
+        }
+
+        function confirmDeviceDeletion() {
+            closeDeleteDeviceConfirmation();
+            showModal('Device deletion is not available through this driver.', 'Unavailable');
+        }
+
         function openStorageFormatConfirmation() {
             const status = document.getElementById('storageActionStatus');
             status.hidden = true;
@@ -1980,6 +2221,19 @@
             closeStorageFormatConfirmation();
             const status = document.getElementById('storageActionStatus');
             status.textContent = 'Storage formatting is not available through this driver.';
+            status.hidden = false;
+        }
+
+        function confirmEventTimeSettings() {
+            const intervalSeconds = Number(document.getElementById('eventTriggerInterval').value);
+            const status = document.getElementById('eventTimeStatus');
+            try {
+                C4.sendCommand('SET_EVENT_TRIGGER_INTERVAL', JSON.stringify({ seconds: intervalSeconds }), false, true);
+                status.textContent = 'Event trigger interval saved. Maximum recording length is not supported by this driver.';
+            } catch (error) {
+                status.textContent = 'Maximum recording length is not supported by this driver.';
+                console.error('Failed to save event time settings', error);
+            }
             status.hidden = false;
         }
 
@@ -2172,6 +2426,33 @@
                     }
                 });
             }
+
+            const eventTimeSliders = [
+                ['eventRecordingLength', 'eventRecordingLengthValue'],
+                ['eventTriggerInterval', 'eventTriggerIntervalValue']
+            ];
+            eventTimeSliders.forEach(([sliderId, outputId]) => {
+                const slider = document.getElementById(sliderId);
+                const output = document.getElementById(outputId);
+                if (!slider || !output) return;
+
+                const updateDisplay = () => {
+                    const min = Number(slider.min);
+                    const max = Number(slider.max);
+                    const value = Number(slider.value);
+                    const progress = ((value - min) / (max - min)) * 100;
+                    output.textContent = String(value);
+                    output.style.left = `${progress}%`;
+                    slider.style.setProperty('--volume-progress', `${progress}%`);
+                };
+
+                updateDisplay();
+                slider.addEventListener('input', updateDisplay);
+                slider.addEventListener('input', () => {
+                    const status = document.getElementById('eventTimeStatus');
+                    if (status) status.hidden = true;
+                });
+            });
 
             if (motionDetectionToggle) {
                 const motionSettings = document.querySelectorAll('.motion-setting-row[data-setting]');
