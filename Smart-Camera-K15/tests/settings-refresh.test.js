@@ -9,6 +9,79 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
 const javascript = fs.readFileSync(path.join(root, 'www/contents/javascript/index.js'), 'utf8');
 
+test('K15 PTZ routes Composer and native commands without defaulting invalid directions to left', () => {
+    const driver = fs.readFileSync(path.join(root, 'driver.lua'), 'utf8');
+    const extract = name => {
+        const source = driver.match(new RegExp('function ' + name + '\\([^]*?\\r?\\nend'));
+        assert.ok(source, name + ' function missing');
+        return source[0];
+    };
+    const source = `
+        local json = require("CldBusApi.dkjson")
+        local _props = { VID = "vid-1", ["Auth Token"] = "token" }
+        local Properties = {}
+        local CAMERA_BINDING = 5001
+        local requests = {}
+        local function print() end
+        local C4 = { UpdateProperty = function() end }
+        local transport = { execute = function(request, callback)
+            assert(request.method == "POST")
+            assert(request.url == "https://api.arpha-tech.com/api/v3/openapi/device/do-action")
+            local body = json.decode(request.body)
+            assert(body.vid == "vid-1" and body.action_id == "ac_ptz")
+            assert(type(body.input_params) == "string")
+            requests[#requests + 1] = json.decode(body.input_params)
+            callback(200, json.encode({code=20000}), {}, nil)
+        end }
+        ${['PTZ_MOVE', 'PTZ_COMMAND', 'PTZ_STOP', 'ExecuteCommand', 'ReceivedFromProxy'].map(extract).join('\n')}
+        local directions = {up=0,down=1,left=2,right=3}
+        for name, direction in pairs(directions) do
+            ExecuteCommand("PTZ_MOVE", {direction=name})
+            assert(requests[#requests].direction == direction and requests[#requests].state == 1)
+            ReceivedFromProxy(5001, "PTZ_MOVE", {DIRECTION=string.upper(name)})
+            assert(requests[#requests].direction == direction)
+            PTZ_MOVE(5001, {direction=tostring(direction)})
+            assert(requests[#requests].direction == direction)
+        end
+        PTZ_MOVE(5001, json.encode({direction="right"}))
+        assert(requests[#requests].direction == 3)
+        local native = {PAN_LEFT=2,PAN_RIGHT=3,TILT_UP=0,TILT_DOWN=1}
+        for command, direction in pairs(native) do
+            ReceivedFromProxy(5001, command, {})
+            assert(requests[#requests].direction == direction and requests[#requests].state == 1)
+            ExecuteCommand(command, {})
+            assert(requests[#requests].direction == direction)
+        end
+        for _, command in ipairs({"STOP", "PTZ_STOP", "PTZ_CONT_STOP"}) do
+            ExecuteCommand(command, {})
+            assert(requests[#requests].state == 0)
+            ReceivedFromProxy(5001, command, {})
+            assert(requests[#requests].state == 0)
+        end
+        local count = #requests
+        for _, value in ipairs({"bad", "zoom", -1, 4, 0.5}) do
+            ExecuteCommand("PTZ_MOVE", {direction=value})
+        end
+        ExecuteCommand("PTZ_MOVE", {})
+        ExecuteCommand("PTZ_MOVE", "invalid JSON")
+        ExecuteCommand("ZOOM_IN", {})
+        ReceivedFromProxy(5001, "ZOOM_OUT", {})
+        assert(#requests == count, "invalid directions and unsupported zoom must not move the camera")
+        _props["Auth Token"] = ""
+        ExecuteCommand("PTZ_MOVE", {direction="left"})
+        ExecuteCommand("PTZ_STOP", {})
+        assert(#requests == count)
+        io.write("K15 PTZ mapping assertions passed")
+    `;
+    const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', source], { encoding: 'utf8', cwd: root });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /K15 PTZ mapping assertions passed/);
+    const xml = fs.readFileSync(path.join(root, 'driver.xml'), 'utf8');
+    assert.match(xml, /<has_pan>true<\/has_pan>/);
+    assert.match(xml, /<has_tilt>true<\/has_tilt>/);
+    assert.match(xml, /<has_zoom>false<\/has_zoom>/);
+});
+
 function eventTarget() {
     const listeners = {};
     return {

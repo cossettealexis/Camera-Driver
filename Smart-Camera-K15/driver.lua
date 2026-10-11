@@ -598,6 +598,23 @@ end
 function ExecuteCommand(strCommand, tParams)
     print("ExecuteCommand called: " .. strCommand)
 
+    if strCommand == "PTZ_MOVE" then
+        PTZ_MOVE(CAMERA_BINDING, tParams)
+        return
+    end
+
+    if strCommand == "PTZ_STOP" or strCommand == "STOP" or strCommand == "PTZ_CONT_STOP" then
+        PTZ_STOP(CAMERA_BINDING, tParams)
+        return
+    end
+
+    if strCommand == "PAN_LEFT" or strCommand == "PAN_RIGHT" or
+       strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
+       strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
+        PTZ_COMMAND(CAMERA_BINDING, strCommand, tParams)
+        return
+    end
+
     if strCommand == "InitializeCamera" or strCommand == "INITIALIZE_CAMERA" then
         InitializeCamera()
         return
@@ -3723,7 +3740,9 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
         strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
         PTZ_COMMAND(idBinding, strCommand, tParams)
-    elseif strCommand == "STOP" then
+    elseif strCommand == "PTZ_MOVE" then
+        PTZ_MOVE(idBinding, tParams)
+    elseif strCommand == "STOP" or strCommand == "PTZ_STOP" or strCommand == "PTZ_CONT_STOP" then
         PTZ_STOP(idBinding, tParams)
     elseif strCommand == "HOME" then
         PTZ_HOME(idBinding, tParams)
@@ -4250,9 +4269,20 @@ function PTZ_MOVE(idBinding, tParams)
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/device/do-action"
 
-    local direction = 2 -- default Left
-    if tParams and tParams.direction then
-        direction = tonumber(tParams.direction) or 2
+    local params = tParams
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local raw_direction = type(params) == "table" and (params.direction or params.DIRECTION) or nil
+    local direction_map = { up = 0, down = 1, left = 2, right = 3 }
+    local direction = tonumber(raw_direction)
+    if direction == nil and type(raw_direction) == "string" then
+        direction = direction_map[string.lower(raw_direction)]
+    end
+    if direction == nil or direction % 1 ~= 0 or direction < 0 or direction > 3 then
+        print("[PTZ] Invalid or missing direction: " .. tostring(raw_direction))
+        return
     end
 
     local input_params = {
