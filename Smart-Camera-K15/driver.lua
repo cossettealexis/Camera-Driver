@@ -118,8 +118,53 @@ local conditional_state        = {
     SENSITIVITY = 5
 }
 
+local camera_settings = {
+    motion_switch = 1,
+    motion_type = 0,
+    motion_sen = 1,
+    motion_x_y_w_h = "0:0:0:0",
+    motion_rec_time = 15,
+    motion_interval = 60,
+    siren_swt = 0,
+    light_swt = 0,
+    humanoid_track = 0,
+    record_mode = 0,
+    icut_mode = 0,
+    anti_flicker = 0,
+    flip_swt = 0,
+    mark = 1,
+    stored_status = 0,
+    stored_capacity = 0,
+    stored_usage = 0
+}
+
 conditional_state.MIC_MUTED = conditional_state.MIC_MUTED or false
 conditional_state.MIC_UNMUTED = not conditional_state.MIC_MUTED
+
+local function normalize_bool(value, default)
+    if value == nil then
+        return default
+    end
+
+    if type(value) == "boolean" then
+        return value
+    end
+
+    if value == 0 then return false end
+    if value == 1 then return true end
+
+    if type(value) == "string" then
+        local v = string.lower(value)
+        if v == "true" or v == "1" or v == "yes" or v == "on" then
+            return true
+        end
+        if v == "false" or v == "0" or v == "no" or v == "off" then
+            return false
+        end
+    end
+
+    return default
+end
 
 -- Track volume before muting for restore
 local volume_before_mute = nil
@@ -553,6 +598,23 @@ end
 function ExecuteCommand(strCommand, tParams)
     print("ExecuteCommand called: " .. strCommand)
 
+    if strCommand == "PTZ_MOVE" then
+        PTZ_MOVE(CAMERA_BINDING, tParams)
+        return
+    end
+
+    if strCommand == "PTZ_STOP" or strCommand == "STOP" or strCommand == "PTZ_CONT_STOP" then
+        PTZ_STOP(CAMERA_BINDING, tParams)
+        return
+    end
+
+    if strCommand == "PAN_LEFT" or strCommand == "PAN_RIGHT" or
+       strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
+       strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
+        PTZ_COMMAND(CAMERA_BINDING, strCommand, tParams)
+        return
+    end
+
     if strCommand == "InitializeCamera" or strCommand == "INITIALIZE_CAMERA" then
         InitializeCamera()
         return
@@ -598,15 +660,13 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "MUTE_MIC" then
         print("[COMMAND] Mute Mic requested")
-        UpdateConditional("MIC_MUTED", true)
-        UpdateConditional("MIC_UNMUTED", false)
+        SET_MIC_STATE(true)
         return
     end
 
     if strCommand == "UNMUTE_MIC" then
         print("[COMMAND] Unmute Mic requested")
-        UpdateConditional("MIC_MUTED", false)
-        UpdateConditional("MIC_UNMUTED", true)
+        SET_MIC_STATE(false)
         return
     end
 
@@ -661,6 +721,21 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "GET_CAMERA_SETTINGS" then
+        GET_CAMERA_SETTINGS()
+        return
+    end
+
+    if strCommand == "SET_CAMERA_SETTING" then
+        UPDATE_CAMERA_SETTING(tParams)
+        return
+    end
+
+    if strCommand == "FORMAT_STORAGE" or strCommand == "FORMAT_LOCAL_STORAGE" then
+        FORMAT_STORAGE(tParams)
+        return
+    end
+
     if strCommand == "SET_DEVICE_NAME" then
         SET_DEVICE_NAME(tParams)       
         return
@@ -697,6 +772,263 @@ function ExecuteCommand(strCommand, tParams)
             ExecuteCommand(tParams.ACTION, tParams)
         end
     end
+end
+
+function GET_CAMERA_SETTINGS()
+    local function read_mic_value(value, depth)
+        if depth > 3 then return nil end
+        local enabled = normalize_bool(value, nil)
+        if enabled ~= nil then return enabled end
+        if type(value) == "string" then
+            local ok, decoded = pcall(json.decode, value)
+            if ok and decoded ~= nil then return read_mic_value(decoded, depth + 1) end
+        elseif type(value) == "table" then
+            for _, field in ipairs({ "on_off", "mic_on", "is_mic_on", "mic_state", "value", "state" }) do
+                if value[field] ~= nil then
+                    enabled = read_mic_value(value[field], depth + 1)
+                    if enabled ~= nil then return enabled end
+                end
+            end
+        end
+        return nil
+    end
+    GET_DEVICE_PROPERTY(nil, function(values)
+        if type(values) ~= "table" then
+            SendDeviceInfoToUI({ type = "camera_settings", success = false, mic_read_success = false })
+            return
+        end
+        local settings = {}
+        for key, value in pairs(values) do
+            if key == "motion" or key == "stored" then
+                if type(value) == "string" then
+                    local ok, decoded = pcall(json.decode, value)
+                    value = ok and decoded or nil
+                end
+                if type(value) == "table" then
+                    for field, field_value in pairs(value) do
+                        local setting_key = key .. "_" .. field
+                        if camera_settings[setting_key] ~= nil then
+                            camera_settings[setting_key] = field_value
+                            settings[setting_key] = field_value
+                        end
+                    end
+                end
+            else
+                local setting_key = key:gsub("%.", "_")
+                if camera_settings[setting_key] ~= nil then
+                    camera_settings[setting_key] = value
+                    settings[setting_key] = value
+                    print("[CAMERA] Latest " .. key .. " = " .. tostring(value))
+                end
+            end
+        end
+        if settings.siren_swt == nil then
+            print("[CAMERA] Latest settings response has no siren_swt value")
+        end
+        local mic_on = nil
+        for _, key in ipairs({ "mic_on", "talk_on", "microphone", "ac_talk", "is_mic_on", "mic_state" }) do
+            if values[key] ~= nil then
+                mic_on = read_mic_value(values[key], 0)
+                print("[MIC] Latest " .. key .. " parsed enabled = " .. tostring(mic_on))
+                if mic_on ~= nil then break end
+            end
+        end
+        local payload = { type = "camera_settings", success = true, settings = settings, mic_read_success = mic_on ~= nil }
+        if mic_on ~= nil then
+            conditional_state.MIC_MUTED = not mic_on
+            conditional_state.MIC_UNMUTED = mic_on
+            payload.mic_muted = not mic_on
+        else
+            print("[MIC] Latest API response contains no readable microphone state")
+        end
+        SendDeviceInfoToUI(payload)
+    end)
+end
+
+local motion_write_queue = {}
+local motion_write_busy = false
+
+local function process_motion_writes()
+    if motion_write_busy or #motion_write_queue == 0 then return end
+    local changes = motion_write_queue[1]
+    local motion = {}
+    for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+        motion[field] = changes[field]
+        if motion[field] == nil then motion[field] = camera_settings["motion_" .. field] end
+    end
+    motion_write_busy = true
+    local function finish()
+        table.remove(motion_write_queue, 1)
+        motion_write_busy = false
+        process_motion_writes()
+    end
+    UPDATE_DEVICE_PROPERTY({ motion = motion }, function()
+        local settings = {}
+        for field, value in pairs(motion) do
+            camera_settings["motion_" .. field] = value
+            settings["motion_" .. field] = value
+        end
+        SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = true, settings = settings,
+            event_time_updated = changes.rec_time ~= nil and changes.interval ~= nil })
+        finish()
+    end, function(error_message)
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = error_message })
+        finish()
+    end)
+end
+
+local function apply_device_setting(key, value)
+    local ranges = {
+        ["motion.switch"] = { 0, 1 }, ["motion.type"] = { 0, 1 },
+        ["motion.sen"] = { 0, 2 }, ["motion.rec_time"] = { 0, 60 },
+        ["motion.interval"] = { 0, 120 }, siren_swt = { 0, 1 },
+        light_swt = { 0, 1 }, humanoid_track = { 0, 1 },
+        record_mode = { 0, 1 }, anti_flicker = { 0, 2 },
+        flip_swt = { 0, 1 }, mark = { 0, 1 }
+    }
+    if key == "motion" and type(value) == "table" then
+        local changes = {}
+        for field, candidate in pairs(value) do
+            local range = ranges["motion." .. field]
+            if field == "x_y_w_h" then
+                if type(candidate) ~= "string" or not candidate:match("^%d+:%d+:%d+:%d+$") then return false end
+            else
+                candidate = tonumber(candidate) or (type(candidate) == "boolean" and (candidate and 1 or 0))
+                if not range or not candidate or candidate % 1 ~= 0 or candidate < range[1] or candidate > range[2] then return false end
+            end
+            changes[field] = candidate
+        end
+        if next(changes) == nil then return false end
+        table.insert(motion_write_queue, changes)
+        process_motion_writes()
+        return true
+    elseif key == "motion.x_y_w_h" then
+        if type(value) ~= "string" or not value:match("^%d+:%d+:%d+:%d+$") then return false end
+    else
+        value = tonumber(value) or (type(value) == "boolean" and (value and 1 or 0))
+        local range = ranges[key]
+        if key == "icut_mode" then
+            if value ~= 0 and value ~= 2 and value ~= 3 then return false end
+        elseif not range or not value or value % 1 ~= 0 or value < range[1] or value > range[2] then
+            print("[CAMERA] Unsupported setting or value: " .. tostring(key))
+            return false
+        end
+    end
+    local payload = {}
+    local motion_field = key:match("^motion%.(.+)$")
+    if motion_field then
+        table.insert(motion_write_queue, { [motion_field] = value })
+        process_motion_writes()
+        return true
+    else
+        payload[key] = value
+    end
+    local key_name = key:gsub("%.", "_")
+    if camera_settings[key_name] == nil then
+        return false
+    end
+    UPDATE_DEVICE_PROPERTY(payload, function()
+        camera_settings[key_name] = value
+        SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = true, settings = { [key_name] = value } })
+    end, function(error_message)
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = error_message })
+    end)
+    return true
+end
+
+function UPDATE_CAMERA_SETTING(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        if ok and type(decoded) == "table" then
+            tParams = decoded
+        end
+    end
+
+    if type(tParams) ~= "table" then
+        print("[CAMERA] Invalid setting payload")
+        return false
+    end
+
+    local key = tostring(tParams.key or tParams.setting or tParams.name or "")
+    local normalized_key = string.lower(string.gsub(key, "%s+", "_"))
+    local value = tParams.value
+
+    local function apply_setting(actual_key, actual_value)
+        local accepted = apply_device_setting(actual_key, actual_value)
+        if not accepted then
+            SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = "Invalid setting or value" })
+        end
+        return accepted
+    end
+
+    if normalized_key == "motion" then
+        local changes = {}
+        for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+            if tParams[field] ~= nil then changes[field] = tParams[field] end
+        end
+        if next(changes) ~= nil then return apply_setting("motion", changes) end
+        if type(value) == "table" then return apply_setting("motion", value) end
+    end
+
+    local mapping = {
+        motion = "motion.switch",
+        motion_detection = "motion.switch",
+        motion_switch = "motion.switch",
+        motion_type = "motion.type",
+        motion_sen = "motion.sen",
+        motion_x_y_w_h = "motion.x_y_w_h",
+        siren_swt = "siren_swt",
+        light_swt = "light_swt",
+        smart_tracking = "humanoid_track",
+        smart_track = "humanoid_track",
+        ["record.mode"] = "record_mode",
+        recording = "record_mode",
+        record_max_len = "motion.rec_time",
+        ["record.max_len"] = "motion.rec_time",
+        record_interval = "motion.interval",
+        ["record.interval"] = "motion.interval",
+        night_vision = "icut_mode",
+        anti_flicker = "anti_flicker",
+        flip_swt = "flip_swt",
+        logo_mark = "mark"
+    }
+
+    local actual_key = mapping[normalized_key] or normalized_key
+    return apply_setting(actual_key, value)
+end
+
+function FORMAT_STORAGE(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        tParams = ok and decoded or nil
+    end
+    local confirmed = type(tParams) == "table" and normalize_bool(tParams.confirmed or tParams.value, false)
+    if not confirmed then
+        print("[CAMERA] Storage format blocked without confirmation")
+        return false
+    end
+
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local vid = _props["VID"] or Properties["VID"]
+    local appId = GetCldBusCredentials()
+    if not token or token == "" or not vid or vid == "" or not appId or appId == "" then
+        SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device or API credentials" })
+        return false
+    end
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token, ["App-Name"] = appId },
+        body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local success = not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (tonumber(parsed.code) == 20000 or tonumber(parsed.code) == 200)
+        C4:UpdateProperty("Status", success and "Local storage format requested" or "Local storage format failed")
+        SendDeviceInfoToUI({ type = "storage_format", success = success and true or false,
+            error = not success and (ok and type(parsed) == "table" and parsed.message or tostring(err or "Format request failed")) or nil })
+    end)
+    return true
 end
 
 function InitializeCamera()
@@ -2706,21 +3038,88 @@ function GET_DEVICE_PROPERTY(property_name, callback)
         headers = headers
     }
 
-    print("[GET_DEVICE_PROPERTY] Fetching property: " .. property_name)
+    if property_name == nil then
+        req.url = base_url .. "/api/v3/openapi/device/property-latest"
+        req.method = "POST"
+        req.body = json.encode({
+            vid = vid,
+            data_ids = {
+                "motion", "siren_swt", "light_swt", "humanoid_track", "record_mode",
+                "icut_mode", "anti_flicker", "flip_swt", "mark", "stored",
+                "mic_on", "talk_on", "microphone", "ac_talk", "is_mic_on", "mic_state"
+            },
+            data_source = 0
+        })
+    end
+
+    print("[GET_DEVICE_PROPERTY] Fetching property: " .. tostring(property_name or "all"))
+
+    if property_name == nil then
+        print("[PROPERTY-LATEST] Request URL: " .. req.url)
+        print("[PROPERTY-LATEST] Request body: " .. tostring(req.body))
+    end
 
     transport.execute(req, function(code, resp, resp_headers, err)
+        if property_name == nil then
+            print("[PROPERTY-LATEST] HTTP status: " .. tostring(code))
+            print("[PROPERTY-LATEST] Transport error: " .. tostring(err))
+            print("[PROPERTY-LATEST] Response body: " .. (type(resp) == "table" and json.encode(resp) or tostring(resp)))
+        end
         if code == 200 or code == 20000 then
             local ok, parsed = pcall(json.decode, resp)
-            if ok and parsed and parsed.data and parsed.data.status then
-                for _, status_item in ipairs(parsed.data.status) do
-                    if status_item.name == property_name then
-                        print("[GET_DEVICE_PROPERTY] Found " .. property_name .. " = " .. tostring(status_item.value))
-                        if callback then callback(status_item.value) end
-                        return
+            local data = ok and type(parsed) == "table" and
+                (parsed.data or (parsed.result and parsed.result.data))
+            local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+            if api_code and api_code ~= 200 and api_code ~= 20000 then
+                print("[GET_DEVICE_PROPERTY] API rejected refresh: " .. tostring(parsed.message))
+                if callback then callback(nil) end
+                return
+            end
+            if type(data) == "table" then
+                local device = data
+                if device.devices or device.share_devices then
+                    local matched_device = nil
+                    for _, devices in ipairs({ device.devices or {}, device.share_devices or {} }) do
+                        for _, candidate in ipairs(devices) do
+                            if tostring(candidate.vid) == tostring(vid) then
+                                matched_device = candidate
+                                break
+                            end
+                        end
+                        if matched_device then break end
+                    end
+                    device = matched_device
+                end
+                local status = device and device.status
+                if property_name == nil and status == nil then
+                    status = device
+                    if status and status.data_id then status = { status } end
+                end
+                if type(status) == "string" then
+                    local decoded_ok, decoded_status = pcall(json.decode, status)
+                    status = decoded_ok and decoded_status or nil
+                end
+                if type(status) ~= "table" then
+                    if callback then callback(nil) end
+                    return
+                end
+                local values = {}
+                for key, status_item in pairs(status) do
+                    if type(status_item) == "table" then
+                        local name = status_item.data_id or status_item.status_key or status_item.name
+                        local value = status_item.status_val
+                        if value == nil then value = status_item.value end
+                        if name then values[name] = value end
+                    elseif type(key) == "string" then
+                        values[key] = status_item
                     end
                 end
-                print("[GET_DEVICE_PROPERTY] Property " .. property_name .. " not found in status array")
-                if callback then callback(nil) end
+                if property_name == nil then
+                    print("[PROPERTY-LATEST] Parsed values: " .. json.encode(values))
+                end
+                if callback then
+                    if property_name == nil then callback(values) else callback(values[property_name]) end
+                end
             else
                 print("[GET_DEVICE_PROPERTY] Failed to parse response")
                 if callback then callback(nil) end
@@ -2732,7 +3131,7 @@ function GET_DEVICE_PROPERTY(property_name, callback)
     end)
 end
 
-function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
+function UPDATE_DEVICE_PROPERTY(property_data, success_callback, failure_callback)
     print("================================================================")
     print("           UPDATE_DEVICE_PROPERTY CALLED                        ")
     print("================================================================")
@@ -2740,16 +3139,17 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     if not auth_token or auth_token == "" then
         print("ERROR: No auth token available")
+        if failure_callback then failure_callback("Missing Auth Token") end
         return
     end
 
     local vid = _props["VID"] or Properties["VID"]
     if not vid or vid == "" then
         print("ERROR: No VID available")
+        if failure_callback then failure_callback("Missing VID") end
         return
     end
 
-    print("Using bearer token: " .. auth_token)
     print("Using VID: " .. vid)
     print("Property data: " .. json.encode(property_data))
 
@@ -2760,6 +3160,7 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
 
     if appId == "" or appSecret == "" then
         print("ERROR: No CldBus credentials available")
+        if failure_callback then failure_callback("Missing API credentials") end
         return
     end
 
@@ -2794,7 +3195,10 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
         end
         print("----------------------------------------------------------------")
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (parsed.code == nil or api_code == 200 or api_code == 20000) then
             print("Property updated successfully")
             C4:UpdateProperty("Status", "Property updated successfully")
             if success_callback then
@@ -2810,6 +3214,7 @@ function UPDATE_DEVICE_PROPERTY(property_data, success_callback)
             end
             print("Failed to update property: " .. error_msg)
             C4:UpdateProperty("Status", error_msg)
+            if failure_callback then failure_callback(error_msg) end
         end
     end)
     print("================================================================")
@@ -3280,6 +3685,12 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
     end
     print("================================================================")
 
+    if tonumber(idBinding) == 5005 and strCommand == "SELECT" then
+        print("[CAMERA] Native Device Settings opened; requesting latest API values")
+        GET_CAMERA_SETTINGS()
+        return
+    end
+
     -- Handle IP change from Camera Proxy
     if strCommand == "SET_ADDRESS" then
         local new_ip = tParams["ADDRESS"]
@@ -3329,7 +3740,9 @@ function ReceivedFromProxy(idBinding, strCommand, tParams)
         strCommand == "TILT_UP" or strCommand == "TILT_DOWN" or
         strCommand == "ZOOM_IN" or strCommand == "ZOOM_OUT" then
         PTZ_COMMAND(idBinding, strCommand, tParams)
-    elseif strCommand == "STOP" then
+    elseif strCommand == "PTZ_MOVE" then
+        PTZ_MOVE(idBinding, tParams)
+    elseif strCommand == "STOP" or strCommand == "PTZ_STOP" or strCommand == "PTZ_CONT_STOP" then
         PTZ_STOP(idBinding, tParams)
     elseif strCommand == "HOME" then
         PTZ_HOME(idBinding, tParams)
@@ -3856,9 +4269,20 @@ function PTZ_MOVE(idBinding, tParams)
     local base_url = Properties["Base API URL"] or "https://api.arpha-tech.com"
     local url = base_url .. "/api/v3/openapi/device/do-action"
 
-    local direction = 2 -- default Left
-    if tParams and tParams.direction then
-        direction = tonumber(tParams.direction) or 2
+    local params = tParams
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local raw_direction = type(params) == "table" and (params.direction or params.DIRECTION) or nil
+    local direction_map = { up = 0, down = 1, left = 2, right = 3 }
+    local direction = tonumber(raw_direction)
+    if direction == nil and type(raw_direction) == "string" then
+        direction = direction_map[string.lower(raw_direction)]
+    end
+    if direction == nil or direction % 1 ~= 0 or direction < 0 or direction > 3 then
+        print("[PTZ] Invalid or missing direction: " .. tostring(raw_direction))
+        return
     end
 
     local input_params = {
@@ -4199,10 +4623,12 @@ function SET_MIC_STATE(isMuted)
 
     if not vid or vid == "" then
         print("[MIC] ❌ Missing VID")
+        SendDeviceInfoToUI({ type = "mic_setting_result", success = false, error = "Missing VID" })
         return false
     end
     if not token or token == "" then
         print("[MIC] ❌ Missing Auth Token")
+        SendDeviceInfoToUI({ type = "mic_setting_result", success = false, error = "Missing Auth Token" })
         return false
     end
 
@@ -4243,7 +4669,10 @@ function SET_MIC_STATE(isMuted)
             print("[MIC] Response Body:", resp) 
         end
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (parsed.code == nil or api_code == 200 or api_code == 20000) then
             print("[MIC] ✅ Success - Microphone", isMuted and "MUTED" or "UNMUTED")
             
             -- Update local state
@@ -4254,9 +4683,12 @@ function SET_MIC_STATE(isMuted)
             PushMicStateToUI()
             
             C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+            SendDeviceInfoToUI({ type = "mic_setting_result", success = true })
         else
             print("[MIC] ❌ Failed. Code:", code, "Error:", tostring(err))
             C4:UpdateProperty("Status", "Mic command failed")
+            SendDeviceInfoToUI({ type = "mic_setting_result", success = false,
+                error = ok and type(parsed) == "table" and parsed.message or "Microphone command failed" })
         end
     end)
 
@@ -4265,15 +4697,15 @@ end
 
 -- Push current mic state to WebView
 function PushMicStateToUI()
-    local payload = json.encode({
+    local payload = {
+        type = "mic_update",
         mic_muted = conditional_state.MIC_MUTED
-    })
-    
-    C4:SendDataToUI(payload)
+    }
+    SendDeviceInfoToUI(payload)
     
     -- Extra push for reliability
     C4:SetTimer(600, function()
-        C4:SendDataToUI(payload)
+        SendDeviceInfoToUI(payload)
     end)
 end
 
@@ -4453,7 +4885,7 @@ function SendDeviceInfoToUI(data)
         C4:SendToProxy(5005, "UPDATE_UI", {})
     end)
 
-    print("[UI] Device info sent to proxy 5005 via ICON_CHANGED")
+    print("[UI] " .. tostring(data.type or "device_info") .. " sent to proxy 5005 via ICON_CHANGED")
 end
 
 -- =====================================================
@@ -4483,18 +4915,21 @@ function SET_DEVICE_NAME(tParams)
     if not new_name or new_name == "" then
         print("[NAME] ❌ No device name provided")
         C4:UpdateProperty("Status", "Error: No name provided")
+        SendDeviceInfoToUI({ type = "device_name_result", success = false, error = "No device name provided" })
         return false
     end
 
     if not vid or vid == "" then
         print("[NAME] ❌ Missing VID")
         C4:UpdateProperty("Status", "Error: No VID")
+        SendDeviceInfoToUI({ type = "device_name_result", success = false, error = "Missing VID" })
         return false
     end
 
     if not auth_token or auth_token == "" then
         print("[NAME] ❌ Missing Auth Token")
         C4:UpdateProperty("Status", "Error: Not authenticated")
+        SendDeviceInfoToUI({ type = "device_name_result", success = false, error = "Missing Auth Token" })
         return false
     end
 
@@ -4527,7 +4962,10 @@ function SET_DEVICE_NAME(tParams)
             print("[NAME] Response Body:", resp)
         end
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if not err and (code == 200 or code == 20000) and ok and type(parsed) == "table" and
+            (parsed.code == nil or api_code == 200 or api_code == 20000) then
             print("[NAME] ✅ Device name changed successfully")
 
             -- Update local properties
@@ -4538,25 +4976,26 @@ function SET_DEVICE_NAME(tParams)
             print("[NAME] Sending success to UI")
 
             -- Notify UI
-           local payload = json.encode({
+           local payload = {
             type = "device_name_updated",
             device_name_updated = true,
             device_name = new_name,
             timestamp = os.time()
-            })
+            }
 
-            print("[NAME] Pushing to UI:", payload)
+            print("[NAME] Pushing to UI:", json.encode(payload))
 
-            C4:SendDataToUI(payload)
+            SendDeviceInfoToUI(payload)
 
         else
             print("[NAME] ❌ Failed to change name. Code:", code)
             C4:UpdateProperty("Status", "Failed to update device name")
             
-            C4:SendDataToUI(json.encode({
-                error = "Failed to update name",
+            SendDeviceInfoToUI({
+                type = "device_name_result", success = false,
+                error = ok and type(parsed) == "table" and parsed.message or "Failed to update name",
                 code = code
-            }))
+            })
         end
     end)
 

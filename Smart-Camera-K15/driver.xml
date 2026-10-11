@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins K15-SL PTZ Camera</name>
-    <version>8</version>
+    <version>9</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>K15-SL</model>
     <created>03/17/2026 12:00 AM</created>
-    <modified>09/11/2026 12:00 AM</modified>
+    <modified>10/06/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -396,6 +396,10 @@
                 <command>LOGIN_OR_REGISTER</command>
             </action>
             <action>
+                <name>Get Camera Settings</name>
+                <command>GET_CAMERA_SETTINGS</command>
+            </action>
+            <action>
                 <name>Get Devices</name>
                 <command>GET_DEVICES</command>
             </action>
@@ -541,6 +545,34 @@
             <command>
                 <name>GET_DEVICE_INFO</name>
                 <description>Request device info</description>
+            </command>
+            <command>
+                <name>GET_CAMERA_SETTINGS</name>
+                <description>Request supported camera settings state</description>
+            </command>
+            <command>
+                <name>SET_CAMERA_SETTING</name>
+                <description>Update an individual camera setting</description>
+                <params>
+                    <param>
+                        <name>key</name>
+                        <type>STRING</type>
+                    </param>
+                    <param>
+                        <name>value</name>
+                        <type>STRING</type>
+                    </param>
+                </params>
+            </command>
+            <command>
+                <name>FORMAT_STORAGE</name>
+                <description>Format the local storage after user confirmation</description>
+                <params>
+                    <param>
+                        <name>confirmed</name>
+                        <type>STRING</type>
+                    </param>
+                </params>
             </command>
             <command>
                 <name>SET_DEVICE_NAME</name>
