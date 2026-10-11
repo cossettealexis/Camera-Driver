@@ -28,7 +28,10 @@ local NOTIFY = {
 -- User toggles (bind later to driver properties if needed)
 local user_settings = {
     enable_alerts = true,
-    enable_info   = true
+    enable_info   = true,
+    enable_motion = true,
+    enable_offline = true,
+    enable_event = true
 }
 
 -- Cooldown windows (seconds)
@@ -169,6 +172,11 @@ function OnDriverInit()
         end
         _props[k] = v
     end
+    user_settings.enable_alerts = Properties["Enable Alert Notifications"] ~= "False"
+    user_settings.enable_info = Properties["Enable Info Notifications"] ~= "False"
+    user_settings.enable_motion = Properties["Enable Motion Notifications"] ~= "False"
+    user_settings.enable_offline = Properties["Enable Offline Notifications"] ~= "False"
+    user_settings.enable_event = Properties["Enable Event Notifications"] ~= "False"
     MQTT.init(_props, {
         on_connected = function()
             local vid = _props["VID"] or Properties["VID"]
@@ -507,6 +515,17 @@ function OnPropertyChanged(strProperty)
         return
     end
 
+    local notification_setting_fields = {
+        ["Enable Motion Notifications"] = "enable_motion",
+        ["Enable Offline Notifications"] = "enable_offline",
+        ["Enable Event Notifications"] = "enable_event"
+    }
+    local notification_field = notification_setting_fields[strProperty]
+    if notification_field then
+        user_settings[notification_field] = Properties[strProperty] == "True"
+        return
+    end
+
     if strProperty == "Event Interval (ms)" then
         EVENT_DELAY_MS = tonumber(Properties[strProperty]) or 5000
         print("[EVENT_DELAY_MS] Event interval updated to:", EVENT_DELAY_MS, "ms")
@@ -839,12 +858,61 @@ function ExecuteCommand(strCommand, tParams)
         print("[COMMAND] Speaker Volume Down requested")
         GET_DEVICE_PROPERTY("beep_vol", function(current_val)
             local current = tonumber(current_val) or conditional_state["SPEAKER_VOLUME"] or 5
-            local new_vol = math.max(current - 1, 1)
+            local new_vol = math.max(current - 1, 0)
             print("[COMMAND] Speaker Volume Down: " .. current .. " -> " .. new_vol)
             SET_DEVICE_PROPERTY({ beep_vol = tostring(new_vol) }, function()
                 UpdateConditional("SPEAKER_VOLUME", tostring(new_vol))
             end)
         end)
+        return
+    end
+    if strCommand == "SET_SPEAKER_VOLUME" then
+        local requested_volume = tonumber(tParams and (tParams.volume or tParams.value))
+        if not requested_volume then
+            print("[COMMAND] Invalid speaker volume requested")
+            return
+        end
+
+        local new_volume = math.max(0, math.min(10, math.floor(requested_volume + 0.5)))
+        SET_DEVICE_PROPERTY({ beep_vol = tostring(new_volume) }, function()
+            UpdateConditional("SPEAKER_VOLUME", tostring(new_volume))
+        end)
+        return
+    end
+
+    if strCommand == "GET_NOTIFICATION_SETTINGS" then
+        C4:SendDataToUI(json.encode({
+            type = "notification_settings",
+            alert = user_settings.enable_alerts,
+            motion = user_settings.enable_motion,
+            offline = user_settings.enable_offline,
+            event = user_settings.enable_event
+        }))
+        return
+    end
+
+    if strCommand == "SET_NOTIFICATION_SETTING" then
+        local setting = tParams and tParams.setting
+        local enabled = tParams and tParams.enabled
+        if type(enabled) == "string" then
+            enabled = enabled == "True" or enabled == "true"
+        end
+        if type(enabled) ~= "boolean" then return end
+
+        local settings = {
+            alert = { field = "enable_alerts", property = "Enable Alert Notifications" },
+            motion = { field = "enable_motion", property = "Enable Motion Notifications" },
+            offline = { field = "enable_offline", property = "Enable Offline Notifications" },
+            event = { field = "enable_event", property = "Enable Event Notifications" }
+        }
+        local setting_config = settings[setting]
+        if not setting_config then return end
+
+        user_settings[setting_config.field] = enabled
+        C4:UpdateProperty(setting_config.property, enabled and "True" or "False")
+        local update = { type = "notification_settings" }
+        update[setting] = enabled
+        C4:SendDataToUI(json.encode(update))
         return
     end
 
@@ -2180,6 +2248,13 @@ end
 local function send_notification(category, event_name, cooldown_key, cooldown_sec, filename, extp)
     if category == NOTIFY.ALERT and not user_settings.enable_alerts then return end
     if category == NOTIFY.INFO and not user_settings.enable_info then return end
+    if event_name == EVENT.MOTION or event_name == EVENT.HUMAN then
+        if not user_settings.enable_motion then return end
+    elseif event_name == EVENT.CAMERA_ONLINE or event_name == EVENT.CAMERA_OFFLINE then
+        if not user_settings.enable_offline then return end
+    elseif cooldown_key == "memory_card" and not user_settings.enable_event then
+        return
+    end
     if not can_notify(cooldown_key, cooldown_sec) then return end
 
     local tries = 0
@@ -4015,6 +4090,9 @@ function HandleSDCardStatus(status_val)
     end
 
     local sd_status = tonumber(status_obj.status)
+    if sd_status then
+        C4:SendDataToUI(json.encode({ type = "storage_status", status = sd_status }))
+    end
 
     if sd_status == 1 then
         -- SD Card Missing / Removed
@@ -4045,7 +4123,7 @@ function TriggerMemoryCardEvent(is_present)
         C4:FireEvent("Memory Card Inserted")           -- You may want to add this event in XML too
         C4:UpdateProperty("Memory Card Status", "Inserted")
 
-        if user_settings.enable_info then
+        if user_settings.enable_info and user_settings.enable_event then
             SEND_NOTIFICATION({
                 title = "Camera Info",
                 message = "Memory Card Inserted",
@@ -4057,7 +4135,7 @@ function TriggerMemoryCardEvent(is_present)
         C4:FireEvent("Memory Card not detected")
         C4:UpdateProperty("Memory Card Status", "Not Detected")
 
-        if user_settings.enable_alerts then
+        if user_settings.enable_alerts and user_settings.enable_event then
             SEND_NOTIFICATION({
                 title = "Camera Alert",
                 message = "Memory Card Not Detected",

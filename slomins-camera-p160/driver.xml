@@ -253,6 +253,36 @@
                 <readonly>false</readonly>
             </property>
             <property>
+                <name>Enable Motion Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Offline Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
+                <name>Enable Event Notifications</name>
+                <type>LIST</type>
+                <items>
+                    <item>True</item>
+                    <item>False</item>
+                </items>
+                <default>True</default>
+                <readonly>false</readonly>
+            </property>
+            <property>
                 <name>Auth Token</name>
                 <type>STRING</type>
                 <default></default>
@@ -348,12 +378,24 @@
                 <description>Turn down speaker volume</description>
             </command>
             <command>
+                <name>SET_SPEAKER_VOLUME</name>
+                <description>Set speaker volume between 0 and 10</description>
+            </command>
+            <command>
                 <name>REQUEST_INITIAL_STATE</name>
                 <description>Request initial state of anti pry alarm</description>
             </command>
             <command>
                 <name>GET_DEVICE_INFO</name>
                 <description>Request device info</description>
+            </command>
+            <command>
+                <name>GET_NOTIFICATION_SETTINGS</name>
+                <description>Get notification preferences for the UI</description>
+            </command>
+            <command>
+                <name>SET_NOTIFICATION_SETTING</name>
+                <description>Set a notification preference</description>
             </command>
             <command>
                 <name>SET_DEVICE_NAME</name>

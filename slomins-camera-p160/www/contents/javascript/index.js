@@ -16,7 +16,8 @@ document.addEventListener('DOMContentLoaded', function () {
     requestInitialState();
     initDeviceName();
     initDeviceInfo();
-     initReboot();
+    initReboot();
+    initNotificationSettings();
 });
 
 // =====================================================
@@ -136,6 +137,21 @@ function initMicrophone() {
 
     toggle.removeEventListener('change', handleMicToggle);
     toggle.addEventListener('change', handleMicToggle);
+}
+
+function initNotificationSettings() {
+    document.querySelectorAll('[data-notification-setting]').forEach(toggle => {
+        toggle.addEventListener('change', function () {
+            try {
+                C4.sendCommand('SET_NOTIFICATION_SETTING', JSON.stringify({
+                    setting: this.dataset.notificationSetting,
+                    enabled: this.checked
+                }), false, true);
+            } catch (error) {
+                console.error('Failed to update notification setting', error);
+            }
+        });
+    });
 }
 
 function handleMicToggle(e) {
@@ -288,6 +304,47 @@ function onDataToUi(value) {
             if (relEl) {
                 relEl.innerText = "Release: " + (obj.release_date || "N/A");
             }
+
+            let wifiSignal = obj.rssi;
+            const signalValue = Number(obj.rssi);
+            if (obj.rssi !== undefined && obj.rssi !== null && obj.rssi !== '' && Number.isFinite(signalValue)) {
+                if (signalValue >= 0) {
+                    wifiSignal = signalValue >= 75 ? 'Very strong' : signalValue >= 50 ? 'Strong' : signalValue >= 25 ? 'Fair' : 'Weak';
+                } else {
+                    wifiSignal = signalValue >= -50 ? 'Very strong' : signalValue >= -60 ? 'Strong' : signalValue >= -70 ? 'Fair' : 'Weak';
+                }
+            }
+
+            const infoValues = {
+                infoDeviceName: obj.device_name,
+                infoVersion: obj.version,
+                infoSerial: obj.serial,
+                infoTimezone: obj.timezone,
+                infoIp: obj.ip,
+                infoMac: obj.mac,
+                infoWifi: obj.wifi,
+                infoWifiSignal: wifiSignal
+            };
+            Object.entries(infoValues).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element && value) element.textContent = value;
+            });
+
+            const identifier = document.getElementById('authUserIdentifier');
+            if (identifier) identifier.textContent = obj.serial || obj.mac || 'Unavailable';
+        }
+
+        if (obj.type === 'notification_settings') {
+            document.querySelectorAll('[data-notification-setting]').forEach(toggle => {
+                const setting = toggle.dataset.notificationSetting;
+                if (typeof obj[setting] === 'boolean') toggle.checked = obj[setting];
+            });
+        }
+
+        if (obj.type === 'storage_status') {
+            const status = document.getElementById('storageCardStatus');
+            const labels = { 0: 'Card detected', 1: 'Not detected', 2: 'Filesystem not initialized' };
+            if (status) status.textContent = labels[obj.status] || 'Unknown';
         }
 
         // =========================

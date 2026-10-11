@@ -638,18 +638,33 @@
             max-width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 0;
+            gap: 16px;
+            padding: 24px 6px 0;
+        }
+
+        .video-settings-card {
+            border-radius: 22px;
+            background: #1c1c1c;
+            overflow: hidden;
+            padding: 0 16px;
         }
 
         .video-setting-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 18px 18px;
-            border-bottom: 1px solid var(--border);
-            background: var(--surface);
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             cursor: pointer;
-            min-height: 68px;
+            min-height: 54px;
+        }
+
+        .video-setting-row:last-child {
+            border-bottom: 0;
+        }
+
+        .video-setting-toggle-row {
+            padding: 8px 0;
         }
 
         .video-setting-name {
@@ -672,6 +687,422 @@
             transform: translateY(-1px);
         }
 
+        .audio-volume-setting {
+            padding: 18px 0;
+            text-align: left;
+        }
+
+        .audio-volume-label {
+            display: block;
+            margin-bottom: 18px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .audio-volume-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .audio-volume-endpoint {
+            min-width: 10px;
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .audio-volume-slider-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            padding-top: 18px;
+        }
+
+        .audio-volume-current {
+            position: absolute;
+            top: 0;
+            transform: translateX(-50%);
+            color: var(--accent);
+            font-size: 13px;
+            line-height: 1;
+        }
+
+        .audio-volume-slider {
+            display: block;
+            width: 100%;
+            height: 6px;
+            margin: 7px 0;
+            appearance: none;
+            border-radius: 999px;
+            background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--volume-progress, 80%), #a5a5a5 var(--volume-progress, 80%), #a5a5a5 100%);
+            cursor: pointer;
+        }
+
+        .audio-volume-slider::-webkit-slider-thumb {
+            width: 16px;
+            height: 16px;
+            appearance: none;
+            border: 0;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .audio-volume-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: 0;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .settings-detail-content {
+            flex: 1;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-start;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .settings-detail-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px 6px;
+        }
+
+        .notification-preference {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .notification-preference:last-child {
+            border-bottom: 0;
+        }
+
+        .notification-copy {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notification-title,
+        .detail-row-label {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .notification-description {
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35;
+        }
+
+        .detail-card-content {
+            padding: 16px 0;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 14px;
+        }
+
+        .detail-row:last-child {
+            border-bottom: 0;
+        }
+
+        .detail-row-value {
+            color: var(--muted);
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        .device-summary {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr);
+            gap: 0 14px;
+            padding: 4px 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .device-summary-icon {
+            grid-row: 1;
+            align-self: center;
+            width: 36px;
+            height: 36px;
+            color: var(--accent);
+        }
+
+        .device-summary-content {
+            min-width: 0;
+        }
+
+        .device-summary-name {
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .device-summary-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 3px 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .copy-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .copy-button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .status-unavailable {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .disabled-action {
+            width: 100%;
+            min-height: 48px;
+            border: 0;
+            border-radius: 12px;
+            background: var(--surface2);
+            color: var(--muted);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: not-allowed;
+        }
+
+        .storage-page-content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 16px 0 14px;
+        }
+
+        .storage-summary-card {
+            flex: 0 0 30vh;
+            margin: 0 6px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #1c1c1c;
+        }
+
+        .storage-summary-icon {
+            width: 30px;
+            height: 30px;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        .storage-capacity-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 4px 2px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .storage-retention-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 56px;
+            margin: 0 6px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: #1c1c1c;
+        }
+
+        .storage-retention-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            color: var(--accent);
+        }
+
+        .storage-retention-title {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .storage-retention-description {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .storage-format-button {
+            width: 100%;
+            min-height: 52px;
+            margin-top: auto;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(100deg, #ff1b5b, #d80c3d);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .storage-action-status {
+            padding: 0 12px;
+            color: #ff4b4b;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .storage-format-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0,0,0,0.78);
+        }
+
+        .storage-format-overlay.show {
+            display: flex;
+        }
+
+        .storage-format-dialog {
+            width: min(100%, 320px);
+            padding: 14px 8px 10px;
+            border-radius: 18px;
+            background: #303236;
+        }
+
+        .storage-format-title {
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .storage-format-warning {
+            margin: 0 0 14px;
+            color: #ff4b4b;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .storage-format-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .storage-format-actions button {
+            min-height: 38px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .storage-format-cancel {
+            border: 1px solid rgba(255,255,255,0.55);
+            background: transparent;
+            color: white;
+        }
+
+        .storage-format-next {
+            border: 0;
+            background: linear-gradient(100deg, #ff1b5b, #d80c3d);
+            color: white;
+        }
+
+        .confirmation-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(0,0,0,0.72);
+        }
+
+        .confirmation-overlay.show {
+            display: flex;
+        }
+
+        .confirmation-card {
+            width: min(100%, 560px);
+            padding: 18px;
+            border-radius: 18px;
+            background: #303236;
+        }
+
+        .confirmation-title {
+            margin-bottom: 16px;
+            font-size: 17px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .confirmation-message {
+            margin-bottom: 18px;
+            color: #ff4b4b;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .confirmation-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .confirmation-actions button {
+            min-height: 44px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .confirmation-cancel {
+            border: 1px solid rgba(255,255,255,0.55);
+            background: transparent;
+            color: white;
+        }
+
+        .confirmation-confirm {
+            border: 0;
+            background: var(--accent);
+            color: white;
+        }
+
         .picker-overlay {
             display: none;
             position: fixed;
@@ -687,18 +1118,53 @@
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 0;
+            gap: 16px;
+            padding: 24px 6px 0;
+        }
+
+        .motion-header {
+            flex: 1;
+            text-align: center;
+            font-size: clamp(38px, 4vw, 64px);
+            font-weight: 700;
+            letter-spacing: -0.06em;
+            line-height: 1;
+            color: var(--text);
+        }
+
+        .motion-toggle-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-radius: 22px;
+            background: #1c1c1c;
+            min-height: 56px;
+        }
+
+        .motion-dependent-card {
+            border-radius: 22px;
+            background: #1c1c1c;
+            overflow: hidden;
+            padding: 0 16px;
         }
 
         .motion-setting-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 18px 18px;
-            border-bottom: 1px solid var(--border);
-            background: rgba(255,255,255,0.02);
-            min-height: 68px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            min-height: 54px;
             cursor: pointer;
+        }
+
+        .motion-setting-row[hidden] {
+            display: none;
+        }
+
+        .motion-setting-row:last-child {
+            border-bottom: 0;
         }
 
         .motion-setting-row.compact {
@@ -708,6 +1174,23 @@
         .motion-setting-title {
             font-size: 15px;
             font-weight: 600;
+        }
+
+        .video-settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .video-settings-header .title {
+            flex: 1;
+            text-align: center;
+            font-size: clamp(38px, 4vw, 64px);
+            font-weight: 700;
+            letter-spacing: -0.06em;
+            line-height: 1;
         }
 
         .motion-setting-meta {
@@ -1032,13 +1515,13 @@
 
             <div class="settings-list">
                 <div class="settings-item" onclick="show('videoSettingsPanel')"><span>Video Settings</span><span class="value">›</span></div>
-                <div class="settings-item"><span>Audio Settings</span><span class="value">›</span></div>
-                <div class="settings-item"><span>Notification Settings</span><span class="value">›</span></div>
-                <div class="settings-item"><span>Internal Storage</span><span class="value">›</span></div>
-                <div class="settings-item"><span>Device Information</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="show('audioSettingsPanel')"><span>Audio Settings</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="openNotificationSettings()"><span>Notification Settings</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="show('internalStoragePanel')"><span>Internal Storage</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="openDeviceInformation()"><span>Device Information</span><span class="value">›</span></div>
                 <div class="settings-item"><span>Check Firmware Update</span><span class="value">The current version is the latest.</span></div>
-                <div class="settings-item"><span>C4 Authentication Service</span><span class="value">›</span></div>
-                <div class="settings-item"><span>Restart</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="openAuthenticationService()"><span>C4 Authentication Service</span><span class="value">›</span></div>
+                <div class="settings-item" onclick="openRestartConfirmation()"><span>Restart</span><span class="value">›</span></div>
                 <div class="settings-item danger"><span>Delete Device</span></div>
             </div>
         </section>
@@ -1081,42 +1564,217 @@
         </section>
         <!-- VIDEO SETTINGS -->
         <section id="videoSettingsPanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('settingsPanel')">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
                     <i data-lucide="arrow-left"></i>
                 </button>
+                <div class="title">Video Settings</div>
+                <div style="width: 38px;"></div>
             </div>
             <div class="content" style="display:flex; align-items:stretch; justify-content:flex-start; padding:0; width:100%;">
                 <div class="video-settings-list">
-                    <div class="video-setting-row" data-setting="recordingMode">
-                        <div class="video-setting-name">Recording Mode</div>
-                        <div class="video-setting-value"><span id="recordingModeValue">Event Recording Mode</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
-                    </div>
+                    <div class="video-settings-card">
+                        <div class="video-setting-row" data-setting="recordingMode">
+                            <div class="video-setting-name">Recording Mode</div>
+                            <div class="video-setting-value"><span id="recordingModeValue">Event Recording Mode</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
+                        </div>
 
-                    <div class="video-setting-row" data-setting="nightVisionMode">
-                        <div class="video-setting-name">Night Vision Mode</div>
-                        <div class="video-setting-value"><span id="nightVisionModeValue">Automatic</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
-                    </div>
+                        <div class="video-setting-row" data-setting="nightVisionMode">
+                            <div class="video-setting-name">Night Vision Mode</div>
+                            <div class="video-setting-value"><span id="nightVisionModeValue">Automatic</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
+                        </div>
 
-                    <div class="video-setting-row" data-setting="antiFlicker">
-                        <div class="video-setting-name">Anti-Flicker</div>
-                        <div class="video-setting-value"><span id="antiFlickerValue">OFF</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
-                    </div>
+                        <div class="video-setting-row" data-setting="antiFlicker">
+                            <div class="video-setting-name">Anti-Flicker</div>
+                            <div class="video-setting-value"><span id="antiFlickerValue">OFF</span><span class="video-setting-chevron" aria-hidden="true">›</span></div>
+                        </div>
 
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
-                        <div style="font-size:15px; font-weight:600;">Flip Image</div>
-                        <label class="toggle">
-                            <input type="checkbox" id="flipImageToggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
+                        <div class="video-setting-row video-setting-toggle-row">
+                            <div class="video-setting-name">Flip Image</div>
+                            <label class="toggle">
+                                <input type="checkbox" id="flipImageToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
 
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 18px; border-bottom:1px solid var(--border); background:var(--surface);">
-                        <div style="font-size:15px; font-weight:600;">Time Watermark</div>
-                        <label class="toggle">
-                            <input type="checkbox" id="timeWatermarkToggle" checked>
-                            <span class="slider"></span>
-                        </label>
+                        <div class="video-setting-row video-setting-toggle-row">
+                            <div class="video-setting-name">Time Watermark</div>
+                            <label class="toggle">
+                                <input type="checkbox" id="timeWatermarkToggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="audioSettingsPanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Audio Settings</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="content" style="display:flex; align-items:stretch; justify-content:flex-start; padding:0; width:100%;">
+                <div class="video-settings-list">
+                    <div class="video-settings-card">
+                        <div class="audio-volume-setting">
+                            <label class="audio-volume-label" for="speakerVolume">Device Speaker Volume</label>
+                            <div class="audio-volume-control">
+                                <span class="audio-volume-endpoint">0</span>
+                                <div class="audio-volume-slider-wrap">
+                                    <output class="audio-volume-current" id="speakerVolumeValue" for="speakerVolume">8</output>
+                                    <input class="audio-volume-slider" id="speakerVolume" type="range" min="0" max="10" step="1" value="8" aria-label="Device Speaker Volume">
+                                </div>
+                                <span class="audio-volume-endpoint">10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="notificationSettingsPanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Notification Settings</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="settings-detail-content">
+                <div class="settings-detail-list">
+                    <div class="video-settings-card">
+                        <div class="notification-preference">
+                            <div class="notification-copy">
+                                <div class="notification-title">Alert Notification</div>
+                                <div class="notification-description">After enabling this, you will receive message notifications when the device detects events such as abnormalities, low battery, or emergencies.</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" data-notification-setting="alert" checked aria-label="Alert Notification">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-preference">
+                            <div class="notification-copy">
+                                <div class="notification-title">Motion Detection</div>
+                                <div class="notification-description">Once enabled, you will receive a message notification when the device detects a moving object.</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" data-notification-setting="motion" checked aria-label="Motion Detection Notifications">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-preference">
+                            <div class="notification-copy">
+                                <div class="notification-title">Offline Notification</div>
+                                <div class="notification-description">Once enabled, you will receive a message notification when the device detects an offline event. Reminders are sent again after an 8-hour interval.</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" data-notification-setting="offline" checked aria-label="Offline Notifications">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-preference">
+                            <div class="notification-copy">
+                                <div class="notification-title">Event Notification</div>
+                                <div class="notification-description">When enabled, you will receive notifications for non-emergency system events that require your attention.</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" data-notification-setting="event" checked aria-label="Event Notifications">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="internalStoragePanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Internal Storage</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="storage-page-content">
+                <div class="storage-summary-card">
+                    <i data-lucide="database" class="storage-summary-icon" aria-hidden="true"></i>
+                    <div class="storage-capacity-row"><span>Total:</span><span id="storageTotal">29 GB</span></div>
+                    <div class="storage-capacity-row"><span>Available:</span><span id="storageAvailable">6 GB</span></div>
+                </div>
+                <div class="storage-retention-card">
+                    <i data-lucide="shield-check" class="storage-retention-icon" aria-hidden="true"></i>
+                    <div>
+                        <div class="storage-retention-title">4 Days</div>
+                        <div class="storage-retention-description">We have provided 4 days of information security protection.</div>
+                    </div>
+                </div>
+                <div class="storage-action-status" id="storageActionStatus" role="status" hidden></div>
+                <button class="storage-format-button" type="button" onclick="openStorageFormatConfirmation()">Format Local Storage</button>
+            </div>
+        </section>
+
+        <section id="deviceInformationPanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">Device Information</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="settings-detail-content">
+                <div class="settings-detail-list">
+                    <div class="video-settings-card detail-card-content">
+                        <div class="device-summary">
+                            <i data-lucide="camera" class="device-summary-icon" aria-hidden="true"></i>
+                            <div class="device-summary-content">
+                                <div class="device-summary-name" id="infoDeviceName">Loading device info...</div>
+                                <div class="device-summary-line"><span>Version</span><span id="infoVersion">--</span></div>
+                                <div class="device-summary-line"><span>SN</span><span id="infoSerial">--</span><button class="copy-button" onclick="copyUserIdentifier()" aria-label="Copy serial number" title="Copy serial number"><i data-lucide="copy"></i></button></div>
+                            </div>
+                        </div>
+                        <div class="detail-row"><span class="detail-row-label">Device Time Zone</span><span class="detail-row-value" id="infoTimezone">--</span></div>
+                        <div class="detail-row"><span class="detail-row-label">IP Address</span><span class="detail-row-value" id="infoIp">--</span></div>
+                        <div class="detail-row"><span class="detail-row-label">MAC Address</span><span class="detail-row-value" id="infoMac">--</span></div>
+                    </div>
+                    <div class="video-settings-card detail-card-content">
+                        <div class="detail-row"><span class="detail-row-label">Wi-Fi Name</span><span class="detail-row-value" id="infoWifi">--</span></div>
+                        <div class="detail-row"><span class="detail-row-label">WiFi Signal</span><span class="detail-row-value" id="infoWifiSignal">--</span></div>
+                        <div class="detail-row">
+                            <span><span class="detail-row-label">Sync Time</span><br><span class="notification-description">Time synchronization is not available from this driver.</span></span>
+                            <span class="detail-row-value">Unavailable</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="authenticationServicePanel" class="panel">
+            <div class="video-settings-header">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="title">C4 Authentication Service</div>
+                <div style="width: 38px;"></div>
+            </div>
+            <div class="settings-detail-content">
+                <div class="settings-detail-list">
+                    <div class="video-settings-card detail-card-content">
+                        <div class="detail-row">
+                            <span><span class="detail-row-label">User Identifier</span><br><span class="notification-description">This is for verifying your identity. Do not disclose this information.</span></span>
+                            <span class="detail-row-value" id="authUserIdentifier">Unavailable</span>
+                            <button class="copy-button" onclick="copyUserIdentifier()" aria-label="Copy user identifier" title="Copy user identifier"><i data-lucide="copy"></i></button>
+                        </div>
+                    </div>
+                    <div class="video-settings-card detail-card-content">
+                        <div class="detail-row">
+                            <span><span class="detail-row-label">Device Pairing Mode</span><br><span class="notification-description">Pairing mode cannot be changed through this driver.</span></span>
+                            <span class="detail-row-value">Unavailable</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1125,13 +1783,15 @@
         <!-- DEVICE NAME -->
         <section id="motionDetectionPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('settingsPanel')">
+                <button class="back" onclick="show('settingsPanel')" aria-label="Back">
                     <i data-lucide="arrow-left"></i>
                 </button>
+                <div class="motion-header">Motion Detection</div>
+                <div style="width: 38px;"></div>
             </div>
             <div class="content" style="display:flex; align-items:stretch; justify-content:flex-start; padding:0; width:100%;">
                 <div class="motion-settings-list">
-                    <div class="motion-setting-row">
+                    <div class="motion-toggle-card">
                         <div class="motion-setting-title">Motion Detection</div>
                         <label class="toggle">
                             <input type="checkbox" id="motionDetectionToggle" checked>
@@ -1139,28 +1799,30 @@
                         </label>
                     </div>
 
-                    <div class="motion-setting-row" data-setting="detectionType">
-                        <div class="motion-setting-title">Detection Type</div>
-                        <div class="motion-setting-meta">
-                            <span id="detectionTypeValue">Motion Detection</span>
+                    <div class="motion-dependent-card">
+                        <div class="motion-setting-row" data-setting="detectionType">
+                            <div class="motion-setting-title">Detection Type</div>
+                            <div class="motion-setting-meta">
+                                <span id="detectionTypeValue">Motion Detection</span>
+                                <span class="motion-setting-chevron" aria-hidden="true">›</span>
+                            </div>
+                        </div>
+
+                        <div class="motion-setting-row" data-setting="detectionSensitivity">
+                            <div class="motion-setting-title">Detection Sensitivity</div>
+                            <div class="motion-setting-meta">
+                                <span id="detectionSensitivityValue">Medium</span>
+                                <span class="motion-setting-chevron" aria-hidden="true">›</span>
+                            </div>
+                        </div>
+
+                        <div class="motion-setting-row compact" data-setting="detectionZone">
+                            <div class="motion-setting-sub">
+                                <div class="motion-setting-sub-title">Set Detection Zone</div>
+                                <div>Set the alarm area you are concerned about.</div>
+                            </div>
                             <span class="motion-setting-chevron" aria-hidden="true">›</span>
                         </div>
-                    </div>
-
-                    <div class="motion-setting-row" data-setting="detectionSensitivity">
-                        <div class="motion-setting-title">Detection Sensitivity</div>
-                        <div class="motion-setting-meta">
-                            <span id="detectionSensitivityValue">Medium</span>
-                            <span class="motion-setting-chevron" aria-hidden="true">›</span>
-                        </div>
-                    </div>
-
-                    <div class="motion-setting-row compact" data-setting="detectionZone">
-                        <div class="motion-setting-sub">
-                            <div class="motion-setting-sub-title">Set Detection Zone</div>
-                            <div>Set the alarm area you are concerned about.</div>
-                        </div>
-                        <span class="motion-setting-chevron" aria-hidden="true">›</span>
                     </div>
                 </div>
             </div>
@@ -1219,6 +1881,28 @@
         </div>
     </div>
 
+    <div id="restartConfirmModal" class="confirmation-overlay" role="dialog" aria-modal="true" aria-labelledby="restartConfirmTitle">
+        <div class="confirmation-card">
+            <div class="confirmation-title" id="restartConfirmTitle">Restart Device</div>
+            <div class="confirmation-message">Are you sure you want to restart this device?</div>
+            <div class="confirmation-actions">
+                <button class="confirmation-cancel" type="button" onclick="closeRestartConfirmation()">Cancel</button>
+                <button class="confirmation-confirm" type="button" onclick="confirmRestart()">Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storageFormatModal" class="storage-format-overlay" role="dialog" aria-modal="true" aria-labelledby="storageFormatTitle">
+        <div class="storage-format-dialog">
+            <div class="storage-format-title" id="storageFormatTitle">Format Local Storage</div>
+            <p class="storage-format-warning">WARNING: This operation will format the local storage, and all saved videos and records will be permanently lost and cannot be recovered. Proceed with caution. The device cannot connect to the App during formatting. Do not leave this page. The device will restart after formatting is complete.<br>By clicking &quot;Next&quot;, you confirm that you fully understand the purpose and consequences of the formatting operation.</p>
+            <div class="storage-format-actions">
+                <button class="storage-format-cancel" type="button" onclick="closeStorageFormatConfirmation()">Cancel</button>
+                <button class="storage-format-next" type="button" onclick="confirmStorageFormat()">Next</button>
+            </div>
+        </div>
+    </div>
+
     <div id="settingPickerModal" class="picker-overlay" aria-modal="true" role="dialog">
         <div class="picker-card">
             <div class="picker-header" id="pickerTitle">Recording Mode</div>
@@ -1252,6 +1936,71 @@
             }
 
             lucide.createIcons();
+        }
+
+        function openNotificationSettings() {
+            show('notificationSettingsPanel');
+            try {
+                C4.sendCommand('GET_NOTIFICATION_SETTINGS', '', false, true);
+            } catch (error) {
+                console.warn('Notification settings are unavailable outside Control4', error);
+            }
+        }
+
+        function openDeviceInformation() {
+            show('deviceInformationPanel');
+            try {
+                C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+            } catch (error) {
+                console.warn('Device information is unavailable outside Control4', error);
+            }
+        }
+
+        function openAuthenticationService() {
+            show('authenticationServicePanel');
+            try {
+                C4.sendCommand('GET_DEVICE_INFO', '', false, true);
+            } catch (error) {
+                console.warn('User identifier is unavailable outside Control4', error);
+            }
+        }
+
+        function openStorageFormatConfirmation() {
+            const status = document.getElementById('storageActionStatus');
+            status.hidden = true;
+            status.textContent = '';
+            document.getElementById('storageFormatModal').classList.add('show');
+        }
+
+        function closeStorageFormatConfirmation() {
+            document.getElementById('storageFormatModal').classList.remove('show');
+        }
+
+        function confirmStorageFormat() {
+            closeStorageFormatConfirmation();
+            const status = document.getElementById('storageActionStatus');
+            status.textContent = 'Storage formatting is not available through this driver.';
+            status.hidden = false;
+        }
+
+        function openRestartConfirmation() {
+            document.getElementById('restartConfirmModal').classList.add('show');
+        }
+
+        function closeRestartConfirmation() {
+            document.getElementById('restartConfirmModal').classList.remove('show');
+        }
+
+        function confirmRestart() {
+            closeRestartConfirmation();
+            document.getElementById('rebootBtn').click();
+        }
+
+        function copyUserIdentifier() {
+            const identifier = document.getElementById('authUserIdentifier').textContent.trim();
+            if (identifier && identifier !== 'Unavailable' && navigator.clipboard) {
+                navigator.clipboard.writeText(identifier);
+            }
         }
 
         /* =========================
@@ -1397,6 +2146,44 @@
 
             const flipImageToggle = document.getElementById('flipImageToggle');
             const timeWatermarkToggle = document.getElementById('timeWatermarkToggle');
+            const motionDetectionToggle = document.getElementById('motionDetectionToggle');
+            const speakerVolumeSlider = document.getElementById('speakerVolume');
+            const speakerVolumeValue = document.getElementById('speakerVolumeValue');
+
+            if (speakerVolumeSlider && speakerVolumeValue) {
+                const updateSpeakerVolumeDisplay = () => {
+                    const min = Number(speakerVolumeSlider.min);
+                    const max = Number(speakerVolumeSlider.max);
+                    const volume = Number(speakerVolumeSlider.value);
+                    const progress = ((volume - min) / (max - min)) * 100;
+
+                    speakerVolumeValue.textContent = String(volume);
+                    speakerVolumeValue.style.left = `${progress}%`;
+                    speakerVolumeSlider.style.setProperty('--volume-progress', `${progress}%`);
+                };
+
+                updateSpeakerVolumeDisplay();
+                speakerVolumeSlider.addEventListener('input', updateSpeakerVolumeDisplay);
+                speakerVolumeSlider.addEventListener('change', () => {
+                    try {
+                        C4.sendCommand('SET_SPEAKER_VOLUME', JSON.stringify({ volume: Number(speakerVolumeSlider.value) }), false, true);
+                    } catch (error) {
+                        console.error('Failed to set speaker volume', error);
+                    }
+                });
+            }
+
+            if (motionDetectionToggle) {
+                const motionSettings = document.querySelectorAll('.motion-setting-row[data-setting]');
+                const updateMotionSettingsVisibility = () => {
+                    motionSettings.forEach(row => {
+                        row.hidden = !motionDetectionToggle.checked;
+                    });
+                };
+
+                updateMotionSettingsVisibility();
+                motionDetectionToggle.addEventListener('change', updateMotionSettingsVisibility);
+            }
 
             if (flipImageToggle) {
                 flipImageToggle.addEventListener('change', function () {
