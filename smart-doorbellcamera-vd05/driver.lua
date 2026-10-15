@@ -848,6 +848,14 @@ function ExecuteCommand(strCommand, tParams)
         GET_DEVICE_INFO()
         return
     end
+    if strCommand == "GET_CAMERA_SETTINGS" then
+        GET_CAMERA_SETTINGS()
+        return
+    end
+    if strCommand == "SET_CAMERA_SETTING" then
+        UPDATE_CAMERA_SETTING(tParams)
+        return
+    end
 
     if strCommand == "SET_DEVICE_NAME" then
         SET_DEVICE_NAME(tParams)        
@@ -871,6 +879,10 @@ function ExecuteCommand(strCommand, tParams)
     if strCommand == "UPDATE_STRANGER_NOTE" then
         print("[COMMAND] UPDATE_STRANGER_NOTE requested")
         UPDATE_STRANGER_NOTE(tParams)
+        return
+    end
+    if strCommand == "DELETE_STRANGER_FACES" then
+        DELETE_STRANGER_FACES(tParams)
         return
     end
 
@@ -950,14 +962,19 @@ function SET_DEVICE_PROPERTY(property_data, success_callback, failure_callback)
         local ok, result = pcall(json.decode, resp or "")
         local api_code = ok and type(result) == "table" and tonumber(result.code)
         local api_success = api_code == 0 or api_code == 200 or api_code == 20000
-        if (code == 200 or code == 20000) and api_success then
+        if not err and (code == 200 or code == 20000) and api_success then
             print("Property set successfully")
             if success_callback then
                 success_callback()
             end
         else
             print("Failed to set property")
-            if failure_callback then failure_callback("Device property update failed") end
+            local message = ok and type(result) == "table" and tostring(result.message or "") or ""
+            local timed_out = message:find("超时", 1, true) or message:lower():find("timeout", 1, true) or
+                message:lower():find("timed out", 1, true) or tostring(err or ""):lower():find("timeout", 1, true)
+            local error_message = timed_out and "Device response timed out. Please try again." or
+                ("Device property update failed (" .. tostring(api_code or code or "connection error") .. "). Please try again.")
+            if failure_callback then failure_callback(error_message) end
         end
     end)
     print("================================================================")
@@ -1001,6 +1018,12 @@ function GET_DEVICE_PROPERTY(property_name, callback)
         headers = headers
     }
 
+    if property_name == nil then
+        req.url = base_url .. "/api/v3/openapi/device/property-latest"
+        req.method = "POST"
+        req.body = json.encode({ vid = vid, data_ids = { "motion", "siren_swt", "light_swt" }, data_source = 0 })
+    end
+
     transport.execute(req, function(code, resp, resp_headers, err)
         if code ~= 200 then
             print("ERROR: Failed to get device property - HTTP " .. tostring(code))
@@ -1008,10 +1031,41 @@ function GET_DEVICE_PROPERTY(property_name, callback)
             return
         end
 
-        local response = json.decode(resp)
+        local ok, response = pcall(json.decode, resp or "")
+        if not ok then response = nil end
         if not response or not response.data then
             print("ERROR: Invalid response format")
             if callback then callback(nil) end
+            return
+        end
+
+        if property_name == nil then
+            local api_code = tonumber(response.code)
+            if err or (api_code and api_code ~= 200 and api_code ~= 20000) then
+                if callback then callback(nil) end
+                return
+            end
+            local status = response.data.status or response.data
+            if type(status) == "string" then
+                local decoded_ok, decoded = pcall(json.decode, status)
+                status = decoded_ok and decoded or nil
+            end
+            if type(status) ~= "table" then
+                if callback then callback(nil) end
+                return
+            end
+            if status.data_id then status = { status } end
+            local values = {}
+            for key, item in pairs(status) do
+                if type(item) == "table" and (item.data_id or item.status_key) then
+                    local value = item.value
+                    if value == nil then value = item.status_val end
+                    values[item.data_id or item.status_key] = value
+                elseif type(key) == "string" then
+                    values[key] = item
+                end
+            end
+            if callback then callback(values) end
             return
         end
 
@@ -1033,6 +1087,109 @@ function GET_DEVICE_PROPERTY(property_name, callback)
         print("[GET_DEVICE_PROPERTY] " .. property_name .. " = " .. tostring(value))
         if callback then callback(value) end
     end)
+end
+
+local motion_setting_queue = {}
+local motion_setting_busy = false
+
+local function decode_motion(value)
+    if type(value) == "string" then
+        local ok, decoded = pcall(json.decode, value)
+        return ok and type(decoded) == "table" and decoded or nil
+    end
+    return type(value) == "table" and value or nil
+end
+
+local function publish_motion_settings(values, saved)
+    local settings = {
+        siren_swt = values.siren_swt,
+        light_swt = values.light_swt,
+        unknow_thld = values.unknow_thld,
+        unknow_faceq = values.unknow_faceq
+    }
+    local motion = decode_motion(values.motion)
+    if motion then
+        for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+            settings["motion_" .. field] = motion[field]
+        end
+    end
+    SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = saved, settings = settings })
+end
+
+function GET_CAMERA_SETTINGS()
+    GET_DEVICE_PROPERTY(nil, function(values)
+        if not values then
+            SendDeviceInfoToUI({ type = "camera_settings", success = false })
+            return
+        end
+        publish_motion_settings(values, false)
+    end)
+end
+
+local function process_motion_setting_queue()
+    if motion_setting_busy or #motion_setting_queue == 0 then return end
+    motion_setting_busy = true
+    local change = motion_setting_queue[1]
+    local function finish(error_message)
+        if error_message then
+            SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = error_message })
+        end
+        table.remove(motion_setting_queue, 1)
+        motion_setting_busy = false
+        process_motion_setting_queue()
+    end
+    GET_DEVICE_PROPERTY(nil, function(values)
+        if not values then finish("Unable to read current camera settings") return end
+        local data = {}
+        if change.key == "alarm" then
+            data.siren_swt = change.value
+        elseif change.key == "unknow_thld" or change.key == "unknow_faceq" then
+            data[change.key] = change.value
+        else
+            local motion = decode_motion(values.motion)
+            if not motion then finish("Motion settings unavailable") return end
+            for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+                if motion[field] == nil then finish("Incomplete motion settings") return end
+            end
+            motion[change.key:sub(8)] = change.value
+            data.motion = motion
+        end
+        SET_DEVICE_PROPERTY(data, function()
+            for key, value in pairs(data) do values[key] = value end
+            publish_motion_settings(values, true)
+            finish()
+        end, function(error_message)
+            publish_motion_settings(values, false)
+            finish(error_message)
+        end)
+    end)
+end
+
+function UPDATE_CAMERA_SETTING(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local key = type(params) == "table" and params.key
+    local value = type(params) == "table" and params.value
+    local limits = { ["motion.switch"] = 1, ["motion.type"] = 1, ["motion.sen"] = 2, alarm = 1, unknow_faceq = 2 }
+    local valid = false
+    if key == "motion.x_y_w_h" then
+        valid = type(value) == "string" and value:match("^%d+:%d+:%d+:%d+$") ~= nil
+    elseif key == "unknow_thld" then
+        value = tonumber(value)
+        valid = value ~= nil and value >= 0.01 and value <= 0.99 and
+            math.abs(value * 100 - math.floor(value * 100 + 0.5)) < 0.000001
+    elseif limits[key] then
+        value = tonumber(value)
+        valid = value ~= nil and value % 1 == 0 and value >= 0 and value <= limits[key]
+    end
+    if not valid then
+        SendDeviceInfoToUI({ type = "camera_setting_result", success = false, error = "Invalid camera setting" })
+        return
+    end
+    table.insert(motion_setting_queue, { key = key, value = value })
+    process_motion_setting_queue()
 end
 
 function InitializeCamera()
@@ -4529,9 +4686,75 @@ SendStrangerFacesToUI({
     success = true,
     data    = {
         notes = notes,
-        total = total
+        total = total,
+        page = page
     }
 })
+    end)
+end
+
+function DELETE_STRANGER_FACES(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local function reply(success, error_message)
+        SendStrangerFacesToUI({ type = "stranger_faces_deleted", success = success, error = error_message })
+    end
+    local ids = type(params) == "table" and (params.ids_json or params.ids)
+    if type(ids) == "string" then
+        local ok, decoded = pcall(json.decode, ids)
+        if ok and type(decoded) == "table" then
+            ids = decoded
+        else
+            local indexed_ids = {}
+            local expected_index
+            local invalid = false
+            local remaining = ids:gsub('(%d+)%s*=%s*"([^"]*)"', function(index, id)
+                index = tonumber(index)
+                if expected_index == nil then
+                    if index ~= 0 and index ~= 1 then invalid = true end
+                    expected_index = index
+                end
+                if index ~= expected_index then invalid = true end
+                expected_index = index + 1
+                indexed_ids[#indexed_ids + 1] = id
+                return ""
+            end)
+            ids = not invalid and remaining:match("^%s*$") and indexed_ids or nil
+        end
+    end
+    if type(ids) ~= "table" or #ids == 0 then reply(false, "Select at least one face") return end
+    local validated = {}
+    for _, id in ipairs(ids) do
+        local numeric_id = tonumber(id)
+        if not numeric_id or numeric_id % 1 ~= 0 or numeric_id <= 0 then
+            reply(false, "Invalid stranger note ID")
+            return
+        end
+        validated[#validated + 1] = numeric_id
+    end
+    local token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid = _props["VID"] or Properties["VID"] or ""
+    if token == "" or vid == "" then reply(false, "Missing Auth Token or VID") return end
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/stranger-note-del",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or ""
+        },
+        body = json.encode({ vid = vid, ids = validated })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if err or (code ~= 200 and code ~= 20000) or not ok or
+            (api_code ~= 0 and api_code ~= 200 and api_code ~= 20000) then
+            reply(false, (ok and type(parsed) == "table" and parsed.message) or "Unable to delete faces")
+            return
+        end
+        reply(true)
     end)
 end
 

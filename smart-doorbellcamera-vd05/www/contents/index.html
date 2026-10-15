@@ -40,9 +40,15 @@
             overflow: hidden;
         }
 
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
         .app {
             width: 100%;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
         }
 
         .panel {
@@ -57,6 +63,7 @@
         }
 
         .header {
+            flex-shrink: 0;
             padding: 20px;
             border-bottom: 1px solid var(--border);
         }
@@ -73,6 +80,9 @@
         }
 
         .list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
             padding: 10px;
         }
 
@@ -238,20 +248,20 @@
         }
 
         .footer {
+            flex-shrink: 0;
             padding: 12px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: -80px !important;
         }
 
        
          .version-info {
             display: inline-block;
             text-align: left;
-            line-height: 0.9;
+            line-height: 1.5;
         }
         
         .version-info span {
@@ -465,6 +475,88 @@
             font-size: 13px;
             padding: 24px 0;
         }
+        .toggle input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
+        .toggle input:indeterminate + .slider:before { transform: translateX(16px); }
+        .setting-save-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); }
+        .setting-save-overlay[hidden], .setting-save-toast[hidden] { display: none; }
+        .setting-save-overlay[data-loading="true"] { background: #101010; }
+        .setting-save-card { width: 190px; min-height: 156px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; border-radius: 24px; background: #292929; color: #eee; font-size: 15px; font-weight: 600; }
+        .setting-save-spinner { width: 64px; height: 64px; border: 10px solid #672536; border-right-color: #ce0d42; border-bottom-color: #ce0d42; border-radius: 50%; animation: setting-save-spin 0.8s linear infinite; }
+        .setting-save-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3100; max-width: calc(100% - 32px); padding: 12px; border-radius: 12px; background: #292929; color: white; font-size: 15px; text-align: center; pointer-events: none; }
+        @keyframes setting-save-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .setting-save-spinner { animation-duration: 2s; } }
+        #facialRecPanel { background: #101010; }
+        .face-management-header { display: grid; grid-template-columns: 64px minmax(0,1fr) 64px; align-items: center; padding: 16px; }
+        .face-management-title { font-size: 20px; font-weight: 600; text-align: center; }
+        .face-edit-action { border: 0; background: transparent; color: #ddd; padding: 10px 0; font-size: 15px; cursor: pointer; }
+        .face-management-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 26px; }
+        .face-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; min-height: min(58vh, 420px); }
+        .face-empty-art { position: relative; width: 74px; height: 74px; border-radius: 14px; background: #222331; }
+        .face-empty-art svg { position: absolute; top: -7px; left: -7px; width: 88px; height: 88px; color: #f31c59; stroke-width: 1.4; }
+        .face-empty-art svg.face-empty-person { top: 12px; left: 12px; width: 50px; height: 50px; stroke-width: 1.6; }
+        .face-empty-label { color: #999; font-size: 15px; font-weight: 500; text-align: center; }
+        .face-entry { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 0; border: 0; background: transparent; color: #ddd; text-align: left; cursor: pointer; }
+        .face-entry-image { width: 52px; height: 52px; flex-shrink: 0; object-fit: cover; border-radius: 0; background: #222; }
+        .face-image-placeholder { display: flex; align-items: center; justify-content: center; color: #999; }
+        .face-image-placeholder svg { width: 26px; height: 26px; }
+        .face-entry-details { min-width: 0; flex: 1; }
+        .face-entry-name { display: block; font-size: 16px; overflow-wrap: anywhere; }
+        .face-entry-time { display: block; margin-top: 6px; font-size: 13px; line-height: 1.35; color: #999; overflow-wrap: anywhere; }
+        .face-selection { appearance: none; width: 20px; height: 20px; flex: 0 0 20px; border: 1px solid #999; border-radius: 50%; background: transparent; }
+        .face-selection:checked { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 4px #1c1c1c; }
+        .face-selection:disabled { opacity: 0.35; }
+        .face-edit-toolbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; background: #1c1c1c; color: #aaa; font-size: 14px; }
+        .face-edit-toolbar[hidden], .face-sheet[hidden], .face-delete-overlay[hidden], #faceLoadMore[hidden] { display: none; }
+        .face-delete-button { margin-left: auto; background: transparent; border: 0; color: #aaa; cursor: pointer; padding: 8px; }
+        .face-delete-button:disabled { opacity: 0.35; cursor: default; }
+        .face-sheet, .face-delete-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(0,0,0,0.7); }
+        .face-sheet-card { width: min(100%, 680px); padding: 20px 14px; border-radius: 24px; background: #292929; }
+        .face-sheet-title { margin-bottom: 28px; text-align: center; font-size: 18px; font-weight: 600; }
+        .face-sheet-input { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #1c1c1c; color: white; font-size: 16px; }
+        .face-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+        .face-sheet-actions button { padding: 12px; border-radius: 14px; font-size: 16px; cursor: pointer; }
+        .face-sheet-cancel { border: 1px solid #999; background: transparent; color: white; }
+        .face-sheet-confirm { border: 0; background: #e71048; color: white; }
+        .face-delete-overlay { align-items: center; }
+        .face-sheet-error { min-height: 18px; margin-top: 8px; color: #ff7777; font-size: 13px; }
+        .motion-choice-row { width: 100%; border-top: 0; border-left: 0; border-right: 0; background: transparent; color: white; text-align: left; cursor: pointer; }
+        .motion-choice-row:disabled { cursor: default; }
+        .motion-choice-value { display: flex; align-items: center; gap: 8px; color: #999; font-size: 14px; }
+        .motion-choice-value svg { width: 18px; height: 18px; }
+        .motion-option-overlay { position: fixed; inset: 0; z-index: 2200; display: flex; align-items: flex-end; justify-content: center; padding: 8px; background: rgba(0,0,0,0.72); }
+        .motion-option-overlay[hidden], .motion-option-confirm[hidden], .motion-option-description[hidden] { display: none; }
+        .motion-option-card { width: min(100%, 760px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px 12px 8px; border-radius: 24px; background: #292929; }
+        .motion-option-title { text-align: center; font-size: 16px; font-weight: 600; }
+        .motion-option-description { margin: 8px 0 16px; text-align: center; font-size: 13px; line-height: 1.3; color: #aaa; }
+        .motion-option-confirm { width: 100%; margin-top: 24px; min-height: 44px; border: 0; border-radius: 12px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .motion-option-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 12px 0; border: 0; border-top: 1px solid #383838; background: transparent; color: #ddd; text-align: left; font-size: 14px; cursor: pointer; }
+        .motion-option-item input { appearance: none; width: 20px; height: 20px; flex: 0 0 20px; border: 1px solid #999; border-radius: 50%; pointer-events: none; }
+        .motion-option-item input:checked { border-color: #e71048; background: #e71048; box-shadow: inset 0 0 0 5px #e71048; }
+        .motion-option-item input:checked::after { content: ''; display: block; width: 5px; height: 9px; margin: 2px 6px; border: solid #292929; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .motion-option-type { padding: 16px; margin-top: 10px; border-radius: 20px; background: #373737; border: 0; }
+        .motion-option-subtitle { display: block; margin-top: 6px; font-size: 12px; color: #ddd; }
+        .motion-option-range { position: relative; margin-top: 14px; padding: 42px 12px 14px; border-radius: 20px; background: #373737; }
+        .motion-option-range input { appearance: none; display: block; width: 100%; height: 5px; margin: 4px 0 16px; border-radius: 5px; background: linear-gradient(to right,#ff1b5b var(--range-fill,0%),#aaa var(--range-fill,0%)); cursor: pointer; }
+        .motion-option-range input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #b50b38; }
+        .motion-option-range input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #b50b38; }
+        .motion-option-range output { position: absolute; top: 20px; transform: translateX(-50%); font-size: 12px; color: #ff1b5b; }
+        .motion-option-bounds { display: flex; justify-content: space-between; gap: 8px; color: #aaa; font-size: 12px; }
+        .motion-page { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 18px; background: #101010; }
+        .motion-page-title { flex: 1; text-align: center; font-size: 20px; font-weight: 600; }
+        .motion-group { margin-bottom: 16px; padding: 0 16px; border-radius: 22px; background: #1c1c1c; }
+        .motion-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 56px; padding: 14px 0; border-bottom: 1px solid #373737; }
+        .motion-row:last-child { border-bottom: 0; }
+        .motion-row label, .motion-label { font-size: 15px; font-weight: 500; }
+        .motion-row .toggle { flex-shrink: 0; }
+        .motion-description { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+        .motion-row select, .motion-value { max-width: 48%; border: 0; background: transparent; color: var(--muted); font-size: 14px; }
+        .motion-row select option { background: #1c1c1c; color: white; }
+        .motion-link { width: 100%; border: 0; color: white; background: transparent; text-align: left; cursor: pointer; }
+        .motion-link .chevron { flex-shrink: 0; color: var(--muted); }
+        .motion-group[hidden], .motion-row[hidden] { display: none; }
+        .motion-feedback { min-height: 18px; color: var(--muted); font-size: 13px; text-align: center; }
+        .zone-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .zone-fields input { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; color: white; background: var(--surface); }
     </style>
 </head>
 
@@ -518,12 +610,12 @@
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
                 <!-- Facial Recognition -->
-                <div class="item" onclick="show('facialRecPanel')">
+                <div class="item" onclick="show('motionDetectionPanel')">
                     <div class="left">
-                        <i data-lucide="scan-face" class="icon"></i>
+                        <i data-lucide="activity" class="icon"></i>
                         <div>
-                            <div class="title">Facial Recognition</div>
-                            <div class="subtitle">Face detection & management</div>
+                            <div class="title">Motion Detection</div>
+                            <div class="subtitle">Detection and facial recognition</div>
                         </div>
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
@@ -538,6 +630,47 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
+            </div>
+        </section>
+
+        <section id="motionDetectionPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="motion-page-title">Motion Detection</div>
+                <div style="width:38px;"></div>
+            </div>
+            <div class="motion-page">
+                <div class="motion-group">
+                    <div class="motion-row"><label for="motionDetection">Motion Detection</label><label class="toggle"><input type="checkbox" id="motionDetection" aria-label="Motion Detection" disabled><span class="slider"></span></label></div>
+                </div>
+                <div class="motion-group" id="motionOptions" hidden>
+                    <button class="motion-row motion-choice-row" id="detectionType" onclick="openMotionOption('detectionType')" disabled><span class="motion-label">Detection Type</span><span class="motion-choice-value"><span id="detectionTypeValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="motion-row motion-choice-row" id="detectionSensitivity" onclick="openMotionOption('detectionSensitivity')" disabled><span class="motion-label">Detection Sensitivity</span><span class="motion-choice-value"><span id="detectionSensitivityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="motion-row motion-link" onclick="show('detectionZonePanel')"><span><span class="motion-label">Set Detection Zone</span><span class="motion-description" style="display:block;">Set the alarm area you are concerned about.</span></span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div class="motion-group" id="motionAlarmGroup" hidden>
+                    <div class="motion-row"><div><label for="motionAlarm">Audible and Visual Alarm</label><div class="motion-description">When enabled, the device will sound a siren and flash a light as a warning if person is detected.</div></div><label class="toggle"><input type="checkbox" id="motionAlarm" aria-label="Audible and Visual Alarm" disabled><span class="slider"></span></label></div>
+                </div>
+                <div class="motion-group">
+                    <div class="motion-row"><label for="faceRecEnable">Facial Recognition</label><label class="toggle"><input type="checkbox" id="faceRecEnable" aria-label="Facial Recognition" disabled><span class="slider"></span></label></div>
+                    <button class="motion-row motion-choice-row" id="faceSimilarity" data-face-option hidden onclick="openMotionOption('faceSimilarity')" disabled><span class="motion-label">Face Similarity Threshold</span><span class="motion-choice-value"><span id="faceSimilarityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="motion-row motion-choice-row" id="faceQuality" data-face-option hidden onclick="openMotionOption('faceQuality')" disabled><span class="motion-label">Face Image Quality Threshold</span><span class="motion-choice-value"><span id="faceQualityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="motion-row motion-link" id="faceManagementLink" onclick="show('facialRecPanel')"><span class="motion-label">Face Management</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div id="motionSettingsStatus" class="motion-feedback" role="status"></div>
+            </div>
+        </section>
+        <section id="detectionZonePanel" class="panel">
+            <div class="topbar"><button class="back" onclick="show('motionDetectionPanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button><div class="motion-page-title">Set Detection Zone</div><div style="width:38px;"></div></div>
+            <div class="motion-page">
+                <div class="zone-fields">
+                    <label>X<input id="zoneX" type="number" min="0" step="1" required></label>
+                    <label>Y<input id="zoneY" type="number" min="0" step="1" required></label>
+                    <label>Width<input id="zoneWidth" type="number" min="0" step="1" required></label>
+                    <label>Height<input id="zoneHeight" type="number" min="0" step="1" required></label>
+                </div>
+                <button class="btn" id="saveMotionZone" style="margin-top:20px;">Confirm</button>
+                <div id="motionZoneStatus" class="motion-feedback" role="status"></div>
             </div>
         </section>
 
@@ -619,50 +752,53 @@
              FACIAL RECOGNITION PANEL
         ========================= -->
         <section id="facialRecPanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+            <div class="face-management-header">
+                <button class="back" onclick="leaveFaceManagement()" aria-label="Back">
                     <i data-lucide="arrow-left"></i>
                 </button>
+                <div class="face-management-title">Face Management</div>
+                <button class="face-edit-action" id="faceEditButton" onclick="toggleFaceEditMode()">Edit</button>
             </div>
-            <div class="content">
-                <i data-lucide="scan-face" class="bigIcon"></i>
-                <div class="h2">Facial Recognition</div>
-            <label class="toggle">
-                <input type="checkbox" id="faceRecEnable" aria-label="Facial Recognition" disabled>
-                <span class="slider"></span>
-            </label>
-            <div class="status" id="faceRecStatus" aria-live="polite">Loading...</div>
-            
-                <!-- Settings that appear only when enabled -->
-                <div class="settings-section visible" id="faceSettings">
-            
-                    <!-- Similarity Threshold -->
-                    <!--<div class="setting-card">
-                                    <div class="setting-label">Face Similarity Threshold</div>
-                                    <div class="setting-desc">Minimum match confidence required to identify a face</div>
-                                    <div class="range-wrap">
-                                        <input type="range" id="similarityThreshold" min="0" max="100" value="75">
-                                        <span class="range-value" id="similarityValue">75%</span>
-                                    </div>
-                                    <button class="btn small" id="saveSimilarityBtn">Save Threshold</button>
-                                </div>-->
-            
-                    <!-- Quality Threshold -->
-                    <!--<div class="setting-card">
-                                    <div class="setting-label">Face Image Quality Threshold</div>
-                                    <div class="setting-desc">Minimum quality required for a face to be accepted</div>
-                                    <div class="segmented" id="qualitySegmented">
-                                        <button data-value="low">Low</button>
-                                        <button data-value="medium" class="active">Medium</button>
-                                        <button data-value="high">High</button>
-                                    </div>
-                                    <button class="btn small" id="saveQualityBtn">Save Quality</button>
-                                </div>-->
-            
-                </div>
+            <div class="face-management-list">
+                <div id="faceList"></div>
+                <button class="face-edit-action" id="faceLoadMore" onclick="loadFaces(facePage + 1)" hidden>Load More</button>
+            </div>
+            <div class="face-edit-toolbar" id="faceEditToolbar" hidden>
+                <input class="face-selection" id="faceSelectAll" type="checkbox" aria-label="Select all faces" onchange="selectAllFaces(this.checked)">
+                <label for="faceSelectAll">Select All (Selected: <span id="faceSelectedCount">0</span>)</label>
+                <button class="face-delete-button" id="faceDeleteButton" onclick="openFaceDeleteConfirmation()" aria-label="Delete selected faces" title="Delete selected faces" disabled><i data-lucide="trash-2"></i></button>
             </div>
         </section>
     </div>
+
+    <div class="motion-option-overlay" id="motionOptionSheet" role="dialog" aria-modal="true" aria-labelledby="motionOptionTitle" onclick="if(event.target===this) closeMotionOption()" hidden>
+        <div class="motion-option-card">
+            <div class="motion-option-title" id="motionOptionTitle"></div>
+            <div class="motion-option-description" id="motionOptionDescription"></div>
+            <div id="motionOptionBody"></div>
+            <button class="motion-option-confirm" id="motionOptionConfirm" onclick="confirmMotionOption()">Confirm</button>
+        </div>
+    </div>
+
+    <div class="face-sheet" id="faceNamingSheet" role="dialog" aria-modal="true" aria-labelledby="faceNamingTitle" hidden>
+        <div class="face-sheet-card">
+            <div class="face-sheet-title" id="faceNamingTitle">Face Naming</div>
+            <input class="face-sheet-input" id="faceNamingInput" maxlength="40" aria-label="Face name">
+            <div class="face-sheet-error" id="faceNamingError" role="status"></div>
+            <div class="face-sheet-actions"><button class="face-sheet-cancel" onclick="closeFaceNaming()">Cancel</button><button class="face-sheet-confirm" onclick="confirmFaceNaming()">Confirm</button></div>
+        </div>
+    </div>
+    <div class="face-delete-overlay" id="faceDeleteConfirmation" role="dialog" aria-modal="true" aria-labelledby="faceDeleteTitle" hidden>
+        <div class="face-sheet-card">
+            <div class="face-sheet-title" id="faceDeleteTitle">Delete selected faces?</div>
+            <div class="face-sheet-actions"><button class="face-sheet-cancel" onclick="closeFaceDeleteConfirmation()">Cancel</button><button class="face-sheet-confirm" onclick="confirmFaceDeletion()">Delete</button></div>
+        </div>
+    </div>
+
+    <div id="settingSaveOverlay" class="setting-save-overlay" role="dialog" aria-modal="true" aria-labelledby="settingSaveLabel" tabindex="-1" hidden>
+        <div class="setting-save-card" role="status"><div class="setting-save-spinner" aria-hidden="true"></div><div id="settingSaveLabel">Setting up...</div></div>
+    </div>
+    <div id="settingSaveToast" class="setting-save-toast" role="status" aria-live="polite" hidden></div>
 
     <!-- SUCCESS MODAL -->
     <div id="successModal" class="modal">
@@ -712,10 +848,9 @@
             document.getElementById(id)
                 .classList.add('active');
 
-            if (id === 'facialRecPanel' && typeof refreshFaces === 'function') {
-                refreshFaces();
-            }
-
+            document.querySelector('.footer').hidden = id === 'facialRecPanel';
+            if (id === 'motionDetectionPanel' || id === 'detectionZonePanel') requestMotionSettings();
+            if (id === 'facialRecPanel') refreshFaces();
             lucide.createIcons();
         }
 
@@ -771,11 +906,11 @@
 
         let currentSimilarity = 75;
 
-        similaritySlider.addEventListener('input', function () {
+        similaritySlider?.addEventListener('input', function () {
             similarityValue.innerText = this.value + '%';
         });
 
-        saveSimilarityBtn.addEventListener('click', function () {
+        saveSimilarityBtn?.addEventListener('click', function () {
             currentSimilarity = parseInt(similaritySlider.value);
             console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
             
@@ -795,7 +930,7 @@
             });
         });
 
-        saveQualityBtn.addEventListener('click', function () {
+        saveQualityBtn?.addEventListener('click', function () {
             console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
             // C4JH.SendToProxy("SET_FACE_QUALITY", { value: currentQuality });
             showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");

@@ -5,17 +5,231 @@ let isMicMuted = false;
 // ---- Face Management ----
 
 let faces = [];
-let facesDirty = false;
 let latestDeviceSettings = {};
 let confirmedFaceSwitch;
 let faceUpdatePending = false;
 let faceUpdateAttempt = 0;
+let faceEditMode = false;
+let facePage = 1;
+let faceTotal = 0;
+const selectedFaceIds = new Set();
+let namingFaceId = null;
+let pendingFaceRename = null;
 
+const pendingSettingSaves = new Map();
+let settingToastTimer;
+let settingSaveFailed = false;
+const pendingSettingsLoads = new Set();
+let settingsLoadTimer;
 
-let faceListEl = null;
-let saveFacesBtn = null;
+function finishSettingsLoad(kind, success, error) {
+    if (!pendingSettingsLoads.has(kind)) return;
+    if (!success) {
+        pendingSettingsLoads.clear();
+        clearTimeout(settingsLoadTimer);
+        updateSettingSaveOverlay();
+        show('homePanel');
+        showSettingToast(error || 'Unable to load settings');
+        return;
+    }
+    pendingSettingsLoads.delete(kind);
+    if (pendingSettingsLoads.size === 0) clearTimeout(settingsLoadTimer);
+    updateSettingSaveOverlay();
+}
+
 let lastFaceRequest = 0;
 const FACE_REFRESH_GAP_MS = 1500;
+let motionOptionDraft = null;
+const motionOptionSpecs = {
+    faceSimilarity: {
+        key: 'unknow_thld', title: 'Face Similarity Threshold', min: 1, max: 99, slider: true,
+        description: 'The higher the threshold, the fewer misjudgments in facial recognition, but the probability of missed judgments may increase'
+    },
+    faceQuality: {
+        key: 'unknow_faceq', title: 'Face Image Quality Threshold', immediate: true,
+        description: 'Filter low-quality facial images according to the set threshold',
+        labels: ['Low', 'Medium', 'High']
+    },
+    detectionType: {
+        key: 'motion.type', title: 'Detection Type', labels: ['Motion Detection', 'Person Detection'],
+        descriptions: ['All detected movements trigger events', 'Only people can trigger the detector']
+    },
+    detectionSensitivity: {
+        key: 'motion.sen', title: 'Detection Sensitivity', min: 0, max: 2, slider: true,
+        description: 'Motion detected in zone. Starting recording.', labels: ['Low', 'Medium', 'High'], immediate: true
+    }
+};
+
+function updateMotionChoiceLabels() {
+    Object.entries(motionOptionSpecs).forEach(([id, spec]) => {
+        const control = document.getElementById(id);
+        const value = Number(control.value);
+        const label = control.disabled || control.value === '' ? '...' :
+            id === 'faceSimilarity' ? `${Math.round(value * 100)}%` : spec.labels[value];
+        document.getElementById(`${id}Value`).textContent = label || '...';
+    });
+}
+
+function hydrateFacialThresholds(settings) {
+    const similarity = settings.unknow_thld;
+    if (similarity !== undefined && similarity !== null && similarity !== '' &&
+        Number.isFinite(Number(similarity)) && Number(similarity) >= 0.01 && Number(similarity) <= 0.99) {
+        const control = document.getElementById('faceSimilarity');
+        control.value = String(Number(similarity));
+        control.disabled = false;
+    }
+    const quality = settings.unknow_faceq;
+    if (quality !== undefined && quality !== null && quality !== '' &&
+        Number.isInteger(Number(quality)) && Number(quality) >= 0 && Number(quality) <= 2) {
+        const control = document.getElementById('faceQuality');
+        control.value = String(Number(quality));
+        control.disabled = false;
+    }
+    updateMotionChoiceLabels();
+    updateMotionVisibility();
+}
+
+function closeMotionOption() {
+    document.getElementById('motionOptionSheet').hidden = true;
+    motionOptionDraft = null;
+}
+
+function confirmMotionOption() {
+    if (!motionOptionDraft) return;
+    const { id, value } = motionOptionDraft;
+    const spec = motionOptionSpecs[id];
+    const apiValue = id === 'faceSimilarity' ? value / 100 : value;
+    closeMotionOption();
+    sendMotionSetting(spec.key, apiValue);
+}
+
+function openMotionOption(id) {
+    const spec = motionOptionSpecs[id];
+    const control = document.getElementById(id);
+    if (!spec || control.disabled || control.value === '') return;
+    const value = id === 'faceSimilarity' ? Math.round(Number(control.value) * 100) : Number(control.value);
+    motionOptionDraft = { id, value };
+    document.getElementById('motionOptionTitle').textContent = spec.title;
+    const description = document.getElementById('motionOptionDescription');
+    description.textContent = spec.description || '';
+    description.hidden = !spec.description;
+    document.getElementById('motionOptionConfirm').hidden = !!spec.immediate;
+    const body = document.getElementById('motionOptionBody');
+    body.replaceChildren();
+    if (spec.slider) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'motion-option-range';
+        const output = document.createElement('output');
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = String(spec.min);
+        slider.max = String(spec.max);
+        slider.step = '1';
+        slider.value = String(value);
+        slider.setAttribute('aria-label', spec.title);
+        const update = () => {
+            if (!motionOptionDraft) return;
+            motionOptionDraft.value = Number(slider.value);
+            const progress = (Number(slider.value) - spec.min) / (spec.max - spec.min);
+            slider.style.setProperty('--range-fill', `${progress * 100}%`);
+            output.style.left = `calc(12px + ${progress * 100}% - ${progress * 24}px)`;
+            output.textContent = id === 'faceSimilarity' ? `${slider.value}%` : spec.labels[Number(slider.value)];
+        };
+        slider.addEventListener('input', update);
+        if (spec.immediate) slider.addEventListener('change', confirmMotionOption);
+        const bounds = document.createElement('div');
+        bounds.className = 'motion-option-bounds';
+        const labels = id === 'faceSimilarity' ? ['1%', '99%'] : spec.labels;
+        labels.forEach(text => {
+            const label = document.createElement('span');
+            label.textContent = text;
+            bounds.appendChild(label);
+        });
+        wrapper.appendChild(output);
+        wrapper.appendChild(slider);
+        wrapper.appendChild(bounds);
+        body.appendChild(wrapper);
+        update();
+    } else {
+        spec.labels.forEach((label, index) => {
+            const row = document.createElement('label');
+            row.className = `motion-option-item${spec.descriptions ? ' motion-option-type' : ''}`;
+            const copy = document.createElement('span');
+            copy.textContent = label;
+            if (spec.descriptions) {
+                const detail = document.createElement('span');
+                detail.className = 'motion-option-subtitle';
+                detail.textContent = spec.descriptions[index];
+                copy.appendChild(detail);
+            }
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'motion-option';
+            radio.value = String(index);
+            radio.checked = index === value;
+            radio.addEventListener('change', () => {
+                if (!motionOptionDraft) return;
+                motionOptionDraft.value = index;
+                if (spec.immediate) confirmMotionOption();
+            });
+            row.appendChild(copy);
+            row.appendChild(radio);
+            body.appendChild(row);
+        });
+    }
+    document.getElementById('motionOptionSheet').hidden = false;
+}
+
+function showSettingToast(message) {
+    const toast = document.getElementById('settingSaveToast');
+    clearTimeout(settingToastTimer);
+    toast.textContent = message;
+    toast.hidden = false;
+    settingToastTimer = setTimeout(() => { toast.hidden = true; }, 2500);
+}
+
+function beginSettingSave(kind) {
+    if (pendingSettingSaves.size === 0) settingSaveFailed = false;
+    const pending = pendingSettingSaves.get(kind);
+    if (pending) clearTimeout(pending.timer);
+    pendingSettingSaves.set(kind, {
+        count: (pending?.count || 0) + 1,
+        timer: setTimeout(() => {
+            pendingSettingSaves.delete(kind);
+            settingSaveFailed = true;
+            updateSettingSaveOverlay();
+            showSettingToast('Setting update timed out');
+        }, 20000)
+    });
+    document.getElementById('settingSaveToast').hidden = true;
+    updateSettingSaveOverlay();
+}
+
+function updateSettingSaveOverlay() {
+    const loading = pendingSettingsLoads.size > 0;
+    const pending = pendingSettingSaves.size > 0 || loading;
+    const overlay = document.getElementById('settingSaveOverlay');
+    overlay.setAttribute('data-loading', String(loading));
+    document.getElementById('settingSaveLabel').textContent = loading ? 'Loading...' : 'Setting up...';
+    overlay.hidden = !pending;
+    const app = document.querySelector('.app');
+    if (app) app.inert = pending;
+    if (pending) overlay.focus();
+}
+
+function finishSettingSave(kind, success, error) {
+    const pending = pendingSettingSaves.get(kind);
+    if (!pending) return;
+    if (!success) settingSaveFailed = true;
+    pending.count -= 1;
+    if (pending.count === 0 || !success) {
+        clearTimeout(pending.timer);
+        pendingSettingSaves.delete(kind);
+    }
+    updateSettingSaveOverlay();
+    if (!success) showSettingToast(error || 'Unable to save settings');
+    else if (pendingSettingSaves.size === 0 && pendingSettingsLoads.size === 0 && !settingSaveFailed) showSettingToast('Settings saved');
+}
 
 // =====================================================
 // INIT
@@ -36,8 +250,131 @@ document.addEventListener('DOMContentLoaded', function () {
     initDeviceInfo();
     initSnapshot();
     loadFaces();
-    initSaveFacesButton();
+    initMotionSettings();
 });
+
+function updateMotionVisibility() {
+    const motion = document.getElementById('motionDetection');
+    document.getElementById('motionOptions').hidden = motion.indeterminate || !motion.checked;
+    document.getElementById('motionAlarmGroup').hidden = motion.indeterminate || !motion.checked;
+    const facial = document.getElementById('faceRecEnable');
+    document.querySelectorAll('[data-face-option]').forEach(row => {
+        row.hidden = facial.indeterminate || !facial.checked || !!row.disabled;
+    });
+    document.getElementById('faceManagementLink').hidden = !facial.indeterminate && !facial.checked;
+}
+
+function resetMotionSettings() {
+    ['motionDetection', 'motionAlarm', 'faceRecEnable'].forEach(id => {
+        const control = document.getElementById(id);
+        control.checked = false;
+        control.indeterminate = true;
+        control.disabled = true;
+    });
+    ['detectionType', 'detectionSensitivity', 'faceSimilarity', 'faceQuality', 'zoneX', 'zoneY', 'zoneWidth', 'zoneHeight'].forEach(id => {
+        const control = document.getElementById(id);
+        control.value = '';
+        control.disabled = true;
+    });
+    document.getElementById('saveMotionZone').disabled = true;
+    if (!faceUpdatePending) updateFaceRecognitionState(latestDeviceSettings.unknow_snapswt);
+    updateMotionChoiceLabels();
+    updateMotionVisibility();
+}
+
+function requestMotionSettings() {
+    clearTimeout(settingsLoadTimer);
+    pendingSettingsLoads.clear();
+    pendingSettingsLoads.add('camera');
+    pendingSettingsLoads.add('device');
+    document.getElementById('settingSaveToast').hidden = true;
+    updateSettingSaveOverlay();
+    resetMotionSettings();
+    document.getElementById('motionSettingsStatus').textContent = '';
+    settingsLoadTimer = setTimeout(() => {
+        finishSettingsLoad('camera', false, 'Settings request timed out');
+        finishSettingsLoad('device', false, 'Settings request timed out');
+    }, 20000);
+    try {
+        C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+        C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+    } catch (error) {
+        finishSettingsLoad('camera', false, 'Camera connection unavailable');
+        finishSettingsLoad('device', false, 'Camera connection unavailable');
+    }
+}
+
+function sendMotionSetting(key, value) {
+    const status = document.getElementById('motionSettingsStatus');
+    status.textContent = '';
+    beginSettingSave('camera');
+    try {
+        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key, value }), false, true);
+    } catch (error) {
+        finishSettingSave('camera', false, 'Unable to send setting');
+    }
+}
+
+function initMotionSettings() {
+    resetMotionSettings();
+    const motion = document.getElementById('motionDetection');
+    motion.addEventListener('change', () => {
+        updateMotionVisibility();
+        sendMotionSetting('motion.switch', motion.checked ? 1 : 0);
+    });
+    [['detectionType', 'motion.type'], ['detectionSensitivity', 'motion.sen']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', event => sendMotionSetting(key, Number(event.target.value)));
+    });
+    document.getElementById('motionAlarm').addEventListener('change', event => {
+        sendMotionSetting('alarm', event.target.checked ? 1 : 0);
+    });
+    document.getElementById('faceRecEnable').addEventListener('change', updateMotionVisibility);
+    document.getElementById('saveMotionZone').addEventListener('click', () => {
+        const inputs = ['zoneX', 'zoneY', 'zoneWidth', 'zoneHeight'].map(id => document.getElementById(id));
+        const values = inputs.map(input => Number(input.value));
+        const status = document.getElementById('motionZoneStatus');
+        if (inputs.some(input => input.value === '') || values.some(value => !Number.isSafeInteger(value) || value < 0)) {
+            status.textContent = 'Enter nonnegative whole numbers.';
+            return;
+        }
+        sendMotionSetting('motion.x_y_w_h', values.join(':'));
+        status.textContent = '';
+    });
+    updateMotionVisibility();
+}
+
+function hydrateMotionSettings(settings) {
+    const integerInRange = (value, max) => value !== undefined && value !== null && value !== '' &&
+        Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= max;
+    const motion = document.getElementById('motionDetection');
+    if (integerInRange(settings.motion_switch, 1)) {
+        motion.checked = Number(settings.motion_switch) === 1;
+        motion.indeterminate = false;
+        motion.disabled = false;
+    }
+    [['detectionType', 'motion_type'], ['detectionSensitivity', 'motion_sen']].forEach(([id, key]) => {
+        if (integerInRange(settings[key], key === 'motion_type' ? 1 : 2)) {
+            document.getElementById(id).value = String(settings[key]);
+            document.getElementById(id).disabled = false;
+        }
+    });
+    if (integerInRange(settings.siren_swt, 1)) {
+        const alarm = document.getElementById('motionAlarm');
+        alarm.checked = Number(settings.siren_swt) === 1;
+        alarm.indeterminate = false;
+        alarm.disabled = false;
+    }
+    if (typeof settings.motion_x_y_w_h === 'string' && /^\d+:\d+:\d+:\d+$/.test(settings.motion_x_y_w_h)) {
+        settings.motion_x_y_w_h.split(':').forEach((value, index) => {
+            document.getElementById(['zoneX', 'zoneY', 'zoneWidth', 'zoneHeight'][index]).value = value;
+            document.getElementById(['zoneX', 'zoneY', 'zoneWidth', 'zoneHeight'][index]).disabled = false;
+        });
+        document.getElementById('saveMotionZone').disabled = false;
+    }
+    hydrateFacialThresholds(settings);
+    updateMotionChoiceLabels();
+    updateMotionVisibility();
+}
 
 // =====================================================
 // CONTROL4 INIT
@@ -116,6 +453,7 @@ function initDeviceName() {
             statusEl.style.color = "#ffffff";
         }
 
+        beginSettingSave('name');
         try {
 
             C4.sendCommand(
@@ -127,9 +465,6 @@ function initDeviceName() {
 
             console.log("📤 SET_DEVICE_NAME sent:", newName);
 
-            // Show Modal
-            showModal("Device name updated successfully!", "Success");
-
         } catch (e) {
 
             console.error("Send error", e);
@@ -139,8 +474,7 @@ function initDeviceName() {
                 statusEl.style.color = "#ff6b6b";
             }
 
-            // Or show an error modal instead
-            showModal("Failed to send command", "Error");
+            finishSettingSave('name', false, 'Failed to send command');
         }
     });
 
@@ -176,6 +510,7 @@ function handleAntiPryToggle(e) {
 
 function sendAntiPryCommand(state) {
 
+    beginSettingSave('antiPry');
     try {
 
         C4.sendCommand(
@@ -189,6 +524,7 @@ function sendAntiPryCommand(state) {
 
     } catch (e) {
         console.log('Anti-Pry command error', e);
+        finishSettingSave('antiPry', false, 'Unable to send setting');
     }
 }
 
@@ -240,6 +576,7 @@ function handleMicToggle(e) {
 
 function sendMicCommand(muted) {
 
+    beginSettingSave('mic');
     try {
 
         C4.sendCommand(
@@ -251,6 +588,7 @@ function sendMicCommand(muted) {
 
     } catch (e) {
         console.log('Mic command error', e);
+        finishSettingSave('mic', false, 'Unable to send setting');
     }
 }
 
@@ -421,88 +759,146 @@ function closeSnapshotModal() {
 
 
 
-function renderFaces() {
-    // Always re-query in case they were null
-    faceListEl = document.getElementById('faceList');
-    saveFacesBtn = document.getElementById('saveFacesBtn');
-
-    if (!faceListEl) {
-        console.warn("faceList element not found");
-        return;
+function formatFaceTimestamp(value) {
+    if (value === undefined || value === null || value === '') return '';
+    const text = String(value).trim();
+    let date;
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+        const timestamp = Number(text);
+        if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+        date = new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp);
+    } else {
+        date = new Date(text.replace(' ', 'T'));
     }
-
-    faceListEl.innerHTML = '';
-
-    if (faces.length === 0) {
-        faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
-        if (saveFacesBtn) saveFacesBtn.disabled = true;
-        return;
-    }
-
-    faces.forEach((face, index) => {
-        const item = document.createElement('div');
-        item.className = 'face-item';
-
-        const imgSrc = face.imageUrl || '';
-        
-
-        item.innerHTML = `
-            <div class="face-avatar">
-                ${imgSrc
-                    ? `<img src="${imgSrc}" alt="${face.name || ''}" onerror="this.style.display='none'">`
-                    : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
-                }
-            </div>
-            <div class="face-info">
-                <input type="text" class="face-name-input" 
-                       value="${face.name || ''}" 
-                       data-index="${index}" 
-                       maxlength="40" 
-                       placeholder="Enter name">
-                <div class="face-meta">ID: ${face.id || face.face_id || '-'}</div>
-            </div>
-        `;
-        faceListEl.appendChild(item);
-    });
-
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
-    faceListEl.querySelectorAll('.face-name-input').forEach(input => {
-        input.addEventListener('input', function () {
-            const idx = parseInt(this.dataset.index);
-            faces[idx].name = this.value.trim();
-            facesDirty = true;
-            if (saveFacesBtn) saveFacesBtn.disabled = false;
-        });
-    });
+    if (!Number.isFinite(date.getTime())) return '';
+    const pad = component => String(component).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-function loadFaces() {
+function renderFaces() {
+    const list = document.getElementById('faceList');
+    list.replaceChildren();
+    if (faces.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'face-empty';
+        const art = document.createElement('div');
+        art.className = 'face-empty-art';
+        art.setAttribute('aria-hidden', 'true');
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'scan');
+        art.appendChild(icon);
+        const person = document.createElement('i');
+        person.className = 'face-empty-person';
+        person.setAttribute('data-lucide', 'user-round');
+        art.appendChild(person);
+        const label = document.createElement('div');
+        label.className = 'face-empty-label';
+        label.textContent = 'No face detected yet';
+        empty.appendChild(art);
+        empty.appendChild(label);
+        list.appendChild(empty);
+    }
+    faces.forEach(face => {
+        const row = document.createElement('div');
+        row.className = 'face-entry';
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', face.name || 'Stranger');
+        if (faceEditMode) {
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'face-selection';
+            check.checked = selectedFaceIds.has(face.id);
+            check.disabled = face.id === null;
+            check.setAttribute('aria-label', `Select ${face.name || 'Stranger'}`);
+            check.addEventListener('click', event => event.stopPropagation());
+            check.addEventListener('change', () => {
+                if (check.checked) selectedFaceIds.add(face.id); else selectedFaceIds.delete(face.id);
+                updateFaceSelection();
+            });
+            row.appendChild(check);
+        }
+        const hasImage = /^https?:\/\//i.test(face.imageUrl);
+        const image = document.createElement(hasImage ? 'img' : 'span');
+        image.className = 'face-entry-image';
+        const placeholder = () => {
+            const fallback = document.createElement('span');
+            fallback.className = 'face-entry-image face-image-placeholder';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'user');
+            icon.setAttribute('aria-hidden', 'true');
+            fallback.appendChild(icon);
+            return fallback;
+        };
+        if (hasImage) {
+            image.src = face.imageUrl;
+            image.alt = face.name || 'Stranger';
+            image.addEventListener('error', () => {
+                image.replaceWith(placeholder());
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }, { once: true });
+        } else {
+            image.className += ' face-image-placeholder';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'user');
+            icon.setAttribute('aria-hidden', 'true');
+            image.appendChild(icon);
+        }
+        row.appendChild(image);
+        const details = document.createElement('span');
+        details.className = 'face-entry-details';
+        const name = document.createElement('span');
+        name.className = 'face-entry-name';
+        name.textContent = face.name || 'Stranger';
+        const time = document.createElement('span');
+        time.className = 'face-entry-time';
+        const updatedAt = formatFaceTimestamp(face.updated_at);
+        time.textContent = updatedAt ? `Last Updated Time:${updatedAt}` : '';
+        details.appendChild(name);
+        details.appendChild(time);
+        row.appendChild(details);
+        const activate = () => {
+            if (faceEditMode) {
+                if (face.id === null) return;
+                if (selectedFaceIds.has(face.id)) selectedFaceIds.delete(face.id); else selectedFaceIds.add(face.id);
+                renderFaces();
+            } else openFaceNaming(face.face_id);
+        };
+        row.addEventListener('click', activate);
+        row.addEventListener('keydown', event => {
+            if (event.target !== row) return;
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); }
+        });
+        list.appendChild(row);
+    });
+    document.getElementById('faceLoadMore').hidden = faces.length >= faceTotal;
+    document.getElementById('faceEditButton').textContent = faceEditMode ? 'Cancel' : 'Edit';
+    document.getElementById('faceEditToolbar').hidden = !faceEditMode;
+    updateFaceSelection();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function loadFaces(page = 1) {
     if (!document.getElementById('faceList')) return;
     lastFaceRequest = Date.now();
-
-    faceListEl = document.getElementById('faceList');
-    if (faceListEl && faces.length === 0) {
-        faceListEl.innerHTML = `<div class="empty-faces">Loading faces...</div>`;
-    }
-
+    document.getElementById('faceLoadMore').disabled = true;
+    if (page === 1 && faces.length === 0) document.getElementById('faceList').textContent = 'Loading faces...';
     try {
         C4.sendCommand(
             'GET_STRANGER_FACES',
-            JSON.stringify({ page: 1, page_size: 50 }),
+            JSON.stringify({ page, page_size: 50 }),
             false,
             true
         );
     } catch (e) {
         console.error("Failed to request stranger faces", e);
-        if (faceListEl) {
-            faceListEl.innerHTML = `<div class="empty-faces">Failed to request faces</div>`;
-        }
+        document.getElementById('faceList').textContent = 'Unable to load faces';
+        document.getElementById('faceLoadMore').disabled = false;
     }
 }
 
 function refreshFaces() {
-    if (facesDirty) return;
+    if (faceEditMode || namingFaceId !== null) return;
     if (Date.now() - lastFaceRequest < FACE_REFRESH_GAP_MS) return;
     loadFaces();
 }
@@ -511,26 +907,30 @@ document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') refreshFaces();
 });
 
-window.addEventListener('pageshow', refreshFaces);
-window.addEventListener('focus', refreshFaces);
+if (typeof window !== 'undefined') {
+    window.addEventListener('pageshow', refreshFaces);
+    window.addEventListener('focus', refreshFaces);
+}
 
-function updateFacesFromDriver(notes) {
-    if (facesDirty) return;
-
-    console.log("updateFacesFromDriver received notes:", notes);
-
-    faces = (notes || []).map(n => ({
-        id: n.id || n.face_id,
+function updateFacesFromDriver(notes, page = 1, total = notes.length) {
+    const received = notes.map(n => ({
+        id: n.id !== undefined && n.id !== null && n.id !== '' && Number.isSafeInteger(Number(n.id)) && Number(n.id) > 0 ? Number(n.id) : null,
         face_id: n.face_id,
         name: n.note || '',
         imageUrl: n.face_img_url || '',
         updated_at: n.updated_at
     }));
-
-    facesDirty = false;
-    saveFacesBtn = document.getElementById('saveFacesBtn');
-    if (saveFacesBtn) saveFacesBtn.disabled = true;
-
+    if (page === 1) faces = received;
+    else {
+        received.forEach(face => {
+            const index = faces.findIndex(current => current.face_id === face.face_id);
+            if (index < 0) faces.push(face); else faces[index] = face;
+        });
+    }
+    facePage = page;
+    faceTotal = Number(total) || faces.length;
+    [...selectedFaceIds].forEach(id => { if (!faces.some(face => face.id === id)) selectedFaceIds.delete(id); });
+    document.getElementById('faceLoadMore').disabled = false;
     renderFaces();
 }
 
@@ -538,12 +938,14 @@ function updateFaceRecognitionState(value, errorMessage) {
     const toggle = document.getElementById('faceRecEnable');
     const toggleStatus = document.getElementById('faceRecStatus');
     const faceSwitch = value === 0 || value === 1 || value === '0' || value === '1' ? Number(value) : undefined;
-    if (toggle && toggleStatus) {
+    if (toggle) {
         const available = faceSwitch === 0 || faceSwitch === 1;
         confirmedFaceSwitch = faceSwitch;
         toggle.checked = available && faceSwitch === 1;
+        toggle.indeterminate = !available;
         toggle.disabled = !available;
-        toggleStatus.innerText = errorMessage || (available ? (toggle.checked ? 'Enabled' : 'Disabled') : 'Unavailable');
+        if (toggleStatus) toggleStatus.innerText = errorMessage || (available ? (toggle.checked ? 'Enabled' : 'Disabled') : 'Unavailable');
+        updateMotionVisibility();
     }
 }
 
@@ -555,17 +957,19 @@ function initFacialRecognition() {
         const attempt = ++faceUpdateAttempt;
         faceUpdatePending = true;
         toggle.disabled = true;
-        document.getElementById('faceRecStatus').innerText = 'Saving...';
+        beginSettingSave('faceRecognition');
         try {
             C4.sendCommand('SET_FACE_RECOGNITION', JSON.stringify({ unknow_snapswt: toggle.checked ? 1 : 0 }), false, true);
         } catch (error) {
             faceUpdatePending = false;
             updateFaceRecognitionState(confirmedFaceSwitch, 'Failed to update facial recognition');
+            finishSettingSave('faceRecognition', false, 'Failed to update facial recognition');
         }
         setTimeout(function () {
             if (!faceUpdatePending || attempt !== faceUpdateAttempt) return;
             faceUpdatePending = false;
             updateFaceRecognitionState(confirmedFaceSwitch, 'Update timed out');
+            finishSettingSave('faceRecognition', false, 'Update timed out');
             C4.sendCommand('REQUEST_SETTINGS', '', false, false);
         }, 15000);
     });
@@ -574,40 +978,83 @@ function initFacialRecognition() {
 function updateDeviceSettingsFromDriver(settings) {
     latestDeviceSettings = settings || {};
     if (!faceUpdatePending) updateFaceRecognitionState(latestDeviceSettings.unknow_snapswt);
+    hydrateFacialThresholds(latestDeviceSettings);
 }
 
-function initSaveFacesButton() {
-    const btn = document.getElementById('saveFacesBtn');
-    if (!btn) return;
+function updateFaceSelection() {
+    const selectable = faces.filter(face => face.id !== null);
+    const selectAll = document.getElementById('faceSelectAll');
+    selectAll.checked = selectable.length > 0 && selectable.every(face => selectedFaceIds.has(face.id));
+    selectAll.indeterminate = selectedFaceIds.size > 0 && !selectAll.checked;
+    selectAll.disabled = selectable.length === 0;
+    document.getElementById('faceSelectedCount').textContent = String(selectedFaceIds.size);
+    document.getElementById('faceDeleteButton').disabled = selectedFaceIds.size === 0;
+}
 
-    btn.addEventListener('click', function () {
-        if (!facesDirty) return;
+function toggleFaceEditMode() {
+    faceEditMode = !faceEditMode;
+    selectedFaceIds.clear();
+    renderFaces();
+}
 
-        console.log("SAVE_FACES_TO_API", faces);
+function selectAllFaces(selected) {
+    selectedFaceIds.clear();
+    if (selected) faces.forEach(face => { if (face.id !== null) selectedFaceIds.add(face.id); });
+    renderFaces();
+}
 
-        // Send one update per changed face
-        faces.forEach(face => {
-            if (!face.face_id) return;
+function leaveFaceManagement() {
+    faceEditMode = false;
+    selectedFaceIds.clear();
+    show('motionDetectionPanel');
+}
 
-            try {
-                C4.sendCommand(
-                    'UPDATE_STRANGER_NOTE',
-                    JSON.stringify({
-                        face_id: face.face_id,
-                        note: face.name || ''
-                    }),
-                    false,
-                    true
-                );
-            } catch (e) {
-                console.error("Failed to update note for", face.face_id, e);
-            }
-        });
+function openFaceNaming(faceId) {
+    const face = faces.find(item => item.face_id === faceId);
+    if (!face || !faceId) return;
+    namingFaceId = faceId;
+    document.getElementById('faceNamingInput').value = face.name;
+    document.getElementById('faceNamingInput').placeholder = 'Stranger';
+    document.getElementById('faceNamingError').textContent = '';
+    document.getElementById('faceNamingSheet').hidden = false;
+    document.getElementById('faceNamingInput').focus();
+}
 
-        facesDirty = false;
-        btn.disabled = true;
-        showModal("Saving face names...", "Please wait");
-    });
+function closeFaceNaming() {
+    document.getElementById('faceNamingSheet').hidden = true;
+    namingFaceId = null;
+}
+
+function confirmFaceNaming() {
+    if (!namingFaceId) return;
+    const note = document.getElementById('faceNamingInput').value.trim();
+    pendingFaceRename = { face_id: namingFaceId, note };
+    beginSettingSave('faces');
+    try {
+        C4.sendCommand('UPDATE_STRANGER_NOTE', JSON.stringify(pendingFaceRename), false, true);
+    } catch (error) {
+        finishSettingSave('faces', false, 'Unable to save face name');
+    }
+}
+
+function openFaceDeleteConfirmation() {
+    if (selectedFaceIds.size) document.getElementById('faceDeleteConfirmation').hidden = false;
+}
+
+function closeFaceDeleteConfirmation() {
+    document.getElementById('faceDeleteConfirmation').hidden = true;
+}
+
+function confirmFaceDeletion() {
+    const ids = [...selectedFaceIds];
+    if (!ids.length) return;
+    beginSettingSave('faceDelete');
+    try {
+        C4.sendCommand('DELETE_STRANGER_FACES', JSON.stringify({ ids_json: JSON.stringify(ids) }), false, true);
+        closeFaceDeleteConfirmation();
+    } catch (error) {
+        finishSettingSave('faceDelete', false, 'Unable to delete faces');
+    }
 }
 // =====================================================
 // CONTROL4 DATA SYNC (SOURCE OF TRUTH)
@@ -626,6 +1073,26 @@ function onDataToUi(value) {
             obj = JSON.parse(jsonObject.icon_description);
         } else {
             obj = jsonObject;
+        }
+
+        if (obj.type === 'camera_settings') {
+            if (obj.success) hydrateMotionSettings(obj.settings || {});
+            document.getElementById('motionSettingsStatus').textContent = '';
+            document.getElementById('motionZoneStatus').textContent = '';
+            if (!obj.setting_saved) {
+                const motion = document.getElementById('motionDetection');
+                const complete = !motion.checked || ['detectionType', 'detectionSensitivity', 'saveMotionZone', 'motionAlarm']
+                    .every(id => !document.getElementById(id).disabled);
+                const ready = obj.success && !motion.disabled && complete;
+                finishSettingsLoad('camera', ready, 'Unable to load camera settings');
+            }
+            if (obj.success && obj.setting_saved) finishSettingSave('camera', true);
+        }
+        if (obj.type === 'camera_setting_result' && !obj.success) {
+            document.getElementById('motionSettingsStatus').textContent = '';
+            document.getElementById('motionZoneStatus').textContent = '';
+            finishSettingSave('camera', false, obj.error);
+            return;
         }
 
       
@@ -675,6 +1142,7 @@ function onDataToUi(value) {
 
             console.log('Anti-Pry UI UPDATE →', state ? 'ENABLED' : 'DISABLED');
             updateAntiPryUI(state);
+            finishSettingSave('antiPry', true);
         }
 
         // =========================
@@ -687,6 +1155,7 @@ function onDataToUi(value) {
             console.log("Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
+            finishSettingSave('mic', true);
         }
 
 
@@ -698,8 +1167,7 @@ function onDataToUi(value) {
                 statusEl.style.color = "#4ade80";
             }
 
-            // Show Modal
-            showModal("Device name updated successfully!", "Success");
+            finishSettingSave('name', true);
 
             // Optional: clear input
             const input = document.getElementById('deviceNameInput');
@@ -722,15 +1190,18 @@ function onDataToUi(value) {
         if (obj.type === "stranger_faces") {
             if (!document.getElementById('faceList')) return;
             if (obj.success && obj.data && obj.data.notes) {
-                updateFacesFromDriver(obj.data.notes);
+                updateFacesFromDriver(obj.data.notes, Number(obj.data.page) || 1, obj.data.total);
             } else {
-                showModal(obj.error || obj.message || "Failed to load faces", "Error");
-                if (faces.length === 0) renderFaces();
+                document.getElementById('faceList').textContent = obj.error || 'Unable to load faces';
+                document.getElementById('faceLoadMore').disabled = false;
             }
+            return;
         }
 
         if (obj.type === 'device_settings') {
             updateDeviceSettingsFromDriver(obj.settings);
+            finishSettingsLoad('device', confirmedFaceSwitch !== undefined, 'Unable to load facial recognition settings');
+            return;
         }
 
         if (obj.type === 'face_recognition_updated') {
@@ -738,10 +1209,13 @@ function onDataToUi(value) {
             if (obj.success) {
                 latestDeviceSettings.unknow_snapswt = obj.unknow_snapswt;
                 updateFaceRecognitionState(obj.unknow_snapswt);
+                finishSettingSave('faceRecognition', true);
                 C4.sendCommand('REQUEST_SETTINGS', '', false, false);
             } else {
                 updateFaceRecognitionState(confirmedFaceSwitch, obj.error || 'Failed to update facial recognition');
+                finishSettingSave('faceRecognition', false, obj.error || 'Failed to update facial recognition');
             }
+            return;
         }
 
         // =========================
@@ -751,17 +1225,37 @@ function onDataToUi(value) {
             console.log("[UI] stranger_note_updated:", obj);
 
             if (obj.success) {
-                showModal("Face name updated successfully!", "Success");
-
-                // Optional: refresh list
-                // loadFaces();
+                if (pendingFaceRename) {
+                    const face = faces.find(item => item.face_id === (obj.face_id || pendingFaceRename.face_id));
+                    if (face) face.name = typeof obj.note === 'string' ? obj.note : pendingFaceRename.note;
+                    pendingFaceRename = null;
+                    closeFaceNaming();
+                    renderFaces();
+                }
+                finishSettingSave('faces', true);
+                loadFaces();
             } else {
-                showModal(obj.error || "Failed to update face name", "Error");
+                finishSettingSave('faces', false, obj.error || 'Failed to update face name');
             }
+            return;
+        }
+
+        if (obj.type === 'stranger_faces_deleted') {
+            finishSettingSave('faceDelete', obj.success, obj.error);
+            if (obj.success) {
+                selectedFaceIds.clear();
+                faceEditMode = false;
+                loadFaces();
+            }
+            return;
         }
 
         // Error handling
         if (obj.error) {
+            if (pendingSettingSaves.size > 0) {
+                [...pendingSettingSaves.keys()].forEach(kind => finishSettingSave(kind, false, obj.error));
+                return;
+            }
             const statusEl = document.getElementById('deviceNameStatus');
             if (statusEl) {
                 statusEl.innerText = "✗ Update failed";
