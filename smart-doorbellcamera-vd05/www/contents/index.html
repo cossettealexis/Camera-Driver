@@ -594,7 +594,7 @@
                         <i data-lucide="mic" class="icon"></i>
                         <div>
                             <div class="title">Microphone</div>
-                            <div class="subtitle">Audio capture control</div>
+                            <div class="subtitle">Start or end a call</div>
                         </div>
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
@@ -720,12 +720,11 @@
             <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
                 <div class="h2">Microphone</div>
-                <div class="desc">Call audio control.</div>
                 <label class="toggle">
                     <input type="checkbox" id="mic" aria-label="Microphone">
                     <span class="slider"></span>
                 </label>
-                <div class="status" id="micStatus">Call ended</div>
+                <div class="status" id="micStatus" aria-live="polite">Switch on to start a call.</div>
             </div>
         </section>
 

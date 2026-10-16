@@ -335,8 +335,13 @@ test('facial thresholds hydrate from the supplied API values and use slider/opti
     assert.equal(element('faceQualityValue').textContent, 'Low');
 });
 
-test('Microphone feedback says Call started when enabled and Call ended when disabled', () => {
+test('Microphone initially prompts to start a call, then shows Call Started and Call Ended', () => {
     const { context, element, commands } = fixture();
+    element('mic').removeEventListener = () => {};
+    context.initMicrophone();
+    assert.equal(element('micStatus').innerText, 'Switch on to start a call.');
+    context.onDataToUi(JSON.stringify({ type: 'mic_update', mic_muted: true }));
+    assert.equal(element('micStatus').innerText, 'Switch on to start a call.');
     context.sendMicCommand(false);
     assert.equal(commands.at(-1)[0], 'UNMUTE_MIC');
     assert.equal(element('settingSaveOverlay').hidden, false);
@@ -345,22 +350,26 @@ test('Microphone feedback says Call started when enabled and Call ended when dis
     assert.equal(element('settingSaveOverlay').hidden, false);
     context.onDataToUi(JSON.stringify({ type: 'mic_result', success: true, mic_muted: false }));
     assert.equal(element('mic').checked, true);
-    assert.equal(element('micStatus').innerText, 'Call started');
-    assert.equal(element('settingSaveToast').textContent, 'Call started');
+    assert.equal(element('micStatus').innerText, 'Call Started');
+    assert.equal(element('settingSaveToast').textContent, 'Call Started');
     context.sendMicCommand(true);
     assert.equal(element('settingSaveLabel').textContent, 'Ending call...');
     context.onDataToUi(JSON.stringify({ type: 'mic_result', success: true, mic_muted: true }));
     assert.equal(element('mic').checked, false);
-    assert.equal(element('micStatus').innerText, 'Call ended');
-    assert.equal(element('settingSaveToast').textContent, 'Call ended');
+    assert.equal(element('micStatus').innerText, 'Call Ended');
+    assert.equal(element('settingSaveToast').textContent, 'Call Ended');
     const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
     assert.match(html, /class="h2">Microphone<\/div>/);
     assert.match(html, /id="mic" aria-label="Microphone"/);
+    assert.match(html, /class="subtitle">Start or end a call<\/div>/);
+    assert.match(html, /id="micStatus" aria-live="polite">Switch on to start a call\.<\/div>/);
 });
 
-test('ac_talk uses documented on/off values and top-level API success, not undocumented output result codes', () => {
+test('ac_talk starts LAN channel 2, stops with 0, and respects top-level API success', () => {
     const driver = fs.readFileSync(path.join(root, 'driver.lua'), 'utf8');
     const section = driver.slice(driver.indexOf('function SET_MIC_STATE('), driver.indexOf('function SET_ANTI_PRY_STATE('));
+    const statusChecks = driver.match(/local micOn = [\s\S]*?(?=\r?\n\s*conditional_state\.MIC_MUTED)/g);
+    assert.equal(statusChecks?.length, 2);
     const lua = `
         local json = require('CldBusApi.dkjson')
         local _props = {VID='camera-1', ['Auth Token']='token'}
@@ -387,19 +396,29 @@ test('ac_talk uses documented on/off values and top-level API success, not undoc
             end
         end
         SET_MIC_STATE(false)
-        assert(requests[1]==1 and result().success and result().mic_muted==false)
+        assert(requests[1]==2 and result().success and result().mic_muted==false)
         assert(messages[#messages].type=='mic_update')
         action_result=1
         SET_MIC_STATE(false)
-        assert(requests[2]==1 and result().success and result().mic_muted==false)
+        assert(requests[2]==2 and result().success and result().mic_muted==false)
         assert(conditional_state.MIC_MUTED==false)
         action_result=0
         api_code=400
         SET_MIC_STATE(true)
-        assert(result().success==false and conditional_state.MIC_MUTED==false)
+        assert(requests[3]==0 and result().success==false and conditional_state.MIC_MUTED==false)
         api_code=20000
         SET_MIC_STATE(true)
-        assert(result().success and result().mic_muted==true)
+        assert(requests[4]==0 and result().success and result().mic_muted==true)
+        ${statusChecks.map(check => `
+            for _, key in ipairs({'ac_talk', 'mic_on', 'talk_on', 'microphone'}) do
+                for _, val in ipairs({0, 1, 2, '2'}) do
+                    local s = {status_key=key, status_val=val}
+                    ${check}
+                    local expected = tonumber(val)==1 or (key=='ac_talk' and tonumber(val)==2)
+                    assert(micOn==expected, 'Incorrect audio status for '..key..'='..tostring(val))
+                end
+            end
+        `).join('\n')}
         io.write('VD05 call assertions passed')
     `;
     const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', lua], { encoding: 'utf8', cwd: root });

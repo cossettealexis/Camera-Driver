@@ -9,13 +9,13 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --accent: #ad1c42;
-            --bg: #0f1115;
-            --surface: #181b21;
-            --surface2: #1f232b;
-            --border: #2d333c;
+            --accent: #e71048;
+            --bg: #101010;
+            --surface: #1c1c1c;
+            --surface2: #292929;
+            --border: #282828;
             --text: #ffffff;
-            --muted: #98a2b3;
+            --muted: #999999;
         }
 
       
@@ -398,6 +398,108 @@
             margin-bottom: 4px;
         }
 
+        .k26-motion-content { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; text-align: left; }
+        .k26-motion-card { margin-bottom: 12px; padding: 4px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+        .k26-motion-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .k26-motion-row:last-child { border-bottom: 0; }
+        .k26-motion-row label, .k26-motion-name { font-size: 15px; font-weight: 600; }
+        .k26-motion-row select { max-width: 48%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); text-align: right; }
+        .k26-motion-row select:disabled, .k26-motion-row input:disabled { opacity: .5; }
+        .k26-motion-detail { flex: 1; min-width: 0; }
+        .k26-motion-desc { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+        .k26-motion-link { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+        .k26-motion-status { min-height: 18px; color: var(--muted); font-size: 12px; text-align: center; }
+        .k26-zone-inputs { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+        .k26-zone-inputs input { display: block; width: 100%; margin-top: 5px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: white; }
+        [hidden] { display: none !important; }
+
+        .toggle { flex-shrink: 0; }
+        .toggle input:disabled + .slider { opacity: .45; cursor: not-allowed; }
+        .toggle input:indeterminate + .slider:before { transform: translateX(16px); }
+        .k26-motion-content { background: #101010; padding: 24px 18px 90px; }
+        .k26-motion-card { padding: 0 16px; border: 0; border-radius: 22px; background: #1c1c1c; margin-bottom: 16px; }
+        .k26-motion-row { gap: 16px; padding: 14px 0; border-color: #373737; }
+        .motion-choice-row { width: 100%; border-top: 0; border-left: 0; border-right: 0; background: transparent; color: white; text-align: left; cursor: pointer; }
+        .motion-choice-row:disabled { cursor: default; }
+        .motion-choice-value { display: flex; align-items: center; gap: 8px; color: #999; font-size: 14px; flex-shrink: 0; }
+        .motion-choice-value svg { width: 18px; height: 18px; }
+        .motion-option-overlay { position: fixed; inset: 0; z-index: 2200; display: flex; align-items: flex-end; justify-content: center; padding: 8px; background: rgba(0,0,0,.72); }
+        .motion-option-card { width: min(100%, 760px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px 12px 8px; border-radius: 24px; background: #292929; }
+        .motion-option-title { text-align: center; font-size: 16px; font-weight: 600; }
+        .motion-option-description { margin: 8px 0 16px; text-align: center; font-size: 13px; line-height: 1.3; color: #aaa; }
+        .motion-option-confirm { width: 100%; margin-top: 24px; min-height: 44px; border: 0; border-radius: 12px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .motion-option-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 12px 0; border: 0; border-top: 1px solid #383838; color: #ddd; text-align: left; font-size: 14px; cursor: pointer; }
+        .motion-option-item input { appearance: none; width: 20px; height: 20px; flex: 0 0 20px; border: 1px solid #999; border-radius: 50%; pointer-events: none; }
+        .motion-option-item input:checked { border-color: #e71048; background: #e71048; }
+        .motion-option-item input:checked::after { content: ''; display: block; width: 5px; height: 9px; margin: 2px 6px; border: solid #292929; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .motion-option-type { padding: 16px; margin-top: 10px; border-radius: 20px; background: #373737; border: 0; }
+        .motion-option-subtitle { display: block; margin-top: 6px; font-size: 12px; color: #ddd; }
+        .motion-option-range { position: relative; margin-top: 14px; padding: 42px 12px 14px; border-radius: 20px; background: #373737; }
+        .motion-option-range input { appearance: none; display: block; width: 100%; height: 5px; margin: 4px 0 16px; border-radius: 5px; background: linear-gradient(to right,#ff1b5b var(--range-fill,0%),#aaa var(--range-fill,0%)); cursor: pointer; }
+        .motion-option-range input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #b50b38; }
+        .motion-option-range input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #b50b38; }
+        .motion-option-range output { position: absolute; top: 20px; transform: translateX(-50%); font-size: 12px; color: #ff1b5b; }
+        .motion-option-bounds { display: flex; justify-content: space-between; gap: 8px; color: #aaa; font-size: 12px; }
+        .setting-save-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.7); }
+        .setting-save-overlay[data-loading="true"] { background: #101010; }
+        .setting-save-card { width: 190px; min-height: 156px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; border-radius: 24px; background: #292929; color: #eee; font-size: 15px; font-weight: 600; }
+        .setting-save-spinner { width: 64px; height: 64px; border: 10px solid #672536; border-right-color: #ce0d42; border-bottom-color: #ce0d42; border-radius: 50%; animation: setting-save-spin .8s linear infinite; }
+        .setting-save-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 3100; max-width: calc(100% - 32px); padding: 12px; border-radius: 12px; background: #292929; color: white; font-size: 15px; text-align: center; pointer-events: none; }
+        @keyframes setting-save-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .setting-save-spinner { animation-duration: 2s; } }
+
+        .settings-bar { display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; align-items: center; width: 100%; min-height: 46px; margin: 0 auto; padding: 0 16px; }
+        .settings-bar h1 { font-size: 22px; font-weight: 600; text-align: center; }
+        .settings-bar .back { background: transparent; }
+        .settings-home { flex: 1; min-height: 0; width: 100%; margin: 0 auto; overflow-y: auto; padding: 8px 24px 40px; scrollbar-width: none; }
+        .settings-home::-webkit-scrollbar { display: none; }
+        .settings-device { display: grid; grid-template-columns: 58px minmax(0,1fr) 28px; align-items: center; gap: 16px; min-height: 112px; padding: 20px 24px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-device-picture { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; color: #eeeeee; }
+        .settings-device-picture svg { width: 54px; height: 54px; stroke-width: 1.25; }
+        .settings-device-name { font-size: 18px; line-height: 1.4; font-weight: 400; overflow-wrap: anywhere; }
+        .settings-device-type { margin-top: 10px; font-size: 15px; color: var(--muted); }
+        .settings-edit { align-self: end; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; background: transparent; color: #777777; cursor: pointer; }
+        .settings-edit svg { width: 19px; height: 19px; }
+        .settings-shortcuts { display: grid; grid-template-columns: 1fr 1fr; min-height: 112px; padding: 18px 6px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-width: 0; padding: 8px; border: 0; background: transparent; color: #dddddd; font-size: 14px; cursor: pointer; }
+        .settings-shortcut svg { width: 28px; height: 28px; color: var(--accent); stroke-width: 1.6; }
+        .settings-group { margin-bottom: 18px; padding: 0 16px; border-radius: 30px; background: var(--surface); }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 56px; padding: 16px 0; border: 0; border-bottom: 1px solid #242424; background: transparent; color: #dddddd; font-size: 17px; font-weight: 400; text-align: left; cursor: pointer; }
+        .settings-row:last-child { border-bottom: 0; }
+        .settings-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+        .settings-row .chevron { flex: 0 0 18px; color: #777777; }
+        .settings-row:disabled, .settings-shortcut:disabled { opacity: 1; cursor: not-allowed; }
+        .settings-status-row { min-height: 56px; padding: 10px 0; }
+        .settings-status-row .toggle { width: 70px; height: 32px; }
+        .settings-status-row .slider:before { width: 42px; height: 26px; top: 3px; left: 3px; }
+        .settings-status-row input[aria-busy="true"] + .slider:before { width: 26px; transform: translateX(19px); }
+        .settings-detail { max-width: 48%; color: var(--muted); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+        .settings-delete { justify-content: center; min-height: 62px; color: #e33232; }
+        .settings-subpage { flex: 1; min-height: 0; overflow-y: auto; width: 100%; margin: 0 auto; padding: 18px 24px 40px; }
+        .settings-info .settings-row { cursor: default; }
+        .video-settings { padding: 18px 8px 40px; }
+        .video-settings .settings-group { margin-bottom: 12px; padding: 0 12px; border-radius: 26px; }
+        .video-settings .settings-row { min-height: 44px; padding: 12px 0; font-size: 14px; }
+        .video-settings .motion-choice-value { gap: 4px; font-size: 12px; }
+        .video-settings .toggle { width: 48px; height: 22px; }
+        .video-settings .slider:before { width: 28px; height: 18px; left: 2px; top: 2px; }
+        .video-settings input:checked + .slider:before { transform: translateX(16px); }
+        .video-settings input:indeterminate + .slider:before { width: 18px; transform: translateX(13px); }
+        .device-name-sheet { position: fixed; inset: 0; z-index: 2300; display: flex; align-items: flex-end; padding: 16px; background: rgba(0,0,0,.65); }
+        .device-name-card { width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 16px; border-radius: 28px; background: #292929; }
+        .device-name-title { margin: 0 0 28px; color: #eeeeee; font-size: 15px; font-weight: 600; text-align: center; }
+        .device-name-field { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 14px; background: #1c1c1c; }
+        .device-name-field input { width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: none; background: transparent; color: #eeeeee; font-size: 14px; }
+        .device-name-clear { display: flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; border: 0; background: transparent; color: #888888; cursor: pointer; }
+        .device-name-clear svg { width: 18px; height: 18px; }
+        .device-name-error { min-height: 18px; padding-top: 4px; color: #ff7777; font-size: 12px; }
+        .device-name-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .device-name-actions button { min-height: 38px; padding: 8px 16px; border-radius: 14px; color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .device-name-cancel { border: 1px solid #999999; background: transparent; }
+        .device-name-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        .device-name-confirm:disabled { opacity: .45; cursor: not-allowed; }
+        @media (min-width: 768px) { .settings-home { padding-right: 28px; padding-left: 28px; } }
+
         .face-item {
             display: flex;
             align-items: center;
@@ -463,72 +565,113 @@
     </style>
 </head>
 <body>
-    <div class="app">
+    <div class="app" inert>
         <!-- HOME -->
         <section id="homePanel" class="panel active">
-            <div class="header">
+            <div class="settings-bar">
+                <button class="back" onclick="history.back()" aria-label="Back" title="Back"><i data-lucide="chevron-left"></i></button>
                 <h1>Device Settings</h1>
-                <p>K26 Camera Controls</p>
+                <div></div>
             </div>
-            <div class="list">
-                <div class="item" onclick="show('rebootPanel')">
-                    <div class="left">
-                        <i data-lucide="rotate-cw" class="icon"></i>
-                        <div>
-                            <div class="title">Reboot</div>
-                            <div class="subtitle">Restart device</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+            <div class="settings-home">
+                <div class="settings-device">
+                    <div class="settings-device-picture"><i data-lucide="cctv" aria-hidden="true"></i></div>
+                    <div><div id="homeModelName" class="settings-device-name">Outdoor Camera (Solar)</div><div id="homeDeviceName" class="settings-device-type">...</div></div>
+                    <button class="settings-edit" onclick="openDeviceNameSheet()" aria-label="Edit device name" title="Edit device name"><i data-lucide="pencil-line"></i></button>
                 </div>
-                <div class="item" onclick="show('micPanel')">
-                    <div class="left">
-                        <i data-lucide="mic" class="icon"></i>
-                        <div>
-                            <div class="title">Microphone</div>
-                            <div class="subtitle">Audio capture control</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-shortcuts">
+                    <button class="settings-shortcut" onclick="show('motionDetectionPanel')"><i data-lucide="scan-line"></i><span>Motion Detection</span></button>
+                    <button class="settings-shortcut" disabled title="Power Management is not available from the K26 driver"><i data-lucide="battery-full"></i><span>Power Management</span></button>
                 </div>
-                <div class="item" onclick="show('deviceNamePanel')">
-                    <div class="left">
-                        <i data-lucide="smartphone" class="icon"></i>
-                        <div>
-                            <div class="title">Device Name</div>
-                            <div class="subtitle">Device name control</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <div class="settings-row settings-status-row"><label for="statusLight">Status Light</label><label class="toggle" title="Status Light is not available from the K26 driver"><input id="statusLight" type="checkbox" aria-label="Status Light" aria-busy="true" disabled><span class="slider"></span></label></div>
                 </div>
-                <!-- Facial Recognition -->
-                <div class="item" onclick="show('facialRecPanel')">
-                    <div class="left">
-                        <i data-lucide="scan-face" class="icon"></i>
-                        <div>
-                            <div class="title">Facial Recognition</div>
-                            <div class="subtitle">Face detection & management</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="show('videoSettingsPanel')"><span>Video Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" onclick="show('audioSettingsPanel')"><span>Audio Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" disabled title="Notification Settings are not available from this screen"><span>Notification Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <div class="item" id="snapshotHomeBtn">
-                    <div class="left">
-                        <i data-lucide="camera" class="icon"></i>
-                        <div>
-                            <div class="title">Take Snapshot</div>
-                            <div class="subtitle">Capture current view</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group"><button class="settings-row" disabled title="Internal Storage is not available from the K26 driver"><span>Internal Storage</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="show('deviceInformationPanel')"><span>Device Information</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" disabled title="Firmware update checks are not available from the K26 driver"><span>Check Firmware Update</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
+                <div class="settings-group"><button class="settings-row" disabled title="C4 Authentication Service is not available from this screen"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row settings-delete" disabled title="Device deletion is not available from this driver">Delete Device</button></div>
+            </div>
+        </section>
+
+        <section id="audioSettingsPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Audio Settings</h1><div></div></div>
+            <div class="settings-subpage"><div class="settings-group"><button class="settings-row" onclick="show('micPanel')"><span>Microphone</span><i data-lucide="chevron-right" class="chevron"></i></button></div></div>
+        </section>
+        <section id="videoSettingsPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Video Settings</h1><div></div></div>
+            <div class="settings-subpage video-settings">
+                <div class="settings-group"><button class="settings-row" id="nightVisionMode" onclick="openMotionOption('nightVisionMode')" disabled><span>Night Vision Mode</span><span class="motion-choice-value"><span id="nightVisionModeValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
+                <div class="settings-group"><button class="settings-row" id="antiFlicker" onclick="openMotionOption('antiFlicker')" disabled><span>Anti-Flicker</span><span class="motion-choice-value"><span id="antiFlickerValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
+                <div class="settings-group"><div class="settings-row"><label for="flipImageToggle">Flip Image</label><label class="toggle"><input id="flipImageToggle" type="checkbox" aria-label="Flip Image" disabled><span class="slider"></span></label></div></div>
+                <div class="settings-group"><div class="settings-row"><label for="timeWatermarkToggle">Time Watermark</label><label class="toggle"><input id="timeWatermarkToggle" type="checkbox" aria-label="Time Watermark" disabled><span class="slider"></span></label></div></div>
+            </div>
+        </section>
+        <section id="deviceInformationPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Device Information</h1><div></div></div>
+            <div class="settings-subpage">
+                <div class="settings-group settings-info">
+                    <div class="settings-row"><span>Device Name</span><span class="settings-detail" id="deviceVersion">...</span></div>
+                    <div class="settings-row"><span>Firmware Version</span><span class="settings-detail" id="firmwareVersion">...</span></div>
+                    <div class="settings-row"><span>Release Date</span><span class="settings-detail" id="releaseDate">...</span></div>
+                </div>
+                <div class="settings-group"><button class="settings-row" id="snapshotHomeBtn"><span>Take Snapshot</span><i data-lucide="chevron-right" class="chevron"></i></button><button class="settings-row" onclick="show('rebootPanel')"><span>Reboot</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+            </div>
+        </section>
+
+        <section id="motionDetectionPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="h2" style="flex:1;text-align:center;">Motion Detection</div>
+                <div style="width:38px;"></div>
+            </div>
+            <div class="k26-motion-content">
+                <div class="k26-motion-card">
+                    <div class="k26-motion-row"><label for="motionDetectionToggle">Motion Detection</label><label class="toggle"><input type="checkbox" id="motionDetectionToggle" disabled aria-label="Motion Detection"><span class="slider"></span></label></div>
+                </div>
+                <div class="k26-motion-card" id="motionSettingsGroup" hidden>
+                    <button class="k26-motion-row motion-choice-row" id="motionDetectionType" onclick="openMotionOption('motionDetectionType')" disabled><span class="k26-motion-name">Detection Type</span><span class="motion-choice-value"><span id="motionDetectionTypeValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="k26-motion-row motion-choice-row" id="motionSensitivity" onclick="openMotionOption('motionSensitivity')" disabled><span class="k26-motion-name">Detection Sensitivity</span><span class="motion-choice-value"><span id="motionSensitivityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="k26-motion-row k26-motion-link" id="motionZoneOpen" type="button" disabled><span><span class="k26-motion-name">Set Detection Zone</span><span class="k26-motion-desc" style="display:block">Set the alarm area you are concerned about.</span></span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div class="k26-motion-card" id="motionAlarmGroup" hidden>
+                    <div class="k26-motion-row"><div class="k26-motion-detail"><label for="motionAlarmToggle">Audible and Visual Alarm</label><div class="k26-motion-desc">When enabled, the device will sound a siren and flash a light as a warning if a person is detected.</div></div><label class="toggle"><input type="checkbox" id="motionAlarmToggle" disabled aria-label="Audible and Visual Alarm"><span class="slider"></span></label></div>
+                </div>
+                <div class="k26-motion-card">
+                    <div class="k26-motion-row"><label for="faceRecEnable">Facial Recognition</label><label class="toggle"><input type="checkbox" id="faceRecEnable" aria-label="Facial Recognition" disabled><span class="slider"></span></label></div>
+                    <button class="k26-motion-row motion-choice-row" id="faceSimilarity" data-face-option hidden onclick="openMotionOption('faceSimilarity')" disabled><span class="k26-motion-name">Face Similarity Threshold</span><span class="motion-choice-value"><span id="faceSimilarityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="k26-motion-row motion-choice-row" id="faceQuality" data-face-option hidden onclick="openMotionOption('faceQuality')" disabled><span class="k26-motion-name">Face Image Quality Threshold</span><span class="motion-choice-value"><span id="faceQualityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="k26-motion-row k26-motion-link" id="k26FaceManagement" type="button" onclick="show('facialRecPanel')" hidden><span class="k26-motion-name">Face Management</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div id="k26MotionStatus" class="k26-motion-status" role="status"></div>
+            </div>
+        </section>
+
+        <section id="detectionZonePanel" class="panel">
+            <div class="topbar"><button class="back" onclick="show('motionDetectionPanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button><div class="h2" style="flex:1;text-align:center;">Set Detection Zone</div><div style="width:38px;"></div></div>
+            <div class="k26-motion-content">
+                <div class="k26-zone-inputs">
+                    <label>X<input id="k26ZoneX" type="number" min="0" step="1" disabled></label>
+                    <label>Y<input id="k26ZoneY" type="number" min="0" step="1" disabled></label>
+                    <label>Width<input id="k26ZoneWidth" type="number" min="0" step="1" disabled></label>
+                    <label>Height<input id="k26ZoneHeight" type="number" min="0" step="1" disabled></label>
+                </div>
+                <button class="btn" id="k26ZoneSave" disabled>Confirm</button>
+                <div class="k26-motion-status" id="k26ZoneStatus" role="status"></div>
             </div>
         </section>
 
         <!-- REBOOT -->
         <section id="rebootPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+                <button class="back" onclick="show('deviceInformationPanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
@@ -544,40 +687,18 @@
         <!-- MIC -->
         <section id="micPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+                <button class="back" onclick="show('audioSettingsPanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
             <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
                 <div class="h2">Microphone</div>
-                <div class="desc">Enable or disable audio capture.</div>
                 <label class="toggle">
-                    <input type="checkbox" id="mic">
+                    <input type="checkbox" id="mic" aria-label="Microphone">
                     <span class="slider"></span>
                 </label>
-                <div class="status" id="micStatus">Enabled</div>
-            </div>
-        </section>
-        <!-- DEVICE NAME -->
-        <section id="deviceNamePanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
-            </div>
-            <div class="content">
-                <i data-lucide="edit-3" class="bigIcon"></i>
-                <div class="h2">Device Name</div>
-                <div class="desc">Set a custom name for this device</div>
-
-                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
-                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
-                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
-                </div>
-                <button class="btn" id="updateNameBtn">
-                    Update Name
-                </button>
+                <div class="status" id="micStatus" aria-live="polite">Switch on to start a call.</div>
             </div>
         </section>
         <!-- =========================
@@ -585,15 +706,15 @@
         ========================= -->
         <section id="facialRecPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+                <button class="back" onclick="show('motionDetectionPanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
             <div class="content">
                 <i data-lucide="scan-face" class="bigIcon"></i>
-                <div class="h2">Facial Recognition</div>
+                <div class="h2">Face Management</div>
                 <!--<div class="desc">Enable face detection, manage enrolled faces and tune thresholds.</div>-->
-                <div class="desc">Enable face detection and manage enrolled faces.</div>
+                <div class="desc">Manage faces detected by the camera.</div>
                 <!-- Master Enable (disabled – face list always visible)
             <label class="toggle">
                 <input type="checkbox" id="faceRecEnable">
@@ -623,6 +744,26 @@
         </section>
         
     </div>
+    <div class="device-name-sheet" id="deviceNameSheet" role="dialog" aria-modal="true" aria-labelledby="deviceNameTitle" onclick="if(event.target===this) closeDeviceNameSheet()" hidden>
+        <div class="device-name-card">
+            <h2 class="device-name-title" id="deviceNameTitle">Change Device Name</h2>
+            <div class="device-name-field"><input id="deviceNameInput" type="text" maxlength="32" aria-label="Device name" autocomplete="off" spellcheck="false"><button class="device-name-clear" type="button" onclick="clearDeviceName()" aria-label="Clear device name" title="Clear device name"><i data-lucide="circle-x"></i></button></div>
+            <div class="device-name-error" id="deviceNameStatus" role="status" aria-live="polite"></div>
+            <div class="device-name-actions"><button class="device-name-cancel" type="button" onclick="closeDeviceNameSheet()">Cancel</button><button class="device-name-confirm" id="updateNameBtn" type="button" disabled>Confirm</button></div>
+        </div>
+    </div>
+    <div class="motion-option-overlay" id="motionOptionSheet" role="dialog" aria-modal="true" aria-labelledby="motionOptionTitle" onclick="if(event.target===this) closeMotionOption()" hidden>
+        <div class="motion-option-card">
+            <div class="motion-option-title" id="motionOptionTitle"></div>
+            <div class="motion-option-description" id="motionOptionDescription"></div>
+            <div id="motionOptionBody"></div>
+            <button class="motion-option-confirm" id="motionOptionConfirm" onclick="confirmMotionOption()">Confirm</button>
+        </div>
+    </div>
+    <div id="settingSaveOverlay" class="setting-save-overlay" data-loading="true" role="dialog" aria-modal="true" aria-labelledby="settingSaveLabel" tabindex="-1">
+        <div class="setting-save-card" role="status"><div class="setting-save-spinner" aria-hidden="true"></div><div id="settingSaveLabel">Loading...</div></div>
+    </div>
+    <div id="settingSaveToast" class="setting-save-toast" role="status" aria-live="polite" hidden></div>
     <!-- SUCCESS MODAL -->
     <div id="successModal" class="modal">
         <div class="modal-content">
@@ -647,14 +788,6 @@
             <button class="btn" onclick="closeSnapshotModal()">Close</button>
         </div>
     </div>
-    <footer class="footer">
-        <div class="version-info">
-            <span id="deviceVersion">Device: Loading...</span>
-            <span id="firmwareVersion">Firmware: Loading...</span>
-            <span id="releaseDate">Release: Loading...</span>
-        </div>
-    </footer>
-
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
@@ -672,6 +805,11 @@
             document.getElementById(id)
                 .classList.add('active');
 
+            if (id === 'motionDetectionPanel' && typeof requestCameraSettings === 'function') requestCameraSettings();
+            if (id === 'videoSettingsPanel' && typeof requestCameraSettings === 'function') requestCameraSettings('video');
+            if (id === 'facialRecPanel' && typeof loadFaces === 'function') loadFaces();
+            if (id === 'deviceInformationPanel' && typeof requestDeviceInfo === 'function') requestDeviceInfo();
+
             lucide.createIcons();
         }
 
@@ -687,57 +825,6 @@
         /* =========================
            TOGGLES
         ========================= */
-        document.addEventListener('DOMContentLoaded', () => {
-
-
-            document.getElementById('mic').addEventListener('change', function () {
-
-                document.getElementById('micStatus').innerText =
-                    this.checked ? "Enabled" : "Disabled";
-
-                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
-
-            });
-
-            // ---- Similarity Threshold ----
-            const similaritySlider = document.getElementById('similarityThreshold');
-            const similarityValue = document.getElementById('similarityValue');
-            const saveSimilarityBtn = document.getElementById('saveSimilarityBtn');
-
-            let currentSimilarity = 75;
-
-            similaritySlider.addEventListener('input', function () {
-                similarityValue.innerText = this.value + '%';
-            });
-
-            saveSimilarityBtn.addEventListener('click', function () {
-                currentSimilarity = parseInt(similaritySlider.value);
-                console.log("SAVE_FACE_SIMILARITY_THRESHOLD", currentSimilarity);
-            
-                showModal(`Similarity threshold set to ${currentSimilarity}%`, "Threshold Saved");
-            });
-
-            // ---- Quality Threshold ----
-            const qualityButtons = document.querySelectorAll('#qualitySegmented button');
-            const saveQualityBtn = document.getElementById('saveQualityBtn');
-            let currentQuality = 'medium';
-
-            qualityButtons.forEach(btn => {
-                btn.addEventListener('click', function () {
-                    qualityButtons.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentQuality = this.dataset.value;
-                });
-            });
-
-            saveQualityBtn.addEventListener('click', function () {
-                console.log("SAVE_FACE_QUALITY_THRESHOLD", currentQuality);
-                showModal(`Quality threshold set to ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`, "Quality Saved");
-            });
-
-
-        });
-
         // Modal Functions
         function showModal(message, title = "Success") {
                 const modal = document.getElementById('successModal');

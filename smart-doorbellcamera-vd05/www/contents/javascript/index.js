@@ -557,6 +557,8 @@ function updateAntiPryUI(state) {
 // MICROPHONE
 // =====================================================
 
+let hasConfirmedMicCall = false;
+
 function initMicrophone() {
 
     const toggle = document.getElementById('mic');
@@ -564,6 +566,8 @@ function initMicrophone() {
 
     toggle.removeEventListener('change', handleMicToggle);
     toggle.addEventListener('change', handleMicToggle);
+    const status = document.getElementById('micStatus');
+    if (status && !hasConfirmedMicCall) status.innerText = 'Switch on to start a call.';
 }
 
 function handleMicToggle(e) {
@@ -611,7 +615,7 @@ function updateMicUI(muted) {
     }
 
     if (status) {
-        status.innerText = isMicMuted ? 'Call ended' : 'Call started';
+        status.innerText = hasConfirmedMicCall ? (isMicMuted ? 'Call Ended' : 'Call Started') : 'Switch on to start a call.';
     }
 }
 
@@ -1152,10 +1156,13 @@ function onDataToUi(value) {
         // MICROPHONE SYNC
         // =========================
         if (obj.type === 'mic_result') {
-            if (obj.success) updateMicUI(obj.mic_muted === true || obj.mic_muted === 1);
+            if (obj.success) {
+                hasConfirmedMicCall = true;
+                updateMicUI(obj.mic_muted === true || obj.mic_muted === 1);
+            }
             else updateMicUI(isMicMuted);
             finishSettingSave('mic', obj.success, obj.error || 'Unable to update call',
-                isMicMuted ? 'Call ended' : 'Call started');
+                isMicMuted ? 'Call Ended' : 'Call Started');
             return;
         }
 

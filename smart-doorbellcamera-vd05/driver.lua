@@ -2703,7 +2703,8 @@ local function handle_device_status(msg)
            s.status_key == "microphone" or 
            s.status_key == "ac_talk" then
             
-            local micOn = (tonumber(s.status_val) == 1)
+            local micOn = tonumber(s.status_val) == 1 or
+                (s.status_key == "ac_talk" and tonumber(s.status_val) == 2)
             conditional_state.MIC_MUTED   = not micOn
             conditional_state.MIC_UNMUTED = micOn
             
@@ -4012,7 +4013,7 @@ function SET_MIC_STATE(isMuted)
     local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
                 "/api/v3/openapi/device/do-action"
 
-    local on_off = isMuted and 0 or 1   -- 0 = Off (Mute), 1 = On (Unmute)
+    local on_off = isMuted and 0 or 2
 
     local input_params = json.encode({
         t      = os.time() * 1000,   -- current timestamp in ms
@@ -4263,7 +4264,7 @@ function GET_DEVICE_STATUS()
 
             -- MICROPHONE
             if key == "mic_on" or key == "talk_on" or key == "microphone" or key == "ac_talk" then
-                local micOn = (tonumber(val) == 1)
+                local micOn = tonumber(val) == 1 or (key == "ac_talk" and tonumber(val) == 2)
                 conditional_state.MIC_MUTED   = not micOn
                 conditional_state.MIC_UNMUTED = micOn
             end
