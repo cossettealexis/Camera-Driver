@@ -4000,10 +4000,12 @@ function SET_MIC_STATE(isMuted)
 
     if not vid or vid == "" then
         print("[MIC] ERROR: Missing VID")
+        SendDeviceInfoToUI({ type = "mic_result", success = false, error = "Missing VID" })
         return false
     end
     if not token or token == "" then
         print("[MIC] ERROR: Missing Auth Token")
+        SendDeviceInfoToUI({ type = "mic_result", success = false, error = "Missing Auth Token" })
         return false
     end
 
@@ -4044,20 +4046,26 @@ function SET_MIC_STATE(isMuted)
             print("[MIC] Response Body:", resp) 
         end
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if not err and (code == 200 or code == 20000) and
+            (api_code == 0 or api_code == 200 or api_code == 20000) then
             print("[MIC] Success - Microphone", isMuted and "MUTED" or "UNMUTED")
             
             -- Update local state
             conditional_state.MIC_MUTED    = isMuted
             conditional_state.MIC_UNMUTED  = not isMuted
 
+            SendDeviceInfoToUI({ type = "mic_result", success = true, mic_muted = isMuted })
+
             -- Push to WebView UI
             PushMicStateToUI()
             
-            C4:UpdateProperty("Status", "Microphone " .. (isMuted and "Muted" or "Unmuted"))
+            C4:UpdateProperty("Status", isMuted and "Call ended" or "Call started")
         else
             print("[MIC] ERROR: Failed. Code:", code, "Error:", tostring(err))
             C4:UpdateProperty("Status", "Mic command failed")
+            SendDeviceInfoToUI({ type = "mic_result", success = false, error = "Call command failed. Please try again." })
         end
     end)
 
@@ -4066,15 +4074,16 @@ end
 
 -- Push current mic state to WebView
 function PushMicStateToUI()
-    local payload = json.encode({
+    local payload = {
+        type = "mic_update",
         mic_muted = conditional_state.MIC_MUTED
-    })
+    }
     
-    C4:SendDataToUI(payload)
+    SendDeviceInfoToUI(payload)
     
     -- Extra push for reliability
     C4:SetTimer(600, function()
-        C4:SendDataToUI(payload)
+        SendDeviceInfoToUI(payload)
     end)
 end
 

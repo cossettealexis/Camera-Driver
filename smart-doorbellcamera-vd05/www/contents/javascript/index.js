@@ -188,11 +188,12 @@ function showSettingToast(message) {
     settingToastTimer = setTimeout(() => { toast.hidden = true; }, 2500);
 }
 
-function beginSettingSave(kind) {
+function beginSettingSave(kind, label = 'Setting up...') {
     if (pendingSettingSaves.size === 0) settingSaveFailed = false;
     const pending = pendingSettingSaves.get(kind);
     if (pending) clearTimeout(pending.timer);
     pendingSettingSaves.set(kind, {
+        label,
         count: (pending?.count || 0) + 1,
         timer: setTimeout(() => {
             pendingSettingSaves.delete(kind);
@@ -210,14 +211,15 @@ function updateSettingSaveOverlay() {
     const pending = pendingSettingSaves.size > 0 || loading;
     const overlay = document.getElementById('settingSaveOverlay');
     overlay.setAttribute('data-loading', String(loading));
-    document.getElementById('settingSaveLabel').textContent = loading ? 'Loading...' : 'Setting up...';
+    document.getElementById('settingSaveLabel').textContent = loading ? 'Loading...' :
+        (pendingSettingSaves.get('mic')?.label || 'Setting up...');
     overlay.hidden = !pending;
     const app = document.querySelector('.app');
     if (app) app.inert = pending;
     if (pending) overlay.focus();
 }
 
-function finishSettingSave(kind, success, error) {
+function finishSettingSave(kind, success, error, successMessage = 'Settings saved') {
     const pending = pendingSettingSaves.get(kind);
     if (!pending) return;
     if (!success) settingSaveFailed = true;
@@ -228,7 +230,7 @@ function finishSettingSave(kind, success, error) {
     }
     updateSettingSaveOverlay();
     if (!success) showSettingToast(error || 'Unable to save settings');
-    else if (pendingSettingSaves.size === 0 && pendingSettingsLoads.size === 0 && !settingSaveFailed) showSettingToast('Settings saved');
+    else if (pendingSettingSaves.size === 0 && pendingSettingsLoads.size === 0 && !settingSaveFailed) showSettingToast(successMessage);
 }
 
 // =====================================================
@@ -249,7 +251,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initDeviceName();
     initDeviceInfo();
     initSnapshot();
-    loadFaces();
     initMotionSettings();
 });
 
@@ -576,7 +577,7 @@ function handleMicToggle(e) {
 
 function sendMicCommand(muted) {
 
-    beginSettingSave('mic');
+    beginSettingSave('mic', muted ? 'Ending call...' : 'Starting call...');
     try {
 
         C4.sendCommand(
@@ -588,7 +589,7 @@ function sendMicCommand(muted) {
 
     } catch (e) {
         console.log('Mic command error', e);
-        finishSettingSave('mic', false, 'Unable to send setting');
+        finishSettingSave('mic', false, 'Unable to send call command');
     }
 }
 
@@ -610,7 +611,7 @@ function updateMicUI(muted) {
     }
 
     if (status) {
-        status.innerText = isMicMuted ? 'Muted' : 'Enabled';
+        status.innerText = isMicMuted ? 'Call ended' : 'Call started';
     }
 }
 
@@ -898,6 +899,8 @@ function loadFaces(page = 1) {
 }
 
 function refreshFaces() {
+    const panel = document.getElementById('facialRecPanel');
+    if (!panel || !panel.classList.contains('active')) return;
     if (faceEditMode || namingFaceId !== null) return;
     if (Date.now() - lastFaceRequest < FACE_REFRESH_GAP_MS) return;
     loadFaces();
@@ -1148,14 +1151,21 @@ function onDataToUi(value) {
         // =========================
         // MICROPHONE SYNC
         // =========================
-        if (obj.type === "mic_update" || obj.mic_muted !== undefined) {
+        if (obj.type === 'mic_result') {
+            if (obj.success) updateMicUI(obj.mic_muted === true || obj.mic_muted === 1);
+            else updateMicUI(isMicMuted);
+            finishSettingSave('mic', obj.success, obj.error || 'Unable to update call',
+                isMicMuted ? 'Call ended' : 'Call started');
+            return;
+        }
+
+        if ((obj.type === "mic_update" || obj.mic_muted !== undefined) && !pendingSettingSaves.has('mic')) {
 
             const muted = obj.mic_muted === true || obj.mic_muted === 1;
 
             console.log("Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
-            finishSettingSave('mic', true);
         }
 
 

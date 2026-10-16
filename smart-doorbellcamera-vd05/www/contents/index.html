@@ -720,12 +720,12 @@
             <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
                 <div class="h2">Microphone</div>
-                <div class="desc">Enable or disable audio capture.</div>
+                <div class="desc">Call audio control.</div>
                 <label class="toggle">
-                    <input type="checkbox" id="mic">
+                    <input type="checkbox" id="mic" aria-label="Microphone">
                     <span class="slider"></span>
                 </label>
-                <div class="status" id="micStatus">Enabled</div>
+                <div class="status" id="micStatus">Call ended</div>
             </div>
         </section>
 
@@ -871,12 +871,6 @@
                 document.getElementById('antiPryStatus').innerText =
                     this.checked ? "Enabled" : "Disabled";
                 console.log(this.checked ? "ANTI_PRY_ON" : "ANTI_PRY_OFF");
-            });
-
-            document.getElementById('mic').addEventListener('change', function () {
-                document.getElementById('micStatus').innerText =
-                    this.checked ? "Enabled" : "Disabled";
-                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
             });
 
             

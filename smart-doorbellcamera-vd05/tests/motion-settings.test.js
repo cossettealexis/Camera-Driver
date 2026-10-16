@@ -12,6 +12,7 @@ function fixture() {
     const elements = new Map();
     const faceRows = Array.from({ length: 3 }, () => ({ hidden: true }));
     const commands = [];
+    const lifecycle = {};
     const navigation = [];
     const timers = new Map();
     let timerSequence = 0;
@@ -32,7 +33,8 @@ function fixture() {
     };
     const context = vm.createContext({
         document: {
-            addEventListener() {},
+            visibilityState: 'visible',
+            addEventListener(name, callback) { (lifecycle[name] ||= []).push(callback); },
             getElementById: element,
             querySelector: () => app,
             createElement: tag => ({
@@ -44,6 +46,7 @@ function fixture() {
             }),
             querySelectorAll: () => faceRows
         },
+        window: { addEventListener(name, callback) { (lifecycle[name] ||= []).push(callback); } },
         C4: { sendCommand: (...args) => commands.push(args) },
         show: id => navigation.push(id),
         setTimeout(callback, delay) { const id = ++timerSequence; timers.set(id, { callback, delay }); return id; },
@@ -52,8 +55,28 @@ function fixture() {
     });
     vm.runInContext(source, context);
     context.initMotionSettings();
-    return { context, element, faceRows, commands, timers, app, navigation };
+    return { context, element, faceRows, commands, timers, app, navigation, lifecycle };
 }
+
+test('Microphone focus, visibility, and Control4 variable events never request stranger faces', () => {
+    const { context, element, commands, lifecycle } = fixture();
+    let activePanel = 'micPanel';
+    element('facialRecPanel').classList = { contains: () => activePanel === 'facialRecPanel' };
+    for (const name of ['focus', 'pageshow', 'visibilitychange']) {
+        lifecycle[name].forEach(callback => callback());
+    }
+    context.onVariable({ name: 'LAST_MENU_SELECTED', value: 'security' });
+    assert.equal(commands.length, 0);
+    context.sendMicCommand(false);
+    assert.equal(commands.at(-1)[0], 'UNMUTE_MIC');
+    assert.equal(commands.some(args => args[0] === 'GET_STRANGER_FACES'), false);
+    activePanel = 'facialRecPanel';
+    context.refreshFaces();
+    assert.equal(commands.at(-1)[0], 'GET_STRANGER_FACES');
+    const count = commands.length;
+    context.refreshFaces();
+    assert.equal(commands.length, count);
+});
 
 test('initial settings stay covered until both API snapshots arrive, in either order', () => {
     for (const cameraFirst of [true, false]) {
@@ -310,6 +333,78 @@ test('facial thresholds hydrate from the supplied API values and use slider/opti
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true,
         settings: { unknow_faceq: 0 } }));
     assert.equal(element('faceQualityValue').textContent, 'Low');
+});
+
+test('Microphone feedback says Call started when enabled and Call ended when disabled', () => {
+    const { context, element, commands } = fixture();
+    context.sendMicCommand(false);
+    assert.equal(commands.at(-1)[0], 'UNMUTE_MIC');
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(element('settingSaveLabel').textContent, 'Starting call...');
+    context.onDataToUi(JSON.stringify({ type: 'mic_update', mic_muted: false }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'mic_result', success: true, mic_muted: false }));
+    assert.equal(element('mic').checked, true);
+    assert.equal(element('micStatus').innerText, 'Call started');
+    assert.equal(element('settingSaveToast').textContent, 'Call started');
+    context.sendMicCommand(true);
+    assert.equal(element('settingSaveLabel').textContent, 'Ending call...');
+    context.onDataToUi(JSON.stringify({ type: 'mic_result', success: true, mic_muted: true }));
+    assert.equal(element('mic').checked, false);
+    assert.equal(element('micStatus').innerText, 'Call ended');
+    assert.equal(element('settingSaveToast').textContent, 'Call ended');
+    const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
+    assert.match(html, /class="h2">Microphone<\/div>/);
+    assert.match(html, /id="mic" aria-label="Microphone"/);
+});
+
+test('ac_talk uses documented on/off values and top-level API success, not undocumented output result codes', () => {
+    const driver = fs.readFileSync(path.join(root, 'driver.lua'), 'utf8');
+    const section = driver.slice(driver.indexOf('function SET_MIC_STATE('), driver.indexOf('function SET_ANTI_PRY_STATE('));
+    const lua = `
+        local json = require('CldBusApi.dkjson')
+        local _props = {VID='camera-1', ['Auth Token']='token'}
+        local Properties = {}
+        local GlobalObject = {LnduBaseUrl='https://example.invalid', CldBusAppId='test'}
+        local conditional_state = {MIC_MUTED=true, MIC_UNMUTED=false}
+        local messages, requests = {}, {}
+        local function SendDeviceInfoToUI(value) messages[#messages+1]=value end
+        local function print() end
+        local C4 = {UpdateProperty=function()end, SetTimer=function()return 1 end}
+        local api_code, action_result = 20000, 0
+        local transport = {execute=function(request, callback)
+            local body=json.decode(request.body)
+            local params=json.decode(body.input_params)
+            assert(request.method=='POST' and request.url:match('/device/do%-action$'))
+            assert(body.action_id=='ac_talk' and body.vid=='camera-1')
+            requests[#requests+1]=params.on_off
+            callback(200,json.encode({code=api_code,data={output_params=json.encode({result=action_result})}}),{},nil)
+        end}
+        ${section}
+        local function result()
+            for index=#messages,1,-1 do
+                if messages[index].type=='mic_result' then return messages[index] end
+            end
+        end
+        SET_MIC_STATE(false)
+        assert(requests[1]==1 and result().success and result().mic_muted==false)
+        assert(messages[#messages].type=='mic_update')
+        action_result=1
+        SET_MIC_STATE(false)
+        assert(requests[2]==1 and result().success and result().mic_muted==false)
+        assert(conditional_state.MIC_MUTED==false)
+        action_result=0
+        api_code=400
+        SET_MIC_STATE(true)
+        assert(result().success==false and conditional_state.MIC_MUTED==false)
+        api_code=20000
+        SET_MIC_STATE(true)
+        assert(result().success and result().mic_muted==true)
+        io.write('VD05 call assertions passed')
+    `;
+    const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', lua], { encoding: 'utf8', cwd: root });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /VD05 call assertions passed/);
 });
 
 test('OP28 sends numeric note IDs and reports API rejection without deleting locally', () => {
