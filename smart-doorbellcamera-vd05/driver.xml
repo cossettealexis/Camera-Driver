@@ -432,11 +432,16 @@
         <commands>
             <command>
                 <name>GET_CAMERA_SETTINGS</name>
-                <description>Read camera motion and alarm settings</description>
+                <description>Read camera settings and local storage status</description>
             </command>
             <command>
                 <name>SET_CAMERA_SETTING</name>
-                <description>Update camera motion or alarm settings</description>
+                <description>Update camera settings</description>
+            </command>
+            <command>
+                <name>FORMAT_STORAGE</name>
+                <description>Format local storage after explicit confirmation</description>
+                <params><param><name>confirmed</name><type>STRING</type></param></params>
             </command>
             <command>
                 <name>TAKE_SNAPSHOT</name>

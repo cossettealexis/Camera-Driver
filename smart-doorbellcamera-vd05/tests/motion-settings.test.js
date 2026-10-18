@@ -23,6 +23,7 @@ function fixture() {
             style: {},
             classList: { contains: name => id === 'viewerPanel' && name === 'active' },
             focus() {},
+            getAttribute(name) { return this[name] ?? null; },
             removeAttribute(name) { delete this[name]; },
             listeners: {},
             children: [],
@@ -90,6 +91,75 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     const { context, commands } = fixture();
     context.initializeControl4();
     assert.equal(commands.some(command => command[0] === 'REQUEST_SETTINGS'), false);
+});
+
+test('VD05 Device Settings uses the K26 grouped layout with supported feature routes', () => {
+    const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
+    const home = html.match(/<section id="homePanel"[\s\S]*?<\/section>/)[0];
+    const ordered = ['Smart Doorbell', 'Motion Detection', 'Auto-Response', 'Power Management', 'Status Light',
+        'Anti-pry Alarm', 'Video Settings', 'Audio Settings', 'Notification Settings', 'Internal Storage',
+        'Installation Guide', 'Device Information', 'Check Firmware Update', 'C4 Authentication Service', 'Delete Device'];
+    let prior = -1;
+    for (const label of ordered) {
+        const position = home.indexOf('>' + label + '<');
+        assert.ok(position > prior, `${label} missing or out of order`);
+        prior = position;
+    }
+    assert.match(home, /id="motionDetectionPanel"|onclick="show\('motionDetectionPanel'\)"/);
+    assert.match(home, /show\('antiPryPanel'\)/);
+    assert.match(home, /show\('powerManagementPanel'\)/);
+    assert.match(home, /onclick="openNotificationSettings\(\)"[^>]*><span>Notification Settings<\/span>/);
+    assert.match(home, /onclick="openVideoSettings\(\)"[^>]*><span>Video Settings<\/span>/);
+    assert.match(home, /onclick="openStorageSettings\(\)"[^>]*><span>Internal Storage<\/span>/);
+    assert.match(home, /onclick="openInstallationGuide\(\)"[^>]*><span>Installation Guide<\/span>/);
+    assert.doesNotMatch(home, /onclick="show\('micPanel'\)"|id="snapshotHomeBtn"/);
+
+    const { context, element } = fixture();
+    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'CA Smart Doorbell',
+        version: '1.2.3', release_date: '2026-10-18', ip: '192.0.2.12', mac: 'AA:BB:CC', battery: 68, can_update: false }));
+    assert.equal(element('settingsDeviceName').textContent, 'CA Smart Doorbell');
+    assert.equal(element('powerBatteryLevel').textContent, '68%');
+    assert.equal(element('informationBattery').textContent, '68%');
+    assert.equal(element('informationIp').textContent, '192.0.2.12');
+    assert.equal(element('informationMac').textContent, 'AA:BB:CC');
+    assert.equal(element('firmwareAvailability').textContent, 'The current version is the latest.');
+});
+
+test('Notification, storage, and installation screens expose the screenshot flows', () => {
+    const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
+    const notification = html.match(/<section id="notificationSettingsPanel"[\s\S]*?<\/section>/)[0];
+    const audio = html.match(/<section id="audioSettingsPanel"[\s\S]*?<\/section>/)[0];
+    assert.match(notification, /Receive App Notifications/);
+    for (const label of ['Doorbell Notification', 'Alert Notification', 'Motion Detection', 'Offline Notification', 'Event Notification']) {
+        assert.match(notification, new RegExp(label));
+    }
+    assert.doesNotMatch(audio, /Microphone/);
+    assert.match(audio, /Device Speaker Volume/);
+    assert.match(html, /src="\.\.\/icons\/device\/settings_300\.png"/);
+    assert.match(html, /Installation Tutorial \(1\/3\)/);
+    assert.match(html, /Are you sure you want to skip the installation guide\?/);
+
+    const { context, element, commands, navigation } = fixture();
+    context.openNotificationSettings();
+    assert.equal(navigation.at(-1), 'notificationSettingsPanel');
+    context.openStorageSettings();
+    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SETTINGS');
+    context.hydrateStorageSettings({ stored_status: 0, stored_capacity: 64, stored_usage: 25 });
+    assert.equal(element('storageTotal').textContent, '64 GB');
+    assert.equal(element('storageAvailable').textContent, '48 GB');
+    assert.equal(element('formatStorageButton').disabled, false);
+    context.openStorageFormat();
+    context.confirmStorageFormat();
+    context.confirmStorageFormat();
+    assert.equal(commands.at(-1)[0], 'FORMAT_STORAGE');
+
+    context.openInstallationGuide();
+    assert.equal(element('installationTitle').textContent, 'Installation Tutorial (1/3)');
+    context.nextInstallationStep();
+    assert.equal(element('installationTitle').textContent, 'Installation Tutorial (2/3)');
+    context.openInstallationSkip();
+    context.confirmInstallationSkip();
+    assert.equal(navigation.at(-1), 'homePanel');
 });
 
 test('VD05 live viewer requests snapshots sequentially and does not open the settings snapshot modal', () => {

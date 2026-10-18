@@ -856,6 +856,10 @@ function ExecuteCommand(strCommand, tParams)
         UPDATE_CAMERA_SETTING(tParams)
         return
     end
+    if strCommand == "FORMAT_STORAGE" then
+        FORMAT_STORAGE(tParams)
+        return
+    end
 
     if strCommand == "SET_DEVICE_NAME" then
         SET_DEVICE_NAME(tParams)        
@@ -1021,7 +1025,7 @@ function GET_DEVICE_PROPERTY(property_name, callback)
     if property_name == nil then
         req.url = base_url .. "/api/v3/openapi/device/property-latest"
         req.method = "POST"
-        req.body = json.encode({ vid = vid, data_ids = { "motion", "siren_swt", "light_swt" }, data_source = 0 })
+        req.body = json.encode({ vid = vid, data_ids = { "motion", "siren_swt", "light_swt", "indicator_swt", "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored" }, data_source = 0 })
     end
 
     transport.execute(req, function(code, resp, resp_headers, err)
@@ -1104,6 +1108,12 @@ local function publish_motion_settings(values, saved)
     local settings = {
         siren_swt = values.siren_swt,
         light_swt = values.light_swt,
+        indicator_swt = values.indicator_swt,
+        icut_mode = values.icut_mode,
+        anti_flicker = values.anti_flicker,
+        flip_swt = values.flip_swt,
+        mark = values.mark,
+        beep_vol = values.beep_vol,
         unknow_thld = values.unknow_thld,
         unknow_faceq = values.unknow_faceq
     }
@@ -1112,6 +1122,12 @@ local function publish_motion_settings(values, saved)
         for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
             settings["motion_" .. field] = motion[field]
         end
+    end
+    local stored = decode_motion(values.stored)
+    if stored then
+        settings.stored_status = stored.status
+        settings.stored_capacity = stored.capacity
+        settings.stored_usage = stored.usage
     end
     SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = saved, settings = settings })
 end
@@ -1143,7 +1159,9 @@ local function process_motion_setting_queue()
         local data = {}
         if change.key == "alarm" then
             data.siren_swt = change.value
-        elseif change.key == "unknow_thld" or change.key == "unknow_faceq" then
+        elseif change.key == "unknow_thld" or change.key == "unknow_faceq" or change.key == "indicator_swt" or
+            change.key == "icut_mode" or change.key == "anti_flicker" or change.key == "flip_swt" or change.key == "mark" or change.key == "beep_vol" then
+            if values[change.key] == nil then finish("Setting unavailable on this camera") return end
             data[change.key] = change.value
         else
             local motion = decode_motion(values.motion)
@@ -1172,9 +1190,13 @@ function UPDATE_CAMERA_SETTING(params)
     end
     local key = type(params) == "table" and params.key
     local value = type(params) == "table" and params.value
-    local limits = { ["motion.switch"] = 1, ["motion.type"] = 1, ["motion.sen"] = 2, alarm = 1, unknow_faceq = 2 }
+    local limits = { ["motion.switch"] = 1, ["motion.type"] = 1, ["motion.sen"] = 2, alarm = 1, unknow_faceq = 2, indicator_swt = 1,
+        anti_flicker = 2, flip_swt = 1, mark = 1, beep_vol = 10 }
     local valid = false
-    if key == "motion.x_y_w_h" then
+    if key == "icut_mode" then
+        value = tonumber(value)
+        valid = value == 0 or value == 2 or value == 3
+    elseif key == "motion.x_y_w_h" then
         valid = type(value) == "string" and value:match("^%d+:%d+:%d+:%d+$") ~= nil
     elseif key == "unknow_thld" then
         value = tonumber(value)
@@ -1190,6 +1212,42 @@ function UPDATE_CAMERA_SETTING(params)
     end
     table.insert(motion_setting_queue, { key = key, value = value })
     process_motion_setting_queue()
+end
+
+function FORMAT_STORAGE(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local confirmed = type(params) == "table" and
+        (params.confirmed == true or params.confirmed == "true" or params.confirmed == "1" or params.confirmed == 1)
+    if not confirmed then return end
+
+    local vid = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local app_id = GetCldBusCredentials()
+    if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
+        SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device or API credentials" })
+        return
+    end
+
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token, ["App-Name"] = app_id },
+        body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
+    }, function(code, response, _, err)
+        local parsed = type(response) == "table" and response or nil
+        if not parsed then
+            local ok, decoded = pcall(json.decode, response or "")
+            parsed = ok and decoded or nil
+        end
+        local api_code = type(parsed) == "table" and tonumber(parsed.code)
+        local success = not err and (code == 200 or code == 20000) and
+            (api_code == 0 or api_code == 200 or api_code == 20000)
+        SendDeviceInfoToUI({ type = "storage_format", success = success == true,
+            error = not success and (type(parsed) == "table" and parsed.message or "Format request failed") or nil })
+    end)
 end
 
 function InitializeCamera()
@@ -4335,7 +4393,7 @@ function GET_DEVICE_INFO()
             device_name    = d.device_name or "Unknown",
             version        = d.version or "N/A",                    -- Firmware version
             release_date   = d.release_date or d.update_time or "N/A",  -- Release date
-            battery        = tonumber(d.power) or 0,
+            battery        = tonumber(d.power),
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
             ip             = d.ip or "",
@@ -4350,7 +4408,7 @@ function GET_DEVICE_INFO()
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
         print("   Release:", payload.release_date)
-        print("   Battery:", payload.battery .. "%")
+        print("   Battery:", tostring(payload.battery))
 
         -- Update Control4 driver properties
         C4:UpdateProperty("Software Version", payload.version)
@@ -4389,9 +4447,20 @@ function SET_DEVICE_NAME(tParams)
     local vid = _props["VID"] or Properties["VID"]
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
     local appId = GlobalObject.CldBusAppId or Properties["AppId"]
+    local new_name = nil
+
+    local function send_name_result(success, error_message)
+        SendDeviceInfoToUI({
+            type = "device_name_result",
+            success = success == true,
+            device_name_updated = success == true,
+            device_name = success and new_name or nil,
+            error = error_message,
+            timestamp = os.time()
+        })
+    end
 
     -- Parse params (from UI)
-    local new_name = nil
     if type(tParams) == "table" then
         new_name = tParams.name or tParams.device_name
     elseif type(tParams) == "string" then
@@ -4404,18 +4473,21 @@ function SET_DEVICE_NAME(tParams)
     if not new_name or new_name == "" then
         print("[NAME] ❌ No device name provided")
         C4:UpdateProperty("Status", "Error: No name provided")
+        send_name_result(false, "Please enter a device name")
         return false
     end
 
     if not vid or vid == "" then
         print("[NAME] ❌ Missing VID")
         C4:UpdateProperty("Status", "Error: No VID")
+        send_name_result(false, "Missing VID")
         return false
     end
 
     if not auth_token or auth_token == "" then
         print("[NAME] ❌ Missing Auth Token")
         C4:UpdateProperty("Status", "Error: Not authenticated")
+        send_name_result(false, "Not authenticated")
         return false
     end
 
@@ -4448,7 +4520,12 @@ function SET_DEVICE_NAME(tParams)
             print("[NAME] Response Body:", resp)
         end
 
-        if code == 200 or code == 20000 then
+        local ok, result = pcall(json.decode, resp or "")
+        local api_code = ok and type(result) == "table" and tonumber(result.code)
+        local api_success = ok and type(result) == "table" and
+            (api_code == 0 or api_code == 200 or api_code == 20000 or
+                (api_code == nil and tostring(result.message or ""):lower() == "success"))
+        if not err and (code == 200 or code == 20000) and api_success then
             print("[NAME] ✅ Device name changed successfully")
 
             -- Update local properties
@@ -4458,26 +4535,13 @@ function SET_DEVICE_NAME(tParams)
 
             print("[NAME] Sending success to UI")
 
-            -- Notify UI
-           local payload = json.encode({
-            type = "device_name_updated",
-            device_name_updated = true,
-            device_name = new_name,
-            timestamp = os.time()
-            })
-
-            print("[NAME] Pushing to UI:", payload)
-
-            C4:SendDataToUI(payload)
+            send_name_result(true)
 
         else
             print("[NAME] ❌ Failed to change name. Code:", code)
             C4:UpdateProperty("Status", "Failed to update device name")
-            
-            C4:SendDataToUI(json.encode({
-                error = "Failed to update name",
-                code = code
-            }))
+            send_name_result(false, (ok and type(result) == "table" and result.message) or
+                (err and tostring(err)) or "Failed to update name")
         end
     end)
 

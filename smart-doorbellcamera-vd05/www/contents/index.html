@@ -108,6 +108,150 @@
         .settings-header-row .settings-heading { min-width: 0; text-align: center; }
         .settings-header-row .settings-heading h1 { font-size: 22px; }
         .settings-header-row .settings-heading p { margin-top: 4px; }
+        .settings-home { flex: 1; min-height: 0; width: 100%; overflow-y: auto; padding: 8px 24px 40px; scrollbar-width: none; }
+        .settings-home::-webkit-scrollbar { display: none; }
+        .settings-device { display: grid; grid-template-columns: 58px minmax(0,1fr) 36px; align-items: center; gap: 16px; min-height: 112px; padding: 20px 24px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-device-picture { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; color: #eee; }
+        .settings-device-picture svg { width: 54px; height: 54px; stroke-width: 1.25; }
+        .settings-device-name { font-size: 18px; line-height: 1.4; overflow-wrap: anywhere; }
+        .settings-device-model { margin-top: 8px; color: var(--muted); font-size: 15px; }
+        .settings-edit { align-self: end; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; background: transparent; color: #888; cursor: pointer; }
+        .settings-edit svg { width: 20px; height: 20px; }
+        .device-name-sheet { position: fixed; inset: 0; z-index: 3300; display: flex; align-items: flex-end; padding: 16px; background: rgba(0,0,0,.68); }
+        .device-name-sheet[hidden] { display: none; }
+        .device-name-card { width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px 16px 16px; border-radius: 28px; background: #292929; }
+        .device-name-title { margin: 0 0 28px; color: #eee; font-size: 17px; font-weight: 600; text-align: center; }
+        .device-name-field { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 12px; border-radius: 14px; background: #1c1c1c; }
+        .device-name-field input { width: 100%; min-width: 0; padding: 12px 0; border: 0; outline: none; background: transparent; color: #eee; font-size: 16px; }
+        .device-name-clear { display: flex; align-items: center; justify-content: center; flex: 0 0 30px; height: 30px; border: 0; background: transparent; color: #888; cursor: pointer; }
+        .device-name-clear svg { width: 18px; height: 18px; }
+        .device-name-error { min-height: 22px; padding-top: 4px; color: #ff7777; font-size: 13px; }
+        .device-name-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .device-name-actions button { min-width: 0; min-height: 44px; padding: 10px 14px; border-radius: 14px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .device-name-cancel { border: 1px solid #999; background: transparent; }
+        .device-name-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        .device-name-confirm:disabled { opacity: .45; cursor: not-allowed; }
+        .settings-shortcuts { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); min-height: 120px; padding: 16px 6px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 0; padding: 8px 4px; border: 0; background: transparent; color: #ddd; font-size: 15px; text-align: center; cursor: pointer; }
+        .settings-shortcut span { max-width: 100%; overflow-wrap: anywhere; }
+        .settings-shortcut svg { width: 28px; height: 28px; color: var(--accent); stroke-width: 1.7; }
+        .settings-shortcut:disabled { opacity: .48; cursor: not-allowed; }
+        .settings-group { margin-bottom: 18px; padding: 0 16px; border-radius: 28px; background: var(--surface); }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 58px; padding: 16px 0; border: 0; border-bottom: 1px solid #292929; background: transparent; color: #ddd; font-size: 17px; text-align: left; cursor: pointer; }
+        .settings-row:last-child { border-bottom: 0; }
+        .settings-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+        .settings-row .chevron { flex: 0 0 18px; color: #777; }
+        .settings-row:disabled { opacity: .62; cursor: not-allowed; }
+        .settings-detail { max-width: 48%; color: var(--muted); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+        .settings-status-row { min-height: 64px; }
+        .settings-status-row .toggle { flex-shrink: 0; }
+        .settings-delete-row { justify-content: center; color: #e33232; }
+        .settings-subpage { flex: 1; min-height: 0; overflow-y: auto; width: 100%; padding: 20px 24px 40px; }
+        .video-settings { padding: 18px 8px 40px; }
+        .video-settings .settings-group { margin-bottom: 18px; padding: 0 20px; border-radius: 26px; background: #1c1c1c; }
+        .video-settings .settings-row { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; column-gap: 20px; min-height: 72px; padding: 20px 0; font-size: 20px; line-height: 1.4; }
+        .video-settings .settings-detail { max-width: none; font-size: 18px; white-space: nowrap; }
+        .video-settings .settings-status-row { grid-template-columns: minmax(0,1fr) auto; min-height: 72px; }
+        .video-settings .toggle { flex: 0 0 80px; width: 80px; height: 36px; }
+        .video-settings .toggle .slider:before { width: 40px; height: 28px; left: 4px; top: 4px; }
+        .video-settings .toggle input:checked + .slider:before { transform: translateX(32px); }
+        .audio-volume-setting { padding: 8px 0 32px; }
+        .audio-volume-setting h2 { margin-bottom: 20px; font-size: 20px; font-weight: 500; line-height: 1.4; }
+        .audio-volume-track { position: relative; padding-top: 30px; margin: 0 32px; }
+        .audio-volume-track input { appearance: none; display: block; width: 100%; height: 7px; margin: 0; border-radius: 5px; background: linear-gradient(to right,#f51b53 var(--speaker-fill,0%),#aaa var(--speaker-fill,0%)); }
+        .audio-volume-track input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #d61143; cursor: pointer; }
+        .audio-volume-track input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #d61143; cursor: pointer; }
+        .audio-volume-track output { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: #f51b53; font-size: 16px; }
+        .audio-volume-min, .audio-volume-max { position: absolute; top: 24px; color: #aaa; font-size: 16px; }
+        .audio-volume-min { left: -32px; }
+        .audio-volume-max { right: -32px; }
+        .notification-heading { padding: 0 2px 12px; color: #aaa; font-size: 20px; font-weight: 400; }
+        .notification-group { padding: 0 20px; border-radius: 28px; background: #1c1c1c; }
+        .notification-row { padding: 18px 0; border-bottom: 1px solid #292929; }
+        .notification-row:last-child { border-bottom: 0; }
+        .notification-title { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 20px; line-height: 1.4; }
+        .notification-toggle { flex: 0 0 80px; width: 80px; height: 36px; }
+        .notification-toggle .slider:before { width: 40px; height: 28px; left: 4px; top: 4px; }
+        .notification-toggle input:checked + .slider:before { transform: translateX(32px); }
+        .notification-copy { padding-top: 8px; color: #aaa; font-size: 16px; line-height: 1.35; }
+        .storage-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 8px 24px; }
+        .storage-summary { min-height: 248px; padding: 20px; border-radius: 18px; background: #1c1c1c; }
+        .storage-summary > svg { width: 36px; height: 42px; margin-bottom: 10px; color: var(--accent); }
+        .storage-metric { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; font-size: 20px; font-weight: 600; }
+        .storage-status { margin: 18px 0; color: #aaa; font-size: 16px; }
+        .storage-footer { flex-shrink: 0; padding: 12px 16px 20px; }
+        .format-storage-button { width: 100%; min-height: 52px; padding: 14px; border: 0; border-radius: 14px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .format-storage-button:disabled { opacity: .45; cursor: not-allowed; }
+        .storage-format-overlay, .installation-skip-overlay { position: fixed; inset: 0; z-index: 3400; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.7); }
+        .storage-format-overlay[hidden], .installation-skip-overlay[hidden] { display: none; }
+        .storage-format-card, .installation-skip-card { width: min(100%,640px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 20px 16px; border-radius: 24px; background: #292929; }
+        .storage-format-title { margin: 0 0 20px; text-align: center; font-size: 18px; font-weight: 600; }
+        .storage-format-warning { margin-bottom: 18px; color: #ff3131; font-size: 15px; line-height: 1.45; }
+        .installation-header { display: grid; grid-template-columns: 48px minmax(0,1fr) 48px; align-items: center; flex: 0 0 56px; padding: 0 16px; }
+        .installation-title { overflow: hidden; font-size: 18px; font-weight: 500; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+        .installation-header button { display: flex; align-items: center; justify-content: center; min-width: 42px; height: 42px; border: 0; background: transparent; color: #f2f4f8; font-size: 15px; cursor: pointer; }
+        .installation-page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 20px 20px; }
+        .installation-body { flex: 1; min-height: 0; overflow-y: auto; }
+        .installation-step[hidden] { display: none; }
+        .installation-step h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; line-height: 1.4; }
+        .installation-step p { margin: 0 0 16px; color: #aaa; font-size: 15px; line-height: 1.4; }
+        .installation-art { position: relative; display: flex; align-items: center; justify-content: center; gap: 10%; width: 100%; height: auto; aspect-ratio: 4 / 3; max-height: min(48dvh,400px); min-height: 210px; overflow: hidden; border-radius: 18px; background: #1c1c1c; }
+        .installation-doorbell { width: min(32%,190px); max-height: 84%; object-fit: contain; }
+        .installation-mount { position: relative; width: min(26%,150px); height: 65%; border: 3px solid #5b5e63; border-radius: 28px; background: linear-gradient(90deg,#33363a,#777b80,#414449); box-shadow: inset 0 0 0 8px rgba(255,255,255,.04); }
+        .installation-mount::before, .installation-mount::after { position: absolute; left: 50%; width: 8px; height: 8px; border: 2px solid #292c30; border-radius: 50%; background: #9da0a3; content: ''; transform: translateX(-50%); }
+        .installation-mount::before { top: 16px; }
+        .installation-mount::after { bottom: 16px; }
+        .installation-router { display: grid; place-items: center; width: 24%; height: 34%; border-radius: 16px; background: #33363a; color: #ddd; }
+        .installation-router svg { width: 54px; height: 54px; }
+        .installation-distance { position: absolute; left: 50%; bottom: 18%; z-index: 2; padding: 8px 14px; border-radius: 10px; background: #d61143; color: #fff; font-size: 18px; transform: translateX(-50%); }
+        .installation-guide-line { position: absolute; left: 25%; right: 25%; bottom: 24%; border-top: 2px dotted #d61143; }
+        .installation-note { margin-top: 12px !important; color: #ff3445 !important; font-size: 13px !important; }
+        .installation-live-frame { width: min(52%,330px); height: 86%; overflow: hidden; border: 6px solid #101010; border-radius: 20px; background: #090b10; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+        .installation-live-frame img { width: 100%; height: 100%; object-fit: cover; }
+        .installation-footer { flex-shrink: 0; padding-top: 14px; }
+        .installation-next { width: 100%; min-height: 54px; border: 0; border-radius: 14px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .installation-skip-copy { margin-bottom: 18px; color: #eee; font-size: 17px; line-height: 1.4; text-align: center; }
+        .installation-skip-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .installation-skip-actions button { min-height: 46px; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .installation-skip-cancel { border: 1px solid #999; background: transparent; }
+        .installation-skip-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        @media (max-width:420px) {
+            .notification-group { padding: 0 16px; }
+            .notification-title { font-size: 17px; }
+            .notification-copy { font-size: 14px; }
+            .installation-page { padding: 8px 16px 16px; }
+            .installation-step h2 { font-size: 15px; }
+            .installation-step p { font-size: 14px; }
+            .installation-art { max-height: min(42dvh,340px); min-height: 190px; }
+        }
+        .settings-info-row { cursor: default; }
+        @media (min-width:768px) { .settings-home { padding-right: 28px; padding-left: 28px; } }
+        .anti-pry-page { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 40px; }
+        .anti-pry-hero { position: relative; display: grid; grid-template-columns: minmax(90px,.8fr) minmax(0,1.2fr); align-items: center; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 24px; background: linear-gradient(90deg,#e6e8e9 0 34%,#f4f5f5 34% 100%); }
+        .anti-pry-phone { position: relative; z-index: 2; justify-self: center; display: flex; flex-direction: column; align-items: center; width: 72px; height: 172px; padding: 10px 5px 8px; border: 4px solid #111318; border-radius: 18px; background: linear-gradient(#aeb2b4 0 38%,#f3f1eb 38%); box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+        .anti-pry-phone::before { content: ''; width: 26px; height: 7px; border-radius: 8px; background: #090a0c; }
+        .anti-pry-phone-time { margin-top: 18px; color: #fff; font-size: 22px; font-weight: 600; text-shadow: 0 1px 3px #444; }
+        .anti-pry-notification { position: absolute; left: 12%; top: 48%; z-index: 4; display: flex; align-items: center; gap: 8px; width: min(210px,58%); min-height: 44px; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.95); color: #36383a; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+        .anti-pry-notification svg { flex: 0 0 22px; width: 22px; height: 22px; color: #188bff; }
+        .anti-pry-notification-copy { min-width: 0; font-size: 10px; line-height: 1.25; }
+        .anti-pry-notification-copy strong { display: block; font-size: 11px; font-weight: 600; }
+        .anti-pry-doorbell { position: relative; z-index: 2; display: block; justify-self: center; width: min(100%,240px); height: auto; aspect-ratio: 1; object-fit: contain; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+        .anti-pry-camera { position: absolute; top: 22px; left: 50%; width: 66px; height: 66px; transform: translateX(-50%); border: 8px solid #554244; border-radius: 50%; background: radial-gradient(circle,#090b0e 0 17%,#514144 20% 33%,#100f11 38% 58%,#786267 65% 70%,#292529 74%); box-shadow: 0 0 0 2px rgba(20,16,18,.5); }
+        .anti-pry-doorbell-button { position: absolute; bottom: 24px; left: 50%; width: 50px; height: 50px; transform: translateX(-50%); display: grid; place-items: center; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; background: #292426; color: #aaa; }
+        .anti-pry-doorbell-button svg { width: 25px; height: 25px; }
+        .anti-pry-alert-rings { position: absolute; z-index: 3; left: 70%; top: 50%; width: 58%; aspect-ratio: 1; transform: translate(-50%,-50%); border: 2px solid rgba(232,18,63,.12); border-radius: 50%; background: rgba(232,18,63,.06); box-shadow: 0 0 0 32px rgba(232,18,63,.05),0 0 0 64px rgba(232,18,63,.035); pointer-events: none; }
+        .anti-pry-alert-rings svg { position: absolute; top: 50%; left: 50%; width: 48px; height: 48px; transform: translate(-50%,-50%); color: #ee123d; stroke-width: 2; }
+        .anti-pry-description { margin: 16px 0 0; color: #eee; font-size: 15px; line-height: 1.35; }
+        .anti-pry-setting { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 116px; margin-top: 54px; padding: 24px; border-radius: 28px; background: var(--surface); color: #eee; font-size: 18px; }
+        .anti-pry-setting .toggle { flex: 0 0 80px; width: 80px; height: 36px; }
+        .anti-pry-setting .slider:before { width: 28px; height: 28px; left: 4px; top: 4px; }
+        .anti-pry-setting input:checked + .slider:before { transform: translateX(44px); }
+        @media (max-width:420px) {
+            .anti-pry-page { padding: 16px 18px 28px; }
+            .anti-pry-doorbell { width: min(100%,190px); }
+            .anti-pry-camera { width: 56px; height: 56px; }
+            .anti-pry-setting { min-height: 92px; margin-top: 38px; padding: 20px; font-size: 17px; }
+        }
 
         .header p {
             font-size: 13px;
@@ -631,73 +775,126 @@
             <div class="header">
                 <div class="settings-header-row">
                     <button class="viewer-header-button" type="button" onclick="show('viewerPanel')" aria-label="Back to camera" title="Back to camera"><i data-lucide="chevron-left"></i></button>
-                    <div class="settings-heading"><h1>Device Settings</h1><p>VD05 Camera Controls</p></div>
+                    <div class="settings-heading"><h1>Device Settings</h1></div>
                     <div></div>
                 </div>
             </div>
-            <div class="list">
-                <div class="item" onclick="show('rebootPanel')">
-                    <div class="left">
-                        <i data-lucide="rotate-cw" class="icon"></i>
-                        <div>
-                            <div class="title">Reboot</div>
-                            <div class="subtitle">Restart device</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+            <div class="settings-home">
+                <div class="settings-device">
+                    <div class="settings-device-picture"><i data-lucide="bell-ring" aria-hidden="true"></i></div>
+                    <div><div class="settings-device-model">Smart Doorbell</div><div class="settings-device-name" id="settingsDeviceName">...</div></div>
+                    <button class="settings-edit" type="button" onclick="openDeviceNameSheet()" aria-label="Edit device name" title="Edit device name"><i data-lucide="pencil-line"></i></button>
                 </div>
-                <div class="item" onclick="show('antiPryPanel')">
-                    <div class="left">
-                        <i data-lucide="shield-alert" class="icon"></i>
-                        <div>
-                            <div class="title">Anti-Pry</div>
-                            <div class="subtitle">Tamper protection</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-shortcuts">
+                    <button class="settings-shortcut" onclick="show('motionDetectionPanel')"><i data-lucide="scan-line"></i><span>Motion Detection</span></button>
+                    <button class="settings-shortcut" disabled title="Auto-Response is not available from the VD05 driver"><i data-lucide="message-square-more"></i><span>Auto-Response</span></button>
+                    <button class="settings-shortcut" onclick="show('powerManagementPanel')"><i data-lucide="battery-charging"></i><span>Power Management</span></button>
                 </div>
-                <div class="item" onclick="show('micPanel')">
-                    <div class="left">
-                        <i data-lucide="mic" class="icon"></i>
-                        <div>
-                            <div class="title">Microphone</div>
-                            <div class="subtitle">Start or end a call</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <div class="settings-row settings-status-row"><label for="statusLight">Status Light</label><label class="toggle"><input type="checkbox" id="statusLight" aria-label="Status Light" disabled><span class="slider"></span></label></div>
+                    <button class="settings-row" onclick="show('antiPryPanel')"><span>Anti-pry Alarm</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <div class="item" onclick="show('deviceNamePanel')">
-                    <div class="left">
-                        <i data-lucide="smartphone" class="icon"></i>
-                        <div>
-                            <div class="title">Device Name</div>
-                            <div class="subtitle">Device name control</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="openVideoSettings()"><span>Video Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" onclick="openAudioSettings()"><span>Audio Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" onclick="openNotificationSettings()"><span>Notification Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <!-- Facial Recognition -->
-                <div class="item" onclick="show('motionDetectionPanel')">
-                    <div class="left">
-                        <i data-lucide="activity" class="icon"></i>
-                        <div>
-                            <div class="title">Motion Detection</div>
-                            <div class="subtitle">Detection and facial recognition</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group"><button class="settings-row" onclick="openStorageSettings()"><span>Internal Storage</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="openInstallationGuide()"><span>Installation Guide</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <div class="item" id="snapshotHomeBtn">
-                    <div class="left">
-                        <i data-lucide="camera" class="icon"></i>
-                        <div>
-                            <div class="title">Take Snapshot</div>
-                            <div class="subtitle">Capture current view</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="show('deviceInformationPanel')"><span>Device Information</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" disabled title="Firmware update action is not available from the VD05 driver"><span>Check Firmware Update</span><span class="settings-detail" id="firmwareAvailability">...</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div class="settings-group"><button class="settings-row" disabled title="C4 Authentication Service is not available from this screen"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row settings-delete-row" disabled title="Device deletion is not available from the VD05 driver">Delete Device</button></div>
+            </div>
+        </section>
+
+        <section id="powerManagementPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Power Management</h1></div><div></div></div>
+            <div class="settings-subpage"><div class="settings-group"><div class="settings-row settings-info-row"><span>Battery Level</span><span class="settings-detail" id="powerBatteryLevel">...</span></div></div></div>
+        </section>
+
+        <section id="audioSettingsPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Audio Settings</h1></div><div></div></div>
+            <div class="settings-subpage">
+                <div class="audio-volume-setting">
+                    <h2>Device Speaker Volume</h2>
+                    <div class="audio-volume-track"><output id="speakerVolumeValue">...</output><span class="audio-volume-min">0</span><input id="speakerVolume" type="range" min="0" max="10" step="1" aria-label="Device Speaker Volume" disabled><span class="audio-volume-max">10</span></div>
                 </div>
             </div>
+        </section>
+
+        <section id="videoSettingsPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Video Settings</h1></div><div></div></div>
+            <div class="settings-subpage video-settings">
+                <div class="settings-group"><button class="settings-row" id="nightVisionMode" onclick="openMotionOption('nightVisionMode')" disabled><span>Night Vision Mode</span><span class="settings-detail"><span id="nightVisionModeValue">...</span></span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row" id="antiFlicker" onclick="openMotionOption('antiFlicker')" disabled><span>Anti-Flicker</span><span class="settings-detail"><span id="antiFlickerValue">...</span></span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><div class="settings-row settings-status-row"><label for="flipImageToggle">Flip Image</label><label class="toggle"><input type="checkbox" id="flipImageToggle" aria-label="Flip Image" disabled><span class="slider"></span></label></div></div>
+                <div class="settings-group"><div class="settings-row settings-status-row"><label for="timeWatermarkToggle">Time Watermark</label><label class="toggle"><input type="checkbox" id="timeWatermarkToggle" aria-label="Time Watermark" disabled><span class="slider"></span></label></div></div>
+            </div>
+        </section>
+
+        <section id="notificationSettingsPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Notification Settings</h1></div><div></div></div>
+            <div class="settings-subpage">
+                <h2 class="notification-heading">Receive App Notifications</h2>
+                <div class="notification-group">
+                    <div class="notification-row"><div class="notification-title"><label for="appDoorbellNotification">Doorbell Notification</label><label class="toggle notification-toggle"><input id="appDoorbellNotification" type="checkbox" aria-label="Doorbell Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">Once enabled, you will be notified when the device detects a doorbell event</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appAlertNotification">Alert Notification</label><label class="toggle notification-toggle"><input id="appAlertNotification" type="checkbox" aria-label="Alert Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">After enabling this, you will receive message notifications when the device detects events such as abnormalities, low battery, or emergencies.</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appMotionNotification">Motion Detection</label><label class="toggle notification-toggle"><input id="appMotionNotification" type="checkbox" aria-label="Motion Detection notifications" disabled><span class="slider"></span></label></div><div class="notification-copy">Once enabled, you will receive a message notification when the device detects a moving object</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appOfflineNotification">Offline Notification</label><label class="toggle notification-toggle"><input id="appOfflineNotification" type="checkbox" aria-label="Offline Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">Once enabled, you will receive a message notification when the device detects an offline event (to avoid frequent alerts, you will be reminded again after an 8-hour interval)</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appEventNotification">Event Notification</label><label class="toggle notification-toggle"><input id="appEventNotification" type="checkbox" aria-label="Event Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">When enabled, you will receive notifications for non-emergency system events that require your attention</div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="storagePanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Internal Storage</h1></div><div></div></div>
+            <div class="storage-content">
+                <div class="storage-summary"><i data-lucide="card-sim" aria-hidden="true"></i><div class="storage-metric"><span>Total:</span><span id="storageTotal">...</span></div><div class="storage-metric"><span>Available:</span><span id="storageAvailable">...</span></div><div class="storage-status" id="storageStatus">...</div></div>
+            </div>
+            <div class="storage-footer"><button class="format-storage-button" id="formatStorageButton" onclick="openStorageFormat()" disabled>Format Local Storage</button></div>
+        </section>
+
+        <section id="installationPanel" class="panel">
+            <div class="installation-header"><button type="button" onclick="previousInstallationStep()" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="installation-title" id="installationTitle">Installation Tutorial (1/3)</div><button type="button" onclick="openInstallationSkip()">Skip</button></div>
+            <div class="installation-page">
+                <div class="installation-body">
+                    <article class="installation-step" id="installationStep1">
+                        <h2>Step 1: Prepare the doorbell and the mounting plate</h2>
+                        <p>Take out the doorbell for installation</p>
+                        <div class="installation-art"><img class="installation-doorbell" src="../icons/device/settings_300.png" alt="VD05 doorbell"><div class="installation-mount" role="img" aria-label="Mounting plate"></div></div>
+                        <p class="installation-note">Note: The 3M backing plate cannot be moved after it is pasted. Please confirm the position before the formal installation.</p>
+                    </article>
+                    <article class="installation-step" id="installationStep2" hidden>
+                        <h2>Step 2: Confirm the device distance</h2>
+                        <p>Please keep the doorbell at an appropriate distance from the router to minimize obstructions such as walls.</p>
+                        <div class="installation-art"><div class="installation-router"><i data-lucide="router" aria-hidden="true"></i></div><div class="installation-guide-line" aria-hidden="true"></div><span class="installation-distance">3–5m</span><img class="installation-doorbell" src="../icons/device/settings_300.png" alt="VD05 doorbell"></div>
+                        <p class="installation-note">Note: The 3M backing plate cannot be moved after it is pasted. Please confirm the position before the formal installation.</p>
+                    </article>
+                    <article class="installation-step" id="installationStep3" hidden>
+                        <h2>Step 3: Confirm the installation position</h2>
+                        <p>Please confirm the doorbell installation position, facing the doorbell, adjust until people appear centered in the live view.</p>
+                        <div class="installation-art"><div class="installation-live-frame"><img id="installationLivePreview" src="../icons/device/settings_300.png" alt="Doorbell live view"></div></div>
+                    </article>
+                </div>
+                <div class="installation-footer"><button class="installation-next" id="installationNext" type="button" onclick="nextInstallationStep()">Next Step</button></div>
+            </div>
+        </section>
+
+        <section id="deviceInformationPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Device Information</h1></div><div></div></div>
+            <div class="settings-subpage"><div class="settings-group">
+                <div class="settings-row settings-info-row"><span>Device Name</span><span class="settings-detail" id="informationDeviceName">...</span></div>
+                <div class="settings-row settings-info-row"><span>Firmware Version</span><span class="settings-detail" id="informationFirmware">...</span></div>
+                <div class="settings-row settings-info-row"><span>Release Date</span><span class="settings-detail" id="informationRelease">...</span></div>
+                <div class="settings-row settings-info-row"><span>IP Address</span><span class="settings-detail" id="informationIp">...</span></div>
+                <div class="settings-row settings-info-row"><span>MAC Address</span><span class="settings-detail" id="informationMac">...</span></div>
+                <div class="settings-row settings-info-row"><span>Battery</span><span class="settings-detail" id="informationBattery">...</span></div>
+            </div><div class="settings-group"><button class="settings-row" onclick="show('rebootPanel')"><span>Reboot</span><i data-lucide="chevron-right" class="chevron"></i></button><button class="settings-row" id="snapshotHomeBtn"><span>Take Snapshot</span><i data-lucide="chevron-right" class="chevron"></i></button></div></div>
         </section>
 
         <section id="motionDetectionPanel" class="panel">
@@ -765,15 +962,15 @@
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
-            <div class="content">
-                <i data-lucide="shield-alert" class="bigIcon"></i>
-                <div class="h2">Anti-Pry</div>
-                <div class="desc">Enable or disable tamper protection.</div>
-                <label class="toggle">
-                    <input type="checkbox" id="antiPry">
-                    <span class="slider"></span>
-                </label>
-                <div class="status" id="antiPryStatus">Disabled</div>
+            <div class="anti-pry-page">
+                <div class="anti-pry-hero" role="img" aria-label="Doorbell anti-pry alarm with phone notification">
+                    <div class="anti-pry-phone" aria-hidden="true"><span class="anti-pry-phone-time">14:52</span></div>
+                    <div class="anti-pry-notification" aria-hidden="true"><i data-lucide="bell"></i><span class="anti-pry-notification-copy"><strong>App</strong>Doorbell removed, please check</span></div>
+                    <img class="anti-pry-doorbell" src="../icons/device/settings_300.png" alt="VD05 video doorbell">
+                    <div class="anti-pry-alert-rings" aria-hidden="true"><i data-lucide="siren"></i></div>
+                </div>
+                <p class="anti-pry-description">When the Anti-Pry Alert is enabled, the doorbell will automatically sound an alarm and push video to your phone if it is removed.</p>
+                <div class="anti-pry-setting"><label for="antiPry">Anti-Pry Alert</label><label class="toggle"><input type="checkbox" id="antiPry" aria-label="Anti-Pry Alert"><span class="slider"></span></label></div>
             </div>
         </section>
 
@@ -796,23 +993,6 @@
         </section>
 
         <!-- DEVICE NAME -->
-        <section id="deviceNamePanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
-            </div>
-            <div class="content">
-                <i data-lucide="edit-3" class="bigIcon"></i>
-                <div class="h2">Device Name</div>
-                <div class="desc">Set a custom name for this device</div>
-                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
-                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
-                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
-                </div>
-                <button class="btn" id="updateNameBtn">Update Name</button>
-            </div>
-        </section>
 
         <!-- =========================
              FACIAL RECOGNITION PANEL
@@ -846,6 +1026,13 @@
         </div>
     </div>
 
+    <div class="storage-format-overlay" id="storageFormatDialog" role="dialog" aria-modal="true" aria-labelledby="storageFormatTitle" hidden>
+        <div class="storage-format-card"><h2 class="storage-format-title" id="storageFormatTitle">Format Local Storage</h2><div class="storage-format-warning">WARNING: This operation will format the local storage, and all saved videos and records will be permanently lost and cannot be recovered. Proceed with caution.<br>The device cannot connect to the App during formatting. Do not leave this page.<br>The device will restart after formatting is complete.<br>By clicking &quot;Next,&quot; you confirm that you fully understand the purpose and consequences of the formatting operation.</div><div class="device-name-actions"><button class="device-name-cancel" id="cancelStorageFormat" type="button" onclick="closeStorageFormat()">Cancel</button><button class="device-name-confirm" id="confirmStorageFormat" type="button" onclick="confirmStorageFormat()">Next</button></div></div>
+    </div>
+    <div class="installation-skip-overlay" id="installationSkipDialog" role="dialog" aria-modal="true" aria-labelledby="installationSkipText" hidden>
+        <div class="installation-skip-card"><p class="installation-skip-copy" id="installationSkipText">Are you sure you want to skip the installation guide?</p><div class="installation-skip-actions"><button class="installation-skip-cancel" type="button" onclick="confirmInstallationSkip()">Skip</button><button class="installation-skip-confirm" type="button" onclick="closeInstallationSkip()">Do Not Skip</button></div></div>
+    </div>
+
     <div class="face-sheet" id="faceNamingSheet" role="dialog" aria-modal="true" aria-labelledby="faceNamingTitle" hidden>
         <div class="face-sheet-card">
             <div class="face-sheet-title" id="faceNamingTitle">Face Naming</div>
@@ -865,6 +1052,14 @@
         <div class="setting-save-card" role="status"><div class="setting-save-spinner" aria-hidden="true"></div><div id="settingSaveLabel">Setting up...</div></div>
     </div>
     <div id="settingSaveToast" class="setting-save-toast" role="status" aria-live="polite" hidden></div>
+    <div class="device-name-sheet" id="deviceNameSheet" role="dialog" aria-modal="true" aria-labelledby="deviceNameTitle" onclick="if(event.target===this) closeDeviceNameSheet()" hidden>
+        <div class="device-name-card">
+            <h2 class="device-name-title" id="deviceNameTitle">Change Device Name</h2>
+            <div class="device-name-field"><input id="deviceNameInput" type="text" maxlength="32" aria-label="Device name" autocomplete="off" spellcheck="false"><button class="device-name-clear" type="button" onclick="clearDeviceName()" aria-label="Clear device name" title="Clear device name"><i data-lucide="circle-x"></i></button></div>
+            <div class="device-name-error" id="deviceNameStatus" role="status" aria-live="polite"></div>
+            <div class="device-name-actions"><button class="device-name-cancel" type="button" onclick="closeDeviceNameSheet()">Cancel</button><button class="device-name-confirm" id="updateNameBtn" type="button" disabled>Confirm</button></div>
+        </div>
+    </div>
 
     <!-- SUCCESS MODAL -->
     <div id="successModal" class="modal">
@@ -921,6 +1116,7 @@
                 initDeviceInfo();
                 C4.sendCommand('REQUEST_SETTINGS', '', false, false);
             }
+            if (id === 'powerManagementPanel' || id === 'deviceInformationPanel') initDeviceInfo();
             document.querySelector('.footer').hidden = id === 'facialRecPanel' || id === 'viewerPanel';
             if (id === 'motionDetectionPanel' || id === 'detectionZonePanel') requestMotionSettings();
             if (id === 'facialRecPanel') refreshFaces();

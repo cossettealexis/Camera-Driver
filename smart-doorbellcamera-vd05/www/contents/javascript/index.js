@@ -1,6 +1,10 @@
 
 let antiPryEnabled = false;
 let isMicMuted = false;
+let confirmedDeviceName = '';
+let pendingDeviceName = '';
+let deviceNameDraftDirty = false;
+let deviceNameReturnFocus = null;
 let liveSnapshotTimer = null;
 let liveSnapshotTimeout = null;
 let liveSnapshotPending = false;
@@ -46,7 +50,22 @@ function finishSettingsLoad(kind, success, error) {
 let lastFaceRequest = 0;
 const FACE_REFRESH_GAP_MS = 1500;
 let motionOptionDraft = null;
+let storageFormatStep = 0;
+let installationStep = 1;
 const motionOptionSpecs = {
+    nightVisionMode: {
+        key: 'icut_mode', title: 'Night Vision Mode', immediate: true, values: [0, 2, 3],
+        labels: ['Automatic', 'OFF', 'ON'],
+        descriptions: [
+            'When the light is dark, it will automatically switch to infrared night vision mode',
+            'When the light in front of the camera is consistently bright, using this mode will always turn off the infrared fill light during recording.',
+            'When the light in front of the camera is consistently dim, using this mode will always turn on the infrared fill light during recording.'
+        ]
+    },
+    antiFlicker: {
+        key: 'anti_flicker', title: 'Anti-Flicker', immediate: true,
+        labels: ['OFF', '50Hz', '60Hz']
+    },
     faceSimilarity: {
         key: 'unknow_thld', title: 'Face Similarity Threshold', min: 1, max: 99, slider: true,
         description: 'The higher the threshold, the fewer misjudgments in facial recognition, but the probability of missed judgments may increase'
@@ -104,7 +123,7 @@ function confirmMotionOption() {
     if (!motionOptionDraft) return;
     const { id, value } = motionOptionDraft;
     const spec = motionOptionSpecs[id];
-    const apiValue = id === 'faceSimilarity' ? value / 100 : value;
+    const apiValue = spec.values ? spec.values[value] : id === 'faceSimilarity' ? value / 100 : value;
     closeMotionOption();
     sendMotionSetting(spec.key, apiValue);
 }
@@ -113,7 +132,9 @@ function openMotionOption(id) {
     const spec = motionOptionSpecs[id];
     const control = document.getElementById(id);
     if (!spec || control.disabled || control.value === '') return;
-    const value = id === 'faceSimilarity' ? Math.round(Number(control.value) * 100) : Number(control.value);
+    const rawValue = id === 'faceSimilarity' ? Math.round(Number(control.value) * 100) : Number(control.value);
+    const value = spec.values ? spec.values.indexOf(rawValue) : rawValue;
+    if (value < 0) return;
     motionOptionDraft = { id, value };
     document.getElementById('motionOptionTitle').textContent = spec.title;
     const description = document.getElementById('motionOptionDescription');
@@ -204,6 +225,7 @@ function beginSettingSave(kind, label = 'Setting up...') {
         timer: setTimeout(() => {
             pendingSettingSaves.delete(kind);
             settingSaveFailed = true;
+            if (kind === 'name') updateDeviceNameConfirm();
             updateSettingSaveOverlay();
             showSettingToast('Setting update timed out');
         }, 20000)
@@ -234,6 +256,7 @@ function finishSettingSave(kind, success, error, successMessage = 'Settings save
         clearTimeout(pending.timer);
         pendingSettingSaves.delete(kind);
     }
+    if (kind === 'name') updateDeviceNameConfirm();
     updateSettingSaveOverlay();
     if (!success) showSettingToast(error || 'Unable to save settings');
     else if (pendingSettingSaves.size === 0 && pendingSettingsLoads.size === 0 && !settingSaveFailed) showSettingToast(successMessage);
@@ -256,10 +279,13 @@ document.addEventListener('DOMContentLoaded', function () {
     initDeviceName();
     initSnapshot();
     initMotionSettings();
+    initVideoSettings();
+    initAudioSettings();
     initLiveView();
     initDeviceInfo();
     requestInitialState();
     startLiveSnapshotPolling();
+    initStatusLight();
 });
 
 function isLiveViewerActive() {
@@ -426,6 +452,119 @@ function sendMotionSetting(key, value) {
     }
 }
 
+function openVideoSettings() {
+    show('videoSettingsPanel');
+    try {
+        C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+    } catch (error) {
+        showSettingToast('Unable to load video settings');
+    }
+}
+
+function openAudioSettings() {
+    show('audioSettingsPanel');
+    try {
+        C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+    } catch (error) {
+        showSettingToast('Unable to load audio settings');
+    }
+}
+
+function openNotificationSettings() {
+    show('notificationSettingsPanel');
+}
+
+function openStorageSettings() {
+    show('storagePanel');
+    document.getElementById('storageTotal').textContent = '...';
+    document.getElementById('storageAvailable').textContent = '...';
+    document.getElementById('storageStatus').textContent = '...';
+    document.getElementById('formatStorageButton').disabled = true;
+    try {
+        C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+    } catch (error) {
+        showSettingToast('Unable to load storage settings');
+    }
+}
+
+function openInstallationGuide() {
+    installationStep = 1;
+    const livePreview = document.getElementById('livePreview');
+    const installationPreview = document.getElementById('installationLivePreview');
+    if (livePreview && livePreview.getAttribute('src')) installationPreview.src = livePreview.currentSrc || livePreview.src;
+    renderInstallationStep();
+    show('installationPanel');
+}
+
+function renderInstallationStep() {
+    document.querySelectorAll('.installation-step').forEach((step, index) => {
+        step.hidden = index + 1 !== installationStep;
+    });
+    document.getElementById('installationTitle').textContent = `Installation Tutorial (${installationStep}/3)`;
+    document.getElementById('installationNext').textContent = installationStep === 3 ? 'Finish' : 'Next Step';
+}
+
+function previousInstallationStep() {
+    if (installationStep === 1) {
+        show('homePanel');
+        return;
+    }
+    installationStep -= 1;
+    renderInstallationStep();
+}
+
+function nextInstallationStep() {
+    if (installationStep === 3) {
+        show('homePanel');
+        return;
+    }
+    installationStep += 1;
+    renderInstallationStep();
+}
+
+function openInstallationSkip() {
+    document.getElementById('installationSkipDialog').hidden = false;
+}
+
+function closeInstallationSkip() {
+    document.getElementById('installationSkipDialog').hidden = true;
+}
+
+function confirmInstallationSkip() {
+    closeInstallationSkip();
+    show('homePanel');
+}
+
+function openStorageFormat() {
+    if (document.getElementById('formatStorageButton').disabled || pendingSettingSaves.size > 0) return;
+    storageFormatStep = 0;
+    document.getElementById('storageFormatTitle').textContent = 'Format Local Storage';
+    document.getElementById('confirmStorageFormat').textContent = 'Next';
+    document.getElementById('storageFormatDialog').hidden = false;
+}
+
+function closeStorageFormat() {
+    if (pendingSettingSaves.has('format')) return;
+    document.getElementById('storageFormatDialog').hidden = true;
+    storageFormatStep = 0;
+}
+
+function confirmStorageFormat() {
+    if (document.getElementById('storageFormatDialog').hidden || pendingSettingSaves.has('format')) return;
+    if (storageFormatStep === 0) {
+        storageFormatStep = 1;
+        document.getElementById('storageFormatTitle').textContent = 'Confirm Format Local Storage';
+        document.getElementById('confirmStorageFormat').textContent = 'Format';
+        return;
+    }
+    beginSettingSave('format', 'Formatting...');
+    try {
+        C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
+    } catch (error) {
+        finishSettingSave('format', false, 'Unable to send format command');
+    }
+}
+
 function initMotionSettings() {
     resetMotionSettings();
     const motion = document.getElementById('motionDetection');
@@ -452,6 +591,83 @@ function initMotionSettings() {
         status.textContent = '';
     });
     updateMotionVisibility();
+}
+
+function initVideoSettings() {
+    [['flipImageToggle', 'flip_swt'], ['timeWatermarkToggle', 'mark']].forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', event => sendMotionSetting(key, event.target.checked ? 1 : 0));
+    });
+}
+
+function hydrateVideoSettings(settings) {
+    const nightVision = document.getElementById('nightVisionMode');
+    const nightValue = Number(settings.icut_mode);
+    if (settings.icut_mode !== undefined && settings.icut_mode !== null && [0, 2, 3].includes(nightValue)) {
+        nightVision.value = String(nightValue);
+        nightVision.disabled = false;
+        document.getElementById('nightVisionModeValue').textContent = motionOptionSpecs.nightVisionMode.labels[
+            motionOptionSpecs.nightVisionMode.values.indexOf(nightValue)
+        ];
+    }
+    const antiFlicker = document.getElementById('antiFlicker');
+    const flickerValue = Number(settings.anti_flicker);
+    if (settings.anti_flicker !== undefined && settings.anti_flicker !== null && Number.isInteger(flickerValue) && flickerValue >= 0 && flickerValue <= 2) {
+        antiFlicker.value = String(flickerValue);
+        antiFlicker.disabled = false;
+        document.getElementById('antiFlickerValue').textContent = motionOptionSpecs.antiFlicker.labels[flickerValue];
+    }
+    [['flipImageToggle', 'flip_swt'], ['timeWatermarkToggle', 'mark']].forEach(([id, key]) => {
+        const toggle = document.getElementById(id);
+        const value = settings[key];
+        if (value === undefined || value === null || ![0, 1].includes(Number(value))) return;
+        toggle.checked = Number(value) === 1;
+        toggle.disabled = false;
+    });
+}
+
+function initAudioSettings() {
+    const slider = document.getElementById('speakerVolume');
+    slider.addEventListener('input', updateSpeakerVolumePreview);
+    slider.addEventListener('change', () => sendMotionSetting('beep_vol', Number(slider.value)));
+}
+
+function updateSpeakerVolumePreview() {
+    const slider = document.getElementById('speakerVolume');
+    const value = Number(slider.value);
+    slider.style.setProperty('--speaker-fill', `${value * 10}%`);
+    const output = document.getElementById('speakerVolumeValue');
+    output.textContent = String(value);
+    output.style.left = `calc(8px + ${value * 10}% - ${value * 1.6}px)`;
+}
+
+function hydrateAudioSettings(settings) {
+    const slider = document.getElementById('speakerVolume');
+    const value = Number(settings.beep_vol);
+    if (settings.beep_vol === undefined || settings.beep_vol === null || !Number.isInteger(value) || value < 0 || value > 10) return;
+    slider.value = String(value);
+    slider.disabled = false;
+    updateSpeakerVolumePreview();
+}
+
+function hydrateStorageSettings(settings) {
+    const status = Number(settings.stored_status);
+    const statusLabels = ['Normal', 'No SD card', 'Filesystem not initialized'];
+    const availableStatus = settings.stored_status !== undefined && settings.stored_status !== null &&
+        Number.isInteger(status) && status >= 0 && status <= 2;
+    if (availableStatus) document.getElementById('storageStatus').textContent = statusLabels[status];
+    const capacity = Number(settings.stored_capacity);
+    const usage = Number(settings.stored_usage);
+    const validMetrics = settings.stored_capacity !== undefined && settings.stored_capacity !== null &&
+        settings.stored_usage !== undefined && settings.stored_usage !== null &&
+        Number.isInteger(capacity) && capacity >= 0 && capacity <= 128 &&
+        Number.isInteger(usage) && usage >= 0 && usage <= 100;
+    if (availableStatus && status === 0 && validMetrics) {
+        document.getElementById('storageTotal').textContent = `${capacity} GB`;
+        document.getElementById('storageAvailable').textContent = `${Number((capacity * (1 - usage / 100)).toFixed(2))} GB`;
+        document.getElementById('formatStorageButton').disabled = false;
+    } else {
+        document.getElementById('formatStorageButton').disabled = !availableStatus || status !== 2;
+    }
 }
 
 function hydrateMotionSettings(settings) {
@@ -546,8 +762,17 @@ function initDeviceName() {
 
     console.log("✅ Device Name module initialized");
 
+    input.addEventListener('input', function () {
+        deviceNameDraftDirty = true;
+        if (statusEl) statusEl.innerText = '';
+        updateDeviceNameConfirm();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !document.getElementById('deviceNameSheet').hidden) closeDeviceNameSheet();
+    });
+
     btn.addEventListener('click', function () {
-       
+        if (pendingSettingSaves.has('name')) return;
         const newName = input.value.trim();
 
         if (!newName) {
@@ -559,11 +784,12 @@ function initDeviceName() {
         }
 
         if (statusEl) {
-            statusEl.innerText = "Updating...";
-            statusEl.style.color = "#ffffff";
+            statusEl.innerText = '';
         }
 
+        pendingDeviceName = newName;
         beginSettingSave('name');
+        updateDeviceNameConfirm();
         try {
 
             C4.sendCommand(
@@ -1103,9 +1329,26 @@ function initFacialRecognition() {
 }
 
 function updateDeviceSettingsFromDriver(settings) {
-    latestDeviceSettings = settings || {};
+    latestDeviceSettings = { ...latestDeviceSettings, ...(settings || {}) };
+    updateStatusLight(latestDeviceSettings.indicator_swt);
     if (!faceUpdatePending) updateFaceRecognitionState(latestDeviceSettings.unknow_snapswt);
     hydrateFacialThresholds(latestDeviceSettings);
+}
+
+function updateStatusLight(value) {
+    const toggle = document.getElementById('statusLight');
+    if (!toggle) return;
+    const state = Number(value);
+    const available = value !== undefined && value !== null && value !== '' && (state === 0 || state === 1);
+    toggle.disabled = !available;
+    toggle.indeterminate = !available;
+    if (available) toggle.checked = state === 1;
+}
+
+function initStatusLight() {
+    const toggle = document.getElementById('statusLight');
+    if (!toggle) return;
+    toggle.addEventListener('change', () => sendMotionSetting('indicator_swt', toggle.checked ? 1 : 0));
 }
 
 function updateFaceSelection() {
@@ -1203,7 +1446,17 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'camera_settings') {
-            if (obj.success) hydrateMotionSettings(obj.settings || {});
+            if (obj.success) {
+                Object.assign(latestDeviceSettings, obj.settings || {});
+                hydrateMotionSettings(obj.settings || {});
+                hydrateVideoSettings(obj.settings || {});
+                hydrateAudioSettings(obj.settings || {});
+                hydrateStorageSettings(obj.settings || {});
+                if (obj.settings && obj.settings.indicator_swt !== undefined) {
+                    latestDeviceSettings.indicator_swt = obj.settings.indicator_swt;
+                    updateStatusLight(obj.settings.indicator_swt);
+                }
+            }
             document.getElementById('motionSettingsStatus').textContent = '';
             document.getElementById('motionZoneStatus').textContent = '';
             if (!obj.setting_saved) {
@@ -1218,7 +1471,19 @@ function onDataToUi(value) {
         if (obj.type === 'camera_setting_result' && !obj.success) {
             document.getElementById('motionSettingsStatus').textContent = '';
             document.getElementById('motionZoneStatus').textContent = '';
+            updateStatusLight(latestDeviceSettings.indicator_swt);
+            hydrateVideoSettings(latestDeviceSettings);
+            hydrateAudioSettings(latestDeviceSettings);
             finishSettingSave('camera', false, obj.error);
+            return;
+        }
+
+        if (obj.type === 'storage_format') {
+            finishSettingSave('format', obj.success, obj.error || 'Format request failed', 'Format command accepted');
+            if (obj.success) {
+                closeStorageFormat();
+                document.getElementById('formatStorageButton').disabled = true;
+            }
             return;
         }
 
@@ -1228,10 +1493,15 @@ function onDataToUi(value) {
         // =========================
         if (obj.type === "device_info" && obj.success) {
 
-            // Update current device name in input field
             const input = document.getElementById('deviceNameInput');
-            if (input && obj.device_name) {
-                input.value = obj.device_name;
+            if (obj.device_name) {
+                confirmedDeviceName = obj.device_name;
+                document.getElementById('settingsDeviceName').textContent = obj.device_name;
+                if (input && !deviceNameDraftDirty && !pendingSettingSaves.has('name')) {
+                    input.value = confirmedDeviceName;
+                    updateDeviceNameConfirm();
+                    if (!document.getElementById('deviceNameSheet').hidden) input.select();
+                }
             }
 
             // Update footer elements
@@ -1252,6 +1522,18 @@ function onDataToUi(value) {
             }
             const viewerName = document.getElementById('viewerDeviceName');
             if (viewerName) viewerName.innerText = obj.device_name || 'VD05 Camera';
+            if (obj.device_name) {
+                document.getElementById('settingsDeviceName').textContent = obj.device_name;
+                document.getElementById('informationDeviceName').textContent = obj.device_name;
+            }
+            document.getElementById('informationFirmware').textContent = obj.version || obj.firmware || '...';
+            document.getElementById('informationRelease').textContent = obj.release_date || '...';
+            document.getElementById('informationIp').textContent = obj.ip || '...';
+            document.getElementById('informationMac').textContent = obj.mac || '...';
+            document.getElementById('informationBattery').textContent = Number.isFinite(Number(obj.battery)) && obj.battery !== null ? `${obj.battery}%` : '...';
+            document.getElementById('powerBatteryLevel').textContent = Number.isFinite(Number(obj.battery)) && obj.battery !== null ? `${obj.battery}%` : '...';
+            document.getElementById('firmwareAvailability').textContent = obj.can_update === true ? 'Update available' :
+                obj.can_update === false ? 'The current version is the latest.' : '...';
         }
         // =========================
         // ANTI-PRY SYNC
@@ -1299,19 +1581,37 @@ function onDataToUi(value) {
         }
 
 
-        // Device Name Feedback
-        if (obj.device_name_updated) {
-            const statusEl = document.getElementById('deviceNameStatus');
-            if (statusEl) {
-                statusEl.innerText = "✓ Name updated successfully";
-                statusEl.style.color = "#4ade80";
+        if (obj.type === 'device_name_result') {
+            if (obj.success) {
+                const updatedName = obj.device_name || pendingDeviceName;
+                if (updatedName) {
+                    confirmedDeviceName = updatedName;
+                    document.getElementById('settingsDeviceName').textContent = updatedName;
+                }
+                pendingDeviceName = '';
+                deviceNameDraftDirty = false;
+                finishSettingSave('name', true);
+                closeDeviceNameSheet();
+            } else {
+                finishSettingSave('name', false, obj.error || 'Failed to update name');
+                document.getElementById('deviceNameStatus').textContent = obj.error || 'Failed to update name';
+                updateDeviceNameConfirm();
             }
+            return;
+        }
 
+        // Compatibility with driver versions that send only device_name_updated.
+        if (obj.device_name_updated) {
+            const updatedName = obj.device_name || pendingDeviceName;
+            if (updatedName) {
+                confirmedDeviceName = updatedName;
+                document.getElementById('settingsDeviceName').textContent = updatedName;
+            }
+            pendingDeviceName = '';
+            deviceNameDraftDirty = false;
             finishSettingSave('name', true);
-
-            // Optional: clear input
-            const input = document.getElementById('deviceNameInput');
-            if (input) input.value = "";
+            closeDeviceNameSheet();
+            return;
         }
 
          if (obj.type === "snapshot_result") {
@@ -1447,4 +1747,44 @@ function onSubscribeToDataToUi(msg) {
 
 function onSubscribeToVariableError(v, msg) {
     console.log('Variable Error', v, msg);
+}
+
+function updateDeviceNameConfirm() {
+    const input = document.getElementById('deviceNameInput');
+    const button = document.getElementById('updateNameBtn');
+    if (input && button) button.disabled = pendingSettingSaves.has('name') || !input.value.trim();
+}
+
+function openDeviceNameSheet() {
+    if (pendingSettingSaves.size > 0) return;
+    deviceNameReturnFocus = document.activeElement;
+    deviceNameDraftDirty = false;
+    const input = document.getElementById('deviceNameInput');
+    input.value = confirmedDeviceName || document.getElementById('settingsDeviceName').textContent.trim();
+    document.getElementById('deviceNameStatus').textContent = '';
+    document.getElementById('deviceNameSheet').hidden = false;
+    updateDeviceNameConfirm();
+    input.focus();
+    input.select();
+    initDeviceInfo();
+}
+
+function closeDeviceNameSheet() {
+    if (pendingSettingSaves.has('name')) return;
+    document.getElementById('deviceNameSheet').hidden = true;
+    document.getElementById('deviceNameStatus').textContent = '';
+    document.getElementById('deviceNameInput').value = confirmedDeviceName;
+    deviceNameDraftDirty = false;
+    updateDeviceNameConfirm();
+    if (deviceNameReturnFocus && deviceNameReturnFocus.focus) deviceNameReturnFocus.focus();
+}
+
+function clearDeviceName() {
+    if (pendingSettingSaves.has('name')) return;
+    const input = document.getElementById('deviceNameInput');
+    input.value = '';
+    deviceNameDraftDirty = true;
+    document.getElementById('deviceNameStatus').textContent = '';
+    updateDeviceNameConfirm();
+    input.focus();
 }
