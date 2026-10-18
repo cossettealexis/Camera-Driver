@@ -319,7 +319,7 @@ function finishSettingSave(kind, success, error, successMessage = 'Settings save
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    console.log('VD05 Settings UI Loaded');
+    console.log('VD05 UI Loaded');
 
     initializeControl4();
 

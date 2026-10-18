@@ -82,7 +82,8 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /<div class="toolbar" id="viewerAlternateToolbar" hidden>[\s\S]*?id="viewerToolbarBack"/);
     assert.match(html, /\.tool-btn\s*\{[^}]*background:\s*#070a0f/);
     assert.match(html, /\.tool-btn\.primary\s*\{[^}]*width:\s*88px[^}]*height:\s*88px/);
-    assert.match(html, /id="viewerAlbum"[^>]*>[\s\S]*?data-lucide="image"/);
+    assert.match(html, /id="viewerSnapshot"[^>]*>[\s\S]*?data-lucide="circle-dot"/);
+    assert.match(html, /id="viewerAlternateAlbum"[^>]*>[\s\S]*?data-lucide="image"/);
     assert.match(html, /id="viewerNotifications"[^>]*>[\s\S]*?data-lucide="list"/);
     assert.match(html, /id="viewerEndCall"[^>]*>[\s\S]*?data-lucide="circle-arrow-left"/);
     assert.match(html, /if \(id === 'homePanel'\) \{\s*beginHomeSettingsLoad\(\);[\s\S]*requestInitialState\(\)[\s\S]*initDeviceInfo\(\)[\s\S]*REQUEST_SETTINGS/);

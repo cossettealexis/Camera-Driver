@@ -18,7 +18,7 @@
     </composer_categories>
     <proxies>
         <proxy proxybindingid="5001" name="Slomins VD05 Video Doorbell">camera</proxy>
-         <proxy proxybindingid="5005" name="VD05 Settings">uibutton</proxy>
+        <proxy proxybindingid="5005" name="VD05">uibutton</proxy>
     </proxies>
     <OnlineCategory>Cameras</OnlineCategory>
     <capabilities>
@@ -47,16 +47,6 @@
         <hasHistory>true</hasHistory>
         <has_doorbell>true</has_doorbell>
         <has_motion_sensor>true</has_motion_sensor>
-         <navigator_display_option proxybindingid="5005">
-            <display_icons>
-                <Icon width="70" height="70">
-                    controller://driver/Slomins-doorbell-VD05/icons/device/settings_70.png</Icon>
-                <Icon width="90" height="90">
-                    controller://driver/Slomins-doorbell-VD05/icons/device/settings_90.png</Icon>
-                <Icon width="300" height="300">
-                    controller://driver/Slomins-doorbell-VD05/icons/device/settings_300.png</Icon>
-            </display_icons>
-        </navigator_display_option>
         <web_view_url proxybindingid="5005">controller://driver/Slomins-doorbell-VD05/contents/index.html</web_view_url>
         <mobile_web_view_enabled>true</mobile_web_view_enabled>
         <network>true</network>
