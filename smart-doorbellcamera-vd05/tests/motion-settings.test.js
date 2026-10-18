@@ -20,7 +20,7 @@ function fixture() {
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
             checked: false, hidden: false, value: '', textContent: '',
-            style: {},
+            style: { setProperty(name, value) { this[name] = value; } },
             classList: { contains: name => id === 'viewerPanel' && name === 'active' },
             focus() {},
             getAttribute(name) { return this[name] ?? null; },
@@ -78,11 +78,14 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /\.camera-frame\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/);
     assert.match(html, /id="viewerMic"/);
     assert.match(html, /id="viewerSpeaker"[^>]*disabled/);
+    assert.match(html, /<div class="toolbar" id="viewerPrimaryToolbar">[\s\S]*?id="viewerEndCall"/);
+    assert.match(html, /<div class="toolbar" id="viewerAlternateToolbar" hidden>[\s\S]*?id="viewerToolbarBack"/);
     assert.match(html, /\.tool-btn\s*\{[^}]*background:\s*#070a0f/);
     assert.match(html, /\.tool-btn\.primary\s*\{[^}]*width:\s*88px[^}]*height:\s*88px/);
-    assert.match(html, /id="viewerSnapshot"[^>]*>[\s\S]*?data-lucide="circle-dot"/);
+    assert.match(html, /id="viewerAlbum"[^>]*>[\s\S]*?data-lucide="image"/);
+    assert.match(html, /id="viewerNotifications"[^>]*>[\s\S]*?data-lucide="list"/);
     assert.match(html, /id="viewerEndCall"[^>]*>[\s\S]*?data-lucide="circle-arrow-left"/);
-    assert.match(html, /if \(id === 'homePanel'\)[\s\S]*requestInitialState\(\)[\s\S]*initDeviceInfo\(\)[\s\S]*REQUEST_SETTINGS/);
+    assert.match(html, /if \(id === 'homePanel'\) \{\s*beginHomeSettingsLoad\(\);[\s\S]*requestInitialState\(\)[\s\S]*initDeviceInfo\(\)[\s\S]*REQUEST_SETTINGS/);
     const startup = source.slice(source.indexOf("document.addEventListener('DOMContentLoaded'"), source.indexOf('function isLiveViewerActive()'));
     assert.match(startup, /startLiveSnapshotPolling\(\)/);
     assert.match(startup, /requestInitialState\(\)/);
@@ -112,39 +115,68 @@ test('VD05 Device Settings uses the K26 grouped layout with supported feature ro
     assert.match(home, /onclick="openVideoSettings\(\)"[^>]*><span>Video Settings<\/span>/);
     assert.match(home, /onclick="openStorageSettings\(\)"[^>]*><span>Internal Storage<\/span>/);
     assert.match(home, /onclick="openInstallationGuide\(\)"[^>]*><span>Installation Guide<\/span>/);
+    assert.match(home, /onclick="openDeviceInformation\(\)"[^>]*><span>Device Information<\/span>/);
+    assert.match(home, /onclick="openC4AuthenticationService\(\)"[^>]*><span>C4 Authentication Service<\/span>/);
     assert.doesNotMatch(home, /onclick="show\('micPanel'\)"|id="snapshotHomeBtn"/);
 
-    const { context, element } = fixture();
+    const { context, element, commands } = fixture();
     context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'CA Smart Doorbell',
-        version: '1.2.3', release_date: '2026-10-18', ip: '192.0.2.12', mac: 'AA:BB:CC', battery: 68, can_update: false }));
+        version: '1.2.3', release_date: '2026-10-18', serial: 'VD05-123', timezone: 'Asia/Manila',
+        ip: '192.0.2.12', mac: 'AA:BB:CC', rssi: 'Very strong',
+        user_identifier: 'user-123', battery: 68, can_update: false }));
     assert.equal(element('settingsDeviceName').textContent, 'CA Smart Doorbell');
     assert.equal(element('powerBatteryLevel').textContent, '68%');
-    assert.equal(element('informationBattery').textContent, '68%');
+    assert.equal(element('informationFirmware').textContent, '1.2.3');
+    assert.equal(element('informationSerial').textContent, 'VD05-123');
+    assert.equal(element('informationTimezone').textContent, 'Asia/Manila');
     assert.equal(element('informationIp').textContent, '192.0.2.12');
     assert.equal(element('informationMac').textContent, 'AA:BB:CC');
+    assert.equal(element('informationWifi').textContent, '...');
+    assert.equal(element('informationSignal').textContent, 'Very strong');
+    assert.equal(element('copyDeviceSerial').disabled, false);
+    assert.equal(element('c4UserIdentifier').textContent, 'user-123');
+    assert.equal(element('copyUserIdentifier').disabled, false);
     assert.equal(element('firmwareAvailability').textContent, 'The current version is the latest.');
+    context.openDeviceInformation();
+    assert.equal(commands.at(-1)[0], 'GET_DEVICE_INFO');
+    context.openC4AuthenticationService();
+    assert.equal(commands.at(-1)[0], 'GET_DEVICE_INFO');
+    context.openPairingModeConfirmation();
+    assert.equal(element('devicePairingDialog').hidden, false);
+    context.confirmPairingMode();
+    assert.equal(element('devicePairingDialog').hidden, true);
+    assert.equal(commands.some(command => command[0] === 'SET_DEVICE_PAIRING_MODE'), false);
 });
 
 test('Notification, storage, and installation screens expose the screenshot flows', () => {
     const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
     const notification = html.match(/<section id="notificationSettingsPanel"[\s\S]*?<\/section>/)[0];
     const audio = html.match(/<section id="audioSettingsPanel"[\s\S]*?<\/section>/)[0];
+    const storage = html.match(/<section id="storagePanel"[\s\S]*?<\/section>/)[0];
     assert.match(notification, /Receive App Notifications/);
     for (const label of ['Doorbell Notification', 'Alert Notification', 'Motion Detection', 'Offline Notification', 'Event Notification']) {
         assert.match(notification, new RegExp(label));
     }
     assert.doesNotMatch(audio, /Microphone/);
     assert.match(audio, /Device Speaker Volume/);
+    assert.match(storage, /39 Days/);
+    assert.match(storage, /We have provided 39 days of information security protection\./);
+    assert.doesNotMatch(storage, /storageStatus|Normal/);
     assert.match(html, /src="\.\.\/icons\/device\/settings_300\.png"/);
     assert.match(html, /Installation Tutorial \(1\/3\)/);
     assert.match(html, /Are you sure you want to skip the installation guide\?/);
 
-    const { context, element, commands, navigation } = fixture();
+    const { context, element, commands, navigation, app } = fixture();
     context.openNotificationSettings();
     assert.equal(navigation.at(-1), 'notificationSettingsPanel');
     context.openStorageSettings();
     assert.equal(commands.at(-1)[0], 'GET_CAMERA_SETTINGS');
-    context.hydrateStorageSettings({ stored_status: 0, stored_capacity: 64, stored_usage: 25 });
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(app.inert, true);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true,
+        settings: { 'stored.status': 0, 'stored.capacity': 64, 'stored.usage': 25 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(app.inert, false);
     assert.equal(element('storageTotal').textContent, '64 GB');
     assert.equal(element('storageAvailable').textContent, '48 GB');
     assert.equal(element('formatStorageButton').disabled, false);
@@ -160,6 +192,22 @@ test('Notification, storage, and installation screens expose the screenshot flow
     context.openInstallationSkip();
     context.confirmInstallationSkip();
     assert.equal(navigation.at(-1), 'homePanel');
+});
+
+test('Audio Settings waits only for a valid speaker volume before revealing the slider', () => {
+    const { context, element, commands, app } = fixture();
+    context.openAudioSettings();
+    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SETTINGS');
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(element('speakerVolume').disabled, true);
+    assert.equal(app.inert, true);
+
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, settings: { beep_vol: 7 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('speakerVolume').disabled, false);
+    assert.equal(element('speakerVolume').value, '7');
+    assert.equal(element('speakerVolumeValue').textContent, '7');
+    assert.equal(app.inert, false);
 });
 
 test('VD05 live viewer requests snapshots sequentially and does not open the settings snapshot modal', () => {
@@ -196,6 +244,65 @@ test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape sta
     assert.equal(frame.style.width, String(581 * 4 / 3) + 'px');
     assert.equal(frame.style.height, '581px');
     assert.match(fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8'), /\.camera-stage[\s\S]*?place-items:\s*center/);
+});
+
+test('zoom chip increments by 1× and stops at 6×', () => {
+    const { context, element } = fixture();
+    context.initLiveView();
+    for (const zoom of [2, 3, 4, 5, 6, 6]) {
+        element('zoomChip').listeners.click();
+        assert.equal(element('zoomChip').textContent, `${zoom.toFixed(1)}X`);
+        assert.equal(element('livePreview').style['--viewer-zoom'], String(zoom));
+    }
+});
+
+test('viewer arrow switches toolbars and X restores the original buttons', () => {
+    const { context, element, commands } = fixture();
+    context.toggleViewerToolbar(true);
+    assert.equal(element('viewerPrimaryToolbar').hidden, true);
+    assert.equal(element('viewerAlternateToolbar').hidden, false);
+    context.openViewerAlertConfirmation();
+    assert.equal(element('viewerAlertDialog').hidden, false);
+    context.closeViewerAlertConfirmation();
+    assert.equal(element('viewerAlertDialog').hidden, true);
+    context.openViewerAlertConfirmation();
+    context.confirmViewerAlert();
+    assert.equal(JSON.parse(commands.at(-1)[1]).state, 1);
+    context.toggleViewerToolbar(false);
+    assert.equal(element('viewerPrimaryToolbar').hidden, false);
+    assert.equal(element('viewerAlternateToolbar').hidden, true);
+});
+
+test('alternate toolbar Notifications button loads real history records', () => {
+    const { context, element, commands, navigation } = fixture();
+    context.initLiveView();
+    context.toggleViewerToolbar(true);
+    element('viewerNotifications').listeners.click();
+    assert.equal(navigation.at(-1), 'notificationHistoryPanel');
+    assert.equal(commands.at(-1)[0], 'GET_NOTIFICATION_HISTORY');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { page: 1 });
+    context.onDataToUi(JSON.stringify({
+        type: 'notification_history', success: true, page: 1, has_more: false,
+        notifications: [{ device_name: 'VD05', message_type: 'Doorbell Call Event', time: 0, image_url: '', video_url: '', video_sec: 0 }]
+    }));
+    const card = element('notificationHistoryList').children[0];
+    assert.equal(card.children[1].children[0].textContent, 'Doorbell Call Event');
+    assert.equal(card.children[1].children[1].textContent, 'VD05');
+    assert.equal(element('notificationHistoryLoadMore').hidden, true);
+});
+
+test('scissors takes a snapshot and shows its image in the saved banner', () => {
+    const { context, element, commands } = fixture();
+    context.initLiveView();
+    element('viewerZoom').listeners.click();
+    assert.equal(commands.at(-1)[0], 'TAKE_SNAPSHOT');
+    assert.equal(element('viewerSnapshotBanner').hidden, false);
+    assert.equal(element('viewerSnapshotMessage').textContent, 'Saving screenshot...');
+    context.onDataToUi(JSON.stringify({ type: 'snapshot_result', success: true, image_url: 'http://camera.local/snapshot.jpg' }));
+    assert.equal(element('viewerSnapshotMessage').textContent, 'Screenshot Saved to Album');
+    assert.equal(element('viewerSnapshotThumb').hidden, false);
+    assert.match(element('viewerSnapshotThumb').src, /^http:\/\/camera\.local\/snapshot\.jpg\?t=/);
+    assert.equal(element('viewerSnapshotAlbum').disabled, false);
 });
 
 test('Microphone focus, visibility, and Control4 variable events never request stranger faces', () => {
@@ -239,6 +346,24 @@ test('initial settings stay covered until both API snapshots arrive, in either o
     }
 });
 
+test('Home stays covered only until device name and Status Light values arrive', () => {
+    for (const deviceInfoFirst of [true, false]) {
+        const { context, element, app } = fixture();
+        context.beginHomeSettingsLoad();
+        assert.equal(element('settingSaveOverlay').hidden, false);
+        assert.equal(app.inert, true);
+        const deviceInfo = { type: 'device_info', success: true, device_name: 'VD05' };
+        const homeSettings = { type: 'device_settings', success: true, settings: { indicator_swt: 1 } };
+        context.onDataToUi(JSON.stringify(deviceInfoFirst ? deviceInfo : homeSettings));
+        assert.equal(element('settingSaveOverlay').hidden, false);
+        context.onDataToUi(JSON.stringify(deviceInfoFirst ? homeSettings : deviceInfo));
+        assert.equal(element('settingSaveOverlay').hidden, true);
+        assert.equal(app.inert, false);
+        assert.equal(element('statusLight').disabled, false);
+        assert.equal(element('statusLight').checked, true);
+    }
+});
+
 test('settings load failures and timeouts return to the menu without exposing partial values', () => {
     const { context, element, navigation, timers } = fixture();
     context.requestMotionSettings();
@@ -262,6 +387,34 @@ test('save acknowledgment leaves no persistent status text on the settings page'
     assert.equal(element('motionZoneStatus').textContent, '');
     assert.equal(element('settingSaveOverlay').hidden, true);
     assert.equal(element('settingSaveToast').textContent, 'Settings saved');
+});
+
+test('Anti-Pry ignores stale state refreshes while saving and finishes on explicit acknowledgment', () => {
+    const { context, element } = fixture();
+    context.antiPryEnabled = false;
+    context.antiPryUpdatePending = true;
+    context.beginSettingSave('antiPry');
+    context.onDataToUi(JSON.stringify({ type: 'anti_pry_update', success: true, tamper_swt: 0, anti_pry_enabled: false }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(element('antiPry').checked, false);
+    context.onDataToUi(JSON.stringify({ type: 'anti_pry_update', success: true, setting_saved: true, tamper_swt: 1, anti_pry_enabled: true }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('antiPry').checked, true);
+    assert.equal(context.antiPryUpdatePending, false);
+});
+
+test('Anti-Pry sends the checked state and ignores stale OFF updates until save acknowledgment', () => {
+    const { context, element, commands } = fixture();
+    element('antiPry').checked = true;
+    context.sendAntiPryCommand(element('antiPry').checked);
+    assert.equal(commands.at(-1)[0], 'SET_ANTI_PRY');
+    assert.equal(JSON.parse(commands.at(-1)[1]).state, 1);
+    context.onDataToUi(JSON.stringify({ type: 'anti_pry_update', success: true, tamper_swt: 0, anti_pry_enabled: false }));
+    assert.equal(element('antiPry').checked, true);
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'anti_pry_update', success: true, setting_saved: true, tamper_swt: 1, anti_pry_enabled: true }));
+    assert.equal(element('antiPry').checked, true);
+    assert.equal(element('settingSaveOverlay').hidden, true);
 });
 
 test('save overlay waits for acknowledgment, ignores refreshes, and displays a transient success toast', () => {
@@ -634,10 +787,15 @@ test('driver uses property-latest and preserves the full motion struct on update
             assert(body.vid == 'camera-1')
             if request.url:match('property%-latest$') then
                 assert(request.method == 'POST' and body.data_source == 0)
+                local requested = {}
+                for _, data_id in ipairs(body.data_ids) do requested[data_id] = true end
+                assert(requested['stored.status'] and requested['stored.capacity'] and requested['stored.usage'])
                 callback(200, json.encode({code=20000,data={
                     {data_id='motion',value=json.encode(motion)},
                     {data_id='siren_swt',value=1}, {data_id='light_swt',value=0},
-                    {data_id='unknow_thld',value=0.94}, {data_id='unknow_faceq',value=2}
+                    {data_id='unknow_thld',value=0.94}, {data_id='unknow_faceq',value=2},
+                    {data_id='stored.status',value=0}, {data_id='stored.capacity',value=64},
+                    {data_id='stored.usage',value=25}
                 }}), {}, nil)
             else
                 assert(request.url:match('do%-property$'))
@@ -658,6 +816,9 @@ test('driver uses property-latest and preserves the full motion struct on update
         assert(messages[#messages].settings.motion_switch == 1)
         assert(messages[#messages].settings.unknow_thld == 0.94)
         assert(messages[#messages].settings.unknow_faceq == 2)
+        assert(messages[#messages].settings.stored_status == 0)
+        assert(messages[#messages].settings.stored_capacity == 64)
+        assert(messages[#messages].settings.stored_usage == 25)
         UPDATE_CAMERA_SETTING(json.encode({key='motion.sen',value=2}))
         assert(writes[1].motion.sen == 2 and writes[1].motion.type == 0)
         UPDATE_CAMERA_SETTING({key='motion.type',value='1'})

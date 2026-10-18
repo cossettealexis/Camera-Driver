@@ -75,6 +75,28 @@
         .camera-status[hidden] { display: none; }
         .viewer-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: max-content; max-width: calc(100% - 36px); color: rgba(255,255,255,.75); font-size: 14px; text-align: center; }
         .viewer-error[hidden] { display: none; }
+        .snapshot-saved-banner { position: absolute; top: 16px; left: 22px; right: 22px; z-index: 5; display: grid; grid-template-columns: 108px minmax(0,1fr) auto; align-items: center; gap: 14px; min-height: 96px; padding: 12px 18px; border-radius: 14px; background: #1c1c1c; color: #eee; }
+        .snapshot-saved-banner[hidden] { display: none; }
+        .snapshot-saved-thumb { width: 108px; height: 60px; border-radius: 10px; background: #303238; object-fit: cover; }
+        .snapshot-saved-message { min-width: 0; font-size: 20px; font-weight: 600; }
+        .snapshot-saved-album { min-width: 108px; height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; }
+        .snapshot-saved-album:disabled { opacity: .5; cursor: not-allowed; }
+        .viewer-notifications { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .notification-history-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 20px; }
+        .notification-history-filter { align-self: flex-start; min-width: 50px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #1c1c1c; color: #ddd; font-size: 14px; }
+        .notification-history-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+        .notification-history-card { display: grid; grid-template-columns: 70px minmax(0,1fr) auto; align-items: center; gap: 14px; min-height: 84px; padding: 10px; border-radius: 16px; background: #1c1c1c; color: #ddd; }
+        .notification-history-thumb { width: 70px; height: 70px; border-radius: 10px; background: #303238; object-fit: cover; }
+        .notification-history-copy { min-width: 0; }
+        .notification-history-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+        .notification-history-description { margin-top: 6px; color: #999; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+        .notification-history-time { align-self: start; padding-top: 4px; color: #999; font-size: 12px; white-space: nowrap; }
+        .notification-history-duration { position: absolute; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,.8); color: white; font-size: 11px; }
+        .notification-history-media { position: relative; }
+        .notification-history-empty { padding: 36px 16px; color: #999; font-size: 15px; text-align: center; }
+        .notification-history-load { align-self: center; min-height: 40px; margin: 12px 0; padding: 0 18px; border: 1px solid #555; border-radius: 12px; background: transparent; color: #ddd; cursor: pointer; }
+        .notification-history-load[hidden] { display: none; }
+        @media (max-width:420px) { .notification-history-card { grid-template-columns: 64px minmax(0,1fr); gap: 10px; } .notification-history-thumb { width: 64px; height: 64px; } .notification-history-time { grid-column: 2; grid-row: 2; padding-top: 0; } }
         #viewerMic.is-active { background: #4b5877; border-color: #4b5877; }
         #viewerMic.is-muted { border-color: rgba(255,255,255,.5); opacity: .66; }
         .camera-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 14px 6px; }
@@ -85,12 +107,14 @@
         button.chip { cursor: pointer; }
         .chip svg { width: 18px; height: 18px; }
         .toolbar { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3.5vw, 24px); padding: 10px 0 4px; }
+        .toolbar[hidden] { display: none; }
         .tool-btn { width: 68px; height: 68px; flex: 0 0 68px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: #070a0f; color: white; cursor: pointer; }
         .tool-btn svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
         .tool-btn.primary { width: 88px; height: 88px; flex-basis: 88px; border: 0; background: #4b5877; }
         .tool-btn.primary svg { width: 34px; height: 34px; }
         .tool-btn:disabled { opacity: .9; cursor: not-allowed; }
         .toolbar { justify-content: space-evenly; gap: 0; }
+        @media (max-width: 520px) { .snapshot-saved-banner { top: 10px; left: 10px; right: 10px; grid-template-columns: 76px minmax(0,1fr) auto; gap: 10px; min-height: 76px; padding: 8px 10px; } .snapshot-saved-thumb { width: 76px; height: 48px; } .snapshot-saved-message { font-size: 14px; } .snapshot-saved-album { min-width: 70px; height: 40px; padding: 0 14px; font-size: 14px; } }
         @media (max-width: 420px) { .tool-btn { width: 58px; height: 58px; flex-basis: 58px; } .tool-btn svg { width: 27px; height: 27px; } .tool-btn.primary { width: 76px; height: 76px; flex-basis: 76px; } .tool-btn.primary svg { width: 32px; height: 32px; } }
 
         .header {
@@ -174,11 +198,81 @@
         .notification-toggle .slider:before { width: 40px; height: 28px; left: 4px; top: 4px; }
         .notification-toggle input:checked + .slider:before { transform: translateX(32px); }
         .notification-copy { padding-top: 8px; color: #aaa; font-size: 16px; line-height: 1.35; }
+        .device-information .settings-group { margin-bottom: 18px; padding: 0 20px; border-radius: 28px; background: #1c1c1c; }
+        .device-information .settings-row { min-height: 70px; padding: 20px 0; font-size: 18px; gap: 18px; }
+        .information-header { display: flex; align-items: center; gap: 22px; padding: 18px 0; border-bottom: 1px solid #333; }
+        .information-header > img { flex: 0 0 80px; width: 80px; height: 112px; object-fit: contain; }
+        .information-main { min-width: 0; flex: 1; }
+        .information-name { padding-bottom: 12px; font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+        .information-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; font-size: 18px; }
+        .information-line > span:last-child { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+        .information-line .information-serial { display: flex; align-items: center; gap: 8px; }
+        .information-copy { display: flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 4px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .information-copy svg { width: 18px; height: 18px; }
+        .information-copy:disabled { opacity: .4; cursor: not-allowed; }
+        .information-secondary { display: block; padding-top: 6px; color: #aaa; font-size: 16px; line-height: 1.35; }
+        .information-action-value { display: flex; align-items: center; flex: 0 0 auto; gap: 4px; color: #999; font-size: 16px; }
+        .information-action-value svg { width: 18px; height: 18px; }
+        .information-sync { align-items: flex-start; }
+        .information-sync .settings-detail { display: flex; align-items: center; flex: 0 0 auto; gap: 4px; max-width: none; }
+        .c4-auth-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 40px; }
+        .c4-auth-card { margin-bottom: 22px; padding: 18px 22px; border-radius: 28px; background: #1c1c1c; }
+        .c4-auth-user { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #ddd; font-size: 20px; font-weight: 500; }
+        .c4-auth-user-copy { display: flex; align-items: center; justify-content: center; flex: 0 0 34px; width: 34px; height: 34px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .c4-auth-user-copy svg { width: 22px; height: 22px; }
+        .c4-auth-user-copy:disabled { opacity: .4; cursor: not-allowed; }
+        .c4-auth-description { margin-top: 4px; padding-right: 40px; color: #aaa; font-size: 18px; line-height: 1.4; }
+        .c4-pairing-row { display: grid; grid-template-columns: minmax(0,1fr) auto 18px; align-items: center; gap: 16px; width: 100%; padding: 18px 22px; border: 0; border-radius: 28px; background: #1c1c1c; color: #ddd; text-align: left; cursor: pointer; }
+        .c4-pairing-row:disabled { opacity: .62; cursor: not-allowed; }
+        .c4-pairing-copy { min-width: 0; }
+        .c4-pairing-title { font-size: 20px; font-weight: 500; }
+        .c4-pairing-description { display: block; margin-top: 6px; color: #aaa; font-size: 18px; line-height: 1.35; }
+        .c4-pairing-value { color: #999; font-size: 18px; white-space: nowrap; }
+        .c4-pairing-chevron { width: 20px; height: 20px; color: #888; }
+        .c4-pairing-dialog { position: fixed; inset: 0; z-index: 3500; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.68); }
+        .c4-pairing-dialog[hidden] { display: none; }
+        .c4-pairing-dialog-card { width: min(100%,700px); padding: 20px 22px 22px; border-radius: 26px; background: #292929; }
+        .c4-pairing-dialog-title { margin-bottom: 22px; color: #ddd; font-size: 20px; font-weight: 600; text-align: center; }
+        .c4-pairing-dialog-copy { margin-bottom: 32px; color: #ddd; font-size: 18px; font-weight: 600; text-align: center; }
+        .c4-pairing-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .c4-pairing-dialog-actions button { min-height: 52px; border-radius: 16px; color: #fff; font-size: 18px; font-weight: 600; cursor: pointer; }
+        .c4-pairing-cancel { border: 1px solid #999; background: transparent; }
+        .c4-pairing-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        .viewer-alert-dialog { position: fixed; inset: 0; z-index: 3600; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.68); }
+        .viewer-alert-dialog[hidden] { display: none; }
+        .viewer-alert-card { width: min(100%,640px); padding: 20px; border-radius: 26px; background: #292929; }
+        .viewer-alert-copy { margin: 0 0 26px; color: #ddd; font-size: 18px; font-weight: 600; line-height: 1.4; text-align: center; }
+        .viewer-alert-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .viewer-alert-actions button { min-height: 48px; border-radius: 16px; color: #fff; font-size: 18px; font-weight: 600; cursor: pointer; }
+        .viewer-alert-cancel { border: 1px solid #999; background: transparent; }
+        .viewer-alert-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        @media (max-width:420px) {
+            .device-information .settings-group { padding: 0 16px; }
+            .information-header { gap: 16px; }
+            .information-header > img { flex-basis: 64px; width: 64px; height: 96px; }
+            .information-name { font-size: 18px; }
+            .information-line, .device-information .settings-row { font-size: 16px; }
+            .information-secondary, .information-action-value { font-size: 14px; }
+            .storage-protection { gap: 14px; padding: 18px 20px; }
+            .storage-protection-title { font-size: 17px; }
+            .storage-protection-copy { font-size: 14px; }
+            .c4-auth-content { padding: 14px 16px 32px; }
+            .c4-auth-card, .c4-pairing-row { padding: 16px 20px; border-radius: 26px; }
+            .c4-auth-user, .c4-pairing-title { font-size: 17px; }
+            .c4-auth-description, .c4-pairing-description, .c4-pairing-value { font-size: 15px; }
+            .c4-pairing-dialog-copy { font-size: 16px; }
+            .c4-pairing-dialog-actions { gap: 12px; }
+            .viewer-alert-copy { font-size: 16px; }
+            .viewer-alert-actions { gap: 12px; }
+        }
         .storage-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 8px 24px; }
         .storage-summary { min-height: 248px; padding: 20px; border-radius: 18px; background: #1c1c1c; }
         .storage-summary > svg { width: 36px; height: 42px; margin-bottom: 10px; color: var(--accent); }
         .storage-metric { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; font-size: 20px; font-weight: 600; }
-        .storage-status { margin: 18px 0; color: #aaa; font-size: 16px; }
+        .storage-protection { display: flex; align-items: center; gap: 18px; min-height: 112px; padding: 20px 28px; margin-top: 12px; border-radius: 18px; background: #1c1c1c; }
+        .storage-protection > svg { flex: 0 0 42px; width: 42px; height: 42px; color: var(--accent); }
+        .storage-protection-title { font-size: 20px; font-weight: 600; }
+        .storage-protection-copy { margin-top: 6px; color: #aaa; font-size: 16px; line-height: 1.35; }
         .storage-footer { flex-shrink: 0; padding: 12px 16px 20px; }
         .format-storage-button { width: 100%; min-height: 52px; padding: 14px; border: 0; border-radius: 14px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
         .format-storage-button:disabled { opacity: .45; cursor: not-allowed; }
@@ -756,18 +850,37 @@
                         <div class="camera-status" id="liveTimestamp" hidden></div>
                     </div>
                 </div>
+                <div class="snapshot-saved-banner" id="viewerSnapshotBanner" role="status" aria-live="polite" hidden>
+                    <img class="snapshot-saved-thumb" id="viewerSnapshotThumb" alt="Saved screenshot preview">
+                    <span class="snapshot-saved-message" id="viewerSnapshotMessage">Screenshot Saved to Album</span>
+                    <button class="snapshot-saved-album" id="viewerSnapshotAlbum" type="button" onclick="openViewerSnapshotAlbum()" disabled>Album</button>
+                </div>
                 <div class="camera-footer">
                     <div class="camera-footer-left"><div class="chip small">HD</div><button class="chip" id="zoomChip" type="button" aria-label="Change zoom">1.0X</button></div>
                     <div class="camera-footer-right"><button class="chip small" id="viewerFullscreen" type="button" aria-label="Fullscreen" title="Fullscreen"><i data-lucide="maximize"></i></button></div>
                 </div>
-                <div class="toolbar">
-                    <button class="tool-btn" id="viewerZoom" type="button" aria-label="Zoom"><i data-lucide="scan-search"></i></button>
-                    <button class="tool-btn" id="viewerSnapshot" type="button" aria-label="Take snapshot"><i data-lucide="circle-dot"></i></button>
+                <div class="toolbar" id="viewerPrimaryToolbar">
+                    <button class="tool-btn" id="viewerZoom" type="button" aria-label="Take screenshot"><i data-lucide="scissors"></i></button>
+                    <button class="tool-btn" id="viewerAlbum" type="button" aria-label="Open album"><i data-lucide="image"></i></button>
                     <button class="tool-btn primary" id="viewerMic" type="button" aria-label="Toggle microphone"><i data-lucide="mic"></i></button>
                     <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Camera audio playback unavailable" title="Camera audio playback is not available in this web view" disabled><i data-lucide="volume-2"></i></button>
-                    <button class="tool-btn" id="viewerEndCall" type="button" aria-label="End call" title="End call"><i data-lucide="circle-arrow-left"></i></button>
+                    <button class="tool-btn" id="viewerEndCall" type="button" aria-label="More camera controls" title="More camera controls"><i data-lucide="circle-arrow-left"></i></button>
+                </div>
+                <div class="toolbar" id="viewerAlternateToolbar" hidden>
+                    <button class="tool-btn" id="viewerAlarm" type="button" aria-label="Anti-Pry settings" title="Anti-Pry settings"><i data-lucide="bell-ring"></i></button>
+                    <button class="tool-btn" id="viewerAlternateAlbum" type="button" aria-label="Open album" title="Open album"><i data-lucide="image"></i></button>
+                    <button class="tool-btn" id="viewerNotifications" type="button" aria-label="Notifications" title="Notifications"><i data-lucide="list"></i></button>
+                    <button class="tool-btn" id="viewerToolbarBack" type="button" aria-label="Back to camera controls" title="Back"><i data-lucide="x"></i></button>
+                </div>
+                <div class="viewer-alert-dialog" id="viewerAlertDialog" role="dialog" aria-modal="true" aria-labelledby="viewerAlertCopy" hidden>
+                    <div class="viewer-alert-card"><p class="viewer-alert-copy" id="viewerAlertCopy">Are you sure you want to enable the alert?</p><div class="viewer-alert-actions"><button class="viewer-alert-cancel" type="button" onclick="closeViewerAlertConfirmation()">Cancel</button><button class="viewer-alert-confirm" type="button" onclick="confirmViewerAlert()">Confirm</button></div></div>
                 </div>
             </main>
+        </section>
+
+        <section id="notificationHistoryPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" type="button" onclick="show('viewerPanel')" aria-label="Back to camera"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Notifications</h1></div><div></div></div>
+            <div class="viewer-notifications"><div class="notification-history-scroll"><button class="notification-history-filter" type="button" aria-pressed="true">All</button><div id="notificationHistoryList" class="notification-history-list"><div class="notification-history-empty">Loading notifications...</div></div><button class="notification-history-load" id="notificationHistoryLoadMore" type="button" onclick="loadMoreViewerNotifications()" hidden>Load more</button></div></div>
         </section>
 
         <!-- HOME -->
@@ -804,10 +917,10 @@
                     <button class="settings-row" onclick="openInstallationGuide()"><span>Installation Guide</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
                 <div class="settings-group">
-                    <button class="settings-row" onclick="show('deviceInformationPanel')"><span>Device Information</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" type="button" onclick="openDeviceInformation()"><span>Device Information</span><i data-lucide="chevron-right" class="chevron"></i></button>
                     <button class="settings-row" disabled title="Firmware update action is not available from the VD05 driver"><span>Check Firmware Update</span><span class="settings-detail" id="firmwareAvailability">...</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <div class="settings-group"><button class="settings-row" disabled title="C4 Authentication Service is not available from this screen"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row" type="button" onclick="openC4AuthenticationService()"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
                 <div class="settings-group"><button class="settings-row settings-delete-row" disabled title="Device deletion is not available from the VD05 driver">Delete Device</button></div>
             </div>
         </section>
@@ -854,7 +967,8 @@
         <section id="storagePanel" class="panel">
             <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Internal Storage</h1></div><div></div></div>
             <div class="storage-content">
-                <div class="storage-summary"><i data-lucide="card-sim" aria-hidden="true"></i><div class="storage-metric"><span>Total:</span><span id="storageTotal">...</span></div><div class="storage-metric"><span>Available:</span><span id="storageAvailable">...</span></div><div class="storage-status" id="storageStatus">...</div></div>
+                <div class="storage-summary"><i data-lucide="card-sim" aria-hidden="true"></i><div class="storage-metric"><span>Total:</span><span id="storageTotal">...</span></div><div class="storage-metric"><span>Available:</span><span id="storageAvailable">...</span></div></div>
+                <div class="storage-protection"><i data-lucide="shield-check" aria-hidden="true"></i><div><div class="storage-protection-title">39 Days</div><p class="storage-protection-copy">We have provided 39 days of information security protection.</p></div></div>
             </div>
             <div class="storage-footer"><button class="format-storage-button" id="formatStorageButton" onclick="openStorageFormat()" disabled>Format Local Storage</button></div>
         </section>
@@ -887,22 +1001,36 @@
 
         <section id="deviceInformationPanel" class="panel">
             <div class="settings-header-row"><button class="viewer-header-button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>Device Information</h1></div><div></div></div>
-            <div class="settings-subpage"><div class="settings-group">
-                <div class="settings-row settings-info-row"><span>Device Name</span><span class="settings-detail" id="informationDeviceName">...</span></div>
-                <div class="settings-row settings-info-row"><span>Firmware Version</span><span class="settings-detail" id="informationFirmware">...</span></div>
-                <div class="settings-row settings-info-row"><span>Release Date</span><span class="settings-detail" id="informationRelease">...</span></div>
-                <div class="settings-row settings-info-row"><span>IP Address</span><span class="settings-detail" id="informationIp">...</span></div>
-                <div class="settings-row settings-info-row"><span>MAC Address</span><span class="settings-detail" id="informationMac">...</span></div>
-                <div class="settings-row settings-info-row"><span>Battery</span><span class="settings-detail" id="informationBattery">...</span></div>
-            </div><div class="settings-group"><button class="settings-row" onclick="show('rebootPanel')"><span>Reboot</span><i data-lucide="chevron-right" class="chevron"></i></button><button class="settings-row" id="snapshotHomeBtn"><span>Take Snapshot</span><i data-lucide="chevron-right" class="chevron"></i></button></div></div>
+            <div class="settings-subpage device-information">
+                <div class="settings-group settings-info">
+                    <div class="information-header"><img src="../icons/device/settings_300.png" alt="VD05 video doorbell"><div class="information-main"><div class="information-name" id="informationDeviceName">...</div><div class="information-line"><span>Version</span><span id="informationFirmware">...</span></div><div class="information-line"><span>SN</span><span class="information-serial"><span id="informationSerial">...</span><button class="information-copy" id="copyDeviceSerial" type="button" onclick="copyDeviceSerial()" aria-label="Copy SN" title="Copy SN" disabled><i data-lucide="copy"></i></button></span></div></div></div>
+                    <div class="settings-row settings-info-row"><span>Device Time Zone</span><span class="settings-detail" id="informationTimezone">...</span></div>
+                    <div class="settings-row settings-info-row"><span>IP Address</span><span class="settings-detail" id="informationIp">...</span></div>
+                    <div class="settings-row settings-info-row"><span>MAC Address</span><span class="settings-detail" id="informationMac">...</span></div>
+                </div>
+                <div class="settings-group">
+                    <button class="settings-row" type="button" disabled title="Wi-Fi replacement API mapping is not available"><span>Wi-Fi Name<span class="information-secondary" id="informationWifi">...</span></span><span class="information-action-value">Replace<i data-lucide="chevron-right"></i></span></button>
+                    <div class="settings-row settings-info-row"><span>Wi-Fi Signal</span><span class="settings-detail" id="informationSignal">...</span></div>
+                </div>
+                <div class="settings-group"><button class="settings-row information-sync" type="button" disabled title="Time synchronization API mapping is not available"><span>Sync Time<span class="information-secondary">If the device time is incorrect (e.g., due to Daylight Saving Time or time zone changes), please tap Sync to update it to the current accurate time.</span></span><span class="information-action-value">Sync<i data-lucide="chevron-right"></i></span></button></div>
+            </div>
+        </section>
+
+        <section id="c4AuthenticationPanel" class="panel">
+            <div class="settings-header-row"><button class="viewer-header-button" type="button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><div class="settings-heading"><h1>C4 Authentication Service</h1></div><div></div></div>
+            <div class="c4-auth-content">
+                <div class="c4-auth-card"><div class="c4-auth-user"><span>User Identifier</span><button class="c4-auth-user-copy" id="copyUserIdentifier" type="button" onclick="copyUserIdentifier()" aria-label="Copy user identifier" title="Copy user identifier" disabled><i data-lucide="copy"></i></button></div><p class="c4-auth-description">This is for verifying your identity. Do not disclose this information.</p><span id="c4UserIdentifier" hidden></span></div>
+                <button class="c4-pairing-row" type="button" onclick="openPairingModeConfirmation()"><span class="c4-pairing-copy"><span class="c4-pairing-title">Device Pairing Mode</span><span class="c4-pairing-description">Once enabled, the device will continuously send signal broadcasts within the local area network (LAN) and can be used for device authentication and binding.</span></span><span class="c4-pairing-value" id="devicePairingModeValue">OFF</span><i data-lucide="chevron-right" class="c4-pairing-chevron"></i></button>
+            </div>
         </section>
 
         <section id="motionDetectionPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button>
-                <div class="motion-page-title">Motion Detection</div>
+                    <button class="tool-btn" id="viewerSnapshot" type="button" aria-label="Preview snapshot"><i data-lucide="circle-dot"></i></button>
                 <div style="width:38px;"></div>
-            </div>
+                    <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Camera audio playback unavailable" title="Camera audio playback is not available in this web view" disabled><i data-lucide="volume-x"></i></button>
+                    <button class="tool-btn" id="viewerEndCall" type="button" aria-label="End call" title="End call"><i data-lucide="circle-arrow-left"></i></button>
             <div class="motion-page">
                 <div class="motion-group">
                     <div class="motion-row"><label for="motionDetection">Motion Detection</label><label class="toggle"><input type="checkbox" id="motionDetection" aria-label="Motion Detection" disabled><span class="slider"></span></label></div>
@@ -1032,6 +1160,9 @@
     <div class="installation-skip-overlay" id="installationSkipDialog" role="dialog" aria-modal="true" aria-labelledby="installationSkipText" hidden>
         <div class="installation-skip-card"><p class="installation-skip-copy" id="installationSkipText">Are you sure you want to skip the installation guide?</p><div class="installation-skip-actions"><button class="installation-skip-cancel" type="button" onclick="confirmInstallationSkip()">Skip</button><button class="installation-skip-confirm" type="button" onclick="closeInstallationSkip()">Do Not Skip</button></div></div>
     </div>
+    <div class="c4-pairing-dialog" id="devicePairingDialog" role="dialog" aria-modal="true" aria-labelledby="devicePairingDialogTitle" hidden>
+        <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="devicePairingDialogTitle">Tips</h2><p class="c4-pairing-dialog-copy">Confirm whether to enable device pairing mode?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closePairingModeConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmPairingMode()">Confirm</button></div></div>
+    </div>
 
     <div class="face-sheet" id="faceNamingSheet" role="dialog" aria-modal="true" aria-labelledby="faceNamingTitle" hidden>
         <div class="face-sheet-card">
@@ -1112,11 +1243,12 @@
             if (id === 'viewerPanel') startLiveSnapshotPolling();
             else stopLiveSnapshotPolling();
             if (id === 'homePanel') {
+                beginHomeSettingsLoad();
                 requestInitialState();
                 initDeviceInfo();
                 C4.sendCommand('REQUEST_SETTINGS', '', false, false);
             }
-            if (id === 'powerManagementPanel' || id === 'deviceInformationPanel') initDeviceInfo();
+            if (id === 'powerManagementPanel') initDeviceInfo();
             document.querySelector('.footer').hidden = id === 'facialRecPanel' || id === 'viewerPanel';
             if (id === 'motionDetectionPanel' || id === 'detectionZonePanel') requestMotionSettings();
             if (id === 'facialRecPanel') refreshFaces();

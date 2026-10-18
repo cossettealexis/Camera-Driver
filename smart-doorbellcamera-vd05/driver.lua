@@ -852,6 +852,10 @@ function ExecuteCommand(strCommand, tParams)
         GET_CAMERA_SETTINGS()
         return
     end
+    if strCommand == "GET_NOTIFICATION_HISTORY" then
+        GET_NOTIFICATION_HISTORY(tParams)
+        return
+    end
     if strCommand == "SET_CAMERA_SETTING" then
         UPDATE_CAMERA_SETTING(tParams)
         return
@@ -1025,7 +1029,7 @@ function GET_DEVICE_PROPERTY(property_name, callback)
     if property_name == nil then
         req.url = base_url .. "/api/v3/openapi/device/property-latest"
         req.method = "POST"
-        req.body = json.encode({ vid = vid, data_ids = { "motion", "siren_swt", "light_swt", "indicator_swt", "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored" }, data_source = 0 })
+        req.body = json.encode({ vid = vid, data_ids = { "motion", "siren_swt", "light_swt", "indicator_swt", "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored", "stored.status", "stored.capacity", "stored.usage" }, data_source = 0 })
     end
 
     transport.execute(req, function(code, resp, resp_headers, err)
@@ -1124,11 +1128,9 @@ local function publish_motion_settings(values, saved)
         end
     end
     local stored = decode_motion(values.stored)
-    if stored then
-        settings.stored_status = stored.status
-        settings.stored_capacity = stored.capacity
-        settings.stored_usage = stored.usage
-    end
+    settings.stored_status = values["stored.status"] or (stored and stored.status)
+    settings.stored_capacity = values["stored.capacity"] or (stored and stored.capacity)
+    settings.stored_usage = values["stored.usage"] or (stored and stored.usage)
     SendDeviceInfoToUI({ type = "camera_settings", success = true, setting_saved = saved, settings = settings })
 end
 
@@ -1139,6 +1141,65 @@ function GET_CAMERA_SETTINGS()
             return
         end
         publish_motion_settings(values, false)
+    end)
+end
+
+function GET_NOTIFICATION_HISTORY(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local page = type(params) == "table" and math.max(1, tonumber(params.page) or 1) or 1
+    local page_size = 20
+    local vid = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local app_id = GetCldBusCredentials()
+    if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
+        SendDeviceInfoToUI({ type = "notification_history", success = false, error = "Missing device or authentication" })
+        return
+    end
+
+    transport.execute({
+        url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+            "/api/v3/openapi/notifications/query",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Accept-Language"] = "en",
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = app_id
+        },
+        body = json.encode({ page = page, page_size = page_size, vids = { vid } })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if err or (code ~= 200 and code ~= 20000) or not ok or type(parsed) ~= "table" or
+            (api_code and api_code ~= 0 and api_code ~= 200 and api_code ~= 20000) then
+            SendDeviceInfoToUI({ type = "notification_history", success = false, error = "Unable to load notifications" })
+            return
+        end
+
+        local data = parsed.data or {}
+        local notifications = data.notifications or {}
+        local items = {}
+        for _, item in ipairs(notifications) do
+            table.insert(items, {
+                device_name = item.device_name or "",
+                vid = item.vid or vid,
+                time = item.notify_time or 0,
+                image_url = item.image_url or "",
+                video_url = item.video_url or "",
+                video_sec = tonumber(item.video_sec) or 0,
+                message_type = item.message_type or ""
+            })
+        end
+        SendDeviceInfoToUI({
+            type = "notification_history",
+            success = true,
+            notifications = items,
+            page = page,
+            has_more = #notifications >= page_size
+        })
     end)
 end
 
@@ -2741,17 +2802,9 @@ local function handle_device_status(msg)
             print("enabled =", tostring(enabled))
             print("conditional_state.ANTI_PRY_ENABLED =", tostring(conditional_state.ANTI_PRY_ENABLED))
             
-            ForceUIAntiPryRefresh()
-            
             print("[ANTI-PRY] Cloud/MQTT update ->", enabled and "ENABLED" or "DISABLED")
-            
-            if old_state ~= enabled then
-                print("[ANTI-PRY] State changed → pushing")
-                PushAntiPryStateToUI()
-            else
-                print("[ANTI-PRY] State unchanged but still refreshing UI")
-                ForceUIAntiPryRefresh()
-             end
+            if old_state ~= enabled then print("[ANTI-PRY] State changed → pushing") end
+            PushAntiPryStateToUI()
         end
 
 
@@ -4173,62 +4226,45 @@ function SET_ANTI_PRY_STATE(tParams)
 
     if not vid or vid == "" or not token or token == "" then
         print("[ANTI-PRY] ERROR: Missing VID or Token")
+        SendDeviceInfoToUI({ type = "anti_pry_update", success = false, error = "Missing device or authentication" })
         return false
     end
 
-    local url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
-                "/api/v3/openapi/device/do-property"
-
-    local body = {
-        vid = vid,
-        data = json.encode({ tamper_swt = tamper_swt })
-    }
-
-    local headers = {
-        ["Content-Type"]  = "application/json",
-        ["Authorization"] = "Bearer " .. token,
-        ["App-Name"]      = Properties["AppId"] or GlobalObject.CldBusAppId or ""
-    }
-
-    transport.execute({
-        url     = url,
-        method  = "POST",
-        headers = headers,
-        body    = json.encode(body)
-    }, function(code, resp)
-        print("[ANTI-PRY] Cloud response code:", code)
-        if code == 200 or code == 20000 then
-            conditional_state.ANTI_PRY_ENABLED = (tamper_swt == 1)
-            PushAntiPryStateToUI()   -- immediate feedback
-            C4:UpdateProperty("Status", "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled"))
-        else
-            print("[ANTI-PRY] ERROR: Cloud command failed")
-        end
+    SET_DEVICE_PROPERTY({ tamper_swt = tamper_swt }, function()
+        conditional_state.ANTI_PRY_ENABLED = tamper_swt == 1
+        C4:UpdateProperty("Status", "Anti-Pry " .. (tamper_swt == 1 and "Enabled" or "Disabled"))
+        PushAntiPryStateToUI(true)
+    end, function(error_message)
+        print("[ANTI-PRY] Property update failed:", tostring(error_message))
+        SendDeviceInfoToUI({
+            type = "anti_pry_update",
+            success = false,
+            setting_saved = false,
+            error = error_message or "Unable to update Anti-Pry Alert",
+            tamper_swt = conditional_state.ANTI_PRY_ENABLED and 1 or 0,
+            anti_pry_enabled = conditional_state.ANTI_PRY_ENABLED == true
+        })
     end)
 
     return true
 end
 
 
-function PushAntiPryStateToUI()
+function PushAntiPryStateToUI(setting_saved)
     local enabled = conditional_state.ANTI_PRY_ENABLED or false
     local state = enabled and 1 or 0
 
     local payload = json.encode({
         type               = "anti_pry_update",
+        success            = true,
+        setting_saved      = setting_saved == true,
         tamper_swt         = state,
         anti_pry_enabled   = enabled,
-        timestamp          = os.time()          -- force UI refresh
+        timestamp          = os.time()
     })
 
     print("[ANTI-PRY] Pushing to UI:", payload)
-
-    C4:SendDataToUI(payload)
-
-    -- Staggered pushes for reliability
-    C4:SetTimer(300, function() C4:SendDataToUI(payload) end)
-    C4:SetTimer(800, function() C4:SendDataToUI(payload) end)
-    C4:SetTimer(1500, function() C4:SendDataToUI(payload) end)
+    SendDeviceInfoToUI(json.decode(payload))
 end
 
 
@@ -4304,8 +4340,6 @@ function GET_DEVICE_STATUS()
 
         local status_data = type(device.status) == "string" and json.decode(device.status) or device.status
 
-        local antiPryUpdated = false
-
         for _, s in ipairs(status_data or {}) do
             local key = tostring(s.status_key or "")
             local val = s.status_val
@@ -4315,7 +4349,6 @@ function GET_DEVICE_STATUS()
                 local enabled = (tonumber(val) == 1)
                 if conditional_state.ANTI_PRY_ENABLED ~= enabled then
                     conditional_state.ANTI_PRY_ENABLED = enabled
-                    antiPryUpdated = true
                 end
                 print("[ANTI-PRY] Synced via polling:", enabled and "ENABLED" or "DISABLED")
             end
@@ -4328,11 +4361,7 @@ function GET_DEVICE_STATUS()
             end
         end
 
-        -- Push UI updates ONCE at the end (more efficient)
-        if antiPryUpdated or true then   -- always push for safety
-            PushAntiPryStateToUI()
-        end
-        ForceUIAntiPryRefresh()
+        PushAntiPryStateToUI()
         
     end)
 end
@@ -4400,6 +4429,7 @@ function GET_DEVICE_INFO()
             mac            = d.mac or "",
             serial         = d.device_sn or "",
             timezone       = d.timezone or "",
+            user_identifier = GlobalObject.CustomerEmail or Properties["Account"] or "",
             online         = (d.is_online == 1),
             can_update     = (d.can_update == 1)
         }

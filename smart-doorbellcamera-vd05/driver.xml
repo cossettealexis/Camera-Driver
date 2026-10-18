@@ -435,6 +435,11 @@
                 <description>Read camera settings and local storage status</description>
             </command>
             <command>
+                <name>GET_NOTIFICATION_HISTORY</name>
+                <description>Read notification history for this camera</description>
+                <params><param><name>page</name><type>STRING</type></param></params>
+            </command>
+            <command>
                 <name>SET_CAMERA_SETTING</name>
                 <description>Update camera settings</description>
             </command>
