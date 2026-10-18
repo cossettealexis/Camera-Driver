@@ -816,6 +816,11 @@ function ExecuteCommand(strCommand, tParams)
         return
     end
 
+    if strCommand == "DELETE_STRANGER_FACES" then
+        DELETE_STRANGER_FACES(tParams)
+        return
+    end
+
     -- Handle LUA_ACTION wrapper
     if strCommand == "LUA_ACTION" and tParams then
         if tParams.ACTION then
@@ -1613,12 +1618,36 @@ end
 
 -- Get Device Property (query current value)
 local settings_property_groups = {
-    motion = { "motion", "siren_swt", "light_swt", "unknow_snapswt", "unknow_thld", "unknow_faceq" },
+    home = { "indicator_swt" },
+    motion = { "motion", "unknow_snapswt", "unknow_thld", "unknow_faceq" },
     video = { "icut_mode", "anti_flicker", "flip_swt", "mark" },
     audio = { "beep_vol" },
     storage = { "stored" },
     notifications = {}
 }
+
+local function safe_property_log(value, key, token, secret)
+    local name = string.lower(tostring(key or ""))
+    if name:find("token", 1, true) or name:find("secret", 1, true) or name:find("password", 1, true) or
+        name:find("authorization", 1, true) or name:find("credential", 1, true) then return "[REDACTED]" end
+    if type(value) == "table" then
+        local result = {}
+        for field, item in pairs(value) do
+            local item_key = field
+            if field == "value" or field == "status_val" then item_key = value.data_id or value.status_key or value.name or field end
+            result[field] = safe_property_log(item, item_key, token, secret)
+        end
+        return result
+    end
+    if type(value) == "string" then
+        if (token ~= "" and value == token) or (secret ~= "" and value == secret) then return "[REDACTED]" end
+        if value:match("^%s*[%[{]") then
+            local decoded = json.decode(value)
+            if type(decoded) == "table" then return json.encode(safe_property_log(decoded, key, token, secret)) end
+        end
+    end
+    return value
+end
 
 function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
@@ -1662,15 +1691,27 @@ function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
     if property_name == nil then
         req.url = base_url .. "/api/v3/openapi/device/property-latest"
         req.method = "POST"
+        local requested_ids = data_ids
+        if requested_ids == nil then
+            requested_ids = { "motion", "siren_swt", "light_swt", "unknow_snapswt", "unknow_thld", "unknow_faceq",
+                "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored", "indicator_swt" }
+        elseif requested_ids == false then requested_ids = nil end
         req.body = json.encode({
             vid = vid,
-            data_ids = data_ids or { "motion", "siren_swt", "light_swt", "unknow_snapswt", "unknow_thld", "unknow_faceq",
-                "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored" },
+            data_ids = requested_ids,
             data_source = 0
         })
+        print("[PROPERTY-LATEST] Requested fields: " .. (requested_ids and json.encode(requested_ids) or "ALL (manual diagnostic)"))
     end
 
     transport.execute(req, function(code, resp, resp_headers, err)
+        if property_name == nil then
+            print("[PROPERTY-LATEST] HTTP status: " .. tostring(code))
+            print("[PROPERTY-LATEST] Transport error present: " .. tostring(err ~= nil and err ~= false))
+            local response = type(resp) == "table" and resp or json.decode(resp or "")
+            print("[PROPERTY-LATEST] Response: " .. (type(response) == "table" and
+                json.encode(safe_property_log(response, "", auth_token, appSecret)) or "[Non-JSON response]"))
+        end
         if err or (code ~= 200 and code ~= 20000) then
             print("ERROR: Failed to get device properties")
             if callback then callback(nil) end
@@ -1686,14 +1727,18 @@ function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
         end
         local data = parsed.data or (parsed.result and parsed.result.data)
         if type(data) ~= "table" then if callback then callback(nil) end return end
-        if property_name ~= nil then
-            for _, prop in ipairs(data.status or {}) do
-                if prop.status_key == property_name then if callback then callback(prop.status_val) end return end
+        local device = data
+        if data.devices or data.share_devices then
+            device = nil
+            for _, devices in ipairs({ data.devices or {}, data.share_devices or {} }) do
+                for _, candidate in ipairs(devices) do
+                    if tostring(candidate.vid) == tostring(vid) then device = candidate break end
+                end
+                if device then break end
             end
-            if callback then callback(nil) end
-            return
         end
-        local status = data.status or data
+        if type(device) ~= "table" then if callback then callback(nil) end return end
+        local status = device.status or (property_name == nil and device)
         if type(status) == "string" then
             local decoded_ok, decoded = pcall(json.decode, status)
             status = decoded_ok and decoded or nil
@@ -1704,13 +1749,18 @@ function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
         for key, item in pairs(status) do
             if type(item) == "table" then
                 local name = item.data_id or item.status_key or item.name
-                local value = item.value
-                if value == nil then value = item.status_val end
+                local value = item.status_val
+                if value == nil then value = item.value end
                 if name then values[name] = value
                 elseif type(key) == "string" then values[key] = item end
             elseif type(key) == "string" then values[key] = item end
         end
-        if callback then callback(values) end
+        if property_name == nil then
+            print("[PROPERTY-LATEST] Parsed properties: " .. json.encode(safe_property_log(values, "", auth_token, appSecret)))
+        end
+        if callback then
+            if property_name == nil then callback(values) else callback(values[property_name]) end
+        end
     end)
 end
 
@@ -1741,19 +1791,19 @@ function GET_CAMERA_SETTINGS(params)
             siren_swt = values.siren_swt, light_swt = values.light_swt,
             unknow_snapswt = values.unknow_snapswt, unknow_thld = values.unknow_thld, unknow_faceq = values.unknow_faceq,
             icut_mode = values.icut_mode, anti_flicker = values.anti_flicker, flip_swt = values.flip_swt, mark = values.mark,
-            beep_vol = values.beep_vol
+            beep_vol = values.beep_vol, indicator_swt = values.indicator_swt
         }
-        if type(motion) == "table" then
-            for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
-                settings["motion_" .. field] = motion[field]
-            end
+        for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
+            local value = type(motion) == "table" and motion[field] or nil
+            if value == nil then value = values["motion." .. field] end
+            settings["motion_" .. field] = value
         end
         local stored = values.stored
         if type(stored) == "string" then stored = json.decode(stored) end
         if type(stored) == "table" then
             for _, field in ipairs({ "status", "capacity", "usage" }) do settings["stored_" .. field] = stored[field] end
         end
-        SendDeviceInfoToUI({ type = "camera_settings", success = true, scope = scope, request_id = request_id, settings = settings })
+        SendDeviceInfoToUI({ type = "camera_settings", success = true, complete = true, scope = scope, request_id = request_id, settings = settings })
     end, settings_property_groups[scope])
 end
 
@@ -1776,7 +1826,7 @@ local function process_k26_motion_setting()
         if change.key == "alarm" then
             data = { siren_swt = change.value, light_swt = change.value }
         elseif change.key == "unknow_snapswt" or change.key == "unknow_thld" or change.key == "unknow_faceq" or
-            change.key == "icut_mode" or change.key == "anti_flicker" or change.key == "flip_swt" or change.key == "mark" or change.key == "beep_vol" then
+            change.key == "icut_mode" or change.key == "anti_flicker" or change.key == "flip_swt" or change.key == "mark" or change.key == "beep_vol" or change.key == "indicator_swt" then
             if values[change.key] == nil then finish("Setting unavailable on this camera") return end
             data = { [change.key] = change.value }
         else
@@ -1844,40 +1894,42 @@ function UPDATE_CAMERA_SETTING(params)
         table.insert(motion_setting_queue, { key = key, value = value })
     elseif key == "icut_mode" then
         value = tonumber(value)
-        if value ~= 0 and value ~= 2 and value ~= 3 then return reject() end
+        if value ~= 0 and value ~= 1 and value ~= 2 then return reject() end
         table.insert(motion_setting_queue, { key = key, value = value })
-    elseif key == "anti_flicker" or key == "flip_swt" or key == "mark" or key == "beep_vol" then
+    elseif key == "anti_flicker" or key == "flip_swt" or key == "mark" or key == "beep_vol" or key == "indicator_swt" then
         value = tonumber(value)
         local limit = key == "beep_vol" and 10 or (key == "anti_flicker" and 2 or 1)
-        function FORMAT_STORAGE(params)
-            if type(params) == "string" then params = json.decode(params) end
-            if type(params) ~= "table" or params.confirmed ~= true then return end
-            local vid = _props["VID"] or Properties["VID"]
-            local token = _props["Auth Token"] or Properties["Auth Token"]
-            local app_id = GetCldBusCredentials()
-            if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
-                SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device or API credentials" })
-                return
-            end
-            transport.execute({
-                url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
-                method = "POST",
-                headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token, ["App-Name"] = app_id },
-                body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
-            }, function(code, response, _, err)
-                local parsed = json.decode(response or "")
-                local api_code = type(parsed) == "table" and tonumber(parsed.code)
-                local success = not err and (code == 200 or code == 20000) and (api_code == 0 or api_code == 200 or api_code == 20000)
-                SendDeviceInfoToUI({ type = "storage_format", success = success == true,
-                    error = not success and (type(parsed) == "table" and parsed.message or "Format request failed") or nil })
-            end)
-        end
         if not value or value % 1 ~= 0 or value < 0 or value > limit then return reject() end
         table.insert(motion_setting_queue, { key = key, value = value })
     else
         return reject()
     end
     process_k26_motion_setting()
+end
+
+function FORMAT_STORAGE(params)
+    if type(params) == "string" then params = json.decode(params) end
+    if type(params) ~= "table" then return end
+    if params.confirmed ~= true and params.confirmed ~= "true" and params.confirmed ~= "1" and params.confirmed ~= 1 then return end
+    local vid = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local app_id = GetCldBusCredentials()
+    if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
+        SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device or API credentials" })
+        return
+    end
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token, ["App-Name"] = app_id },
+        body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
+    }, function(code, response, _, err)
+        local parsed = json.decode(response or "")
+        local api_code = type(parsed) == "table" and tonumber(parsed.code)
+        local success = not err and (code == 200 or code == 20000) and (api_code == 0 or api_code == 200 or api_code == 20000)
+        SendDeviceInfoToUI({ type = "storage_format", success = success == true,
+            error = not success and (type(parsed) == "table" and parsed.message or "Format request failed") or nil })
+    end)
 end
 
 -- -----------------------
@@ -3893,6 +3945,50 @@ function REBOOT_DEVICE(tParams)
     end)
 
     return true
+end
+
+function DELETE_STRANGER_FACES(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local function reply(success, error_message)
+        SendStrangerFacesToUI({ type = "stranger_faces_deleted", success = success, error = error_message })
+    end
+    local ids = type(params) == "table" and (params.ids_json or params.ids)
+    if type(ids) == "string" then
+        local ok, decoded = pcall(json.decode, ids)
+        ids = ok and type(decoded) == "table" and decoded or nil
+    end
+    if type(ids) ~= "table" or #ids == 0 then reply(false, "Select at least one face") return end
+    local validated = {}
+    for _, id in ipairs(ids) do
+        local numeric_id = tonumber(id)
+        if not numeric_id or numeric_id % 1 ~= 0 or numeric_id <= 0 then
+            reply(false, "Invalid stranger note ID")
+            return
+        end
+        validated[#validated + 1] = numeric_id
+    end
+    local token = _props["Auth Token"] or Properties["Auth Token"] or ""
+    local vid = _props["VID"] or Properties["VID"] or ""
+    if token == "" or vid == "" then reply(false, "Missing Auth Token or VID") return end
+    transport.execute({
+        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/stranger-note-del",
+        method = "POST",
+        headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = GlobalObject.CldBusAppId or Properties["AppId"] or "" },
+        body = json.encode({ vid = vid, ids = validated })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if err or (code ~= 200 and code ~= 20000) or not ok or
+            (api_code ~= 0 and api_code ~= 200 and api_code ~= 20000) then
+            reply(false, (ok and type(parsed) == "table" and parsed.message) or "Unable to delete faces")
+            return
+        end
+        reply(true)
+    end)
 end
 
 function TAKE_SNAPSHOT_FOR_UI()

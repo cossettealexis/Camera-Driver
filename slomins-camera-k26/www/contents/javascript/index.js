@@ -2,12 +2,25 @@
 let isMicMuted = false;
 let latestCameraSettings = {};
 let hasConfirmedMicCall = false;
+let faces = [];
+let faceEditMode = false;
+let facePage = 1;
+let requestedFacePage = 1;
+let faceTotal = 0;
+let namingFaceId = null;
+let pendingFaceRename = null;
+let pendingFaceDelete = null;
+const selectedFaceIds = new Set();
 let confirmedDeviceName = '';
 let pendingDeviceName = '';
 let deviceNameDraftDirty = false;
 let deviceNameReturnFocus;
 let settingsLoading = false;
 let settingsLoadScope = 'motion';
+let settingsRequestSequence = 0;
+let activeSettingsRequest = 0;
+let homeInfoReady = false;
+let storageFormatStep = 0;
 let settingsLoadTimer;
 let settingToastTimer;
 let settingSaveFailed = false;
@@ -33,11 +46,11 @@ const motionOptionSpecs = {
     },
     nightVisionMode: {
         key: 'icut_mode', title: 'Night Vision Mode', immediate: true,
-        values: [0, 2, 3], labels: ['Infrared night vision', 'Color night vision', 'Smart night vision'],
+        values: [0, 1, 2], labels: ['Infrared mode', 'Unenabled', 'Color light mode'],
         descriptions: [
             'When an event is detected at night, the infrared light automatically turns on',
-            'When an event is detected at night, the white light will be automatically turned on to record color video, but it will accelerate battery consumption',
-            ''
+            'When the light in front of the camera is always brighter, use Enable to select this mode to always turn off the infrared light and white light',
+            'When an event is detected at night, the white light will be automatically turned on to record color video, but it will accelerate battery consumption'
         ]
     },
     antiFlicker: {
@@ -59,9 +72,10 @@ function updateSettingSaveOverlay() {
     overlay.setAttribute('data-loading', String(settingsLoading));
     overlay.hidden = !pending;
     document.getElementById('settingSaveLabel').textContent = settingsLoading ? 'Loading...' :
-        (pendingSettingSaves.get('mic')?.label || 'Setting up...');
+        (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.values().next().value?.label || 'Setting up...');
     const app = document.querySelector('.app');
-    if (app) app.inert = pending || !document.getElementById('deviceNameSheet').hidden;
+    if (app) app.inert = pending || !document.getElementById('deviceNameSheet').hidden || !document.getElementById('storageFormatDialog').hidden ||
+        !document.getElementById('faceNamingSheet').hidden || !document.getElementById('faceDeleteConfirmation').hidden;
     if (pending) overlay.focus();
 }
 
@@ -216,8 +230,8 @@ function updateMotionChoiceLabels() {
 function updateMotionVisibility() {
     const motion = document.getElementById('motionDetectionToggle');
     document.getElementById('motionSettingsGroup').hidden = motion.indeterminate || !motion.checked;
-    document.getElementById('motionAlarmGroup').hidden = motion.indeterminate || !motion.checked;
     const facial = document.getElementById('faceRecEnable');
+    document.getElementById('facialRecognitionRow').style.borderBottom = facial.indeterminate || !facial.checked ? '0' : '';
     ['faceSimilarity', 'faceQuality'].forEach(id => {
         const row = document.getElementById(id);
         row.hidden = facial.indeterminate || !facial.checked || row.disabled;
@@ -226,25 +240,48 @@ function updateMotionVisibility() {
 }
 
 function resetCameraSettings() {
-    latestCameraSettings = {};
-    ['motionDetectionToggle', 'motionAlarmToggle', 'faceRecEnable', 'flipImageToggle', 'timeWatermarkToggle'].forEach(id => {
+    const indicator = latestCameraSettings.indicator_swt;
+    latestCameraSettings = settingsLoadScope !== 'home' && indicator !== undefined ? { indicator_swt: indicator } : {};
+    if (settingsLoadScope === 'home') {
+        const statusLight = document.getElementById('statusLight');
+        statusLight.disabled = true;
+        statusLight.checked = false;
+        statusLight.indeterminate = true;
+        statusLight.setAttribute('aria-busy', 'true');
+        const status = document.getElementById('statusLightValue');
+        status.textContent = '...';
+        status.hidden = false;
+    }
+    ['motionDetectionToggle', 'faceRecEnable', 'flipImageToggle', 'timeWatermarkToggle',
+        'appAlertNotification', 'appMotionNotification', 'appOfflineNotification', 'appEventNotification'].forEach(id => {
         const control = document.getElementById(id);
         control.disabled = true;
         control.indeterminate = true;
         control.checked = false;
     });
-    ['motionDetectionType', 'motionSensitivity', 'faceSimilarity', 'faceQuality', 'nightVisionMode', 'antiFlicker', 'k26ZoneX', 'k26ZoneY', 'k26ZoneWidth', 'k26ZoneHeight'].forEach(id => {
+    ['motionDetectionType', 'motionSensitivity', 'faceSimilarity', 'faceQuality', 'nightVisionMode', 'antiFlicker', 'speakerVolume', 'k26ZoneX', 'k26ZoneY', 'k26ZoneWidth', 'k26ZoneHeight'].forEach(id => {
         const control = document.getElementById(id);
         control.disabled = true;
         control.value = '';
     });
     document.getElementById('motionZoneOpen').disabled = true;
     document.getElementById('k26ZoneSave').disabled = true;
+    document.getElementById('speakerVolumeValue').textContent = '...';
+    ['storageTotal', 'storageAvailable', 'storageStatus'].forEach(id => { document.getElementById(id).textContent = '...'; });
+    document.getElementById('formatStorageButton').disabled = true;
     updateMotionChoiceLabels();
     updateMotionVisibility();
 }
 
 function cameraSettingsReady() {
+    if (settingsLoadScope === 'home') return homeInfoReady && !document.getElementById('statusLight').disabled;
+    if (settingsLoadScope === 'notifications') return true;
+    if (settingsLoadScope === 'audio') return !document.getElementById('speakerVolume').disabled;
+    if (settingsLoadScope === 'storage') {
+        const status = latestCameraSettings.stored_status;
+        return status !== undefined && status !== null && status !== '' && [0, 1, 2].includes(Number(status)) &&
+            (Number(status) !== 0 || !document.getElementById('formatStorageButton').disabled);
+    }
     if (settingsLoadScope === 'video') {
         return ['nightVisionMode', 'antiFlicker', 'flipImageToggle', 'timeWatermarkToggle']
             .every(id => !document.getElementById(id).disabled);
@@ -252,7 +289,7 @@ function cameraSettingsReady() {
     const motion = document.getElementById('motionDetectionToggle');
     const facial = document.getElementById('faceRecEnable');
     if (motion.disabled || facial.disabled) return false;
-    const motionReady = !motion.checked || ['motionDetectionType', 'motionSensitivity', 'motionAlarmToggle', 'k26ZoneSave']
+    const motionReady = !motion.checked || ['motionDetectionType', 'motionSensitivity', 'k26ZoneSave']
         .every(id => !document.getElementById(id).disabled);
     const facialReady = !facial.checked || ['faceSimilarity', 'faceQuality']
         .every(id => !document.getElementById(id).disabled);
@@ -261,30 +298,92 @@ function cameraSettingsReady() {
 
 document.addEventListener('DOMContentLoaded', function () {
     initializeControl4();
-    requestDeviceInfo();
     initMicrophone();
     initReboot();
     initDeviceName();
     initSnapshot();
-    initSaveFacesButton();
     initCameraSettings();
-    requestCameraSettings();
+    requestCameraSettings('home');
 });
 
 function requestCameraSettings(scope = 'motion') {
     clearTimeout(settingsLoadTimer);
     settingsLoadScope = scope;
+    if (scope === 'home') homeInfoReady = false;
+    activeSettingsRequest = ++settingsRequestSequence;
     settingsLoading = true;
     resetCameraSettings();
     document.getElementById('settingSaveToast').hidden = true;
     updateSettingSaveOverlay();
     settingsLoadTimer = setTimeout(() => finishCameraSettingsLoad(false, 'Settings request timed out'), 20000);
     try {
-        C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+        const command = scope === 'home' || scope === 'information' ? 'GET_DEVICE_INFO' : 'GET_CAMERA_SETTINGS';
+        C4.sendCommand(command, JSON.stringify({ scope, request_id: activeSettingsRequest }), false, true);
+        if (scope === 'home') {
+            C4.sendCommand('GET_CAMERA_SETTINGS', JSON.stringify({ scope, request_id: activeSettingsRequest }), false, true);
+        }
     } catch (e) {
         console.error('Failed to request camera settings', e);
         finishCameraSettingsLoad(false, 'Unable to request camera settings');
     }
+}
+
+function updateSpeakerVolumePreview() {
+    const slider = document.getElementById('speakerVolume');
+    const value = Number(slider.value);
+    slider.style.setProperty('--speaker-fill', `${value * 10}%`);
+    const output = document.getElementById('speakerVolumeValue');
+    output.textContent = String(value);
+    output.style.left = `calc(8px + ${value * 10}% - ${value * 1.6}px)`;
+}
+
+function openStorageFormat() {
+    if (document.getElementById('formatStorageButton').disabled || pendingSettingSaves.size > 0) return;
+    storageFormatStep = 0;
+    document.getElementById('storageFormatTitle').textContent = 'Format Local Storage';
+    document.getElementById('confirmStorageFormat').textContent = 'Next';
+    document.getElementById('storageFormatDialog').hidden = false;
+    updateSettingSaveOverlay();
+    document.getElementById('cancelStorageFormat').focus();
+}
+
+function closeStorageFormat() {
+    if (pendingSettingSaves.has('format')) return;
+    document.getElementById('storageFormatDialog').hidden = true;
+    storageFormatStep = 0;
+    updateSettingSaveOverlay();
+}
+
+function confirmStorageFormat() {
+    if (document.getElementById('storageFormatDialog').hidden || pendingSettingSaves.has('format')) return;
+    if (storageFormatStep === 0) {
+        storageFormatStep = 1;
+        document.getElementById('storageFormatTitle').textContent = 'Confirm Format Local Storage';
+        document.getElementById('confirmStorageFormat').textContent = 'Format';
+        return;
+    }
+    beginSettingSave('format', 'Formatting...');
+    try {
+        C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
+    } catch (error) {
+        finishSettingSave('format', false, 'Unable to send format command');
+    }
+}
+
+async function copyDeviceSerial() {
+    const value = document.getElementById('deviceSerial').textContent;
+    if (!value || value === '...') return;
+    try {
+        await navigator.clipboard.writeText(value);
+        showSettingToast('SN copied');
+    } catch (error) {
+        showSettingToast('Clipboard unavailable');
+    }
+}
+
+function currentSettingsResponse(obj) {
+    return (!obj.scope || obj.scope === settingsLoadScope) &&
+        (obj.request_id === undefined || Number(obj.request_id) === activeSettingsRequest);
 }
 
 function sendCameraSetting(key, value) {
@@ -307,6 +406,16 @@ function updateCameraSettingsUI(settings) {
     latestCameraSettings = { ...latestCameraSettings, ...settings };
     const integerInRange = (value, limit) => value !== undefined && value !== null && value !== '' &&
         Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= limit;
+    if (integerInRange(latestCameraSettings.indicator_swt, 1)) {
+        const statusLight = document.getElementById('statusLight');
+        statusLight.checked = Number(latestCameraSettings.indicator_swt) === 1;
+        statusLight.indeterminate = false;
+        statusLight.disabled = false;
+        statusLight.setAttribute('aria-busy', 'false');
+        const status = document.getElementById('statusLightValue');
+        status.textContent = statusLight.checked ? 'On' : 'Off';
+        status.hidden = true;
+    }
     const motionEnabled = Number(latestCameraSettings.motion_switch) === 1;
     const motionToggle = document.getElementById('motionDetectionToggle');
     if (motionToggle && integerInRange(latestCameraSettings.motion_switch, 1)) {
@@ -315,9 +424,7 @@ function updateCameraSettingsUI(settings) {
         motionToggle.disabled = false;
     }
     const motionGroup = document.getElementById('motionSettingsGroup');
-    const alarmGroup = document.getElementById('motionAlarmGroup');
     if (motionGroup) motionGroup.hidden = !motionEnabled;
-    if (alarmGroup) alarmGroup.hidden = !motionEnabled;
 
     [
         ['motionDetectionType', 'motion_type'],
@@ -329,12 +436,6 @@ function updateCameraSettingsUI(settings) {
             control.disabled = false;
         }
     });
-    const alarm = document.getElementById('motionAlarmToggle');
-    if (alarm && integerInRange(latestCameraSettings.siren_swt, 1) && integerInRange(latestCameraSettings.light_swt, 1)) {
-        alarm.checked = Number(latestCameraSettings.siren_swt) === 1 && Number(latestCameraSettings.light_swt) === 1;
-        alarm.indeterminate = Number(latestCameraSettings.siren_swt) !== Number(latestCameraSettings.light_swt);
-        alarm.disabled = false;
-    }
     const facial = document.getElementById('faceRecEnable');
     if (integerInRange(latestCameraSettings.unknow_snapswt, 1)) {
         facial.checked = Number(latestCameraSettings.unknow_snapswt) === 1;
@@ -356,7 +457,7 @@ function updateCameraSettingsUI(settings) {
     [['nightVisionMode', 'icut_mode'], ['antiFlicker', 'anti_flicker']].forEach(([id, key]) => {
         const value = latestCameraSettings[key];
         const valid = key === 'icut_mode' ? value !== undefined && value !== null && value !== '' &&
-            [0, 2, 3].includes(Number(value)) : integerInRange(value, 2);
+            [0, 1, 2].includes(Number(value)) : integerInRange(value, 2);
         if (valid) {
             const control = document.getElementById(id);
             control.value = String(value);
@@ -371,6 +472,23 @@ function updateCameraSettingsUI(settings) {
             control.disabled = false;
         }
     });
+    if (integerInRange(latestCameraSettings.beep_vol, 10)) {
+        const volume = document.getElementById('speakerVolume');
+        volume.value = String(latestCameraSettings.beep_vol);
+        volume.disabled = false;
+        updateSpeakerVolumePreview();
+    }
+    const storageState = latestCameraSettings.stored_status;
+    const capacity = latestCameraSettings.stored_capacity;
+    const usage = latestCameraSettings.stored_usage;
+    if (integerInRange(storageState, 2)) {
+        document.getElementById('storageStatus').textContent = ['Normal', 'No SD card', 'Filesystem not initialized'][Number(storageState)];
+    }
+    if (integerInRange(capacity, 128) && integerInRange(usage, 100) && Number(storageState) === 0) {
+        document.getElementById('storageTotal').textContent = `${Number(capacity)} GB`;
+        document.getElementById('storageAvailable').textContent = `${Number((Number(capacity) * (1 - Number(usage) / 100)).toFixed(2))} GB`;
+        document.getElementById('formatStorageButton').disabled = false;
+    } else document.getElementById('formatStorageButton').disabled = Number(storageState) !== 2;
     const zone = document.getElementById('motionZoneOpen');
     if (zone && typeof latestCameraSettings.motion_x_y_w_h === 'string') {
         const coordinates = latestCameraSettings.motion_x_y_w_h.split(':');
@@ -393,10 +511,11 @@ function updateCameraSettingsUI(settings) {
 
 function initCameraSettings() {
     resetCameraSettings();
+    const statusLight = document.getElementById('statusLight');
+    statusLight.addEventListener('change', () => sendCameraSetting('indicator_swt', statusLight.checked ? 1 : 0));
     const motionToggle = document.getElementById('motionDetectionToggle');
     const detectionType = document.getElementById('motionDetectionType');
     const sensitivity = document.getElementById('motionSensitivity');
-    const alarm = document.getElementById('motionAlarmToggle');
     const zoneOpen = document.getElementById('motionZoneOpen');
     const zoneSave = document.getElementById('k26ZoneSave');
 
@@ -406,7 +525,6 @@ function initCameraSettings() {
     });
     if (detectionType) detectionType.addEventListener('change', () => sendCameraSetting('motion.type', detectionType.value));
     if (sensitivity) sensitivity.addEventListener('change', () => sendCameraSetting('motion.sen', sensitivity.value));
-    if (alarm) alarm.addEventListener('change', () => sendCameraSetting('alarm', alarm.checked ? 1 : 0));
     const facial = document.getElementById('faceRecEnable');
     facial.addEventListener('change', () => {
         updateMotionVisibility();
@@ -416,6 +534,9 @@ function initCameraSettings() {
         const control = document.getElementById(id);
         control.addEventListener('change', () => sendCameraSetting(key, control.checked ? 1 : 0));
     });
+    const volume = document.getElementById('speakerVolume');
+    volume.addEventListener('input', updateSpeakerVolumePreview);
+    volume.addEventListener('change', () => sendCameraSetting('beep_vol', Number(volume.value)));
     if (zoneOpen) zoneOpen.addEventListener('click', () => show('detectionZonePanel'));
     if (zoneSave) zoneSave.addEventListener('click', () => {
         const coordinates = ['k26ZoneX', 'k26ZoneY', 'k26ZoneWidth', 'k26ZoneHeight']
@@ -765,135 +886,227 @@ function closeSnapshotModal() {
     }
 }
 
+function formatFaceTimestamp(value) {
+    if (value === undefined || value === null || value === '') return '';
+    const text = String(value).trim();
+    let date;
+    if (/^\d+(?:\.\d+)?$/.test(text)) {
+        const timestamp = Number(text);
+        if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+        date = new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp);
+    } else date = new Date(text.replace(' ', 'T'));
+    if (!Number.isFinite(date.getTime())) return '';
+    const pad = component => String(component).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function updateFaceSelection() {
+    const selectable = faces.filter(face => face.id !== null);
+    const selectAll = document.getElementById('faceSelectAll');
+    selectAll.checked = selectable.length > 0 && selectable.every(face => selectedFaceIds.has(face.id));
+    selectAll.indeterminate = selectedFaceIds.size > 0 && !selectAll.checked;
+    selectAll.disabled = selectable.length === 0;
+    document.getElementById('faceSelectedCount').textContent = String(selectedFaceIds.size);
+    document.getElementById('faceDeleteButton').disabled = selectedFaceIds.size === 0;
+}
+
 function renderFaces() {
-    // Always re-query in case they were null
-    faceListEl = document.getElementById('faceList');
-    saveFacesBtn = document.getElementById('saveFacesBtn');
-
-    if (!faceListEl) {
-        console.warn("faceList element not found");
-        return;
-    }
-
-    faceListEl.innerHTML = '';
-
+    const list = document.getElementById('faceList');
+    list.replaceChildren();
     if (faces.length === 0) {
-        faceListEl.innerHTML = `<div class="empty-faces">No faces enrolled yet</div>`;
-        if (saveFacesBtn) saveFacesBtn.disabled = true;
-        return;
+        const empty = document.createElement('div');
+        empty.className = 'face-empty';
+        const art = document.createElement('div');
+        art.className = 'face-empty-art';
+        art.setAttribute('aria-hidden', 'true');
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'scan');
+        art.appendChild(icon);
+        const person = document.createElement('i');
+        person.className = 'face-empty-person';
+        person.setAttribute('data-lucide', 'user-round');
+        art.appendChild(person);
+        const label = document.createElement('div');
+        label.className = 'face-empty-label';
+        label.textContent = 'No face detected yet';
+        empty.appendChild(art);
+        empty.appendChild(label);
+        list.appendChild(empty);
     }
-
-    faces.forEach((face, index) => {
-        const item = document.createElement('div');
-        item.className = 'face-item';
-
-        const imgSrc = face.imageUrl || '';
-        
-
-        item.innerHTML = `
-            <div class="face-avatar">
-                ${imgSrc
-                    ? `<img src="${imgSrc}" alt="${face.name || ''}" onerror="this.style.display='none'">`
-                    : `<i data-lucide="user" style="width:22px;height:22px;color:var(--muted)"></i>`
-                }
-            </div>
-            <div class="face-info">
-                <input type="text" class="face-name-input" 
-                       value="${face.name || ''}" 
-                       data-index="${index}" 
-                       maxlength="40" 
-                       placeholder="Enter name">
-                <div class="face-meta">ID: ${face.id || face.face_id || '-'}</div>
-            </div>
-        `;
-        faceListEl.appendChild(item);
-    });
-
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
-    faceListEl.querySelectorAll('.face-name-input').forEach(input => {
-        input.addEventListener('input', function () {
-            const idx = parseInt(this.dataset.index);
-            faces[idx].name = this.value.trim();
-            facesDirty = true;
-            if (saveFacesBtn) saveFacesBtn.disabled = false;
-        });
-    });
-}
-
-function loadFaces() {
-  
-
-    faceListEl = document.getElementById('faceList');
-    if (faceListEl) {
-        faceListEl.innerHTML = `<div class="empty-faces">Loading faces...</div>`;
-    }
-
-    try {
-        C4.sendCommand(
-            'GET_STRANGER_FACES',
-            JSON.stringify({ page: 1, page_size: 50 }),
-            false,
-            true
-        );
-    } catch (e) {
-        console.error("Failed to request stranger faces", e);
-        if (faceListEl) {
-            faceListEl.innerHTML = `<div class="empty-faces">Failed to request faces</div>`;
+    faces.forEach(face => {
+        const row = document.createElement('div');
+        row.className = 'face-entry';
+        row.tabIndex = 0;
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-label', face.name || 'Stranger');
+        if (faceEditMode) {
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'face-selection';
+            check.checked = selectedFaceIds.has(face.id);
+            check.disabled = face.id === null;
+            check.setAttribute('aria-label', `Select ${face.name || 'Stranger'}`);
+            check.addEventListener('click', event => event.stopPropagation());
+            check.addEventListener('change', () => {
+                if (check.checked) selectedFaceIds.add(face.id); else selectedFaceIds.delete(face.id);
+                updateFaceSelection();
+            });
+            row.appendChild(check);
         }
+        const hasImage = /^https?:\/\//i.test(face.imageUrl);
+        const image = document.createElement(hasImage ? 'img' : 'span');
+        image.className = 'face-entry-image';
+        const placeholder = () => {
+            const fallback = document.createElement('span');
+            fallback.className = 'face-entry-image face-image-placeholder';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'user');
+            icon.setAttribute('aria-hidden', 'true');
+            fallback.appendChild(icon);
+            return fallback;
+        };
+        if (hasImage) {
+            image.src = face.imageUrl;
+            image.alt = face.name || 'Stranger';
+            image.addEventListener('error', () => {
+                image.replaceWith(placeholder());
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }, { once: true });
+        } else {
+            image.className += ' face-image-placeholder';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'user');
+            icon.setAttribute('aria-hidden', 'true');
+            image.appendChild(icon);
+        }
+        row.appendChild(image);
+        const details = document.createElement('span');
+        details.className = 'face-entry-details';
+        const name = document.createElement('span');
+        name.className = 'face-entry-name';
+        name.textContent = face.name || 'Stranger';
+        const time = document.createElement('span');
+        time.className = 'face-entry-time';
+        const updatedAt = formatFaceTimestamp(face.updated_at);
+        time.textContent = updatedAt ? `Last Updated Time:${updatedAt}` : '';
+        details.appendChild(name);
+        details.appendChild(time);
+        row.appendChild(details);
+        const activate = () => {
+            if (faceEditMode) {
+                if (face.id === null) return;
+                if (selectedFaceIds.has(face.id)) selectedFaceIds.delete(face.id); else selectedFaceIds.add(face.id);
+                renderFaces();
+            } else openFaceNaming(face.face_id);
+        };
+        row.addEventListener('click', activate);
+        row.addEventListener('keydown', event => {
+            if (event.target !== row) return;
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); }
+        });
+        list.appendChild(row);
+    });
+    document.getElementById('faceLoadMore').hidden = faces.length >= faceTotal;
+    document.getElementById('faceEditButton').textContent = faceEditMode ? 'Cancel' : 'Edit';
+    document.getElementById('faceEditToolbar').hidden = !faceEditMode;
+    updateFaceSelection();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function loadFaces(page = 1) {
+    requestedFacePage = page;
+    document.getElementById('faceLoadMore').disabled = true;
+    if (page === 1 && faces.length === 0) document.getElementById('faceList').textContent = 'Loading faces...';
+    try {
+        C4.sendCommand('GET_STRANGER_FACES', JSON.stringify({ page, page_size: 50 }), false, true);
+    } catch (error) {
+        document.getElementById('faceList').textContent = 'Unable to load faces';
+        document.getElementById('faceLoadMore').disabled = false;
     }
 }
 
-function updateFacesFromDriver(notes) {
-    console.log("updateFacesFromDriver received notes:", notes);
-
-    faces = (notes || []).map(n => ({
-        id: n.id || n.face_id,
-        face_id: n.face_id,
-        name: n.note || '',
-        imageUrl: n.face_img_url || '',
-        updated_at: n.updated_at
+function updateFacesFromDriver(notes, page = 1, total = notes.length) {
+    const received = notes.map(note => ({
+        id: note.id !== undefined && note.id !== null && note.id !== '' && Number.isSafeInteger(Number(note.id)) && Number(note.id) > 0 ? Number(note.id) : null,
+        face_id: note.face_id, name: note.note || '', imageUrl: note.face_img_url || '', updated_at: note.updated_at
     }));
-
-    facesDirty = false;
-    saveFacesBtn = document.getElementById('saveFacesBtn');
-    if (saveFacesBtn) saveFacesBtn.disabled = true;
-
+    if (page === 1) faces = received;
+    else received.forEach(face => {
+        const index = faces.findIndex(current => current.face_id === face.face_id);
+        if (index < 0) faces.push(face); else faces[index] = face;
+    });
+    facePage = page;
+    faceTotal = Number(total) || faces.length;
+    [...selectedFaceIds].forEach(id => { if (!faces.some(face => face.id === id)) selectedFaceIds.delete(id); });
+    document.getElementById('faceLoadMore').disabled = false;
     renderFaces();
 }
 
-function initSaveFacesButton() {
-    const btn = document.getElementById('saveFacesBtn');
-    if (!btn) return;
+function toggleFaceEditMode() {
+    if (pendingSettingSaves.size > 0) return;
+    faceEditMode = !faceEditMode;
+    selectedFaceIds.clear();
+    renderFaces();
+}
 
-    btn.addEventListener('click', function () {
-        if (!facesDirty) return;
+function selectAllFaces(selected) {
+    selectedFaceIds.clear();
+    if (selected) faces.forEach(face => { if (face.id !== null) selectedFaceIds.add(face.id); });
+    renderFaces();
+}
 
-        console.log("SAVE_FACES_TO_API", faces);
+function leaveFaceManagement() {
+    faceEditMode = false;
+    selectedFaceIds.clear();
+    show('motionDetectionPanel');
+}
 
-        const updates = faces.filter(face => face.face_id);
-        if (updates.length === 0) return;
-        btn.disabled = true;
-        updates.forEach(() => beginSettingSave('faces'));
-        updates.forEach(face => {
+function openFaceNaming(faceId) {
+    const face = faces.find(item => item.face_id === faceId);
+    if (!face || !faceId) return;
+    namingFaceId = faceId;
+    document.getElementById('faceNamingInput').value = face.name;
+    document.getElementById('faceNamingInput').placeholder = 'Stranger';
+    document.getElementById('faceNamingError').textContent = '';
+    document.getElementById('faceNamingSheet').hidden = false;
+    updateSettingSaveOverlay();
+    document.getElementById('faceNamingInput').focus();
+}
 
-            try {
-                C4.sendCommand(
-                    'UPDATE_STRANGER_NOTE',
-                    JSON.stringify({
-                        face_id: face.face_id,
-                        note: face.name || ''
-                    }),
-                    false,
-                    true
-                );
-            } catch (e) {
-                console.error("Failed to update note for", face.face_id, e);
-                finishSettingSave('faces', false, 'Unable to send face name');
-                btn.disabled = false;
-            }
-        });
-    });
+function closeFaceNaming() {
+    if (pendingSettingSaves.has('faces')) return;
+    document.getElementById('faceNamingSheet').hidden = true;
+    namingFaceId = null;
+    updateSettingSaveOverlay();
+}
+
+function confirmFaceNaming() {
+    if (!namingFaceId || pendingSettingSaves.has('faces')) return;
+    pendingFaceRename = { face_id: namingFaceId, note: document.getElementById('faceNamingInput').value.trim() };
+    beginSettingSave('faces');
+    try { C4.sendCommand('UPDATE_STRANGER_NOTE', JSON.stringify(pendingFaceRename), false, true); }
+    catch (error) { finishSettingSave('faces', false, 'Unable to save face name'); pendingFaceRename = null; }
+}
+
+function openFaceDeleteConfirmation() {
+    if (!selectedFaceIds.size || pendingSettingSaves.size > 0) return;
+    document.getElementById('faceDeleteConfirmation').hidden = false;
+    updateSettingSaveOverlay();
+}
+
+function closeFaceDeleteConfirmation() {
+    document.getElementById('faceDeleteConfirmation').hidden = true;
+    updateSettingSaveOverlay();
+}
+
+function confirmFaceDeletion() {
+    if (document.getElementById('faceDeleteConfirmation').hidden || !selectedFaceIds.size || pendingSettingSaves.has('faceDelete')) return;
+    pendingFaceDelete = [...selectedFaceIds];
+    beginSettingSave('faceDelete');
+    try {
+        C4.sendCommand('DELETE_STRANGER_FACES', JSON.stringify({ ids_json: JSON.stringify(pendingFaceDelete) }), false, true);
+        closeFaceDeleteConfirmation();
+    } catch (error) { finishSettingSave('faceDelete', false, 'Unable to delete faces'); pendingFaceDelete = null; }
 }
 
 function onDataToUi(value) {
@@ -908,8 +1121,16 @@ function onDataToUi(value) {
             obj = jsonObject;
         }
 
+        if (obj.type === 'device_info' && !obj.success) {
+            if (currentSettingsResponse(obj) && ['home', 'information'].includes(settingsLoadScope)) {
+                finishCameraSettingsLoad(false, obj.error || 'Unable to load device information');
+            }
+            return;
+        }
+
         // Device Info
         if (obj.type === "device_info" && obj.success) {
+            if (!currentSettingsResponse(obj)) return;
             const devEl = document.getElementById('deviceVersion');
             const fwEl = document.getElementById('firmwareVersion');
             const relEl = document.getElementById('releaseDate');
@@ -938,11 +1159,30 @@ function onDataToUi(value) {
             }
         }
 
+        if (obj.type === 'device_info' && obj.success && ['home', 'information'].includes(settingsLoadScope)) {
+            const fields = { deviceSerial: obj.serial, deviceTimezone: obj.timezone, deviceIp: obj.ip,
+                deviceMac: obj.mac, deviceWifi: obj.wifi, deviceSignal: obj.rssi };
+            Object.entries(fields).forEach(([id, value]) => {
+                document.getElementById(id).textContent = value !== undefined && value !== null && value !== '' &&
+                    (typeof value === 'string' || typeof value === 'number') ? String(value) : '...';
+            });
+            document.getElementById('copyDeviceSerial').disabled = !obj.serial;
+            if (settingsLoadScope === 'home') {
+                homeInfoReady = !!obj.device_name;
+                if (!homeInfoReady) finishCameraSettingsLoad(false, 'Device name unavailable');
+                else if (cameraSettingsReady()) finishCameraSettingsLoad(true);
+            } else finishCameraSettingsLoad(!!obj.device_name, 'Device name unavailable');
+        }
+
         if (obj.type === 'camera_settings') {
+            if (!obj.setting_saved && !currentSettingsResponse(obj)) return;
             if (obj.success && obj.settings) {
                 updateCameraSettingsUI(obj.settings);
                 if (obj.setting_saved) finishSettingSave('camera', true);
                 else if (cameraSettingsReady()) finishCameraSettingsLoad(true);
+                else if (obj.complete && (settingsLoadScope !== 'home' || document.getElementById('statusLight').disabled)) {
+                    finishCameraSettingsLoad(false, 'Required settings were not returned by the camera');
+                }
             } else if (!obj.success) {
                 finishCameraSettingsLoad(false, 'Unable to load camera settings');
             }
@@ -952,6 +1192,15 @@ function onDataToUi(value) {
         if (obj.type === 'camera_setting_result' && !obj.success) {
             updateCameraSettingsUI({});
             finishSettingSave('camera', false, obj.error || 'Camera setting update failed');
+            return;
+        }
+
+        if (obj.type === 'storage_format') {
+            finishSettingSave('format', obj.success, obj.error || 'Format request failed', 'Format command accepted');
+            if (obj.success) {
+                closeStorageFormat();
+                document.getElementById('formatStorageButton').disabled = true;
+            }
             return;
         }
 
@@ -1012,26 +1261,45 @@ function onDataToUi(value) {
         // =========================
         if (obj.type === "stranger_faces") {
             if (obj.success && obj.data && obj.data.notes) {
-                updateFacesFromDriver(obj.data.notes);
+                updateFacesFromDriver(obj.data.notes, Number(obj.data.page) || requestedFacePage, obj.data.total);
             } else {
-                showModal(obj.error || obj.message || "Failed to load faces", "Error");
-                faces = [];
-                renderFaces();
+                document.getElementById('faceList').textContent = obj.error || 'Unable to load faces';
+                document.getElementById('faceLoadMore').disabled = false;
             }
+            return;
         }
 
         // =========================
         // STRANGER NOTE UPDATED
         // =========================
         if (obj.type === "stranger_note_updated") {
-            console.log("[UI] stranger_note_updated:", obj);
+            if (!pendingFaceRename) return;
             finishSettingSave('faces', obj.success, obj.error || 'Failed to update face name');
-            if (!obj.success) {
-                facesDirty = true;
-                document.getElementById('saveFacesBtn').disabled = false;
-            } else if (!pendingSettingSaves.has('faces') && !settingSaveFailed) {
-                facesDirty = false;
+            if (obj.success) {
+                const face = faces.find(item => item.face_id === pendingFaceRename.face_id);
+                if (face) face.name = typeof obj.note === 'string' ? obj.note : pendingFaceRename.note;
+                closeFaceNaming();
+                renderFaces();
+                loadFaces();
+            } else {
+                document.getElementById('faceNamingError').textContent = obj.error || 'Failed to update face name';
             }
+            pendingFaceRename = null;
+            return;
+        }
+
+        if (obj.type === 'stranger_faces_deleted') {
+            if (!pendingFaceDelete) return;
+            finishSettingSave('faceDelete', obj.success, obj.error || 'Unable to delete faces');
+            if (obj.success) {
+                faces = faces.filter(face => !pendingFaceDelete.includes(face.id));
+                faceTotal = Math.max(faces.length, faceTotal - pendingFaceDelete.length);
+                selectedFaceIds.clear();
+                faceEditMode = false;
+                renderFaces();
+                loadFaces();
+            }
+            pendingFaceDelete = null;
             return;
         }
 

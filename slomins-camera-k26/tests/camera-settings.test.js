@@ -35,8 +35,10 @@ test('K26 reads verified properties and serializes complete motion updates', () 
         local facial_values = {}
         local pending_writes = {}
         local requested_ids
+        local read_count = 0
         local transport = { execute = function(request, callback)
             if request.url:match('/property%-latest$') then
+            read_count = read_count + 1
                 local body = json.decode(request.body)
                 requested_ids = body.data_ids
                 assert(body.vid == 'vid-1' and body.data_source == 0)
@@ -58,6 +60,7 @@ test('K26 reads verified properties and serializes complete motion updates', () 
         end }
         ${writer}
         ${settings}
+        assert(type(FORMAT_STORAGE)=='function', 'format handler must be available before any setting writes')
 
         GET_CAMERA_SETTINGS()
         assert(pushed.type == 'camera_settings' and pushed.success)
@@ -107,21 +110,87 @@ test('K26 reads verified properties and serializes complete motion updates', () 
         assert(#pending_writes==count and pushed.success==false)
         UPDATE_CAMERA_SETTING({key='flip_swt',value=1})
         assert(#pending_writes==count and pushed.success==false, 'absent video fields must not be written')
-        facial_values = {icut_mode='0', anti_flicker='0', flip_swt='1', mark='1'}
+        facial_values = {icut_mode='0', anti_flicker='0', flip_swt='1', mark='1',indicator_swt=1}
         GET_CAMERA_SETTINGS()
         assert(pushed.settings.icut_mode=='0' and pushed.settings.mark=='1')
-        for key, value in pairs({icut_mode=2, anti_flicker=2, flip_swt=0, mark=0}) do
+        for key, value in pairs({icut_mode=1, anti_flicker=2, flip_swt=0, mark=0,indicator_swt=0}) do
             local before = #pending_writes
             UPDATE_CAMERA_SETTING({key=key,value=tostring(value)})
             assert(#pending_writes==before+1 and pending_writes[#pending_writes].data[key]==value)
+            if key=='indicator_swt' then assert(table.concat(requested_ids,',')=='indicator_swt') end
             pending_writes[#pending_writes].callback(200,json.encode({code=20000}),{},nil)
             assert(pushed.setting_saved and pushed.settings[key]==value)
         end
         count = #pending_writes
-        for key, value in pairs({icut_mode=1,anti_flicker=3,flip_swt=2,mark=-1}) do
+        for key, value in pairs({icut_mode=3,anti_flicker=3,flip_swt=2,mark=-1,indicator_swt=2}) do
             UPDATE_CAMERA_SETTING({key=key,value=value})
             assert(#pending_writes==count and pushed.success==false)
         end
+        facial_values = {beep_vol='8',stored=json.encode({status=0,capacity=29,usage=25}),indicator_swt=1}
+        local groups = {
+            home='indicator_swt',
+            motion='motion,unknow_snapswt,unknow_thld,unknow_faceq',
+            video='icut_mode,anti_flicker,flip_swt,mark',audio='beep_vol',storage='stored'
+        }
+        for scope, expected in pairs(groups) do
+            GET_CAMERA_SETTINGS({scope=scope,request_id='page-'..scope})
+            assert(table.concat(requested_ids,',')==expected, 'cross-page properties requested by '..scope)
+            assert(pushed.scope==scope and pushed.request_id=='page-'..scope)
+        end
+        assert(pushed.settings.stored_capacity==29 and pushed.settings.stored_usage==25)
+        local reads = read_count
+        GET_CAMERA_SETTINGS({scope='notifications',request_id='notify'})
+        assert(read_count==reads and pushed.supported==false and pushed.scope=='notifications')
+        UPDATE_CAMERA_SETTING({key='beep_vol',value='10'})
+        assert(table.concat(requested_ids,',')=='beep_vol', 'speaker write must not read all camera fields')
+        assert(pending_writes[#pending_writes].data.beep_vol==10)
+        pending_writes[#pending_writes].callback(200,json.encode({code=20000}),{},nil)
+        assert(pushed.settings.beep_vol==10)
+        count = #pending_writes
+        UPDATE_CAMERA_SETTING({key='beep_vol',value=11})
+        assert(#pending_writes==count and pushed.success==false)
+        local formats, format_code = 0, 20000
+        transport.execute = function(request, callback)
+            formats = formats + 1
+            local body = json.decode(request.body)
+            assert(request.method=='POST' and request.url=='https://example.invalid/api/v3/openapi/device/do-action')
+            assert(body.vid=='vid-1' and body.action_id=='ac_sd_reset')
+            local input = json.decode(body.input_params)
+            assert(type(input.t)=='number' and input.t > 0 and input.t < 100000000000)
+            callback(200,json.encode({code=format_code,message='response'}),{},nil)
+        end
+        FORMAT_STORAGE({confirmed=false})
+        FORMAT_STORAGE({confirmed='false'})
+        FORMAT_STORAGE({})
+        assert(formats==0, 'unconfirmed formatting must never issue a request')
+        FORMAT_STORAGE({confirmed='true'})
+        assert(formats==1 and pushed.type=='storage_format' and pushed.success)
+        format_code=400
+        FORMAT_STORAGE(json.encode({confirmed=true}))
+        assert(formats==2 and pushed.success==false)
+        _props['Auth Token']=''
+        FORMAT_STORAGE({confirmed=true})
+        assert(formats==2 and pushed.error=='Missing device or API credentials')
+        _props['Auth Token']='token'
+        local response = {code=20000,data={devices={
+            {vid='other',status={{status_key='unknow_snapswt',status_val=1}}},
+            {vid='vid-1',status=json.encode({
+                {status_key='motion',status_val=json.encode({switch=1,type=0,sen=2,x_y_w_h='0:0:0:0'})},
+                {status_key='unknow_snapswt',status_val=0},
+                {status_key='beep_vol',status_val=8}
+            })}
+        }}}
+        transport.execute=function(request, callback) callback(200,json.encode(response),{},nil) end
+        GET_CAMERA_SETTINGS({scope='motion',request_id='wrapped'})
+        assert(pushed.complete and pushed.settings.motion_switch==1 and pushed.settings.motion_sen==2)
+        assert(pushed.settings.unknow_snapswt==0 and pushed.request_id=='wrapped')
+        GET_DEVICE_PROPERTY('beep_vol',function(value) assert(value==8) end)
+        response={code=20000,data={devices={{vid='other',status={}}}}}
+        GET_CAMERA_SETTINGS({scope='motion'})
+        assert(pushed.success==false, 'a different device must not supply K26 settings')
+        response={code=20000,data={{data_id='motion.switch',value=0},{data_id='unknow_snapswt',value=0}}}
+        GET_CAMERA_SETTINGS({scope='motion'})
+        assert(pushed.settings.motion_switch==0 and pushed.settings.unknow_snapswt==0)
         io.write('K26 camera settings assertions passed')
     `;
 
@@ -131,6 +200,43 @@ test('K26 reads verified properties and serializes complete motion updates', () 
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /K26 camera settings assertions passed/);
+});
+
+test('existing GET_DEVICE_PROPERTY Lua command reads all fields and redacts sensitive response values', () => {
+    const start = driver.indexOf('local settings_property_groups =');
+    const section = driver.slice(start, driver.indexOf('function GET_CAMERA_SETTINGS(', start));
+    assert.doesNotMatch(driver, /LOG_CAMERA_PROPERTIES/);
+    const source = `
+        local json = require('CldBusApi.dkjson')
+        local _props = {VID='test-vid', ['Auth Token']='auth-token-test'}
+        local Properties = {}
+        local GlobalObject = {LnduBaseUrl='https://example.invalid'}
+        local function GetCldBusCredentials() return 'app', 'app-secret-test' end
+        local count = 0
+        local transport = {execute=function(request, callback)
+            count=count+1
+            assert(request.method=='POST' and request.url=='https://example.invalid/api/v3/openapi/device/property-latest')
+            local body=json.decode(request.body)
+            assert(body.vid=='test-vid' and body.data_source==0 and body.data_ids==nil, 'diagnostic must request ALL properties')
+            callback(200,json.encode({code=20000,data={
+                {data_id='indicator_candidate',value=1,define={type='bool'}},
+                {data_id='auth_token',value='auth-token-test'},
+                {data_id='config',value=json.encode({password='password-test',nested={AppSecret='app-secret-test'}})}
+            }}),{},nil)
+        end}
+        ${section}
+        assert(type(GET_DEVICE_PROPERTY)=='function', 'existing function must be callable from Composer Lua Command')
+        GET_DEVICE_PROPERTY(nil, nil, false)
+        assert(count==1)
+    `;
+    const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', source], { encoding: 'utf8', cwd: root });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /ALL \(manual diagnostic\)/);
+    assert.match(result.stdout, /HTTP status: 200/);
+    assert.match(result.stdout, /indicator_candidate/);
+    assert.match(result.stdout, /\[REDACTED\]/);
+    assert.match(result.stdout, /Parsed properties:/);
+    assert.doesNotMatch(result.stdout, /auth-token-test|app-secret-test|password-test/);
 });
 
 function fixture() {
@@ -171,6 +277,9 @@ function fixture() {
     };
     const commands = [];
     document.getElementById('deviceNameSheet').hidden = true;
+    document.getElementById('storageFormatDialog').hidden = true;
+    document.getElementById('faceNamingSheet').hidden = true;
+    document.getElementById('faceDeleteConfirmation').hidden = true;
     const context = vm.createContext({
         document,
         C4: { sendCommand: (...args) => commands.push(args) },
@@ -198,10 +307,8 @@ test('K26 controls hydrate from API values and send settings commands', () => {
     });
 
     assert.equal(document.getElementById('motionSettingsGroup').hidden, false);
-    assert.equal(document.getElementById('motionAlarmGroup').hidden, false);
     assert.equal(document.getElementById('motionDetectionType').value, '1');
     assert.equal(document.getElementById('motionZoneOpen').disabled, false);
-    assert.equal(document.getElementById('motionAlarmToggle').checked, true);
 
     document.getElementById('motionDetectionToggle').checked = false;
     document.getElementById('motionDetectionToggle').dispatch('change');
@@ -210,7 +317,6 @@ test('K26 controls hydrate from API values and send settings commands', () => {
 
     context.updateCameraSettingsUI({ motion_switch: '0' });
     assert.equal(document.getElementById('motionSettingsGroup').hidden, true);
-    assert.equal(document.getElementById('motionAlarmGroup').hidden, true);
     assert.match(html, /id="k26FaceManagement"[\s\S]*?show\('facialRecPanel'\)/);
 });
 
@@ -358,7 +464,7 @@ test('K26 Video Settings waits for all four API values and never uses previous o
     respond({ mark: '1' });
     assert.equal(element('settingSaveOverlay').hidden, true);
     assert.equal(app.inert, false);
-    assert.equal(element('nightVisionModeValue').textContent, 'Infrared night vision');
+    assert.equal(element('nightVisionModeValue').textContent, 'Infrared mode');
     assert.equal(element('antiFlickerValue').textContent, 'OFF');
     assert.equal(element('flipImageToggle').checked, false);
     assert.equal(element('timeWatermarkToggle').checked, true);
@@ -366,7 +472,7 @@ test('K26 Video Settings waits for all four API values and never uses previous o
     assert.equal(element('nightVisionModeValue').textContent, '...');
     assert.equal(element('antiFlickerValue').textContent, '...');
     assert.equal(element('timeWatermarkToggle').disabled, true);
-    respond({ icut_mode: 1, anti_flicker: 2, flip_swt: 1, mark: 1 });
+    respond({ icut_mode: 3, anti_flicker: 2, flip_swt: 1, mark: 1 });
     assert.equal(element('nightVisionMode').disabled, true);
     assert.equal(element('settingSaveOverlay').hidden, false);
 });
@@ -375,7 +481,7 @@ test('K26 video sheets match the supplied options and send confirmed API mapping
     const { context, document, commands } = fixture();
     const element = id => document.getElementById(id);
     context.updateCameraSettingsUI({ icut_mode: 0, anti_flicker: 0, flip_swt: 1, mark: 1 });
-    const modes = [[0, 'Infrared night vision'], [2, 'Color night vision'], [3, 'Smart night vision']];
+    const modes = [[0, 'Infrared mode'], [1, 'Unenabled'], [2, 'Color light mode']];
     let options;
     for (const [index, [value, label]] of modes.entries()) {
         const previousLabel = element('nightVisionModeValue').textContent;
@@ -384,7 +490,7 @@ test('K26 video sheets match the supplied options and send confirmed API mapping
         assert.equal(element('motionOptionTitle').textContent, 'Night Vision Mode');
         assert.equal(element('motionOptionConfirm').hidden, true);
         assert.deepEqual(options.map(option => option.children[0].textContent), modes.map(mode => mode[1]));
-        assert.deepEqual(options.map(option => option.children[1].value), ['0', '2', '3']);
+        assert.deepEqual(options.map(option => option.children[1].value), ['0', '1', '2']);
         assert.ok(options.every(option => option.children[1].disabled === false));
         options[index].children[1].dispatch('change');
         assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'icut_mode', value });
@@ -434,6 +540,72 @@ test('K26 video toggles wait for acknowledgement, restore rejected values, and r
     assert.match(html, /id === 'videoSettingsPanel'[\s\S]*?requestCameraSettings\('video'\)/);
 });
 
+test('K26 motion loads without unrelated alarm fields and completed missing data does not wait for timeout', () => {
+    const { context, document, navigation, timers } = fixture();
+    const element = id => document.getElementById(id);
+    context.requestCameraSettings('motion');
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, complete: true, scope: 'motion',
+        settings: { motion_switch: 1, motion_type: 0, motion_sen: 2, motion_x_y_w_h: '0:0:0:0', unknow_snapswt: 0 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('motionSettingsGroup').hidden, false);
+    assert.equal(element('faceSimilarity').hidden, true);
+    assert.equal([...timers.values()].some(timer => timer.delay === 20000), false);
+    context.requestCameraSettings('motion');
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, complete: true, scope: 'motion',
+        settings: { motion_switch: 0 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(navigation.at(-1), 'homePanel');
+    assert.equal(element('settingSaveToast').textContent, 'Required settings were not returned by the camera');
+    assert.equal([...timers.values()].some(timer => timer.delay === 20000), false);
+});
+
+test('K26 motion and facial sections match the screenshots for all enabled combinations', () => {
+    for (const motion of [0, 1]) {
+        for (const facial of [0, 1]) {
+            const { context, document } = fixture();
+            const element = id => document.getElementById(id);
+            context.requestCameraSettings('motion');
+            context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, complete: true, scope: 'motion', settings: {
+                motion_switch: motion, unknow_snapswt: facial,
+                ...(motion ? { motion_type: 0, motion_sen: 2, motion_x_y_w_h: '0:0:0:0' } : {}),
+                ...(facial ? { unknow_thld: .94, unknow_faceq: 2 } : {})
+            } }));
+            assert.equal(element('settingSaveOverlay').hidden, true);
+            assert.equal(element('motionDetectionToggle').checked, motion === 1);
+            assert.equal(element('faceRecEnable').checked, facial === 1);
+            assert.equal(element('facialRecognitionRow').style.borderBottom, facial ? '' : '0');
+            assert.equal(element('motionSettingsGroup').hidden, motion === 0);
+            assert.equal(element('faceSimilarity').hidden, facial === 0);
+            assert.equal(element('faceQuality').hidden, facial === 0);
+            assert.equal(element('k26FaceManagement').hidden, facial === 0);
+            if (motion) assert.equal(element('motionDetectionTypeValue').textContent, 'Motion Detection');
+            if (facial) assert.equal(element('faceSimilarityValue').textContent, '94%');
+        }
+    }
+    const panel = html.match(/<section id="motionDetectionPanel"[\s\S]*?<\/section>/)[0];
+    for (const text of ['Motion Detection', 'Facial Recognition', 'Detection Type', 'Detection Sensitivity', 'Set Detection Zone',
+        'Set the alarm area you are concerned about.', 'Face Similarity Threshold', 'Face Image Quality Threshold', 'Face Management']) {
+        assert.ok(panel.includes(text), text + ' missing');
+    }
+    assert.doesNotMatch(panel, /Audible and Visual Alarm|motionAlarmToggle/);
+    assert.match(html, /id="statusLightValue">\.\.\.<\/span>/);
+});
+
+test('K26 subsettings share readable fixed text, row, and switch sizes instead of compact overrides', () => {
+    const css = html.match(/<style>([\s\S]*?)<\/style>/)[1];
+    assert.match(css, /--setting-label-size:\s*20px/);
+    assert.match(css, /--setting-value-size:\s*18px/);
+    assert.match(css, /--setting-help-size:\s*16px/);
+    assert.match(css, /--setting-row-height:\s*72px/);
+    assert.match(css, /--setting-toggle-width:\s*80px/);
+    assert.match(css, /\.settings-subpage \.settings-row, \.k26-motion-row\s*\{[^}]*min-height: var\(--setting-row-height\)/);
+    assert.match(css, /\.panel:not\(#homePanel\) \.toggle\s*\{[^}]*width: var\(--setting-toggle-width\)/);
+    assert.doesNotMatch(css, /(?:\.video-settings|#motionDetectionPanel) [^{]+\{[^}]*min-height:\s*44px/);
+    assert.doesNotMatch(css, /(?:\.video-settings|#motionDetectionPanel) [^{]+\{[^}]*font-size:\s*(?:12|14)px/);
+    assert.doesNotMatch(css, /font-size:\s*[^;}]*\b(?:vw|cqw)\b/);
+    assert.doesNotMatch(css, /\.(?:face-name-input|face-meta|empty-faces)\s*\{[^}]*font-size:\s*\d+px/);
+});
+
 test('K26 microphone matches VD05 initial prompt, pending call overlay, and confirmed call feedback', () => {
     const { context, document, commands } = fixture();
     const element = id => document.getElementById(id);
@@ -473,16 +645,103 @@ test('K26 device-name and face-name updates use the same overlay until all repli
     context.onDataToUi(JSON.stringify({ device_name_updated: true }));
     assert.equal(element('settingSaveOverlay').hidden, true);
     assert.equal(element('settingSaveToast').textContent, 'Settings saved');
-    vm.runInContext("faces = [{face_id:'one',name:'One'},{face_id:'two',name:'Two'}]; facesDirty = true;", context);
-    context.initSaveFacesButton();
-    element('saveFacesBtn').dispatch('click');
+    context.updateFacesFromDriver([{ id: 11, face_id: 'one', note: 'One' }]);
+    context.openFaceNaming('one');
+    element('faceNamingInput').value = 'Renamed';
+    context.confirmFaceNaming();
     assert.equal(element('settingSaveOverlay').hidden, false);
-    assert.equal(commands.filter(command => command[0] === 'UPDATE_STRANGER_NOTE').length, 2);
-    context.onDataToUi(JSON.stringify({ type: 'stranger_note_updated', success: true }));
-    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(commands.filter(command => command[0] === 'UPDATE_STRANGER_NOTE').length, 1);
     context.onDataToUi(JSON.stringify({ type: 'stranger_note_updated', success: true }));
     assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('faceNamingSheet').hidden, true);
     assert.equal(element('settingSaveToast').textContent, 'Settings saved');
+});
+
+test('K26 Face Management matches VD05 list, naming sheet, pagination, and safe names', () => {
+    const { context, document, commands, app } = fixture();
+    const element = id => document.getElementById(id);
+    context.loadFaces();
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { page: 1, page_size: 50 });
+    assert.equal(element('faceList').textContent, 'Loading faces...');
+    context.onDataToUi(JSON.stringify({ type: 'stranger_faces', success: true, data: { page: 1, total: 3, notes: [
+        { id: 17, face_id: 'face-one', note: '<img src=x onerror=alert(1)>', face_img_url: 'javascript:alert(1)', updated_at: '1792141615' },
+        { id: 18, face_id: 'face-two', note: 'Visitor Two', face_img_url: 'https://example.invalid/face.jpg', updated_at: '2026-10-16 12:30:00' }
+    ] } }));
+    assert.equal(element('faceList').children.length, 2);
+    assert.equal(element('faceList').children[0].children[1].children[0].textContent, '<img src=x onerror=alert(1)>');
+    assert.equal(element('faceList').children[0].children[1].children[1].textContent,
+        `Last Updated Time:${context.formatFaceTimestamp('1792141615')}`);
+    assert.equal(element('faceLoadMore').hidden, false);
+    assert.match(element('faceList').children[0].children[0].className, /face-image-placeholder/);
+    context.openFaceNaming('face-one');
+    assert.equal(element('faceNamingSheet').hidden, false);
+    assert.equal(element('faceNamingInput').value, '<img src=x onerror=alert(1)>');
+    assert.equal(app.inert, true);
+    element('faceNamingInput').value = 'Front Door Guest';
+    context.confirmFaceNaming();
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { face_id: 'face-one', note: 'Front Door Guest' });
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'stranger_note_updated', success: true, face_id: 'face-one', note: 'Front Door Guest' }));
+    assert.equal(element('faceNamingSheet').hidden, true);
+    assert.equal(element('faceList').children[0].children[1].children[0].textContent, 'Front Door Guest');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { page: 1, page_size: 50 });
+    context.onDataToUi(JSON.stringify({ type: 'stranger_faces', success: true, data: { page: 1, total: 2, notes: [
+        { id: 17, face_id: 'face-one', note: 'Front Door Guest' }, { id: 18, face_id: 'face-two', note: 'Visitor Two' }
+    ] } }));
+    context.toggleFaceEditMode();
+    assert.equal(element('faceEditToolbar').hidden, false);
+    context.selectAllFaces(true);
+    assert.equal(element('faceSelectedCount').textContent, '2');
+    context.openFaceDeleteConfirmation();
+    assert.equal(element('faceDeleteConfirmation').hidden, false);
+    context.confirmFaceDeletion();
+    assert.equal(commands.at(-1)[0], 'DELETE_STRANGER_FACES');
+    assert.deepEqual(JSON.parse(JSON.parse(commands.at(-1)[1]).ids_json), [17, 18]);
+    context.onDataToUi(JSON.stringify({ type: 'stranger_faces_deleted', success: true }));
+    assert.equal(element('faceList').children.length, 1);
+    assert.equal(element('faceList').children[0].className, 'face-empty');
+    assert.equal(element('faceEditToolbar').hidden, true);
+    assert.match(html, /id="faceEditButton"/);
+    assert.match(html, /id="faceNamingSheet"/);
+    assert.match(html, /id="faceDeleteConfirmation"/);
+    assert.doesNotMatch(html, /saveFacesBtn|Save Name Changes/);
+});
+
+test('K26 face deletion validates numeric note IDs and reports the API acknowledgement', () => {
+    const start = driver.indexOf('function DELETE_STRANGER_FACES(');
+    const section = driver.slice(start, driver.indexOf('function TAKE_SNAPSHOT_FOR_UI(', start));
+    const lua = `
+        local json = require('CldBusApi.dkjson')
+        local _props = { VID='camera-1', ['Auth Token']='token' }
+        local Properties = {}
+        local GlobalObject = {LnduBaseUrl='https://example.invalid', CldBusAppId='test'}
+        local output, requests = {}, {}
+        local api_code = 20000
+        local function SendStrangerFacesToUI(data) output[#output+1]=data end
+        local function print() end
+        local transport = {execute=function(request, callback)
+            local body=json.decode(request.body)
+            assert(request.url=='https://example.invalid/api/v3/openapi/stranger-note-del')
+            assert(request.method=='POST' and body.vid=='camera-1')
+            assert(type(body.ids)=='table' and body.ids[1]==17 and body.ids[2]==18)
+            requests[#requests+1]=body
+            callback(200,json.encode({code=api_code,message='rejected'}),{},nil)
+        end}
+        ${section}
+        DELETE_STRANGER_FACES({ids_json='[17,"18"]'})
+        assert(#requests==1 and output[#output].type=='stranger_faces_deleted' and output[#output].success)
+        DELETE_STRANGER_FACES({ids_json='[0]'}); assert(#requests==1 and output[#output].success==false)
+        DELETE_STRANGER_FACES({ids_json='["not-an-id"]'}); assert(#requests==1 and output[#output].success==false)
+        api_code=400
+        DELETE_STRANGER_FACES({ids_json='[17,18]'})
+        assert(#requests==2 and output[#output].type=='stranger_faces_deleted' and output[#output].success==false)
+        io.write('K26 face delete assertions passed')
+    `;
+    const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', lua], { encoding: 'utf8', cwd: root });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /K26 face delete assertions passed/);
+    assert.match(driver, /if strCommand == "DELETE_STRANGER_FACES" then\s+DELETE_STRANGER_FACES\(tParams\)/);
+    assert.match(fs.readFileSync(path.join(root, 'driver.xml'), 'utf8'), /<name>DELETE_STRANGER_FACES<\/name>/);
 });
 
 test('K26 home follows the reference groups and places Microphone inside Audio Settings', () => {
@@ -514,6 +773,187 @@ test('K26 home follows the reference groups and places Microphone inside Audio S
     context.onDataToUi(JSON.stringify({ device_name_updated: true, device_name: 'Driveway' }));
     assert.equal(document.getElementById('homeDeviceName').innerText, 'Driveway');
     assert.equal(document.getElementById('deviceVersion').innerText, 'Driveway');
+});
+
+test('K26 initial page requests only device info and Status Light, ignoring unrelated and stale responses', () => {
+    const { context, document, commands } = fixture();
+    const element = id => document.getElementById(id);
+    context.requestCameraSettings('home');
+    assert.equal(commands.length, 2);
+    assert.equal(commands[0][0], 'GET_DEVICE_INFO');
+    assert.equal(commands[1][0], 'GET_CAMERA_SETTINGS');
+    const homeRequest = JSON.parse(commands[0][1]);
+    assert.equal(homeRequest.scope, 'home');
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', scope: 'video', request_id: homeRequest.request_id,
+        success: true, settings: { icut_mode: 0 } }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'device_info', ...homeRequest, success: true, device_name: 'Outdoor Camera' }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...homeRequest, success: true, complete: true, settings: { indicator_swt: 1 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    context.requestCameraSettings('video');
+    const videoRequest = JSON.parse(commands.at(-1)[1]);
+    assert.equal(videoRequest.scope, 'video');
+    context.onDataToUi(JSON.stringify({ type: 'device_info', ...homeRequest, success: false, error: 'Late home response' }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...videoRequest, success: true,
+        settings: { icut_mode: 0, anti_flicker: 0, flip_swt: 0, mark: 1 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    const startup = javascript.slice(javascript.indexOf("document.addEventListener('DOMContentLoaded'"), javascript.indexOf('function requestCameraSettings('));
+    assert.match(startup, /requestCameraSettings\('home'\)/);
+    assert.doesNotMatch(startup, /requestDeviceInfo\(\)/);
+});
+
+test('K26 Status Light uses indicator_swt and home waits only for its two responses in either order', () => {
+    for (const lightFirst of [true, false]) {
+        const { context, document, commands } = fixture();
+        const element = id => document.getElementById(id);
+        context.requestCameraSettings('home');
+        const request = JSON.parse(commands[0][1]);
+        const info = { type: 'device_info', ...request, success: true, device_name: 'Outdoor Camera' };
+        const light = { type: 'camera_settings', ...request, success: true, complete: true, settings: { indicator_swt: 1 } };
+        assert.equal(commands.length, 2);
+        assert.equal(element('statusLight').disabled, true);
+        assert.equal(element('statusLight').indeterminate, true);
+        context.onDataToUi(JSON.stringify(lightFirst ? light : info));
+        assert.equal(element('settingSaveOverlay').hidden, false);
+        context.onDataToUi(JSON.stringify(lightFirst ? info : light));
+        assert.equal(element('settingSaveOverlay').hidden, true);
+        assert.equal(element('statusLight').checked, true);
+        assert.equal(element('statusLight').indeterminate, false);
+        assert.equal(element('statusLight')['aria-busy'], 'false');
+        assert.equal(element('statusLightValue').textContent, 'On');
+        assert.equal(element('statusLightValue').hidden, true);
+        element('statusLight').checked = false;
+        element('statusLight').dispatch('change');
+        assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'indicator_swt', value: 0 });
+        assert.equal(element('settingSaveOverlay').hidden, false);
+        context.onDataToUi(JSON.stringify({ type: 'camera_setting_result', success: false, error: 'Rejected' }));
+        assert.equal(element('statusLight').checked, true);
+        element('statusLight').checked = false;
+        element('statusLight').dispatch('change');
+        context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { indicator_swt: 0 } }));
+        assert.equal(element('statusLight').checked, false);
+        assert.equal(element('statusLightValue').textContent, 'Off');
+        context.requestCameraSettings('motion');
+        context.updateCameraSettingsUI({ motion_switch: 0, unknow_snapswt: 0 });
+        assert.equal(element('statusLight').checked, false);
+        assert.equal(element('statusLight').disabled, false);
+        context.requestCameraSettings('home');
+        assert.equal(element('statusLight').disabled, true);
+        assert.equal(element('statusLight').indeterminate, true);
+        assert.equal(element('statusLightValue').textContent, '...');
+    }
+});
+
+test('K26 audio requests only speaker volume and waits for its API value and save acknowledgement', () => {
+    const { context, document, commands } = fixture();
+    const element = id => document.getElementById(id);
+    context.requestCameraSettings('audio');
+    const request = JSON.parse(commands[0][1]);
+    assert.equal(request.scope, 'audio');
+    assert.equal(element('speakerVolume').disabled, true);
+    assert.equal(element('speakerVolumeValue').textContent, '...');
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true, settings: { icut_mode: 0 } }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true, settings: { beep_vol: '8' } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('speakerVolume').value, '8');
+    assert.equal(element('speakerVolumeValue').textContent, '8');
+    element('speakerVolume').value = '10';
+    element('speakerVolume').dispatch('input');
+    assert.equal(commands.length, 1);
+    element('speakerVolume').dispatch('change');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 10 });
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'camera_setting_result', success: false, error: 'Rejected' }));
+    assert.equal(element('speakerVolume').value, '8');
+    element('speakerVolume').value = '0';
+    element('speakerVolume').dispatch('change');
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
+    assert.equal(element('speakerVolumeValue').textContent, '0');
+    assert.equal(element('settingSaveOverlay').hidden, true);
+});
+
+test('K26 storage uses capacity and percentage usage and requires two confirmations before formatting', () => {
+    const { context, document, commands, app } = fixture();
+    const element = id => document.getElementById(id);
+    context.requestCameraSettings('storage');
+    const request = JSON.parse(commands[0][1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true, settings: { stored_status: 0, stored_capacity: 29 } }));
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true, settings: { stored_usage: 25 } }));
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('storageTotal').textContent, '29 GB');
+    assert.equal(element('storageAvailable').textContent, '21.75 GB');
+    context.openStorageFormat();
+    assert.equal(element('storageFormatDialog').hidden, false);
+    assert.equal(app.inert, true);
+    context.closeStorageFormat();
+    assert.equal(commands.length, 1);
+    assert.equal(app.inert, false);
+    context.openStorageFormat();
+    context.confirmStorageFormat();
+    assert.equal(element('confirmStorageFormat').textContent, 'Format');
+    assert.equal(commands.length, 1, 'Next must not send the format action');
+    context.confirmStorageFormat();
+    assert.equal(commands.at(-1)[0], 'FORMAT_STORAGE');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { confirmed: true });
+    assert.equal(element('settingSaveLabel').textContent, 'Formatting...');
+    context.closeStorageFormat();
+    assert.equal(element('storageFormatDialog').hidden, false);
+    context.onDataToUi(JSON.stringify({ type: 'storage_format', success: false, error: 'Rejected' }));
+    assert.equal(element('storageFormatDialog').hidden, false);
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    context.confirmStorageFormat();
+    context.onDataToUi(JSON.stringify({ type: 'storage_format', success: true }));
+    assert.equal(element('storageFormatDialog').hidden, true);
+    assert.equal(element('settingSaveToast').textContent, 'Format command accepted');
+    assert.equal(element('formatStorageButton').disabled, true);
+    context.requestCameraSettings('storage');
+    const noCard = JSON.parse(commands.at(-1)[1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...noCard, success: true, settings: { stored_status: 1 } }));
+    assert.equal(element('storageStatus').textContent, 'No SD card');
+    assert.equal(element('settingSaveOverlay').hidden, true);
+    assert.equal(element('formatStorageButton').disabled, true);
+    assert.equal(element('storageAvailable').textContent, '...');
+    context.requestCameraSettings('storage');
+    const uninitialized = JSON.parse(commands.at(-1)[1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...uninitialized, success: true, settings: { stored_status: 2 } }));
+    assert.equal(element('storageStatus').textContent, 'Filesystem not initialized');
+    assert.equal(element('formatStorageButton').disabled, false);
+    assert.doesNotMatch(html, /37 Days|29 GB/);
+});
+
+test('K26 app-notification layout does not reuse Control4 notification properties or invent states', () => {
+    const { context, document, commands } = fixture();
+    context.requestCameraSettings('notifications');
+    const request = JSON.parse(commands[0][1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true, supported: false, settings: {} }));
+    assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
+    for (const id of ['appAlertNotification', 'appMotionNotification', 'appOfflineNotification', 'appEventNotification']) {
+        assert.equal(document.getElementById(id).disabled, true);
+        assert.equal(document.getElementById(id).indeterminate, true);
+    }
+    assert.equal(commands.length, 1);
+    const panel = html.match(/<section id="notificationSettingsPanel"[\s\S]*?<\/section>/)[0];
+    for (const label of ['Receive App Notifications', 'Alert Notification', 'Motion Detection', 'Offline Notification', 'Event Notification']) assert.ok(panel.includes(label));
+    assert.doesNotMatch(panel, /Enable Alert Notifications|Enable Info Notifications/);
+});
+
+test('K26 Device Information has its own request and displays API data without sample identities', () => {
+    const { context, document, commands } = fixture();
+    context.requestCameraSettings('information');
+    assert.equal(commands[0][0], 'GET_DEVICE_INFO');
+    const request = JSON.parse(commands[0][1]);
+    context.onDataToUi(JSON.stringify({ type: 'device_info', ...request, success: true, device_name: 'Driveway',
+        serial: 'serial-from-api', timezone: 'Asia/Manila', ip: '192.0.2.1', mac: 'api-mac', wifi: 'API SSID', rssi: 0 }));
+    assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
+    for (const [id, expected] of Object.entries({ deviceSerial: 'serial-from-api', deviceTimezone: 'Asia/Manila',
+        deviceIp: '192.0.2.1', deviceMac: 'api-mac', deviceWifi: 'API SSID', deviceSignal: '0' })) {
+        assert.equal(document.getElementById(id).textContent, expected);
+    }
+    assert.equal(document.getElementById('copyDeviceSerial').disabled, false);
 });
 
 test('K26 fills laptop width and edits the API device name in a cancellable bottom sheet', () => {

@@ -512,8 +512,32 @@
                 <description>Update face name</description>
             </command>
             <command>
+                <name>DELETE_STRANGER_FACES</name>
+                <description>Delete selected stranger faces</description>
+                <params>
+                    <param><name>ids_json</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
                 <name>GET_CAMERA_SETTINGS</name>
                 <description>Refresh camera motion and alarm settings</description>
+                <params>
+                    <param><name>scope</name><type>STRING</type></param>
+                    <param><name>request_id</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
+                <name>GET_DEVICE_INFO</name>
+                <description>Read device information for the requested page</description>
+                <params>
+                    <param><name>scope</name><type>STRING</type></param>
+                    <param><name>request_id</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
+                <name>FORMAT_STORAGE</name>
+                <description>Format local storage after explicit confirmation</description>
+                <params><param><name>confirmed</name><type>STRING</type></param></params>
             </command>
             <command>
                 <name>SET_CAMERA_SETTING</name>
