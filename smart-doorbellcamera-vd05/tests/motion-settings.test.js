@@ -20,7 +20,10 @@ function fixture() {
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
             checked: false, hidden: false, value: '', textContent: '',
+            style: {},
+            classList: { contains: name => id === 'viewerPanel' && name === 'active' },
             focus() {},
+            removeAttribute(name) { delete this[name]; },
             listeners: {},
             children: [],
             setAttribute(name, value) { this[name] = value; },
@@ -47,7 +50,11 @@ function fixture() {
             querySelectorAll: () => faceRows
         },
         window: { addEventListener(name, callback) { (lifecycle[name] ||= []).push(callback); } },
-        C4: { sendCommand: (...args) => commands.push(args) },
+        C4: {
+            sendCommand: (...args) => commands.push(args),
+            subscribeToDataToUi() {},
+            subscribeToVariable() {}
+        },
         show: id => navigation.push(id),
         setTimeout(callback, delay) { const id = ++timerSequence; timers.set(id, { callback, delay }); return id; },
         clearTimeout(id) { timers.delete(id); },
@@ -57,6 +64,69 @@ function fixture() {
     context.initMotionSettings();
     return { context, element, faceRows, commands, timers, app, navigation, lifecycle };
 }
+
+test('VD05 opens into live camera view and the gear opens the existing settings menu', () => {
+    const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
+    assert.match(html, /<section id="viewerPanel" class="panel active">/);
+    assert.match(html, /<section id="homePanel" class="panel">/);
+    assert.match(html, /<footer class="footer" hidden>/);
+    assert.match(html, /onclick="show\('homePanel'\)" aria-label="Settings"/);
+    assert.match(html, /onclick="show\('viewerPanel'\)" aria-label="Back to camera"/);
+    assert.match(html, /<img id="livePreview"/);
+    assert.match(html, /<div class="camera-frame" id="cameraFrame">[\s\S]*?<img id="livePreview"/);
+    assert.match(html, /\.camera-frame\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/);
+    assert.match(html, /id="viewerMic"/);
+    assert.match(html, /id="viewerSpeaker"[^>]*disabled/);
+    assert.match(html, /\.tool-btn\s*\{[^}]*background:\s*#070a0f/);
+    assert.match(html, /\.tool-btn\.primary\s*\{[^}]*width:\s*88px[^}]*height:\s*88px/);
+    assert.match(html, /id="viewerSnapshot"[^>]*>[\s\S]*?data-lucide="circle-dot"/);
+    assert.match(html, /id="viewerEndCall"[^>]*>[\s\S]*?data-lucide="circle-arrow-left"/);
+    assert.match(html, /if \(id === 'homePanel'\)[\s\S]*requestInitialState\(\)[\s\S]*initDeviceInfo\(\)[\s\S]*REQUEST_SETTINGS/);
+    const startup = source.slice(source.indexOf("document.addEventListener('DOMContentLoaded'"), source.indexOf('function isLiveViewerActive()'));
+    assert.match(startup, /startLiveSnapshotPolling\(\)/);
+    assert.match(startup, /requestInitialState\(\)/);
+    assert.match(startup, /initDeviceInfo\(\)/);
+    assert.doesNotMatch(startup, /REQUEST_SETTINGS|GET_STRANGER_FACES/);
+    const { context, commands } = fixture();
+    context.initializeControl4();
+    assert.equal(commands.some(command => command[0] === 'REQUEST_SETTINGS'), false);
+});
+
+test('VD05 live viewer requests snapshots sequentially and does not open the settings snapshot modal', () => {
+    const { context, element, commands, timers } = fixture();
+    context.initLiveView();
+    context.startLiveSnapshotPolling();
+    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SNAPSHOT');
+    const initialCommandCount = commands.length;
+    context.onDataToUi(JSON.stringify({ type: 'snapshot_result', success: true, image_url: 'http://camera.local/snapshot.jpg' }));
+    assert.match(element('livePreview').src, /^http:\/\/camera\.local\/snapshot\.jpg\?t=/);
+    assert.equal(element('livePreview').style.display, 'block');
+    assert.equal(element('snapshotModal').classList?.contains('show') || false, false);
+    const pollTimer = [...timers.values()].find(timer => timer.delay === 1200);
+    assert.ok(pollTimer);
+    assert.equal(commands.length, initialCommandCount);
+    pollTimer.callback();
+    assert.equal(commands.length, initialCommandCount + 1);
+    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SNAPSHOT');
+    context.stopLiveSnapshotPolling();
+});
+
+test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape stages', () => {
+    const { context, element } = fixture();
+    const stage = element('cameraStage');
+    const frame = element('cameraFrame');
+    stage.clientWidth = 382;
+    stage.clientHeight = 529;
+    context.fitLivePreviewFrame();
+    assert.equal(frame.style.width, '382px');
+    assert.equal(frame.style.height, '286.5px');
+    stage.clientWidth = 1358;
+    stage.clientHeight = 581;
+    context.fitLivePreviewFrame();
+    assert.equal(frame.style.width, String(581 * 4 / 3) + 'px');
+    assert.equal(frame.style.height, '581px');
+    assert.match(fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8'), /\.camera-stage[\s\S]*?place-items:\s*center/);
+});
 
 test('Microphone focus, visibility, and Control4 variable events never request stranger faces', () => {
     const { context, element, commands, lifecycle } = fixture();

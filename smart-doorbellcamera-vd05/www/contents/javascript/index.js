@@ -1,6 +1,12 @@
 
 let antiPryEnabled = false;
 let isMicMuted = false;
+let liveSnapshotTimer = null;
+let liveSnapshotTimeout = null;
+let liveSnapshotPending = false;
+let snapshotModalPending = false;
+let liveZoomIndex = 0;
+const liveZoomLevels = [1, 1.5, 2];
 
 // ---- Face Management ----
 
@@ -247,12 +253,116 @@ document.addEventListener('DOMContentLoaded', function () {
     initMicrophone();
     initFacialRecognition();
     initReboot();
-    requestInitialState();
     initDeviceName();
-    initDeviceInfo();
     initSnapshot();
     initMotionSettings();
+    initLiveView();
+    initDeviceInfo();
+    requestInitialState();
+    startLiveSnapshotPolling();
 });
+
+function isLiveViewerActive() {
+    const panel = document.getElementById('viewerPanel');
+    return !!panel && panel.classList.contains('active');
+}
+
+function stopLiveSnapshotPolling() {
+    clearTimeout(liveSnapshotTimer);
+    clearTimeout(liveSnapshotTimeout);
+    liveSnapshotTimer = null;
+    liveSnapshotTimeout = null;
+    liveSnapshotPending = false;
+}
+
+function requestLiveSnapshot() {
+    if (!isLiveViewerActive()) return;
+    if (liveSnapshotPending) return;
+    liveSnapshotPending = true;
+    try {
+        C4.sendCommand('GET_CAMERA_SNAPSHOT', JSON.stringify({}), false, true);
+    } catch (error) {
+        liveSnapshotPending = false;
+        document.getElementById('livePreviewStatus').textContent = 'Camera preview unavailable';
+        scheduleLiveSnapshot(3000);
+        return;
+    }
+    clearTimeout(liveSnapshotTimeout);
+    liveSnapshotTimeout = setTimeout(() => {
+        if (!liveSnapshotPending) return;
+        liveSnapshotPending = false;
+        document.getElementById('livePreviewStatus').textContent = 'Camera preview unavailable';
+        scheduleLiveSnapshot(2500);
+    }, 7000);
+}
+
+function scheduleLiveSnapshot(delay = 1000) {
+    if (!isLiveViewerActive()) return;
+    clearTimeout(liveSnapshotTimer);
+    liveSnapshotTimer = setTimeout(() => {
+        liveSnapshotPending = false;
+        requestLiveSnapshot();
+    }, delay);
+}
+
+function startLiveSnapshotPolling() {
+    stopLiveSnapshotPolling();
+    fitLivePreviewFrame();
+    requestLiveSnapshot();
+}
+
+function displayLiveSnapshot(url) {
+    const preview = document.getElementById('livePreview');
+    const status = document.getElementById('livePreviewStatus');
+    preview.onload = () => {
+        status.hidden = true;
+        const now = new Date();
+        document.getElementById('liveTimestamp').textContent =
+            `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        document.getElementById('liveTimestamp').hidden = false;
+    };
+    preview.onerror = () => {
+        status.textContent = 'Camera preview unavailable';
+        status.hidden = false;
+        scheduleLiveSnapshot(2500);
+    };
+    preview.style.display = 'block';
+    preview.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+}
+
+function fitLivePreviewFrame() {
+    const stage = document.getElementById('cameraStage');
+    const frame = document.getElementById('cameraFrame');
+    if (!stage || !frame) return;
+    const width = Math.max(0, Math.min(stage.clientWidth, stage.clientHeight * 4 / 3));
+    frame.style.width = `${width}px`;
+    frame.style.height = `${width * 3 / 4}px`;
+}
+
+function initLiveView() {
+    fitLivePreviewFrame();
+    window.addEventListener('resize', fitLivePreviewFrame);
+    document.getElementById('viewerZoom').addEventListener('click', () => {
+        liveZoomIndex = (liveZoomIndex + 1) % liveZoomLevels.length;
+        document.getElementById('livePreview').style.setProperty('--viewer-zoom', liveZoomLevels[liveZoomIndex]);
+        document.getElementById('zoomChip').textContent = `${liveZoomLevels[liveZoomIndex].toFixed(1)}X`;
+    });
+    document.getElementById('zoomChip').addEventListener('click', () => document.getElementById('viewerZoom').click());
+    document.getElementById('viewerSnapshot').addEventListener('click', () => {
+        const preview = document.getElementById('livePreview');
+        if (preview.src) openSnapshotModal(preview.src, 'Snapshot captured');
+        else requestLiveSnapshot();
+    });
+    document.getElementById('viewerMic').addEventListener('click', () => {
+        sendMicCommand(hasConfirmedMicCall ? !isMicMuted : false);
+    });
+    document.getElementById('viewerEndCall').addEventListener('click', () => sendMicCommand(true));
+    document.getElementById('viewerFullscreen').addEventListener('click', () => {
+        const stage = document.getElementById('cameraStage');
+        if (document.fullscreenElement) document.exitFullscreen?.();
+        else stage.requestFullscreen?.();
+    });
+}
 
 function updateMotionVisibility() {
     const motion = document.getElementById('motionDetection');
@@ -388,7 +498,6 @@ function initializeControl4() {
         C4.subscribeToDataToUi(false);
         C4.subscribeToVariable('LAST_ROOM_SELECTED');
         C4.subscribeToVariable('LAST_MENU_SELECTED');
-        C4.sendCommand('REQUEST_SETTINGS', '', false, false);
         console.log('Control4 initialized');
 
     } catch (e) {
@@ -614,6 +723,15 @@ function updateMicUI(muted) {
         }
     }
 
+    const viewerMic = document.getElementById('viewerMic');
+    if (viewerMic) {
+        if (viewerMic.classList && typeof viewerMic.classList.toggle === 'function') {
+            viewerMic.classList.toggle('is-active', hasConfirmedMicCall && !isMicMuted);
+            viewerMic.classList.toggle('is-muted', hasConfirmedMicCall && isMicMuted);
+        }
+        viewerMic.setAttribute('aria-pressed', String(hasConfirmedMicCall && !isMicMuted));
+    }
+
     if (status) {
         status.innerText = hasConfirmedMicCall ? (isMicMuted ? 'Call Ended' : 'Call Started') : 'Switch on to start a call.';
     }
@@ -700,6 +818,7 @@ function handleTakeSnapshot() {
 
     // Open snapshot modal in loading state
     openSnapshotModal(null, "Capturing snapshot...");
+    snapshotModalPending = true;
 
     try {
         C4.sendCommand(
@@ -710,6 +829,7 @@ function handleTakeSnapshot() {
         );
         console.log("📤 TAKE_SNAPSHOT command sent");
     } catch (e) {
+        snapshotModalPending = false;
         console.error("Snapshot command error", e);
         openSnapshotModal(null, "Failed to send snapshot command");
     }
@@ -1130,6 +1250,8 @@ function onDataToUi(value) {
             if (relEl) {
                 relEl.innerText = "Release: " + (obj.release_date || "N/A");
             }
+            const viewerName = document.getElementById('viewerDeviceName');
+            if (viewerName) viewerName.innerText = obj.device_name || 'VD05 Camera';
         }
         // =========================
         // ANTI-PRY SYNC
@@ -1173,6 +1295,7 @@ function onDataToUi(value) {
             console.log("Mic UI UPDATE →", muted ? "MUTED" : "UNMUTED");
 
             updateMicUI(muted);
+            hasConfirmedMicCall = true;
         }
 
 
@@ -1192,12 +1315,28 @@ function onDataToUi(value) {
         }
 
          if (obj.type === "snapshot_result") {
-            console.log('[Snapshot] Received result:', obj);
-
-            if (obj.success && obj.image_url) {
-                openSnapshotModal(obj.image_url, "Snapshot captured");
-            } else {
-                openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+            if (liveSnapshotPending) {
+                liveSnapshotPending = false;
+                clearTimeout(liveSnapshotTimeout);
+                if (isLiveViewerActive()) {
+                    if (obj.success && obj.image_url) displayLiveSnapshot(obj.image_url);
+                    else {
+                        document.getElementById('livePreviewStatus').textContent = obj.error || 'Camera preview unavailable';
+                        scheduleLiveSnapshot(2500);
+                    }
+                    if (obj.success && obj.image_url) scheduleLiveSnapshot(1200);
+                }
+                return;
+            }
+            if (snapshotModalPending) {
+                snapshotModalPending = false;
+                if (obj.success && obj.image_url) openSnapshotModal(obj.image_url, "Snapshot captured");
+                else openSnapshotModal(null, obj.error || "Failed to capture snapshot");
+                return;
+            }
+            if (isLiveViewerActive()) {
+                if (obj.success && obj.image_url) displayLiveSnapshot(obj.image_url);
+                else document.getElementById('livePreviewStatus').textContent = obj.error || 'Camera preview unavailable';
             }
         }
 

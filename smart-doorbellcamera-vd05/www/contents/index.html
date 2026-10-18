@@ -62,6 +62,37 @@
             display: flex;
         }
 
+        #viewerPanel { background: #0f1118; }
+        .viewer-header { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr) 48px; align-items: center; flex: 0 0 56px; padding: 0 16px; background: #121722; }
+        .viewer-header-title { min-width: 0; overflow: hidden; color: #f2f4f8; font-size: 18px; font-weight: 600; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+        .viewer-header-button { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 0; background: transparent; color: #f2f4f8; cursor: pointer; }
+        .viewer-header-button svg { width: 24px; height: 24px; }
+        .camera-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4px 14px; background: #0f1118; }
+        .camera-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #0f1118; }
+        .camera-frame { position: relative; flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 4 / 3; overflow: hidden; background: #090b10; }
+        #livePreview { display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: scale(var(--viewer-zoom,1)); }
+        .camera-status { position: absolute; top: 12px; right: 14px; z-index: 2; max-width: calc(100% - 28px); overflow: hidden; color: rgba(255,255,255,.76); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+        .camera-status[hidden] { display: none; }
+        .viewer-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: max-content; max-width: calc(100% - 36px); color: rgba(255,255,255,.75); font-size: 14px; text-align: center; }
+        .viewer-error[hidden] { display: none; }
+        #viewerMic.is-active { background: #4b5877; border-color: #4b5877; }
+        #viewerMic.is-muted { border-color: rgba(255,255,255,.5); opacity: .66; }
+        .camera-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 14px 6px; }
+        .camera-footer-left,.camera-footer-right { display: flex; align-items: center; gap: 10px; }
+        .camera-footer-right { margin-left: auto; }
+        .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 72px; height: 32px; border-radius: 999px; border: 2px solid rgba(255,255,255,.72); background: rgba(12,18,27,.28); color: rgba(255,255,255,.96); font-size: 15px; font-weight: 700; padding: 0 14px; }
+        .chip.small { min-width: 60px; }
+        button.chip { cursor: pointer; }
+        .chip svg { width: 18px; height: 18px; }
+        .toolbar { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 3.5vw, 24px); padding: 10px 0 4px; }
+        .tool-btn { width: 68px; height: 68px; flex: 0 0 68px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: #070a0f; color: white; cursor: pointer; }
+        .tool-btn svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+        .tool-btn.primary { width: 88px; height: 88px; flex-basis: 88px; border: 0; background: #4b5877; }
+        .tool-btn.primary svg { width: 34px; height: 34px; }
+        .tool-btn:disabled { opacity: .9; cursor: not-allowed; }
+        .toolbar { justify-content: space-evenly; gap: 0; }
+        @media (max-width: 420px) { .tool-btn { width: 58px; height: 58px; flex-basis: 58px; } .tool-btn svg { width: 27px; height: 27px; } .tool-btn.primary { width: 76px; height: 76px; flex-basis: 76px; } .tool-btn.primary svg { width: 32px; height: 32px; } }
+
         .header {
             flex-shrink: 0;
             padding: 20px;
@@ -72,6 +103,11 @@
             font-size: 22px;
             font-weight: 700;
         }
+
+        .settings-header-row { display: grid; grid-template-columns: 42px minmax(0,1fr) 42px; align-items: center; gap: 8px; }
+        .settings-header-row .settings-heading { min-width: 0; text-align: center; }
+        .settings-header-row .settings-heading h1 { font-size: 22px; }
+        .settings-header-row .settings-heading p { margin-top: 4px; }
 
         .header p {
             font-size: 13px;
@@ -562,11 +598,42 @@
 
 <body>
     <div class="app">
+        <section id="viewerPanel" class="panel active">
+            <header class="viewer-header">
+                <button class="viewer-header-button" type="button" onclick="history.back()" aria-label="Back" title="Back"><i data-lucide="chevron-left"></i></button>
+                <h1 class="viewer-header-title" id="viewerDeviceName">Camera</h1>
+                <button class="viewer-header-button" type="button" onclick="show('homePanel')" aria-label="Settings" title="Settings"><i data-lucide="settings"></i></button>
+            </header>
+            <main class="camera-view">
+                <div class="camera-stage" id="cameraStage">
+                    <div class="camera-frame" id="cameraFrame">
+                        <img id="livePreview" alt="Live camera preview">
+                        <div class="viewer-error" id="livePreviewStatus" role="status">Connecting to camera...</div>
+                        <div class="camera-status" id="liveTimestamp" hidden></div>
+                    </div>
+                </div>
+                <div class="camera-footer">
+                    <div class="camera-footer-left"><div class="chip small">HD</div><button class="chip" id="zoomChip" type="button" aria-label="Change zoom">1.0X</button></div>
+                    <div class="camera-footer-right"><button class="chip small" id="viewerFullscreen" type="button" aria-label="Fullscreen" title="Fullscreen"><i data-lucide="maximize"></i></button></div>
+                </div>
+                <div class="toolbar">
+                    <button class="tool-btn" id="viewerZoom" type="button" aria-label="Zoom"><i data-lucide="scan-search"></i></button>
+                    <button class="tool-btn" id="viewerSnapshot" type="button" aria-label="Take snapshot"><i data-lucide="circle-dot"></i></button>
+                    <button class="tool-btn primary" id="viewerMic" type="button" aria-label="Toggle microphone"><i data-lucide="mic"></i></button>
+                    <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Camera audio playback unavailable" title="Camera audio playback is not available in this web view" disabled><i data-lucide="volume-2"></i></button>
+                    <button class="tool-btn" id="viewerEndCall" type="button" aria-label="End call" title="End call"><i data-lucide="circle-arrow-left"></i></button>
+                </div>
+            </main>
+        </section>
+
         <!-- HOME -->
-        <section id="homePanel" class="panel active">
+        <section id="homePanel" class="panel">
             <div class="header">
-                <h1>Device Settings</h1>
-                <p>VD05 Camera Controls</p>
+                <div class="settings-header-row">
+                    <button class="viewer-header-button" type="button" onclick="show('viewerPanel')" aria-label="Back to camera" title="Back to camera"><i data-lucide="chevron-left"></i></button>
+                    <div class="settings-heading"><h1>Device Settings</h1><p>VD05 Camera Controls</p></div>
+                    <div></div>
+                </div>
             </div>
             <div class="list">
                 <div class="item" onclick="show('rebootPanel')">
@@ -824,7 +891,7 @@
             <button class="btn" onclick="closeSnapshotModal()">Close</button>
         </div>
     </div>
-    <footer class="footer">
+    <footer class="footer" hidden>
         <div class="version-info">
             <span id="deviceVersion">Device: Loading...</span><br>
             <span id="firmwareVersion">Firmware: Loading...</span><br>
@@ -847,7 +914,14 @@
             document.getElementById(id)
                 .classList.add('active');
 
-            document.querySelector('.footer').hidden = id === 'facialRecPanel';
+            if (id === 'viewerPanel') startLiveSnapshotPolling();
+            else stopLiveSnapshotPolling();
+            if (id === 'homePanel') {
+                requestInitialState();
+                initDeviceInfo();
+                C4.sendCommand('REQUEST_SETTINGS', '', false, false);
+            }
+            document.querySelector('.footer').hidden = id === 'facialRecPanel' || id === 'viewerPanel';
             if (id === 'motionDetectionPanel' || id === 'detectionZonePanel') requestMotionSettings();
             if (id === 'facialRecPanel') refreshFaces();
             lucide.createIcons();
