@@ -69,8 +69,8 @@
         .viewer-header-button svg { width: 24px; height: 24px; }
         .camera-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4px 14px; background: #0f1118; }
         .camera-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #0f1118; }
+        .camera-stage:fullscreen { width: 100vw; height: 100dvh; flex: none; padding: 0; }
         .camera-frame { position: relative; flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 4 / 3; overflow: hidden; background: #090b10; }
-        #livePreview { display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: scale(var(--viewer-zoom,1)); }
         .camera-status { position: absolute; top: 12px; right: 14px; z-index: 2; max-width: calc(100% - 28px); overflow: hidden; color: rgba(255,255,255,.76); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
         .camera-status[hidden] { display: none; }
         .viewer-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: max-content; max-width: calc(100% - 36px); color: rgba(255,255,255,.75); font-size: 14px; text-align: center; }
@@ -89,6 +89,7 @@
         .notification-history-thumb { width: 70px; height: 70px; border-radius: 10px; background: #303238; object-fit: cover; }
         .notification-history-copy { min-width: 0; }
         .notification-history-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+        .notification-history-detail { margin-top: 6px; color: #aaa; font-size: 14px; }
         .notification-history-description { margin-top: 6px; color: #999; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
         .notification-history-time { align-self: start; padding-top: 4px; color: #999; font-size: 12px; white-space: nowrap; }
         .notification-history-duration { position: absolute; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,.8); color: white; font-size: 11px; }
@@ -845,9 +846,7 @@
             <main class="camera-view">
                 <div class="camera-stage" id="cameraStage">
                     <div class="camera-frame" id="cameraFrame">
-                        <img id="livePreview" alt="Live camera preview">
-                        <div class="viewer-error" id="livePreviewStatus" role="status">Connecting to camera...</div>
-                        <div class="camera-status" id="liveTimestamp" hidden></div>
+                        <div class="viewer-error" id="livePreviewStatus" role="status">Live stream not available</div>
                     </div>
                 </div>
                 <div class="snapshot-saved-banner" id="viewerSnapshotBanner" role="status" aria-live="polite" hidden>
@@ -863,13 +862,13 @@
                     <button class="tool-btn" id="viewerZoom" type="button" aria-label="Take screenshot"><i data-lucide="scissors"></i></button>
                     <button class="tool-btn" id="viewerSnapshot" type="button" aria-label="Take snapshot"><i data-lucide="circle-dot"></i></button>
                     <button class="tool-btn primary" id="viewerMic" type="button" aria-label="Toggle microphone"><i data-lucide="mic"></i></button>
-                    <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Camera audio playback unavailable" title="Camera audio playback is not available in this web view" disabled><i data-lucide="volume-2"></i></button>
+                    <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Toggle camera speaker mute" aria-pressed="false" title="Mute camera speaker"><i data-lucide="volume-2"></i></button>
                     <button class="tool-btn" id="viewerEndCall" type="button" aria-label="More camera controls" title="More camera controls"><i data-lucide="circle-arrow-left"></i></button>
                 </div>
                 <div class="toolbar" id="viewerAlternateToolbar" hidden>
                     <button class="tool-btn" id="viewerAlarm" type="button" aria-label="Anti-Pry settings" title="Anti-Pry settings"><i data-lucide="bell-ring"></i></button>
                     <button class="tool-btn" id="viewerAlternateAlbum" type="button" aria-label="Open album" title="Open album"><i data-lucide="image"></i></button>
-                    <button class="tool-btn" id="viewerNotifications" type="button" aria-label="Notifications" title="Notifications"><i data-lucide="list"></i></button>
+                    <button class="tool-btn" id="viewerNotifications" type="button" aria-label="Notifications" title="Notifications"><i data-lucide="rotate-ccw"></i></button>
                     <button class="tool-btn" id="viewerToolbarBack" type="button" aria-label="Back to camera controls" title="Back"><i data-lucide="x"></i></button>
                 </div>
                 <div class="viewer-alert-dialog" id="viewerAlertDialog" role="dialog" aria-modal="true" aria-labelledby="viewerAlertCopy" hidden>
@@ -1240,8 +1239,6 @@
             document.getElementById(id)
                 .classList.add('active');
 
-            if (id === 'viewerPanel') startLiveSnapshotPolling();
-            else stopLiveSnapshotPolling();
             if (id === 'homePanel') {
                 beginHomeSettingsLoad();
                 requestInitialState();

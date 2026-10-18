@@ -4631,28 +4631,42 @@ function REBOOT_DEVICE(tParams)
     return true
 end
 
-function TAKE_SNAPSHOT_FOR_UI()
-    local ip        = _props["IP Address"] or Properties["IP Address"] or "192.168.1.6"
-    local http_port = "8080"
-    local username  =  "SystemConnect"
-    local password  =  "123456"
-    local path      = Properties["Snapshot URL Path"] or "/tmp/snap.jpeg"
+local function encode_base64(data)
+    local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    local encoded = {}
+    for index = 1, #data, 3 do
+        local first, second, third = data:byte(index, index + 2)
+        local value = first * 65536 + (second or 0) * 256 + (third or 0)
+        encoded[#encoded + 1] = alphabet:sub(math.floor(value / 262144) % 64 + 1, math.floor(value / 262144) % 64 + 1)
+        encoded[#encoded + 1] = alphabet:sub(math.floor(value / 4096) % 64 + 1, math.floor(value / 4096) % 64 + 1)
+        encoded[#encoded + 1] = second and alphabet:sub(math.floor(value / 64) % 64 + 1, math.floor(value / 64) % 64 + 1) or "="
+        encoded[#encoded + 1] = third and alphabet:sub(value % 64 + 1, value % 64 + 1) or "="
+    end
+    return table.concat(encoded)
+end
 
-     if ip == "" then
+function TAKE_SNAPSHOT_FOR_UI()
+    local ip = _props["IP Address"]
+    if not ip or ip == "" then ip = Properties["IP Address"] end
+    if not ip or ip == "" then
         SendSnapshotResultToUI(false, nil, "No IP Address configured")
         return
     end
 
-    local snapshot_url
-    if username ~= "" and password ~= "" then
-        snapshot_url = string.format("http://%s:%s@%s:%s%s",
-            username, password, ip, http_port, path)
-    else
-        snapshot_url = string.format("http://%s:%s%s", ip, http_port, path)
-    end
+    local username = Properties["Username"] or "SystemConnect"
+    local password = Properties["Password"] or "123456"
+    local path = Properties["Snapshot URL Path"] or "/tmp/snap.jpeg"
+    if path:sub(1, 1) ~= "/" then path = "/" .. path end
+    local snapshot_url = string.format("http://%s:%s@%s:8080%s", username, password, ip, path)
 
-    C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
-    SendSnapshotResultToUI(true, snapshot_url, nil)
+    C4:urlGet(snapshot_url, {}, false, function(error_message, response_code, _, data)
+        if response_code ~= 200 or type(data) ~= "string" or #data == 0 then
+            SendSnapshotResultToUI(false, nil, error_message or "Camera snapshot unavailable")
+            return
+        end
+        C4:SendToProxy(5001, "SNAPSHOT_INVALIDATE", {})
+        SendSnapshotResultToUI(true, "data:image/jpeg;base64," .. encode_base64(data), nil)
+    end)
 end
 
 function SendSnapshotResultToUI(success, image_url, error_msg)

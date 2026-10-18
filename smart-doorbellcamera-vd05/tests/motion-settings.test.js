@@ -21,7 +21,10 @@ function fixture() {
         if (!elements.has(id)) elements.set(id, {
             checked: false, hidden: false, value: '', textContent: '',
             style: { setProperty(name, value) { this[name] = value; } },
-            classList: { contains: name => id === 'viewerPanel' && name === 'active' },
+            classList: {
+                contains: name => id === 'viewerPanel' && name === 'active',
+                toggle() {}
+            },
             focus() {},
             getAttribute(name) { return this[name] ?? null; },
             removeAttribute(name) { delete this[name]; },
@@ -73,8 +76,8 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /<footer class="footer" hidden>/);
     assert.match(html, /onclick="show\('homePanel'\)" aria-label="Settings"/);
     assert.match(html, /onclick="show\('viewerPanel'\)" aria-label="Back to camera"/);
-    assert.match(html, /<img id="livePreview"/);
-    assert.match(html, /<div class="camera-frame" id="cameraFrame">[\s\S]*?<img id="livePreview"/);
+    assert.match(html, /<div class="camera-frame" id="cameraFrame">[\s\S]*?id="livePreviewStatus" role="status">Live stream not available/);
+    assert.doesNotMatch(html, /<img id="livePreview"/);
     assert.match(html, /\.camera-frame\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/);
     assert.match(html, /id="viewerMic"/);
     assert.match(html, /id="viewerSpeaker"[^>]*disabled/);
@@ -84,11 +87,11 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /\.tool-btn\.primary\s*\{[^}]*width:\s*88px[^}]*height:\s*88px/);
     assert.match(html, /id="viewerSnapshot"[^>]*>[\s\S]*?data-lucide="circle-dot"/);
     assert.match(html, /id="viewerAlternateAlbum"[^>]*>[\s\S]*?data-lucide="image"/);
-    assert.match(html, /id="viewerNotifications"[^>]*>[\s\S]*?data-lucide="list"/);
+    assert.match(html, /id="viewerNotifications"[^>]*>[\s\S]*?data-lucide="rotate-ccw"/);
     assert.match(html, /id="viewerEndCall"[^>]*>[\s\S]*?data-lucide="circle-arrow-left"/);
     assert.match(html, /if \(id === 'homePanel'\) \{\s*beginHomeSettingsLoad\(\);[\s\S]*requestInitialState\(\)[\s\S]*initDeviceInfo\(\)[\s\S]*REQUEST_SETTINGS/);
     const startup = source.slice(source.indexOf("document.addEventListener('DOMContentLoaded'"), source.indexOf('function isLiveViewerActive()'));
-    assert.match(startup, /startLiveSnapshotPolling\(\)/);
+    assert.doesNotMatch(startup, /startLiveSnapshotPolling\(\)/);
     assert.match(startup, /requestInitialState\(\)/);
     assert.match(startup, /initDeviceInfo\(\)/);
     assert.doesNotMatch(startup, /REQUEST_SETTINGS|GET_STRANGER_FACES/);
@@ -211,27 +214,26 @@ test('Audio Settings waits only for a valid speaker volume before revealing the 
     assert.equal(app.inert, false);
 });
 
-test('VD05 live viewer requests snapshots sequentially and does not open the settings snapshot modal', () => {
-    const { context, element, commands, timers } = fixture();
+test('viewer speaker mute sets volume to zero and unmute restores the previous volume', () => {
+    const { context, element, commands } = fixture();
     context.initLiveView();
-    context.startLiveSnapshotPolling();
-    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SNAPSHOT');
-    const initialCommandCount = commands.length;
-    context.onDataToUi(JSON.stringify({ type: 'snapshot_result', success: true, image_url: 'http://camera.local/snapshot.jpg' }));
-    assert.match(element('livePreview').src, /^http:\/\/camera\.local\/snapshot\.jpg\?t=/);
-    assert.equal(element('livePreview').style.display, 'block');
-    assert.equal(element('snapshotModal').classList?.contains('show') || false, false);
-    const pollTimer = [...timers.values()].find(timer => timer.delay === 1200);
-    assert.ok(pollTimer);
-    assert.equal(commands.length, initialCommandCount);
-    pollTimer.callback();
-    assert.equal(commands.length, initialCommandCount + 1);
-    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SNAPSHOT');
-    context.stopLiveSnapshotPolling();
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, settings: { beep_vol: 6 } }));
+    element('viewerSpeaker').listeners.click();
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 0 });
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
+    assert.equal(element('viewerSpeaker').getAttribute('aria-pressed'), 'true');
+    element('viewerSpeaker').listeners.click();
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 6 });
+});
+
+test('VD05 viewer shows no live stream placeholder and does not poll snapshots automatically', () => {
+    const { context, commands } = fixture();
+    context.initLiveView();
+    assert.equal(commands.length, 0);
 });
 
 test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape stages', () => {
-    const { context, element } = fixture();
+    const { context, element, lifecycle } = fixture();
     const stage = element('cameraStage');
     const frame = element('cameraFrame');
     stage.clientWidth = 382;
@@ -244,7 +246,15 @@ test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape sta
     context.fitLivePreviewFrame();
     assert.equal(frame.style.width, String(581 * 4 / 3) + 'px');
     assert.equal(frame.style.height, '581px');
-    assert.match(fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8'), /\.camera-stage[\s\S]*?place-items:\s*center/);
+    stage.clientWidth = 1366;
+    stage.clientHeight = 768;
+    context.initLiveView();
+    lifecycle.fullscreenchange.forEach(callback => callback());
+    assert.equal(frame.style.width, '1024px');
+    assert.equal(frame.style.height, '768px');
+    const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
+    assert.match(html, /\.camera-stage[\s\S]*?place-items:\s*center/);
+    assert.match(html, /\.camera-stage:fullscreen\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
 });
 
 test('zoom chip increments by 1× and stops at 6×', () => {
@@ -290,6 +300,23 @@ test('alternate toolbar Notifications button loads real history records', () => 
     assert.equal(card.children[1].children[0].textContent, 'Doorbell Call Event');
     assert.equal(card.children[1].children[1].textContent, 'VD05');
     assert.equal(element('notificationHistoryLoadMore').hidden, true);
+});
+
+test('notification labels cover all known API event types and preserve unknown types', () => {
+    const { context } = fixture();
+    const cases = [
+        ['doorbell_ring', 'Doorbell Call Event', undefined],
+        ['human_detected', 'Human Detection Event', undefined],
+        ['stranger_detected', 'Face Detection Event', 'Stranger'],
+        ['registered_user_detected', 'Face Detection Event', 'Registered User'],
+        ['motion_detected', 'Motion Detection Event', undefined],
+        ['custom_security_alert', 'custom security alert Event', undefined]
+    ];
+    for (const [message_type, expected, detail] of cases) {
+        const presentation = context.describeViewerNotification({ device_name: 'VD05', message_type });
+        assert.equal(presentation.title, expected);
+        assert.equal(presentation.detail, detail);
+    }
 });
 
 test('scissors takes a snapshot and shows its image in the saved banner', () => {

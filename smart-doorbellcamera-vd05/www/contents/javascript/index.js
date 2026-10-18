@@ -6,14 +6,14 @@ let confirmedDeviceName = '';
 let pendingDeviceName = '';
 let deviceNameDraftDirty = false;
 let deviceNameReturnFocus = null;
-let liveSnapshotTimer = null;
-let liveSnapshotTimeout = null;
-let liveSnapshotPending = false;
 let viewerScreenshotPending = false;
-let viewerScreenshotQueued = false;
 let viewerScreenshotTimer = null;
 let viewerScreenshotBannerTimer = null;
 let viewerSavedSnapshotUrl = '';
+let speakerVolumeBeforeMute = null;
+let viewerSpeakerWritePending = false;
+let viewerSpeakerLoadPending = false;
+let viewerSpeakerLoadTimer = null;
 let snapshotModalPending = false;
 let liveZoomIndex = 0;
 const liveZoomLevels = [1, 2, 3, 4, 5, 6];
@@ -277,6 +277,10 @@ function beginSettingSave(kind, label = 'Setting up...') {
                 antiPryUpdatePending = false;
                 updateAntiPryUI(antiPryEnabled);
             }
+            if (kind === 'speakerVolume') {
+                viewerSpeakerWritePending = false;
+                updateViewerSpeaker(latestDeviceSettings.beep_vol);
+            }
             updateSettingSaveOverlay();
             showSettingToast('Setting update timed out');
         }, 20000)
@@ -291,7 +295,7 @@ function updateSettingSaveOverlay() {
     const overlay = document.getElementById('settingSaveOverlay');
     overlay.setAttribute('data-loading', String(loading));
     document.getElementById('settingSaveLabel').textContent = loading ? 'Loading...' :
-        (pendingSettingSaves.get('mic')?.label || 'Setting up...');
+        (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || 'Setting up...');
     overlay.hidden = !pending;
     const app = document.querySelector('.app');
     if (app) app.inert = pending;
@@ -335,82 +339,12 @@ document.addEventListener('DOMContentLoaded', function () {
     initLiveView();
     initDeviceInfo();
     requestInitialState();
-    startLiveSnapshotPolling();
     initStatusLight();
 });
 
-function isLiveViewerActive() {
-    const panel = document.getElementById('viewerPanel');
-    return !!panel && panel.classList.contains('active');
-}
-
-function stopLiveSnapshotPolling() {
-    clearTimeout(liveSnapshotTimer);
-    clearTimeout(liveSnapshotTimeout);
-    liveSnapshotTimer = null;
-    liveSnapshotTimeout = null;
-    liveSnapshotPending = false;
-}
-
-function requestLiveSnapshot() {
-    if (!isLiveViewerActive()) return;
-    if (liveSnapshotPending) return;
-    liveSnapshotPending = true;
-    try {
-        C4.sendCommand('GET_CAMERA_SNAPSHOT', JSON.stringify({}), false, true);
-    } catch (error) {
-        liveSnapshotPending = false;
-        document.getElementById('livePreviewStatus').textContent = 'Camera preview unavailable';
-        if (viewerScreenshotQueued) {
-            viewerScreenshotQueued = false;
-            sendViewerScreenshotCommand();
-        } else scheduleLiveSnapshot(3000);
-        return;
-    }
-    clearTimeout(liveSnapshotTimeout);
-    liveSnapshotTimeout = setTimeout(() => {
-        if (!liveSnapshotPending) return;
-        liveSnapshotPending = false;
-        document.getElementById('livePreviewStatus').textContent = 'Camera preview unavailable';
-        if (viewerScreenshotQueued) {
-            viewerScreenshotQueued = false;
-            sendViewerScreenshotCommand();
-        } else scheduleLiveSnapshot(2500);
-    }, 7000);
-}
-
-function scheduleLiveSnapshot(delay = 1000) {
-    if (!isLiveViewerActive() || viewerScreenshotPending) return;
-    clearTimeout(liveSnapshotTimer);
-    liveSnapshotTimer = setTimeout(() => {
-        liveSnapshotPending = false;
-        requestLiveSnapshot();
-    }, delay);
-}
-
-function startLiveSnapshotPolling() {
-    stopLiveSnapshotPolling();
-    fitLivePreviewFrame();
-    requestLiveSnapshot();
-}
-
-function displayLiveSnapshot(url) {
-    const preview = document.getElementById('livePreview');
-    const status = document.getElementById('livePreviewStatus');
-    preview.onload = () => {
-        status.hidden = true;
-        const now = new Date();
-        document.getElementById('liveTimestamp').textContent =
-            `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-        document.getElementById('liveTimestamp').hidden = false;
-    };
-    preview.onerror = () => {
-        status.textContent = 'Camera preview unavailable';
-        status.hidden = false;
-        scheduleLiveSnapshot(2500);
-    };
-    preview.style.display = 'block';
-    preview.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+function snapshotImageSource(url) {
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+    return url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
 }
 
 function fitLivePreviewFrame() {
@@ -425,15 +359,13 @@ function fitLivePreviewFrame() {
 function cycleLiveZoom() {
     liveZoomIndex = Math.min(liveZoomIndex + 1, liveZoomLevels.length - 1);
     const zoom = liveZoomLevels[liveZoomIndex];
-    document.getElementById('livePreview').style.setProperty('--viewer-zoom', String(zoom));
+    document.getElementById('cameraFrame').style.setProperty('--viewer-zoom', String(zoom));
     document.getElementById('zoomChip').textContent = `${zoom.toFixed(1)}X`;
 }
 
 function handleViewerScreenshot() {
     if (viewerScreenshotPending) return;
     viewerScreenshotPending = true;
-    viewerScreenshotQueued = liveSnapshotPending;
-    clearTimeout(liveSnapshotTimer);
     clearTimeout(viewerScreenshotBannerTimer);
     const banner = document.getElementById('viewerSnapshotBanner');
     document.getElementById('viewerSnapshotMessage').textContent = 'Saving screenshot...';
@@ -441,11 +373,11 @@ function handleViewerScreenshot() {
     document.getElementById('viewerSnapshotAlbum').disabled = true;
     banner.hidden = false;
     viewerScreenshotTimer = setTimeout(() => finishViewerScreenshot(null, 'Snapshot request timed out'), 15000);
-    if (!viewerScreenshotQueued) sendViewerScreenshotCommand();
+    sendViewerScreenshotCommand();
 }
 
 function sendViewerScreenshotCommand() {
-    if (!viewerScreenshotPending || liveSnapshotPending) return;
+    if (!viewerScreenshotPending) return;
     try {
         C4.sendCommand('TAKE_SNAPSHOT', JSON.stringify({}), false, true);
     } catch (error) {
@@ -456,7 +388,6 @@ function sendViewerScreenshotCommand() {
 function finishViewerScreenshot(imageUrl, error) {
     if (!viewerScreenshotPending) return;
     viewerScreenshotPending = false;
-    viewerScreenshotQueued = false;
     clearTimeout(viewerScreenshotTimer);
     const banner = document.getElementById('viewerSnapshotBanner');
     const message = document.getElementById('viewerSnapshotMessage');
@@ -464,7 +395,7 @@ function finishViewerScreenshot(imageUrl, error) {
     const albumButton = document.getElementById('viewerSnapshotAlbum');
     if (imageUrl) {
         viewerSavedSnapshotUrl = imageUrl;
-        thumbnail.src = imageUrl + (imageUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        thumbnail.src = snapshotImageSource(imageUrl);
         thumbnail.hidden = false;
         message.textContent = 'Screenshot Saved to Album';
         albumButton.disabled = false;
@@ -475,7 +406,6 @@ function finishViewerScreenshot(imageUrl, error) {
     }
     clearTimeout(viewerScreenshotBannerTimer);
     viewerScreenshotBannerTimer = setTimeout(() => { banner.hidden = true; }, imageUrl ? 8000 : 4000);
-    scheduleLiveSnapshot(1200);
 }
 
 function openViewerSnapshotAlbum() {
@@ -532,6 +462,32 @@ function formatViewerNotificationTime(value) {
     return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
+function describeViewerNotification(item) {
+    const rawType = String(item.message_type || 'Notification').trim();
+    const normalized = rawType.toLowerCase().replace(/[\s-]+/g, '_');
+    const device = item.device_name || 'Camera';
+    if (normalized.includes('doorbell') || normalized.includes('door_bell')) {
+        return { title: 'Doorbell Call Event', description: `${device} received a visitor click on the doorbell` };
+    }
+    if (normalized.includes('human')) {
+        return { title: 'Human Detection Event', description: `${device} detected someone's presence` };
+    }
+    if (normalized.includes('stranger')) {
+        return { title: 'Face Detection Event', detail: 'Stranger', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('registered_user')) {
+        return { title: 'Face Detection Event', detail: 'Registered User', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('face')) {
+        return { title: 'Face Detection Event', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('motion')) {
+        return { title: 'Motion Detection Event', description: `${device} detected motion` };
+    }
+    const title = /event$/i.test(rawType) ? rawType : `${rawType.replace(/_/g, ' ')} Event`;
+    return { title, description: device };
+}
+
 function renderViewerNotifications(notifications, append = false) {
     const list = document.getElementById('notificationHistoryList');
     if (!append) list.replaceChildren();
@@ -564,13 +520,20 @@ function renderViewerNotifications(notifications, append = false) {
         }
         const copy = document.createElement('div');
         copy.className = 'notification-history-copy';
+        const presentation = describeViewerNotification(item);
         const title = document.createElement('div');
         title.className = 'notification-history-title';
-        title.textContent = item.message_type || 'Notification';
+        title.textContent = presentation.title;
+        if (presentation.detail) {
+            const detail = document.createElement('div');
+            detail.className = 'notification-history-detail';
+            detail.textContent = presentation.detail;
+            copy.appendChild(title);
+            copy.appendChild(detail);
+        } else copy.appendChild(title);
         const description = document.createElement('div');
         description.className = 'notification-history-description';
-        description.textContent = item.device_name || '';
-        copy.appendChild(title);
+        description.textContent = presentation.description;
         copy.appendChild(description);
         const time = document.createElement('time');
         time.className = 'notification-history-time';
@@ -609,16 +572,14 @@ function confirmViewerAlert() {
 function initLiveView() {
     fitLivePreviewFrame();
     window.addEventListener('resize', fitLivePreviewFrame);
+    document.addEventListener('fullscreenchange', fitLivePreviewFrame);
     document.getElementById('viewerZoom').addEventListener('click', handleViewerScreenshot);
     document.getElementById('zoomChip').addEventListener('click', cycleLiveZoom);
-    document.getElementById('viewerSnapshot').addEventListener('click', () => {
-        const preview = document.getElementById('livePreview');
-        if (preview.src) openSnapshotModal(preview.src, 'Snapshot captured');
-        else requestLiveSnapshot();
-    });
+    document.getElementById('viewerSnapshot').addEventListener('click', handleTakeSnapshot);
     document.getElementById('viewerMic').addEventListener('click', () => {
         sendMicCommand(hasConfirmedMicCall ? !isMicMuted : false);
     });
+    document.getElementById('viewerSpeaker').addEventListener('click', toggleViewerSpeaker);
     document.getElementById('viewerEndCall').addEventListener('click', () => toggleViewerToolbar(true));
     document.getElementById('viewerToolbarBack').addEventListener('click', () => toggleViewerToolbar(false));
     document.getElementById('viewerAlternateAlbum').addEventListener('click', openViewerSnapshotAlbum);
@@ -822,9 +783,6 @@ function openStorageSettings() {
 
 function openInstallationGuide() {
     installationStep = 1;
-    const livePreview = document.getElementById('livePreview');
-    const installationPreview = document.getElementById('installationLivePreview');
-    if (livePreview && livePreview.getAttribute('src')) installationPreview.src = livePreview.currentSrc || livePreview.src;
     renderInstallationStep();
     show('installationPanel');
 }
@@ -973,6 +931,87 @@ function updateSpeakerVolumePreview() {
     output.style.left = `calc(8px + ${value * 10}% - ${value * 1.6}px)`;
 }
 
+function speakerVolumeStorageKey() {
+    const serial = document.getElementById('informationSerial')?.textContent;
+    const deviceName = document.getElementById('viewerDeviceName')?.textContent || 'camera';
+    return `vd05:speaker-volume-before-mute:${serial && serial !== '...' ? serial : deviceName}`;
+}
+
+function loadRememberedSpeakerVolume() {
+    if (speakerVolumeBeforeMute !== null) return speakerVolumeBeforeMute;
+    try {
+        const stored = Number(localStorage.getItem(speakerVolumeStorageKey()));
+        if (Number.isInteger(stored) && stored > 0 && stored <= 10) speakerVolumeBeforeMute = stored;
+    } catch (error) {}
+    return speakerVolumeBeforeMute;
+}
+
+function rememberSpeakerVolume(value) {
+    const volume = Number(value);
+    if (!Number.isInteger(volume) || volume <= 0 || volume > 10) return;
+    speakerVolumeBeforeMute = volume;
+    try {
+        localStorage.setItem(speakerVolumeStorageKey(), String(volume));
+    } catch (error) {}
+}
+
+function updateViewerSpeaker(value) {
+    const button = document.getElementById('viewerSpeaker');
+    if (value === undefined || value === null || value === '' || !Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 10) {
+        button.disabled = viewerSpeakerWritePending || viewerSpeakerLoadPending;
+        button.setAttribute('aria-label', 'Load speaker volume');
+        button.title = 'Load speaker volume';
+        return;
+    }
+    const muted = Number(value) === 0;
+    button.disabled = viewerSpeakerWritePending || viewerSpeakerLoadPending;
+    button.classList.toggle('is-muted', muted);
+    button.setAttribute('aria-pressed', String(muted));
+    button.setAttribute('aria-label', muted ? 'Unmute camera speaker' : 'Mute camera speaker');
+    button.title = muted ? 'Unmute camera speaker' : 'Mute camera speaker';
+    button.innerHTML = `<i data-lucide="${muted ? 'volume-x' : 'volume-2'}"></i>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function toggleViewerSpeaker() {
+    if (viewerSpeakerWritePending || viewerSpeakerLoadPending) return;
+    const current = Number(latestDeviceSettings.beep_vol);
+    if (!Number.isInteger(current) || current < 0 || current > 10) {
+        viewerSpeakerLoadPending = true;
+        updateViewerSpeaker(undefined);
+        viewerSpeakerLoadTimer = setTimeout(() => {
+            viewerSpeakerLoadPending = false;
+            updateViewerSpeaker(latestDeviceSettings.beep_vol);
+            showSettingToast('Speaker volume request timed out');
+        }, 10000);
+        try {
+            C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
+        } catch (error) {
+            clearTimeout(viewerSpeakerLoadTimer);
+            viewerSpeakerLoadPending = false;
+            updateViewerSpeaker(latestDeviceSettings.beep_vol);
+            showSettingToast('Unable to load speaker volume');
+        }
+        return;
+    }
+    const target = current === 0 ? loadRememberedSpeakerVolume() : 0;
+    if (target === null) {
+        showSettingToast('Previous speaker volume is unavailable');
+        return;
+    }
+    if (current > 0) rememberSpeakerVolume(current);
+    viewerSpeakerWritePending = true;
+    updateViewerSpeaker(current);
+    beginSettingSave('speakerVolume', 'Updating speaker...');
+    try {
+        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'beep_vol', value: target }), false, true);
+    } catch (error) {
+        viewerSpeakerWritePending = false;
+        updateViewerSpeaker(current);
+        finishSettingSave('speakerVolume', false, 'Unable to update speaker volume');
+    }
+}
+
 function hydrateAudioSettings(settings) {
     const slider = document.getElementById('speakerVolume');
     const value = Number(settings.beep_vol);
@@ -980,6 +1019,9 @@ function hydrateAudioSettings(settings) {
     slider.value = String(value);
     slider.disabled = false;
     updateSpeakerVolumePreview();
+    if (value > 0) rememberSpeakerVolume(value);
+    else loadRememberedSpeakerVolume();
+    updateViewerSpeaker(value);
     return true;
 }
 
@@ -1416,7 +1458,7 @@ function openSnapshotModal(imageUrl, message) {
         if (imageUrl) {
             // Clear first, then set (helps some webviews)
             img.removeAttribute('src');
-            img.src = imageUrl + (imageUrl.indexOf('?') > -1 ? '&' : '?') + 't=' + Date.now();
+            img.src = snapshotImageSource(imageUrl);
             img.style.display = 'block';
             console.log('[Snapshot] src set to:', img.src);
         } else {
@@ -1822,6 +1864,13 @@ function onDataToUi(value) {
                 finishStorageSettingsLoad(obj.success && storageDataReady,
                     obj.success ? 'Storage information is incomplete' : 'Unable to load storage information');
             }
+            if (viewerSpeakerLoadPending && !obj.setting_saved) {
+                clearTimeout(viewerSpeakerLoadTimer);
+                viewerSpeakerLoadPending = false;
+                updateViewerSpeaker(latestDeviceSettings.beep_vol);
+                if (obj.success && audioVolumeReady) toggleViewerSpeaker();
+                else showSettingToast('Unable to load speaker volume');
+            }
             if (!obj.setting_saved) {
                 const motion = document.getElementById('motionDetection');
                 const complete = !motion.checked || ['detectionType', 'detectionSensitivity', 'saveMotionZone', 'motionAlarm']
@@ -1829,7 +1878,13 @@ function onDataToUi(value) {
                 const ready = obj.success && !motion.disabled && complete;
                 finishSettingsLoad('camera', ready, 'Unable to load camera settings');
             }
-            if (obj.success && obj.setting_saved) finishSettingSave('camera', true);
+            if (obj.success && obj.setting_saved) {
+                if (pendingSettingSaves.has('speakerVolume')) {
+                    viewerSpeakerWritePending = false;
+                    updateViewerSpeaker(latestDeviceSettings.beep_vol);
+                    finishSettingSave('speakerVolume', true);
+                } else finishSettingSave('camera', true);
+            }
         }
         if (obj.type === 'camera_setting_result' && !obj.success) {
             document.getElementById('motionSettingsStatus').textContent = '';
@@ -1837,7 +1892,11 @@ function onDataToUi(value) {
             updateStatusLight(latestDeviceSettings.indicator_swt);
             hydrateVideoSettings(latestDeviceSettings);
             hydrateAudioSettings(latestDeviceSettings);
-            finishSettingSave('camera', false, obj.error);
+            if (pendingSettingSaves.has('speakerVolume')) {
+                viewerSpeakerWritePending = false;
+                updateViewerSpeaker(latestDeviceSettings.beep_vol);
+                finishSettingSave('speakerVolume', false, obj.error);
+            } else finishSettingSave('camera', false, obj.error);
             return;
         }
 
@@ -2004,22 +2063,7 @@ function onDataToUi(value) {
         }
 
          if (obj.type === "snapshot_result") {
-            if (liveSnapshotPending) {
-                liveSnapshotPending = false;
-                clearTimeout(liveSnapshotTimeout);
-                if (isLiveViewerActive()) {
-                    if (obj.success && obj.image_url) displayLiveSnapshot(obj.image_url);
-                    else {
-                        document.getElementById('livePreviewStatus').textContent = obj.error || 'Camera preview unavailable';
-                    }
-                    if (viewerScreenshotQueued) {
-                        viewerScreenshotQueued = false;
-                        sendViewerScreenshotCommand();
-                    } else scheduleLiveSnapshot(obj.success && obj.image_url ? 1200 : 2500);
-                }
-                return;
-            }
-            if (viewerScreenshotPending && !viewerScreenshotQueued) {
+            if (viewerScreenshotPending) {
                 finishViewerScreenshot(obj.success && obj.image_url ? obj.image_url : null, obj.error);
                 return;
             }
@@ -2029,10 +2073,7 @@ function onDataToUi(value) {
                 else openSnapshotModal(null, obj.error || "Failed to capture snapshot");
                 return;
             }
-            if (isLiveViewerActive()) {
-                if (obj.success && obj.image_url) displayLiveSnapshot(obj.image_url);
-                else document.getElementById('livePreviewStatus').textContent = obj.error || 'Camera preview unavailable';
-            }
+            return;
         }
 
         // =========================
