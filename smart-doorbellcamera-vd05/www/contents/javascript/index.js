@@ -281,6 +281,10 @@ function beginSettingSave(kind, label = 'Setting up...') {
                 viewerSpeakerWritePending = false;
                 updateViewerSpeaker(latestDeviceSettings.beep_vol);
             }
+            if (kind === 'format') {
+                document.getElementById('cancelStorageFormat').disabled = false;
+                document.getElementById('confirmStorageFormat').disabled = false;
+            }
             updateSettingSaveOverlay();
             showSettingToast('Setting update timed out');
         }, 20000)
@@ -295,7 +299,7 @@ function updateSettingSaveOverlay() {
     const overlay = document.getElementById('settingSaveOverlay');
     overlay.setAttribute('data-loading', String(loading));
     document.getElementById('settingSaveLabel').textContent = loading ? 'Loading...' :
-        (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || 'Setting up...');
+        (pendingSettingSaves.get('format')?.label || pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || 'Setting up...');
     overlay.hidden = !pending;
     const app = document.querySelector('.app');
     if (app) app.inert = pending;
@@ -357,7 +361,7 @@ function fitLivePreviewFrame() {
 }
 
 function cycleLiveZoom() {
-    liveZoomIndex = Math.min(liveZoomIndex + 1, liveZoomLevels.length - 1);
+    liveZoomIndex = (liveZoomIndex + 1) % liveZoomLevels.length;
     const zoom = liveZoomLevels[liveZoomIndex];
     document.getElementById('cameraFrame').style.setProperty('--viewer-zoom', String(zoom));
     document.getElementById('zoomChip').textContent = `${zoom.toFixed(1)}X`;
@@ -422,6 +426,15 @@ function toggleViewerToolbar(showAlternate) {
     document.getElementById('viewerAlternateToolbar').hidden = !showAlternate;
 }
 
+function toggleViewerFullscreen() {
+    const player = document.querySelector('.camera-view');
+    const button = document.getElementById('viewerFullscreen');
+    const fullscreen = !player.classList.contains('is-fullscreen');
+    player.classList.toggle('is-fullscreen', fullscreen);
+    button.setAttribute('aria-pressed', String(fullscreen));
+    fitLivePreviewFrame();
+}
+
 function requestViewerNotifications(page = 1, append = false) {
     if (notificationHistoryPending) return;
     notificationHistoryPending = true;
@@ -484,7 +497,9 @@ function describeViewerNotification(item) {
     if (normalized.includes('motion')) {
         return { title: 'Motion Detection Event', description: `${device} detected motion` };
     }
-    const title = /event$/i.test(rawType) ? rawType : `${rawType.replace(/_/g, ' ')} Event`;
+    const words = rawType.replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
+    const normalizedTitle = words.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+    const title = /\bevent$/i.test(normalizedTitle) ? normalizedTitle : `${normalizedTitle} Event`;
     return { title, description: device };
 }
 
@@ -585,10 +600,11 @@ function initLiveView() {
     document.getElementById('viewerAlternateAlbum').addEventListener('click', openViewerSnapshotAlbum);
     document.getElementById('viewerNotifications').addEventListener('click', openViewerNotifications);
     document.getElementById('viewerAlarm').addEventListener('click', openViewerAlertConfirmation);
-    document.getElementById('viewerFullscreen').addEventListener('click', () => {
-        const stage = document.getElementById('cameraStage');
-        if (document.fullscreenElement) document.exitFullscreen?.();
-        else stage.requestFullscreen?.();
+    document.getElementById('viewerFullscreen').addEventListener('click', toggleViewerFullscreen);
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.querySelector('.camera-view').classList.contains('is-fullscreen')) {
+            toggleViewerFullscreen();
+        }
     });
 }
 
@@ -842,16 +858,16 @@ function closeStorageFormat() {
 
 function confirmStorageFormat() {
     if (document.getElementById('storageFormatDialog').hidden || pendingSettingSaves.has('format')) return;
-    if (storageFormatStep === 0) {
-        storageFormatStep = 1;
-        document.getElementById('storageFormatTitle').textContent = 'Confirm Format Local Storage';
-        document.getElementById('confirmStorageFormat').textContent = 'Format';
-        return;
-    }
+    document.getElementById('storageFormatDialog').hidden = true;
+    storageFormatStep = 0;
     beginSettingSave('format', 'Formatting...');
+    document.getElementById('cancelStorageFormat').disabled = true;
+    document.getElementById('confirmStorageFormat').disabled = true;
     try {
         C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
     } catch (error) {
+        document.getElementById('cancelStorageFormat').disabled = false;
+        document.getElementById('confirmStorageFormat').disabled = false;
         finishSettingSave('format', false, 'Unable to send format command');
     }
 }
@@ -964,11 +980,12 @@ function updateViewerSpeaker(value) {
         return;
     }
     const muted = Number(value) === 0;
+    const soundLabel = muted ? 'Sound off' : 'Sound on';
     button.disabled = viewerSpeakerWritePending || viewerSpeakerLoadPending;
     button.classList.toggle('is-muted', muted);
     button.setAttribute('aria-pressed', String(muted));
-    button.setAttribute('aria-label', muted ? 'Unmute camera speaker' : 'Mute camera speaker');
-    button.title = muted ? 'Unmute camera speaker' : 'Mute camera speaker';
+    button.setAttribute('aria-label', soundLabel);
+    button.title = soundLabel;
     button.innerHTML = `<i data-lucide="${muted ? 'volume-x' : 'volume-2'}"></i>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1882,7 +1899,8 @@ function onDataToUi(value) {
                 if (pendingSettingSaves.has('speakerVolume')) {
                     viewerSpeakerWritePending = false;
                     updateViewerSpeaker(latestDeviceSettings.beep_vol);
-                    finishSettingSave('speakerVolume', true);
+                    finishSettingSave('speakerVolume', true, null,
+                        Number(latestDeviceSettings.beep_vol) === 0 ? 'Sound off' : 'Sound on');
                 } else finishSettingSave('camera', true);
             }
         }
@@ -1935,14 +1953,9 @@ function onDataToUi(value) {
                 }
             }
 
-            // Update footer elements
-            const devEl = document.getElementById('deviceVersion');
+            updateDeviceNameDisplays(obj.device_name || 'VD05 Camera');
             const fwEl = document.getElementById('firmwareVersion');
             const relEl = document.getElementById('releaseDate');
-
-            if (devEl) {
-                devEl.innerText = "Device: " + (obj.device_name || "Unknown");
-            }
 
             if (fwEl) {
                 fwEl.innerText = "Firmware: " + (obj.version || obj.firmware || "Unknown");
@@ -1950,12 +1963,6 @@ function onDataToUi(value) {
 
             if (relEl) {
                 relEl.innerText = "Release: " + (obj.release_date || "N/A");
-            }
-            const viewerName = document.getElementById('viewerDeviceName');
-            if (viewerName) viewerName.innerText = obj.device_name || 'VD05 Camera';
-            if (obj.device_name) {
-                document.getElementById('settingsDeviceName').textContent = obj.device_name;
-                document.getElementById('informationDeviceName').textContent = obj.device_name;
             }
             const informationFields = {
                 informationFirmware: obj.version || obj.firmware,
@@ -2032,10 +2039,7 @@ function onDataToUi(value) {
         if (obj.type === 'device_name_result') {
             if (obj.success) {
                 const updatedName = obj.device_name || pendingDeviceName;
-                if (updatedName) {
-                    confirmedDeviceName = updatedName;
-                    document.getElementById('settingsDeviceName').textContent = updatedName;
-                }
+                updateDeviceNameDisplays(updatedName);
                 pendingDeviceName = '';
                 deviceNameDraftDirty = false;
                 finishSettingSave('name', true);
@@ -2051,10 +2055,7 @@ function onDataToUi(value) {
         // Compatibility with driver versions that send only device_name_updated.
         if (obj.device_name_updated) {
             const updatedName = obj.device_name || pendingDeviceName;
-            if (updatedName) {
-                confirmedDeviceName = updatedName;
-                document.getElementById('settingsDeviceName').textContent = updatedName;
-            }
+            updateDeviceNameDisplays(updatedName);
             pendingDeviceName = '';
             deviceNameDraftDirty = false;
             finishSettingSave('name', true);
@@ -2185,6 +2186,18 @@ function onSubscribeToDataToUi(msg) {
 
 function onSubscribeToVariableError(v, msg) {
     console.log('Variable Error', v, msg);
+}
+
+function updateDeviceNameDisplays(name) {
+    const value = String(name || '').trim();
+    if (!value) return;
+    confirmedDeviceName = value;
+    ['settingsDeviceName', 'informationDeviceName', 'viewerDeviceName'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.textContent = value;
+    });
+    const footerDevice = document.getElementById('deviceVersion');
+    if (footerDevice) footerDevice.textContent = `Device: ${value}`;
 }
 
 function updateDeviceNameConfirm() {

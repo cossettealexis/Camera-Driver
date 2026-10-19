@@ -16,7 +16,14 @@ function fixture() {
     const navigation = [];
     const timers = new Map();
     let timerSequence = 0;
-    const app = { inert: false };
+    const app = {
+        inert: false,
+        classList: {
+            fullscreen: false,
+            contains(name) { return name === 'is-fullscreen' && this.fullscreen; },
+            toggle(name, value) { if (name === 'is-fullscreen') this.fullscreen = value; }
+        }
+    };
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
             checked: false, hidden: false, value: '', textContent: '',
@@ -86,6 +93,8 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /\.tool-btn\s*\{[^}]*background:\s*#070a0f/);
     assert.match(html, /\.tool-btn\.primary\s*\{[^}]*width:\s*88px[^}]*height:\s*88px/);
     assert.match(html, /id="viewerSnapshot"[^>]*>[\s\S]*?data-lucide="circle-dot"/);
+    assert.match(html, /id="viewerZoom"[^>]*disabled/);
+    assert.match(html, /id="viewerSnapshot"[^>]*disabled/);
     assert.match(html, /id="viewerAlternateAlbum"[^>]*>[\s\S]*?data-lucide="image"/);
     assert.match(html, /id="viewerNotifications"[^>]*>[\s\S]*?data-lucide="rotate-ccw"/);
     assert.match(html, /id="viewerEndCall"[^>]*>[\s\S]*?data-lucide="circle-arrow-left"/);
@@ -141,6 +150,11 @@ test('VD05 Device Settings uses the K26 grouped layout with supported feature ro
     assert.equal(element('c4UserIdentifier').textContent, 'user-123');
     assert.equal(element('copyUserIdentifier').disabled, false);
     assert.equal(element('firmwareAvailability').textContent, 'The current version is the latest.');
+    context.onDataToUi(JSON.stringify({ type: 'device_name_result', success: true, device_name: 'Renamed Doorbell' }));
+    assert.equal(element('settingsDeviceName').textContent, 'Renamed Doorbell');
+    assert.equal(element('viewerDeviceName').textContent, 'Renamed Doorbell');
+    assert.equal(element('informationDeviceName').textContent, 'Renamed Doorbell');
+    assert.equal(element('deviceVersion').textContent, 'Device: Renamed Doorbell');
     context.openDeviceInformation();
     assert.equal(commands.at(-1)[0], 'GET_DEVICE_INFO');
     context.openC4AuthenticationService();
@@ -186,8 +200,10 @@ test('Notification, storage, and installation screens expose the screenshot flow
     assert.equal(element('formatStorageButton').disabled, false);
     context.openStorageFormat();
     context.confirmStorageFormat();
-    context.confirmStorageFormat();
     assert.equal(commands.at(-1)[0], 'FORMAT_STORAGE');
+    assert.equal(element('storageFormatDialog').hidden, true);
+    assert.equal(element('settingSaveOverlay').hidden, false);
+    assert.equal(element('settingSaveLabel').textContent, 'Formatting...');
 
     context.openInstallationGuide();
     assert.equal(element('installationTitle').textContent, 'Installation Tutorial (1/3)');
@@ -222,8 +238,16 @@ test('viewer speaker mute sets volume to zero and unmute restores the previous v
     assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 0 });
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
     assert.equal(element('viewerSpeaker').getAttribute('aria-pressed'), 'true');
+    assert.equal(element('viewerSpeaker').title, 'Sound off');
+    assert.match(element('viewerSpeaker').innerHTML, /volume-x/);
+    assert.equal(element('settingSaveToast').textContent, 'Sound off');
     element('viewerSpeaker').listeners.click();
     assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 6 });
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 6 } }));
+    assert.equal(element('viewerSpeaker').getAttribute('aria-pressed'), 'false');
+    assert.equal(element('viewerSpeaker').title, 'Sound on');
+    assert.match(element('viewerSpeaker').innerHTML, /volume-2/);
+    assert.equal(element('settingSaveToast').textContent, 'Sound on');
 });
 
 test('VD05 viewer shows no live stream placeholder and does not poll snapshots automatically', () => {
@@ -254,16 +278,17 @@ test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape sta
     assert.equal(frame.style.height, '768px');
     const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
     assert.match(html, /\.camera-stage[\s\S]*?place-items:\s*center/);
-    assert.match(html, /\.camera-stage:fullscreen\s*\{[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
+    assert.match(html, /\.camera-view\.is-fullscreen\s*\{[^}]*position:\s*fixed[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
+    assert.match(source, /function toggleViewerFullscreen\(\)[\s\S]*player\.classList\.toggle\('is-fullscreen', fullscreen\)/);
 });
 
-test('zoom chip increments by 1× and stops at 6×', () => {
+test('zoom chip increments by 1× and wraps from 6× to 1×', () => {
     const { context, element } = fixture();
     context.initLiveView();
-    for (const zoom of [2, 3, 4, 5, 6, 6]) {
+    for (const zoom of [2, 3, 4, 5, 6, 1]) {
         element('zoomChip').listeners.click();
         assert.equal(element('zoomChip').textContent, `${zoom.toFixed(1)}X`);
-        assert.equal(element('livePreview').style['--viewer-zoom'], String(zoom));
+        assert.equal(element('cameraFrame').style['--viewer-zoom'], String(zoom));
     }
 });
 
@@ -282,6 +307,16 @@ test('viewer arrow switches toolbars and X restores the original buttons', () =>
     context.toggleViewerToolbar(false);
     assert.equal(element('viewerPrimaryToolbar').hidden, false);
     assert.equal(element('viewerAlternateToolbar').hidden, true);
+});
+
+test('fullscreen control toggles the complete player in and out', () => {
+    const { context, element, app } = fixture();
+    context.toggleViewerFullscreen();
+    assert.equal(app.classList.fullscreen, true);
+    assert.equal(element('viewerFullscreen').getAttribute('aria-pressed'), 'true');
+    context.toggleViewerFullscreen();
+    assert.equal(app.classList.fullscreen, false);
+    assert.equal(element('viewerFullscreen').getAttribute('aria-pressed'), 'false');
 });
 
 test('alternate toolbar Notifications button loads real history records', () => {
@@ -310,7 +345,8 @@ test('notification labels cover all known API event types and preserve unknown t
         ['stranger_detected', 'Face Detection Event', 'Stranger'],
         ['registered_user_detected', 'Face Detection Event', 'Registered User'],
         ['motion_detected', 'Motion Detection Event', undefined],
-        ['custom_security_alert', 'custom security alert Event', undefined]
+        ['custom_security_alert', 'Custom Security Alert Event', undefined],
+        ['move detect', 'Move Detect Event', undefined]
     ];
     for (const [message_type, expected, detail] of cases) {
         const presentation = context.describeViewerNotification({ device_name: 'VD05', message_type });
