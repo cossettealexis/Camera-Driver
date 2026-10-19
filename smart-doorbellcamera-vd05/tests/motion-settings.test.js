@@ -21,6 +21,8 @@ function fixture() {
         classList: {
             fullscreen: false,
             contains(name) { return name === 'is-fullscreen' && this.fullscreen; },
+            add(name) { if (name === 'is-fullscreen') this.fullscreen = true; },
+            remove(name) { if (name === 'is-fullscreen') this.fullscreen = false; },
             toggle(name, value) { if (name === 'is-fullscreen') this.fullscreen = value; }
         }
     };
@@ -88,6 +90,10 @@ test('VD05 opens into live camera view and the gear opens the existing settings 
     assert.match(html, /\.camera-frame\s*\{[^}]*aspect-ratio:\s*4\s*\/\s*3/);
     assert.match(html, /id="viewerMic"/);
     assert.match(html, /id="viewerSpeaker"[^>]*disabled/);
+    assert.match(html, /id="viewerFullscreen"[^>]*type="button"/);
+    const motionPanel = html.match(/<section id="motionDetectionPanel"[\s\S]*?<\/section>/)[0];
+    assert.match(motionPanel, /<div class="topbar">[\s\S]*?<\/div>\s*<div class="motion-page">/);
+    assert.doesNotMatch(motionPanel, /id="viewerSnapshot"|id="viewerSpeaker"|id="viewerEndCall"/);
     assert.match(html, /<div class="toolbar" id="viewerPrimaryToolbar">[\s\S]*?id="viewerEndCall"/);
     assert.match(html, /<div class="toolbar" id="viewerAlternateToolbar" hidden>[\s\S]*?id="viewerToolbarBack"/);
     assert.match(html, /\.tool-btn\s*\{[^}]*background:\s*#070a0f/);
@@ -278,8 +284,9 @@ test('VD05 snapshot frame stays 4:3 and centers inside portrait or landscape sta
     assert.equal(frame.style.height, '768px');
     const html = fs.readFileSync(path.join(root, 'www/contents/index.html'), 'utf8');
     assert.match(html, /\.camera-stage[\s\S]*?place-items:\s*center/);
-    assert.match(html, /\.camera-view\.is-fullscreen\s*\{[^}]*position:\s*fixed[^}]*width:\s*100vw[^}]*height:\s*100dvh/);
-    assert.match(source, /function toggleViewerFullscreen\(\)[\s\S]*player\.classList\.toggle\('is-fullscreen', fullscreen\)/);
+    assert.match(html, /\.camera-view\.is-fullscreen\s*\{[^}]*position:\s*fixed[^}]*top:\s*0[^}]*bottom:\s*0/);
+    assert.match(source, /viewerFullscreen'\)\.addEventListener\('click', toggleViewerFullscreen\)/);
+    assert.match(source, /function toggleViewerFullscreen\(\)[\s\S]*player\.requestFullscreen\(\)[\s\S]*setFullscreen\(true\)/);
 });
 
 test('zoom chip increments by 1× and wraps from 6× to 1×', () => {

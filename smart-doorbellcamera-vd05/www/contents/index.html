@@ -69,7 +69,7 @@
         .viewer-header-button svg { width: 24px; height: 24px; }
         .camera-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4px 14px; background: #0f1118; }
         .camera-view:fullscreen { width: 100vw; height: 100dvh; flex: none; padding: 0; }
-        .camera-view.is-fullscreen { position: fixed; inset: 0; z-index: 5000; width: 100vw; height: 100dvh; flex: none; padding: 0; background: #0f1118; }
+        .camera-view.is-fullscreen { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 5000; width: auto; height: auto; flex: none; padding: 0; background: #0f1118; }
         .camera-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #0f1118; }
         .camera-frame { position: relative; flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 4 / 3; overflow: hidden; background: #090b10; transform: scale(var(--viewer-zoom,1)); }
         .camera-status { position: absolute; top: 12px; right: 14px; z-index: 2; max-width: calc(100% - 28px); overflow: hidden; color: rgba(255,255,255,.76); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1028,10 +1028,7 @@
         <section id="motionDetectionPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button>
-                    <button class="tool-btn" id="viewerSnapshot" type="button" aria-label="Preview snapshot"><i data-lucide="circle-dot"></i></button>
-                <div style="width:38px;"></div>
-                    <button class="tool-btn" id="viewerSpeaker" type="button" aria-label="Camera audio playback unavailable" title="Camera audio playback is not available in this web view" disabled><i data-lucide="volume-x"></i></button>
-                    <button class="tool-btn" id="viewerEndCall" type="button" aria-label="End call" title="End call"><i data-lucide="circle-arrow-left"></i></button>
+            </div>
             <div class="motion-page">
                 <div class="motion-group">
                     <div class="motion-row"><label for="motionDetection">Motion Detection</label><label class="toggle"><input type="checkbox" id="motionDetection" aria-label="Motion Detection" disabled><span class="slider"></span></label></div>

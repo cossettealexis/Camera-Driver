@@ -428,11 +428,27 @@ function toggleViewerToolbar(showAlternate) {
 
 function toggleViewerFullscreen() {
     const player = document.querySelector('.camera-view');
+    if (!player) return;
     const button = document.getElementById('viewerFullscreen');
-    const fullscreen = !player.classList.contains('is-fullscreen');
-    player.classList.toggle('is-fullscreen', fullscreen);
-    button.setAttribute('aria-pressed', String(fullscreen));
-    fitLivePreviewFrame();
+    const setFullscreen = fullscreen => {
+        player.classList.toggle('is-fullscreen', fullscreen);
+        button.setAttribute('aria-pressed', String(fullscreen));
+        setTimeout(fitLivePreviewFrame, 0);
+    };
+
+    if (document.fullscreenElement === player) {
+        document.exitFullscreen();
+        return;
+    }
+    if (player.classList.contains('is-fullscreen')) {
+        setFullscreen(false);
+        return;
+    }
+    if (typeof player.requestFullscreen === 'function') {
+        player.requestFullscreen().catch(() => setFullscreen(true));
+        return;
+    }
+    setFullscreen(true);
 }
 
 function requestViewerNotifications(page = 1, append = false) {
@@ -587,7 +603,13 @@ function confirmViewerAlert() {
 function initLiveView() {
     fitLivePreviewFrame();
     window.addEventListener('resize', fitLivePreviewFrame);
-    document.addEventListener('fullscreenchange', fitLivePreviewFrame);
+    document.addEventListener('fullscreenchange', () => {
+        const player = document.querySelector('.camera-view');
+        const fullscreen = document.fullscreenElement === player;
+        player.classList.toggle('is-fullscreen', fullscreen);
+        document.getElementById('viewerFullscreen').setAttribute('aria-pressed', String(fullscreen));
+        fitLivePreviewFrame();
+    });
     document.getElementById('viewerZoom').addEventListener('click', handleViewerScreenshot);
     document.getElementById('zoomChip').addEventListener('click', cycleLiveZoom);
     document.getElementById('viewerSnapshot').addEventListener('click', handleTakeSnapshot);
@@ -595,12 +617,12 @@ function initLiveView() {
         sendMicCommand(hasConfirmedMicCall ? !isMicMuted : false);
     });
     document.getElementById('viewerSpeaker').addEventListener('click', toggleViewerSpeaker);
+    document.getElementById('viewerFullscreen').addEventListener('click', toggleViewerFullscreen);
     document.getElementById('viewerEndCall').addEventListener('click', () => toggleViewerToolbar(true));
     document.getElementById('viewerToolbarBack').addEventListener('click', () => toggleViewerToolbar(false));
     document.getElementById('viewerAlternateAlbum').addEventListener('click', openViewerSnapshotAlbum);
     document.getElementById('viewerNotifications').addEventListener('click', openViewerNotifications);
     document.getElementById('viewerAlarm').addEventListener('click', openViewerAlertConfirmation);
-    document.getElementById('viewerFullscreen').addEventListener('click', toggleViewerFullscreen);
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && document.querySelector('.camera-view').classList.contains('is-fullscreen')) {
             toggleViewerFullscreen();
