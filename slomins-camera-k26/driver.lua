@@ -1618,7 +1618,7 @@ end
 
 -- Get Device Property (query current value)
 local settings_property_groups = {
-    home = { "indicator_swt" },
+    home = { "indicator_swt", "beep_vol" },
     motion = { "motion", "unknow_snapswt", "unknow_thld", "unknow_faceq" },
     video = { "icut_mode", "anti_flicker", "flip_swt", "mark" },
     audio = { "beep_vol" },
@@ -3735,6 +3735,8 @@ function GET_DEVICE_INFO(params)
             device_name    = d.device_name,
             version        = d.version,
             release_date   = d.release_date or d.update_time,
+            last_updated   = d.update_time or d.release_date,
+            user_identifier = GlobalObject.CustomerEmail or Properties["Account"] or "",
             battery        = tonumber(d.power),
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
@@ -3802,6 +3804,17 @@ function SET_DEVICE_NAME(tParams)
 
     -- Parse params (from UI)
     local new_name = nil
+    local function send_name_result(success, error_message)
+        SendDeviceInfoToUI({
+            type = "device_name_result",
+            success = success == true,
+            device_name_updated = success == true,
+            device_name = success and new_name or nil,
+            error = error_message,
+            timestamp = os.time()
+        })
+    end
+
     if type(tParams) == "table" then
         new_name = tParams.name or tParams.device_name
     elseif type(tParams) == "string" then
@@ -3814,18 +3827,21 @@ function SET_DEVICE_NAME(tParams)
     if not new_name or new_name == "" then
         print("[NAME] ❌ No device name provided")
         C4:UpdateProperty("Status", "Error: No name provided")
+        send_name_result(false, "Please enter a device name")
         return false
     end
 
     if not vid or vid == "" then
         print("[NAME] ❌ Missing VID")
         C4:UpdateProperty("Status", "Error: No VID")
+        send_name_result(false, "Missing VID")
         return false
     end
 
     if not auth_token or auth_token == "" then
         print("[NAME] ❌ Missing Auth Token")
         C4:UpdateProperty("Status", "Error: Not authenticated")
+        send_name_result(false, "Not authenticated")
         return false
     end
 
@@ -3868,26 +3884,12 @@ function SET_DEVICE_NAME(tParams)
 
             print("[NAME] Sending success to UI")
 
-            -- Notify UI
-           local payload = json.encode({
-            type = "device_name_updated",
-            device_name_updated = true,
-            device_name = new_name,
-            timestamp = os.time()
-            })
-
-            print("[NAME] Pushing to UI:", payload)
-
-            C4:SendDataToUI(payload)
+            send_name_result(true)
 
         else
             print("[NAME] ❌ Failed to change name. Code:", code)
             C4:UpdateProperty("Status", "Failed to update device name")
-            
-            C4:SendDataToUI(json.encode({
-                error = "Failed to update name",
-                code = code
-            }))
+            send_name_result(false, "Failed to update name")
         end
     end)
 

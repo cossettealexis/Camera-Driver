@@ -1,7 +1,11 @@
-// K26 Settings UI
+// K26 UI
 let isMicMuted = false;
 let latestCameraSettings = {};
 let hasConfirmedMicCall = false;
+let speakerVolumeBeforeMute = 5;
+let latestSnapshotUrl = '';
+let k26LiveZoomIndex = 0;
+const k26LiveZoomLevels = [1, 2, 3, 4, 5, 6];
 let faces = [];
 let faceEditMode = false;
 let facePage = 1;
@@ -20,7 +24,6 @@ let settingsLoadScope = 'motion';
 let settingsRequestSequence = 0;
 let activeSettingsRequest = 0;
 let homeInfoReady = false;
-let storageFormatStep = 0;
 let settingsLoadTimer;
 let settingToastTimer;
 let settingSaveFailed = false;
@@ -296,8 +299,118 @@ function cameraSettingsReady() {
     return motionReady && facialReady;
 }
 
+function fitK26LivePreviewFrame() {
+    const stage = document.getElementById('k26CameraStage');
+    const frame = document.getElementById('k26CameraFrame');
+    if (!stage || !frame) return;
+    const width = Math.max(0, Math.min(stage.clientWidth, stage.clientHeight * 4 / 3));
+    frame.style.width = `${width}px`;
+    frame.style.height = `${width * 3 / 4}px`;
+}
+
+function cycleK26LiveZoom() {
+    k26LiveZoomIndex = (k26LiveZoomIndex + 1) % k26LiveZoomLevels.length;
+    const zoom = k26LiveZoomLevels[k26LiveZoomIndex];
+    document.getElementById('k26CameraFrame').style.setProperty('--viewer-zoom', String(zoom));
+    document.getElementById('k26ZoomChip').textContent = `${zoom.toFixed(1)}X`;
+}
+
+function updateViewerSpeaker(value) {
+    const button = document.getElementById('k26ViewerSpeaker');
+    if (!button) return;
+    const volume = Number(value);
+    if (!Number.isInteger(volume) || volume < 0 || volume > 10) {
+        button.disabled = true;
+        return;
+    }
+    if (volume > 0) speakerVolumeBeforeMute = volume;
+    const muted = volume === 0;
+    button.disabled = false;
+    button.classList.toggle('is-muted', muted);
+    button.setAttribute('aria-pressed', String(muted));
+    button.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
+    button.title = muted ? 'Sound off' : 'Sound on';
+    button.innerHTML = `<i data-lucide="${muted ? 'volume-x' : 'volume-2'}"></i>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function toggleK26ViewerSpeaker() {
+    const current = Number(latestCameraSettings.beep_vol);
+    if (!Number.isInteger(current) || current < 0 || current > 10) {
+        showSettingToast('Speaker volume is unavailable');
+        return;
+    }
+    const target = current === 0 ? speakerVolumeBeforeMute : 0;
+    if (current > 0) speakerVolumeBeforeMute = current;
+    sendCameraSetting('beep_vol', target);
+}
+
+function toggleK26ViewerToolbar(showAlternate) {
+    document.getElementById('k26ViewerToolbar').hidden = showAlternate;
+    document.getElementById('k26ViewerAlternateToolbar').hidden = !showAlternate;
+}
+
+function openLatestK26Snapshot() {
+    if (!latestSnapshotUrl) {
+        showSettingToast('No captured snapshots available');
+        return;
+    }
+    openSnapshotModal(latestSnapshotUrl, 'Latest captured snapshot');
+}
+
+function toggleK26ViewerFullscreen() {
+    const player = document.getElementById('k26CameraView');
+    const button = document.getElementById('k26ViewerFullscreen');
+    if (!player || !button) return;
+    if (document.fullscreenElement === player) {
+        document.exitFullscreen();
+        return;
+    }
+    const setFallback = fullscreen => {
+        player.classList.toggle('is-fullscreen', fullscreen);
+        button.setAttribute('aria-pressed', String(fullscreen));
+        setTimeout(fitK26LivePreviewFrame, 0);
+    };
+    if (player.classList.contains('is-fullscreen')) {
+        setFallback(false);
+    } else if (typeof player.requestFullscreen === 'function') {
+        player.requestFullscreen().catch(() => setFallback(true));
+    } else setFallback(true);
+}
+
+function initK26ViewerControls() {
+    fitK26LivePreviewFrame();
+    window.addEventListener('resize', fitK26LivePreviewFrame);
+    document.getElementById('k26ViewerMic').addEventListener('click', () => {
+        sendMicCommand(hasConfirmedMicCall ? !isMicMuted : false);
+    });
+    document.getElementById('k26ViewerEndCall').addEventListener('click', () => {
+        toggleK26ViewerToolbar(true);
+    });
+    document.getElementById('k26ViewerSpeaker').addEventListener('click', toggleK26ViewerSpeaker);
+    document.getElementById('k26ViewerFullscreen').addEventListener('click', toggleK26ViewerFullscreen);
+    document.getElementById('k26ZoomChip').addEventListener('click', cycleK26LiveZoom);
+    document.getElementById('k26ViewerReboot').addEventListener('click', () => show('rebootPanel'));
+    document.getElementById('k26ViewerAlbum').addEventListener('click', openLatestK26Snapshot);
+    document.getElementById('k26ViewerSettings').addEventListener('click', () => show('homePanel'));
+    document.getElementById('k26ViewerToolbarBack').addEventListener('click', () => toggleK26ViewerToolbar(false));
+    document.addEventListener('fullscreenchange', () => {
+        const player = document.getElementById('k26CameraView');
+        const fullscreen = document.fullscreenElement === player;
+        player.classList.toggle('is-fullscreen', fullscreen);
+        document.getElementById('k26ViewerFullscreen').setAttribute('aria-pressed', String(fullscreen));
+        fitK26LivePreviewFrame();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && document.getElementById('k26CameraView').classList.contains('is-fullscreen')) {
+            toggleK26ViewerFullscreen();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     initializeControl4();
+    initK26ViewerControls();
     initMicrophone();
     initReboot();
     initDeviceName();
@@ -339,7 +452,8 @@ function updateSpeakerVolumePreview() {
 
 function openStorageFormat() {
     if (document.getElementById('formatStorageButton').disabled || pendingSettingSaves.size > 0) return;
-    storageFormatStep = 0;
+    document.getElementById('cancelStorageFormat').disabled = false;
+    document.getElementById('confirmStorageFormat').disabled = false;
     document.getElementById('storageFormatTitle').textContent = 'Format Local Storage';
     document.getElementById('confirmStorageFormat').textContent = 'Next';
     document.getElementById('storageFormatDialog').hidden = false;
@@ -350,22 +464,20 @@ function openStorageFormat() {
 function closeStorageFormat() {
     if (pendingSettingSaves.has('format')) return;
     document.getElementById('storageFormatDialog').hidden = true;
-    storageFormatStep = 0;
     updateSettingSaveOverlay();
 }
 
 function confirmStorageFormat() {
     if (document.getElementById('storageFormatDialog').hidden || pendingSettingSaves.has('format')) return;
-    if (storageFormatStep === 0) {
-        storageFormatStep = 1;
-        document.getElementById('storageFormatTitle').textContent = 'Confirm Format Local Storage';
-        document.getElementById('confirmStorageFormat').textContent = 'Format';
-        return;
-    }
+    document.getElementById('storageFormatDialog').hidden = true;
     beginSettingSave('format', 'Formatting...');
+    document.getElementById('cancelStorageFormat').disabled = true;
+    document.getElementById('confirmStorageFormat').disabled = true;
     try {
         C4.sendCommand('FORMAT_STORAGE', JSON.stringify({ confirmed: true }), false, true);
     } catch (error) {
+        document.getElementById('cancelStorageFormat').disabled = false;
+        document.getElementById('confirmStorageFormat').disabled = false;
         finishSettingSave('format', false, 'Unable to send format command');
     }
 }
@@ -379,6 +491,35 @@ async function copyDeviceSerial() {
     } catch (error) {
         showSettingToast('Clipboard unavailable');
     }
+}
+
+function openC4AuthenticationService() {
+    show('c4AuthenticationPanel');
+    requestCameraSettings('information');
+}
+
+async function copyUserIdentifier() {
+    const identifier = document.getElementById('c4UserIdentifier').textContent;
+    if (!identifier || identifier === '...') return;
+    try {
+        await navigator.clipboard.writeText(identifier);
+        showSettingToast('User identifier copied');
+    } catch (error) {
+        showSettingToast('Clipboard unavailable');
+    }
+}
+
+function openPairingModeConfirmation() {
+    document.getElementById('devicePairingDialog').hidden = false;
+}
+
+function closePairingModeConfirmation() {
+    document.getElementById('devicePairingDialog').hidden = true;
+}
+
+function confirmPairingMode() {
+    closePairingModeConfirmation();
+    showSettingToast('Device pairing mode is not available from the K26 driver');
 }
 
 function currentSettingsResponse(obj) {
@@ -477,6 +618,7 @@ function updateCameraSettingsUI(settings) {
         volume.value = String(latestCameraSettings.beep_vol);
         volume.disabled = false;
         updateSpeakerVolumePreview();
+        updateViewerSpeaker(latestCameraSettings.beep_vol);
     }
     const storageState = latestCameraSettings.stored_status;
     const capacity = latestCameraSettings.stored_capacity;
@@ -747,6 +889,15 @@ function updateMicUI(muted) {
     if (status) {
         status.innerText = hasConfirmedMicCall ? (isMicMuted ? 'Call Ended' : 'Call Started') : 'Switch on to start a call.';
     }
+    const viewerMic = document.getElementById('k26ViewerMic');
+    if (viewerMic) {
+        const inCall = hasConfirmedMicCall && !isMicMuted;
+        viewerMic.classList.toggle('is-active', inCall);
+        viewerMic.classList.toggle('is-muted', !inCall);
+        viewerMic.setAttribute('aria-pressed', String(inCall));
+        viewerMic.setAttribute('aria-label', inCall ? 'Mute microphone' : 'Start camera call');
+        viewerMic.title = inCall ? 'Mute microphone' : 'Start camera call';
+    }
 }
 
 
@@ -811,13 +962,10 @@ function handleReboot() {
 //snapshot
 function initSnapshot() {
     const btn = document.getElementById('snapshotHomeBtn');
-    if (!btn) {
-        console.warn("snapshotHomeBtn not found");
-        return;
+    if (btn) {
+        btn.removeEventListener('click', handleTakeSnapshot);
+        btn.addEventListener('click', handleTakeSnapshot);
     }
-
-    btn.removeEventListener('click', handleTakeSnapshot);
-    btn.addEventListener('click', handleTakeSnapshot);
 }
 
 function handleTakeSnapshot() {
@@ -1133,20 +1281,31 @@ function onDataToUi(value) {
             if (!currentSettingsResponse(obj)) return;
             const devEl = document.getElementById('deviceVersion');
             const fwEl = document.getElementById('firmwareVersion');
-            const relEl = document.getElementById('releaseDate');
+            const updatedEl = document.getElementById('informationLastUpdated');
             const homeName = document.getElementById('homeDeviceName');
+            const viewerName = document.getElementById('viewerDeviceName');
 
             if (devEl) {
                 devEl.innerText = obj.device_name || '...';
             }
             if (homeName) homeName.innerText = obj.device_name || '...';
+            if (viewerName) viewerName.innerText = obj.device_name || '...';
 
             if (fwEl) {
                 fwEl.innerText = obj.version || '...';
             }
 
-            if (relEl) {
-                relEl.innerText = obj.release_date || '...';
+            if (updatedEl) updatedEl.textContent = obj.last_updated || '...';
+            const firmwareAvailability = document.getElementById('firmwareAvailability');
+            if (firmwareAvailability) firmwareAvailability.textContent = obj.can_update === true ? 'Update available' :
+                obj.can_update === false ? 'The current version is the latest.' : '...';
+            const userIdentifier = obj.user_identifier;
+            document.getElementById('c4UserIdentifier').textContent = userIdentifier || '...';
+            document.getElementById('copyUserIdentifier').disabled = !userIdentifier;
+            const batteryLevel = document.getElementById('powerBatteryLevel');
+            if (batteryLevel) {
+                batteryLevel.textContent = obj.battery !== undefined && obj.battery !== null && Number.isFinite(Number(obj.battery))
+                    ? `${Number(obj.battery)}%` : '...';
             }
             const nameInput = document.getElementById('deviceNameInput');
             if (obj.device_name) {
@@ -1240,6 +1399,8 @@ function onDataToUi(value) {
             if (updatedName) {
                 confirmedDeviceName = updatedName;
                 document.getElementById('homeDeviceName').innerText = updatedName;
+                const viewerName = document.getElementById('viewerDeviceName');
+                if (viewerName) viewerName.innerText = updatedName;
                 document.getElementById('deviceVersion').innerText = updatedName;
             }
             pendingDeviceName = '';
@@ -1250,6 +1411,7 @@ function onDataToUi(value) {
             console.log('[Snapshot] Received result:', obj);
 
             if (obj.success && obj.image_url) {
+                latestSnapshotUrl = obj.image_url;
                 openSnapshotModal(obj.image_url, "Snapshot captured");
             } else {
                 openSnapshotModal(null, obj.error || "Failed to capture snapshot");

@@ -128,7 +128,7 @@ test('K26 reads verified properties and serializes complete motion updates', () 
         end
         facial_values = {beep_vol='8',stored=json.encode({status=0,capacity=29,usage=25}),indicator_swt=1}
         local groups = {
-            home='indicator_swt',
+            home='indicator_swt,beep_vol',
             motion='motion,unknow_snapswt,unknow_thld,unknow_faceq',
             video='icut_mode,anti_flicker,flip_swt,mark',audio='beep_vol',storage='stored'
         }
@@ -187,7 +187,7 @@ test('K26 reads verified properties and serializes complete motion updates', () 
         GET_DEVICE_PROPERTY('beep_vol',function(value) assert(value==8) end)
         response={code=20000,data={devices={{vid='other',status={}}}}}
         GET_CAMERA_SETTINGS({scope='motion'})
-        assert(pushed.success==false, 'a different device must not supply K26 settings')
+        assert(pushed.success==false, 'a different device must not supply K26')
         response={code=20000,data={{data_id='motion.switch',value=0},{data_id='unknow_snapswt',value=0}}}
         GET_CAMERA_SETTINGS({scope='motion'})
         assert(pushed.settings.motion_switch==0 and pushed.settings.unknow_snapswt==0)
@@ -285,6 +285,7 @@ function fixture() {
         C4: { sendCommand: (...args) => commands.push(args) },
         console,
         JSON,
+        URL,
         show(id) { navigation.push(id); },
         setTimeout(callback, delay) {
             const id = ++timerSequence;
@@ -744,9 +745,35 @@ test('K26 face deletion validates numeric note IDs and reports the API acknowled
     assert.match(fs.readFileSync(path.join(root, 'driver.xml'), 'utf8'), /<name>DELETE_STRANGER_FACES<\/name>/);
 });
 
-test('K26 home follows the reference groups and places Microphone inside Audio Settings', () => {
+test('K26 home follows the reference groups and keeps Audio Settings focused on speaker volume', () => {
     const section = id => html.match(new RegExp('<section id="' + id + '"[\\s\\S]*?<\\/section>'))[0];
+    const viewer = section('viewerPanel');
     const home = section('homePanel');
+    const power = section('powerManagementPanel');
+    assert.match(html, /<section id="viewerPanel" class="panel active">/);
+    assert.match(viewer, /id="viewerDeviceName"/);
+    assert.match(viewer, /class="camera-view"[\s\S]*class="camera-stage"[\s\S]*class="camera-frame"[\s\S]*id="k26StreamStatus"/);
+    assert.match(viewer, /class="camera-footer"[\s\S]*id="k26ViewerFullscreen"/);
+    assert.match(viewer, /class="toolbar"[\s\S]*id="k26ViewerSnapshot"[\s\S]*id="k26ViewerMic"/);
+    assert.match(viewer, /id="k26ViewerZoom"[^>]*disabled/);
+    assert.match(viewer, /id="k26ViewerSnapshot"[^>]*disabled/);
+    assert.doesNotMatch(viewer, /id="k26ViewerMic"[^>]*disabled/);
+    assert.doesNotMatch(viewer, /id="k26ViewerEndCall"[^>]*disabled/);
+    assert.match(javascript, /function updateViewerSpeaker\([\s\S]*?button\.disabled = false/);
+    assert.match(javascript, /addEventListener\('click', toggleK26ViewerSpeaker\)/);
+    assert.match(viewer, /id="k26ZoomChip"[^>]*aria-label="Change zoom"/);
+    assert.match(html, /id="k26ViewerAlternateToolbar"[^>]*hidden/);
+    assert.match(javascript, /function fitK26LivePreviewFrame\([\s\S]*?stage\.clientHeight \* 4 \/ 3/);
+    assert.match(javascript, /addEventListener\('click', cycleK26LiveZoom\)/);
+    assert.match(viewer, /onclick="show\('homePanel'\)" aria-label="Settings"/);
+    assert.match(home, /onclick="show\('viewerPanel'\)" aria-label="Back to camera"/);
+    assert.match(home, /id="firmwareAvailability"/);
+    assert.match(home, /onclick="openC4AuthenticationService\(\)"[\s\S]*?C4 Authentication Service/);
+    assert.doesNotMatch(home, /<button class="settings-row" disabled[^>]*>[\s\S]*?C4 Authentication Service/);
+    assert.match(section('c4AuthenticationPanel'), /id="copyUserIdentifier"[\s\S]*Device Pairing Mode/);
+    assert.match(home, /onclick="show\('powerManagementPanel'\)"[^>]*><i data-lucide="battery-charging"><\/i><span>Power Management<\/span>/);
+    assert.match(power, /Battery Level[\s\S]*id="powerBatteryLevel"/);
+    assert.match(html, /id === 'powerManagementPanel'[\s\S]*requestCameraSettings\('information'\)/);
     const labels = ['Motion Detection', 'Power Management', 'Status Light', 'Video Settings', 'Audio Settings',
         'Notification Settings', 'Internal Storage', 'Device Information', 'Check Firmware Update', 'C4 Authentication Service', 'Delete Device'];
     let previous = -1;
@@ -756,23 +783,36 @@ test('K26 home follows the reference groups and places Microphone inside Audio S
         previous = position;
     }
     assert.doesNotMatch(home, /Start or end a call|K26 Camera Controls|Take Snapshot|Reboot/);
-    assert.match(section('audioSettingsPanel'), /show\('micPanel'\)[\s\S]*?>Microphone</);
+    assert.doesNotMatch(section('audioSettingsPanel'), /show\('micPanel'\)|>Microphone</);
     assert.match(section('micPanel'), /show\('audioSettingsPanel'\)/);
     assert.match(section('rebootPanel'), /show\('deviceInformationPanel'\)/);
-    assert.match(section('deviceInformationPanel'), /id="snapshotHomeBtn"/);
+    assert.match(section('deviceInformationPanel'), /id="informationLastUpdated"/);
+    assert.match(section('deviceInformationPanel'), /information-protection|Wi-Fi Name/);
     assert.match(home, /id="statusLight"[^>]*disabled/);
     assert.doesNotMatch(home, /current version is|checked/);
     assert.doesNotMatch(html, /<footer\b/);
     assert.match(home, /id="homeModelName" class="settings-device-name">Outdoor Camera \(Solar\)<\/div>/);
     assert.match(home, /id="homeDeviceName" class="settings-device-type">\.\.\.<\/div>/);
     const { context, document } = fixture();
-    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'Outdoor Camera', version: '4.2', release_date: '2026-10-16' }));
+    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'Outdoor Camera', version: '4.2', release_date: '2026-10-16', last_updated: '08-12 20:30', battery: 76 }));
     assert.equal(document.getElementById('homeDeviceName').innerText, 'Outdoor Camera');
+    assert.equal(document.getElementById('viewerDeviceName').innerText, 'Outdoor Camera');
     assert.equal(document.getElementById('firmwareVersion').innerText, '4.2');
-    assert.equal(document.getElementById('releaseDate').innerText, '2026-10-16');
+    assert.equal(document.getElementById('informationLastUpdated').textContent, '08-12 20:30');
+    assert.equal(document.getElementById('powerBatteryLevel').textContent, '76%');
     context.onDataToUi(JSON.stringify({ device_name_updated: true, device_name: 'Driveway' }));
     assert.equal(document.getElementById('homeDeviceName').innerText, 'Driveway');
+    assert.equal(document.getElementById('viewerDeviceName').innerText, 'Driveway');
     assert.equal(document.getElementById('deviceVersion').innerText, 'Driveway');
+});
+
+test('K26 viewer shows the VD05 unavailable message without attempting a live stream', () => {
+    const { context, document } = fixture();
+    const status = document.getElementById('k26StreamStatus');
+    assert.equal(status.textContent, 'Live stream not available');
+    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, ip: '192.0.2.20' }));
+    assert.equal(status.textContent, 'Live stream not available');
+    assert.doesNotMatch(javascript, /updateK26LiveStream|video\.mjpg|Connecting to live stream/);
 });
 
 test('K26 initial page requests only device info and Status Light, ignoring unrelated and stale responses', () => {
@@ -875,7 +915,7 @@ test('K26 audio requests only speaker volume and waits for its API value and sav
     assert.equal(element('settingSaveOverlay').hidden, true);
 });
 
-test('K26 storage uses capacity and percentage usage and requires two confirmations before formatting', () => {
+test('K26 storage matches VD05 and sends the format action after one confirmation', () => {
     const { context, document, commands, app } = fixture();
     const element = id => document.getElementById(id);
     context.requestCameraSettings('storage');
@@ -886,6 +926,8 @@ test('K26 storage uses capacity and percentage usage and requires two confirmati
     assert.equal(element('settingSaveOverlay').hidden, true);
     assert.equal(element('storageTotal').textContent, '29 GB');
     assert.equal(element('storageAvailable').textContent, '21.75 GB');
+    assert.match(html, /storage-protection-title">41 Days/);
+    assert.match(html, /class="storage-footer"[\s\S]*id="formatStorageButton"/);
     context.openStorageFormat();
     assert.equal(element('storageFormatDialog').hidden, false);
     assert.equal(app.inert, true);
@@ -894,17 +936,16 @@ test('K26 storage uses capacity and percentage usage and requires two confirmati
     assert.equal(app.inert, false);
     context.openStorageFormat();
     context.confirmStorageFormat();
-    assert.equal(element('confirmStorageFormat').textContent, 'Format');
-    assert.equal(commands.length, 1, 'Next must not send the format action');
-    context.confirmStorageFormat();
     assert.equal(commands.at(-1)[0], 'FORMAT_STORAGE');
     assert.deepEqual(JSON.parse(commands.at(-1)[1]), { confirmed: true });
+    assert.equal(element('storageFormatDialog').hidden, true);
     assert.equal(element('settingSaveLabel').textContent, 'Formatting...');
     context.closeStorageFormat();
-    assert.equal(element('storageFormatDialog').hidden, false);
+    assert.equal(element('storageFormatDialog').hidden, true);
     context.onDataToUi(JSON.stringify({ type: 'storage_format', success: false, error: 'Rejected' }));
-    assert.equal(element('storageFormatDialog').hidden, false);
+    assert.equal(element('storageFormatDialog').hidden, true);
     assert.equal(element('settingSaveOverlay').hidden, true);
+    context.openStorageFormat();
     context.confirmStorageFormat();
     context.onDataToUi(JSON.stringify({ type: 'storage_format', success: true }));
     assert.equal(element('storageFormatDialog').hidden, true);
@@ -947,6 +988,7 @@ test('K26 Device Information has its own request and displays API data without s
     assert.equal(commands[0][0], 'GET_DEVICE_INFO');
     const request = JSON.parse(commands[0][1]);
     context.onDataToUi(JSON.stringify({ type: 'device_info', ...request, success: true, device_name: 'Driveway',
+        last_updated: '08-12 20:30', user_identifier: 'installer@example.com', can_update: false,
         serial: 'serial-from-api', timezone: 'Asia/Manila', ip: '192.0.2.1', mac: 'api-mac', wifi: 'API SSID', rssi: 0 }));
     assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
     for (const [id, expected] of Object.entries({ deviceSerial: 'serial-from-api', deviceTimezone: 'Asia/Manila',
@@ -954,6 +996,10 @@ test('K26 Device Information has its own request and displays API data without s
         assert.equal(document.getElementById(id).textContent, expected);
     }
     assert.equal(document.getElementById('copyDeviceSerial').disabled, false);
+    assert.equal(document.getElementById('informationLastUpdated').textContent, '08-12 20:30');
+    assert.equal(document.getElementById('c4UserIdentifier').textContent, 'installer@example.com');
+    assert.equal(document.getElementById('copyUserIdentifier').disabled, false);
+    assert.equal(document.getElementById('firmwareAvailability').textContent, 'The current version is the latest.');
 });
 
 test('K26 fills laptop width and edits the API device name in a cancellable bottom sheet', () => {
@@ -1007,6 +1053,17 @@ test('K26 fills laptop width and edits the API device name in a cancellable bott
     assert.match(html, />Change Device Name<\/h2>/);
     assert.doesNotMatch(html, /id="deviceNamePanel"/);
     assert.doesNotMatch(html, /\.(?:settings-home|settings-bar|settings-subpage|video-settings)\s*\{[^}]*max-width:/);
+});
+
+test('K26 device-name results are sent through the UI proxy channel', () => {
+    const start = driver.indexOf('function SET_DEVICE_NAME(');
+    const end = driver.indexOf('function REBOOT_DEVICE(', start);
+    const handler = driver.slice(start, end);
+    assert.ok(start >= 0 && end > start, 'device-name handler boundaries missing');
+    assert.match(handler, /local function send_name_result\([\s\S]*?SendDeviceInfoToUI\(/);
+    assert.match(handler, /send_name_result\(true\)/);
+    assert.match(handler, /send_name_result\(false,/);
+    assert.doesNotMatch(handler, /C4:SendDataToUI/);
 });
 
 test('K26 call commands use LAN channel 2 and return success and failure acknowledgements', () => {
