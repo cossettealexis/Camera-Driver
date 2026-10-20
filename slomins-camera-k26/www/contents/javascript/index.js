@@ -24,6 +24,12 @@ let settingsLoadScope = 'motion';
 let settingsRequestSequence = 0;
 let activeSettingsRequest = 0;
 let homeInfoReady = false;
+let viewerSpeakerWritePending = false;
+let viewerSpeakerLoadPending = false;
+let viewerSpeakerLoadTimer;
+let notificationHistoryPending = false;
+let notificationHistoryPage = 1;
+let notificationHistoryHasMore = false;
 let settingsLoadTimer;
 let settingToastTimer;
 let settingSaveFailed = false;
@@ -75,7 +81,7 @@ function updateSettingSaveOverlay() {
     overlay.setAttribute('data-loading', String(settingsLoading));
     overlay.hidden = !pending;
     document.getElementById('settingSaveLabel').textContent = settingsLoading ? 'Loading...' :
-        (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.values().next().value?.label || 'Setting up...');
+        (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || pendingSettingSaves.values().next().value?.label || 'Setting up...');
     const app = document.querySelector('.app');
     if (app) app.inert = pending || !document.getElementById('deviceNameSheet').hidden || !document.getElementById('storageFormatDialog').hidden ||
         !document.getElementById('faceNamingSheet').hidden || !document.getElementById('faceDeleteConfirmation').hidden;
@@ -105,6 +111,10 @@ function beginSettingSave(kind, label = 'Setting up...') {
             settingSaveFailed = true;
             if (kind === 'camera') updateCameraSettingsUI({});
             if (kind === 'mic') updateMicUI(isMicMuted);
+            if (kind === 'speakerVolume') {
+                viewerSpeakerWritePending = false;
+                updateViewerSpeaker(latestCameraSettings.beep_vol);
+            }
             if (kind === 'name') updateDeviceNameConfirm();
             updateSettingSaveOverlay();
             showSettingToast('Setting update timed out');
@@ -245,6 +255,7 @@ function updateMotionVisibility() {
 function resetCameraSettings() {
     const indicator = latestCameraSettings.indicator_swt;
     latestCameraSettings = settingsLoadScope !== 'home' && indicator !== undefined ? { indicator_swt: indicator } : {};
+    updateViewerSpeaker(latestCameraSettings.beep_vol);
     if (settingsLoadScope === 'home') {
         const statusLight = document.getElementById('statusLight');
         statusLight.disabled = true;
@@ -320,12 +331,14 @@ function updateViewerSpeaker(value) {
     if (!button) return;
     const volume = Number(value);
     if (!Number.isInteger(volume) || volume < 0 || volume > 10) {
-        button.disabled = true;
+        button.disabled = viewerSpeakerLoadPending || viewerSpeakerWritePending;
+        button.setAttribute('aria-label', 'Load speaker volume');
+        button.title = 'Load speaker volume';
         return;
     }
     if (volume > 0) speakerVolumeBeforeMute = volume;
     const muted = volume === 0;
-    button.disabled = false;
+    button.disabled = viewerSpeakerWritePending;
     button.classList.toggle('is-muted', muted);
     button.setAttribute('aria-pressed', String(muted));
     button.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
@@ -335,14 +348,38 @@ function updateViewerSpeaker(value) {
 }
 
 function toggleK26ViewerSpeaker() {
+    if (viewerSpeakerWritePending || viewerSpeakerLoadPending) return;
     const current = Number(latestCameraSettings.beep_vol);
     if (!Number.isInteger(current) || current < 0 || current > 10) {
-        showSettingToast('Speaker volume is unavailable');
+        viewerSpeakerLoadPending = true;
+        updateViewerSpeaker(undefined);
+        viewerSpeakerLoadTimer = setTimeout(() => {
+            viewerSpeakerLoadPending = false;
+            updateViewerSpeaker(latestCameraSettings.beep_vol);
+            showSettingToast('Speaker volume request timed out');
+        }, 10000);
+        try {
+            C4.sendCommand('GET_CAMERA_SETTINGS', JSON.stringify({ scope: 'audio' }), false, true);
+        } catch (error) {
+            clearTimeout(viewerSpeakerLoadTimer);
+            viewerSpeakerLoadPending = false;
+            updateViewerSpeaker(latestCameraSettings.beep_vol);
+            showSettingToast('Unable to load speaker volume');
+        }
         return;
     }
     const target = current === 0 ? speakerVolumeBeforeMute : 0;
     if (current > 0) speakerVolumeBeforeMute = current;
-    sendCameraSetting('beep_vol', target);
+    viewerSpeakerWritePending = true;
+    updateViewerSpeaker(current);
+    beginSettingSave('speakerVolume', 'Updating speaker...');
+    try {
+        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'beep_vol', value: target }), false, true);
+    } catch (error) {
+        viewerSpeakerWritePending = false;
+        updateViewerSpeaker(current);
+        finishSettingSave('speakerVolume', false, 'Unable to update speaker');
+    }
 }
 
 function toggleK26ViewerToolbar(showAlternate) {
@@ -356,6 +393,143 @@ function openLatestK26Snapshot() {
         return;
     }
     openSnapshotModal(latestSnapshotUrl, 'Latest captured snapshot');
+}
+
+function openK26ViewerNotifications() {
+    notificationHistoryPending = false;
+    notificationHistoryPage = 1;
+    notificationHistoryHasMore = false;
+    show('notificationHistoryPanel');
+    requestK26Notifications(1);
+}
+
+function requestK26Notifications(page = 1, append = false) {
+    if (notificationHistoryPending) return;
+    notificationHistoryPending = true;
+    const list = document.getElementById('notificationHistoryList');
+    const loadMore = document.getElementById('notificationHistoryLoadMore');
+    if (!append) {
+        list.replaceChildren();
+        const loading = document.createElement('div');
+        loading.className = 'notification-history-empty';
+        loading.textContent = 'Loading notifications...';
+        list.appendChild(loading);
+    } else loadMore.disabled = true;
+    try {
+        C4.sendCommand('GET_NOTIFICATION_HISTORY', JSON.stringify({ page }), false, true);
+    } catch (error) {
+        notificationHistoryPending = false;
+        list.textContent = 'Unable to load notifications';
+        loadMore.disabled = false;
+    }
+}
+
+function loadMoreK26Notifications() {
+    if (!notificationHistoryHasMore || notificationHistoryPending) return;
+    requestK26Notifications(notificationHistoryPage + 1, true);
+}
+
+function describeK26Notification(item) {
+    const rawType = String(item.message_type || 'Notification').trim();
+    const normalized = rawType.toLowerCase().replace(/[\s-]+/g, '_');
+    const device = item.device_name || 'Camera';
+    if (normalized.includes('doorbell') || normalized.includes('door_bell')) {
+        return { title: 'Doorbell Call Event', description: `${device} received a visitor click on the doorbell` };
+    }
+    if (normalized.includes('human')) {
+        return { title: 'Human Detection Event', description: `${device} detected someone's presence` };
+    }
+    if (normalized.includes('stranger')) {
+        return { title: 'Face Detection Event', detail: 'Stranger', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('registered_user')) {
+        return { title: 'Face Detection Event', detail: 'Registered User', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('face')) {
+        return { title: 'Face Detection Event', description: `${device} detected someone appeared` };
+    }
+    if (normalized.includes('motion') || normalized.includes('move_detect')) {
+        return { title: 'Motion Detection Event', description: `${device} detected motion` };
+    }
+    const words = rawType.replace(/[_-]+/g, ' ').split(/\s+/).filter(Boolean);
+    const titleText = words.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+    const title = /\bevent$/i.test(titleText) ? titleText : `${titleText} Event`;
+    return { title, description: device };
+}
+
+function renderK26Notifications(notifications, append = false) {
+    const list = document.getElementById('notificationHistoryList');
+    if (!append) list.replaceChildren();
+    if (!notifications.length && !append) {
+        const empty = document.createElement('div');
+        empty.className = 'notification-history-empty';
+        empty.textContent = 'No notifications';
+        list.appendChild(empty);
+    }
+    notifications.forEach(item => {
+        const card = document.createElement('article');
+        card.className = 'notification-history-card';
+        const media = document.createElement('div');
+        media.className = 'notification-history-media';
+        if (item.image_url) {
+            const thumbnail = document.createElement('img');
+            thumbnail.className = 'notification-history-thumb';
+            thumbnail.alt = '';
+            thumbnail.src = item.image_url;
+            media.appendChild(thumbnail);
+        } else {
+            media.className = 'notification-history-placeholder';
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'bell-ring');
+            media.appendChild(icon);
+        }
+        const copy = document.createElement('div');
+        copy.className = 'notification-history-copy';
+        const presentation = describeK26Notification(item);
+        const title = document.createElement('div');
+        title.className = 'notification-history-title';
+        title.textContent = presentation.title;
+        copy.appendChild(title);
+        if (presentation.detail) {
+            const detail = document.createElement('div');
+            detail.className = 'notification-history-detail';
+            detail.textContent = presentation.detail;
+            copy.appendChild(detail);
+        }
+        const description = document.createElement('div');
+        description.className = 'notification-history-description';
+        description.textContent = presentation.description;
+        copy.appendChild(description);
+        const duration = Number(item.video_sec);
+        if (duration > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'notification-history-duration';
+            badge.textContent = `00:${String(duration).padStart(2, '0')}`;
+            media.appendChild(badge);
+        }
+        const time = document.createElement('time');
+        time.className = 'notification-history-time';
+        const timestamp = Number(item.time);
+        if (Number.isFinite(timestamp) && timestamp > 0) {
+            const date = new Date(timestamp > 1e12 ? timestamp : timestamp * 1000);
+            time.textContent = `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+        card.appendChild(media);
+        card.appendChild(copy);
+        card.appendChild(time);
+        if (item.image_url || item.video_url) {
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.addEventListener('click', () => {
+                if (item.image_url) openSnapshotModal(item.image_url, item.message_type || 'Notification');
+                else showSettingToast('Video preview is not available in this view');
+            });
+        }
+        list.appendChild(card);
+    });
+    document.getElementById('notificationHistoryLoadMore').hidden = !notificationHistoryHasMore;
+    document.getElementById('notificationHistoryLoadMore').disabled = false;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function toggleK26ViewerFullscreen() {
@@ -390,9 +564,8 @@ function initK26ViewerControls() {
     document.getElementById('k26ViewerSpeaker').addEventListener('click', toggleK26ViewerSpeaker);
     document.getElementById('k26ViewerFullscreen').addEventListener('click', toggleK26ViewerFullscreen);
     document.getElementById('k26ZoomChip').addEventListener('click', cycleK26LiveZoom);
-    document.getElementById('k26ViewerReboot').addEventListener('click', () => show('rebootPanel'));
     document.getElementById('k26ViewerAlbum').addEventListener('click', openLatestK26Snapshot);
-    document.getElementById('k26ViewerSettings').addEventListener('click', () => show('homePanel'));
+    document.getElementById('k26ViewerNotifications').addEventListener('click', openK26ViewerNotifications);
     document.getElementById('k26ViewerToolbarBack').addEventListener('click', () => toggleK26ViewerToolbar(false));
     document.addEventListener('fullscreenchange', () => {
         const player = document.getElementById('k26CameraView');
@@ -1269,6 +1442,34 @@ function onDataToUi(value) {
             obj = jsonObject;
         }
 
+        if (obj.type === 'notification_history') {
+            notificationHistoryPending = false;
+            const loadMore = document.getElementById('notificationHistoryLoadMore');
+            if (!obj.success) {
+                document.getElementById('notificationHistoryList').textContent = obj.error || 'Unable to load notifications';
+                loadMore.hidden = true;
+                loadMore.disabled = false;
+                return;
+            }
+            notificationHistoryPage = Number(obj.page) || 1;
+            notificationHistoryHasMore = obj.has_more === true;
+            renderK26Notifications(obj.notifications || [], notificationHistoryPage > 1);
+            return;
+        }
+
+        if (obj.type === 'camera_settings' && viewerSpeakerLoadPending && obj.scope === 'audio') {
+            clearTimeout(viewerSpeakerLoadTimer);
+            viewerSpeakerLoadPending = false;
+            if (obj.success && obj.settings && obj.settings.beep_vol !== undefined) {
+                updateCameraSettingsUI(obj.settings);
+                toggleK26ViewerSpeaker();
+            } else {
+                updateViewerSpeaker(latestCameraSettings.beep_vol);
+                showSettingToast('Unable to load speaker volume');
+            }
+            return;
+        }
+
         if (obj.type === 'device_info' && !obj.success) {
             if (currentSettingsResponse(obj) && ['home', 'information'].includes(settingsLoadScope)) {
                 finishCameraSettingsLoad(false, obj.error || 'Unable to load device information');
@@ -1281,7 +1482,6 @@ function onDataToUi(value) {
             if (!currentSettingsResponse(obj)) return;
             const devEl = document.getElementById('deviceVersion');
             const fwEl = document.getElementById('firmwareVersion');
-            const updatedEl = document.getElementById('informationLastUpdated');
             const homeName = document.getElementById('homeDeviceName');
             const viewerName = document.getElementById('viewerDeviceName');
 
@@ -1295,7 +1495,10 @@ function onDataToUi(value) {
                 fwEl.innerText = obj.version || '...';
             }
 
-            if (updatedEl) updatedEl.textContent = obj.last_updated || '...';
+            document.getElementById('footerDeviceVersion').textContent = `Device: ${obj.device_name || '...'}`;
+            document.getElementById('footerFirmwareVersion').textContent = `Firmware: ${obj.version || '...'}`;
+            document.getElementById('footerReleaseDate').textContent = `Release: ${obj.release_date || '...'}`;
+
             const firmwareAvailability = document.getElementById('firmwareAvailability');
             if (firmwareAvailability) firmwareAvailability.textContent = obj.can_update === true ? 'Update available' :
                 obj.can_update === false ? 'The current version is the latest.' : '...';
@@ -1337,7 +1540,12 @@ function onDataToUi(value) {
             if (!obj.setting_saved && !currentSettingsResponse(obj)) return;
             if (obj.success && obj.settings) {
                 updateCameraSettingsUI(obj.settings);
-                if (obj.setting_saved) finishSettingSave('camera', true);
+                if (obj.setting_saved && viewerSpeakerWritePending) {
+                    viewerSpeakerWritePending = false;
+                    updateViewerSpeaker(latestCameraSettings.beep_vol);
+                    finishSettingSave('speakerVolume', true, undefined,
+                        Number(latestCameraSettings.beep_vol) === 0 ? 'Sound off' : 'Sound on');
+                } else if (obj.setting_saved) finishSettingSave('camera', true);
                 else if (cameraSettingsReady()) finishCameraSettingsLoad(true);
                 else if (obj.complete && (settingsLoadScope !== 'home' || document.getElementById('statusLight').disabled)) {
                     finishCameraSettingsLoad(false, 'Required settings were not returned by the camera');
@@ -1350,7 +1558,11 @@ function onDataToUi(value) {
 
         if (obj.type === 'camera_setting_result' && !obj.success) {
             updateCameraSettingsUI({});
-            finishSettingSave('camera', false, obj.error || 'Camera setting update failed');
+            if (viewerSpeakerWritePending) {
+                viewerSpeakerWritePending = false;
+                updateViewerSpeaker(latestCameraSettings.beep_vol);
+                finishSettingSave('speakerVolume', false, obj.error || 'Speaker update failed');
+            } else finishSettingSave('camera', false, obj.error || 'Camera setting update failed');
             return;
         }
 
@@ -1402,6 +1614,7 @@ function onDataToUi(value) {
                 const viewerName = document.getElementById('viewerDeviceName');
                 if (viewerName) viewerName.innerText = updatedName;
                 document.getElementById('deviceVersion').innerText = updatedName;
+                document.getElementById('footerDeviceVersion').textContent = `Device: ${updatedName}`;
             }
             pendingDeviceName = '';
             closeDeviceNameSheet();

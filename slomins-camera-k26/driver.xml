@@ -7,7 +7,7 @@
     <manufacturer>Slomins</manufacturer>
     <model>K26-SL</model>
     <created>11/11/2025 12:00 AM</created>
-    <modified>10/16/2026 12:00 AM</modified>
+    <modified>10/20/2026 12:00 AM</modified>
     <minimum_os_version>3.4.0</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -533,6 +533,11 @@
                     <param><name>scope</name><type>STRING</type></param>
                     <param><name>request_id</name><type>STRING</type></param>
                 </params>
+            </command>
+            <command>
+                <name>GET_NOTIFICATION_HISTORY</name>
+                <description>Read paginated camera notification history</description>
+                <params><param><name>page</name><type>STRING</type></param></params>
             </command>
             <command>
                 <name>FORMAT_STORAGE</name>

@@ -755,6 +755,15 @@ test('K26 home follows the reference groups and keeps Audio Settings focused on 
     assert.match(viewer, /class="camera-view"[\s\S]*class="camera-stage"[\s\S]*class="camera-frame"[\s\S]*id="k26StreamStatus"/);
     assert.match(viewer, /class="camera-footer"[\s\S]*id="k26ViewerFullscreen"/);
     assert.match(viewer, /class="toolbar"[\s\S]*id="k26ViewerSnapshot"[\s\S]*id="k26ViewerMic"/);
+    const alternateToolbar = viewer.match(/<div class="toolbar" id="k26ViewerAlternateToolbar"[\s\S]*?<\/div>/)[0];
+    assert.match(alternateToolbar, /id="k26ViewerAlarm"[\s\S]*id="k26ViewerAlbum"[\s\S]*id="k26ViewerNotifications"[\s\S]*id="k26ViewerToolbarBack"/);
+    assert.match(alternateToolbar, /id="k26ViewerAlarm"[^>]*disabled/);
+    assert.match(html, /#k26ViewerAlarm:disabled \{ opacity: \.4; cursor: not-allowed; \}/);
+    assert.doesNotMatch(alternateToolbar, /k26ViewerReboot|k26ViewerSettings/);
+    assert.match(javascript, /function openK26ViewerNotifications\([\s\S]*?requestK26Notifications\(1\)/);
+    assert.match(javascript, /C4\.sendCommand\('GET_NOTIFICATION_HISTORY'/);
+    assert.match(driver, /function GET_NOTIFICATION_HISTORY\([\s\S]*?\/api\/v3\/openapi\/notifications\/query/);
+    assert.match(fs.readFileSync(path.join(root, 'driver.xml'), 'utf8'), /<name>GET_NOTIFICATION_HISTORY<\/name>/);
     assert.match(viewer, /id="k26ViewerZoom"[^>]*disabled/);
     assert.match(viewer, /id="k26ViewerSnapshot"[^>]*disabled/);
     assert.doesNotMatch(viewer, /id="k26ViewerMic"[^>]*disabled/);
@@ -786,24 +795,42 @@ test('K26 home follows the reference groups and keeps Audio Settings focused on 
     assert.doesNotMatch(section('audioSettingsPanel'), /show\('micPanel'\)|>Microphone</);
     assert.match(section('micPanel'), /show\('audioSettingsPanel'\)/);
     assert.match(section('rebootPanel'), /show\('deviceInformationPanel'\)/);
-    assert.match(section('deviceInformationPanel'), /id="informationLastUpdated"/);
+    assert.doesNotMatch(section('deviceInformationPanel'), /Last Updated|informationLastUpdated/);
     assert.match(section('deviceInformationPanel'), /information-protection|Wi-Fi Name/);
     assert.match(home, /id="statusLight"[^>]*disabled/);
     assert.doesNotMatch(home, /current version is|checked/);
-    assert.doesNotMatch(html, /<footer\b/);
+    assert.match(html, /<footer class="footer" hidden>[\s\S]*id="footerDeviceVersion"[\s\S]*id="footerFirmwareVersion"[\s\S]*id="footerReleaseDate"/);
+    assert.match(html, /document\.querySelector\('\.footer'\)\.hidden = id === 'viewerPanel' \|\| id === 'facialRecPanel'/);
+    assert.match(html, /\.information-serial > span[^\n]*white-space:nowrap/);
     assert.match(home, /id="homeModelName" class="settings-device-name">Outdoor Camera \(Solar\)<\/div>/);
     assert.match(home, /id="homeDeviceName" class="settings-device-type">\.\.\.<\/div>/);
     const { context, document } = fixture();
-    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'Outdoor Camera', version: '4.2', release_date: '2026-10-16', last_updated: '08-12 20:30', battery: 76 }));
+    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'Outdoor Camera', version: '4.2', release_date: '2026-10-16', battery: 76 }));
     assert.equal(document.getElementById('homeDeviceName').innerText, 'Outdoor Camera');
     assert.equal(document.getElementById('viewerDeviceName').innerText, 'Outdoor Camera');
     assert.equal(document.getElementById('firmwareVersion').innerText, '4.2');
-    assert.equal(document.getElementById('informationLastUpdated').textContent, '08-12 20:30');
     assert.equal(document.getElementById('powerBatteryLevel').textContent, '76%');
+    assert.equal(document.getElementById('footerDeviceVersion').textContent, 'Device: Outdoor Camera');
+    assert.equal(document.getElementById('footerFirmwareVersion').textContent, 'Firmware: 4.2');
+    assert.equal(document.getElementById('footerReleaseDate').textContent, 'Release: 2026-10-16');
     context.onDataToUi(JSON.stringify({ device_name_updated: true, device_name: 'Driveway' }));
     assert.equal(document.getElementById('homeDeviceName').innerText, 'Driveway');
     assert.equal(document.getElementById('viewerDeviceName').innerText, 'Driveway');
     assert.equal(document.getElementById('deviceVersion').innerText, 'Driveway');
+});
+
+test('K26 notification cards use VD05 event titles and descriptions', () => {
+    const { context, document } = fixture();
+    context.renderK26Notifications([
+        { message_type: 'move detect', device_name: 'CA Outdoor Camera' },
+        { message_type: 'door bell', device_name: 'CA Outdoor Camera' }
+    ]);
+    const cards = document.getElementById('notificationHistoryList').children;
+    assert.equal(cards[0].children[1].children[0].textContent, 'Motion Detection Event');
+    assert.equal(cards[0].children[1].children[1].textContent, 'CA Outdoor Camera detected motion');
+    assert.equal(cards[1].children[1].children[0].textContent, 'Doorbell Call Event');
+    assert.equal(cards[1].children[1].children[1].textContent, 'CA Outdoor Camera received a visitor click on the doorbell');
+    assert.match(html, /\.notification-history-detail\s*\{/);
 });
 
 test('K26 viewer shows the VD05 unavailable message without attempting a live stream', () => {
@@ -889,6 +916,9 @@ test('K26 Status Light uses indicator_swt and home waits only for its two respon
 test('K26 audio requests only speaker volume and waits for its API value and save acknowledgement', () => {
     const { context, document, commands } = fixture();
     const element = id => document.getElementById(id);
+    const viewerSpeaker = element('k26ViewerSpeaker');
+    assert.equal(viewerSpeaker.disabled, false);
+    assert.equal(viewerSpeaker.title, 'Load speaker volume');
     context.requestCameraSettings('audio');
     const request = JSON.parse(commands[0][1]);
     assert.equal(request.scope, 'audio');
@@ -900,9 +930,20 @@ test('K26 audio requests only speaker volume and waits for its API value and sav
     assert.equal(element('settingSaveOverlay').hidden, true);
     assert.equal(element('speakerVolume').value, '8');
     assert.equal(element('speakerVolumeValue').textContent, '8');
+    assert.equal(viewerSpeaker.disabled, false);
+    assert.equal(viewerSpeaker.title, 'Sound on');
+    assert.equal(viewerSpeaker.getAttribute('aria-label'), 'Sound on');
+    viewerSpeaker.dispatch('click');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 0 });
+    assert.equal(viewerSpeaker.disabled, true);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
+    assert.equal(viewerSpeaker.disabled, false);
+    assert.equal(viewerSpeaker.title, 'Sound off');
+    assert.equal(viewerSpeaker.getAttribute('aria-label'), 'Sound off');
+    assert.equal(element('settingSaveToast').textContent, 'Sound off');
     element('speakerVolume').value = '10';
     element('speakerVolume').dispatch('input');
-    assert.equal(commands.length, 1);
+    assert.equal(commands.length, 2);
     element('speakerVolume').dispatch('change');
     assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 10 });
     assert.equal(element('settingSaveOverlay').hidden, false);
@@ -913,6 +954,23 @@ test('K26 audio requests only speaker volume and waits for its API value and sav
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
     assert.equal(element('speakerVolumeValue').textContent, '0');
     assert.equal(element('settingSaveOverlay').hidden, true);
+});
+
+test('K26 viewer speaker loads volume on demand and then toggles to Sound off', () => {
+    const { context, document, commands } = fixture();
+    const speaker = document.getElementById('k26ViewerSpeaker');
+    assert.equal(speaker.disabled, false);
+    speaker.dispatch('click');
+    assert.equal(commands.at(-1)[0], 'GET_CAMERA_SETTINGS');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { scope: 'audio' });
+    assert.equal(speaker.disabled, true);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', scope: 'audio', success: true, settings: { beep_vol: 6 } }));
+    assert.equal(commands.at(-1)[0], 'SET_CAMERA_SETTING');
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'beep_vol', value: 0 });
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true, settings: { beep_vol: 0 } }));
+    assert.equal(speaker.disabled, false);
+    assert.equal(speaker.title, 'Sound off');
+    assert.equal(speaker.getAttribute('aria-label'), 'Sound off');
 });
 
 test('K26 storage matches VD05 and sends the format action after one confirmation', () => {
@@ -988,7 +1046,7 @@ test('K26 Device Information has its own request and displays API data without s
     assert.equal(commands[0][0], 'GET_DEVICE_INFO');
     const request = JSON.parse(commands[0][1]);
     context.onDataToUi(JSON.stringify({ type: 'device_info', ...request, success: true, device_name: 'Driveway',
-        last_updated: '08-12 20:30', user_identifier: 'installer@example.com', can_update: false,
+        user_identifier: 'installer@example.com', can_update: false,
         serial: 'serial-from-api', timezone: 'Asia/Manila', ip: '192.0.2.1', mac: 'api-mac', wifi: 'API SSID', rssi: 0 }));
     assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
     for (const [id, expected] of Object.entries({ deviceSerial: 'serial-from-api', deviceTimezone: 'Asia/Manila',
@@ -996,7 +1054,6 @@ test('K26 Device Information has its own request and displays API data without s
         assert.equal(document.getElementById(id).textContent, expected);
     }
     assert.equal(document.getElementById('copyDeviceSerial').disabled, false);
-    assert.equal(document.getElementById('informationLastUpdated').textContent, '08-12 20:30');
     assert.equal(document.getElementById('c4UserIdentifier').textContent, 'installer@example.com');
     assert.equal(document.getElementById('copyUserIdentifier').disabled, false);
     assert.equal(document.getElementById('firmwareAvailability').textContent, 'The current version is the latest.');

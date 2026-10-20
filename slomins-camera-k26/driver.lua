@@ -740,6 +740,10 @@ function ExecuteCommand(strCommand, tParams)
         GET_DEVICE_INFO(tParams)
         return
     end
+    if strCommand == "GET_NOTIFICATION_HISTORY" then
+        GET_NOTIFICATION_HISTORY(tParams)
+        return
+    end
 
     if strCommand == "SPEAKER_VOLUME_UP" then
         print("[COMMAND] Speaker Volume Up requested")
@@ -3735,7 +3739,6 @@ function GET_DEVICE_INFO(params)
             device_name    = d.device_name,
             version        = d.version,
             release_date   = d.release_date or d.update_time,
-            last_updated   = d.update_time or d.release_date,
             user_identifier = GlobalObject.CustomerEmail or Properties["Account"] or "",
             battery        = tonumber(d.power),
             wifi           = d.wifi or "",
@@ -3763,6 +3766,58 @@ function GET_DEVICE_INFO(params)
 
         SendDeviceInfoToUI(payload)
         C4:UpdateProperty("Status", "Device info loaded")
+    end)
+end
+
+function GET_NOTIFICATION_HISTORY(params)
+    if type(params) == "string" then
+        local ok, decoded = pcall(json.decode, params)
+        params = ok and decoded or nil
+    end
+    local page = type(params) == "table" and math.max(1, tonumber(params.page) or 1) or 1
+    local page_size = 20
+    local vid = _props["VID"] or Properties["VID"]
+    local token = _props["Auth Token"] or Properties["Auth Token"]
+    local app_id = GetCldBusCredentials()
+    if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
+        SendDeviceInfoToUI({ type = "notification_history", success = false, error = "Missing device or authentication" })
+        return
+    end
+    transport.execute({
+        url = (Properties["Base API URL"] or GlobalObject.LnduBaseUrl or "https://api.arpha-tech.com") ..
+            "/api/v3/openapi/notifications/query",
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Accept-Language"] = "en",
+            ["Authorization"] = "Bearer " .. token,
+            ["App-Name"] = app_id
+        },
+        body = json.encode({ page = page, page_size = page_size, vids = { vid } })
+    }, function(code, response, _, err)
+        local ok, parsed = pcall(json.decode, response or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        if err or (code ~= 200 and code ~= 20000) or not ok or type(parsed) ~= "table" or
+            (api_code and api_code ~= 0 and api_code ~= 200 and api_code ~= 20000) then
+            SendDeviceInfoToUI({ type = "notification_history", success = false, error = "Unable to load notifications" })
+            return
+        end
+        local data = parsed.data or {}
+        local notifications = data.notifications or {}
+        local items = {}
+        for _, item in ipairs(notifications) do
+            table.insert(items, {
+                device_name = item.device_name or "",
+                vid = item.vid or vid,
+                time = item.notify_time or 0,
+                image_url = item.image_url or "",
+                video_url = item.video_url or "",
+                video_sec = tonumber(item.video_sec) or 0,
+                message_type = item.message_type or ""
+            })
+        end
+        SendDeviceInfoToUI({ type = "notification_history", success = true, notifications = items,
+            page = page, has_more = #notifications >= page_size })
     end)
 end
 
