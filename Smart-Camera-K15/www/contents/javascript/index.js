@@ -8,11 +8,14 @@ let faceListEl = null;
 let saveFacesBtn = null;
 let latestCameraSettings = {};
 let latestSnapshotUrl = '';
+let k15PresetLoadTimer = null;
+let k15PresetLoadPending = false;
 let k15ZoomIndex = 0;
 const k15ZoomLevels = [1, 2, 3, 4, 5, 6];
-let k15SpeakerVolumeBeforeMute = 5;
+let k15SpeakerVolumeBeforeMute = null;
 let k15SpeakerLoadPending = false;
 let k15SpeakerWritePending = false;
+let k15SpeakerTogglePending = false;
 let k15SpeakerLoadTimer = null;
 let isMicMuted = null;
 let deviceNameEdited = false;
@@ -46,6 +49,17 @@ function finishSettingsLoad() {
     clearTimeout(settingsLoadTimer);
     const overlay = document.getElementById('settingsLoadingOverlay');
     if (overlay) overlay.hidden = true;
+}
+
+let k15ToastTimer = null;
+
+function showK15Toast(message) {
+    const toast = document.getElementById('k15StatusToast');
+    if (!toast) return;
+    clearTimeout(k15ToastTimer);
+    toast.textContent = message;
+    toast.hidden = false;
+    k15ToastTimer = setTimeout(() => { toast.hidden = true; }, 2500);
 }
 
 function beginSettingsLoad() {
@@ -102,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initSnapshot();
     loadFaces();
     initSaveFacesButton();
-    requestCameraSettings();
+    requestCameraSettings(true);
 });
 
 function requestCameraSettings(showLoading = false) {
@@ -113,7 +127,7 @@ function requestCameraSettings(showLoading = false) {
         if (mic) mic.indeterminate = true;
         if (micStatus) micStatus.innerText = 'Refreshing...';
     }
-        document.querySelectorAll('#mic, #motionDetection, #detectionType, #detectionSensitivity, #k15SensitivitySlider, #alarmToggle, #recordingToggle, #nightVisionToggle, #antiFlicker, #flipImageToggle, #timeWatermarkToggle').forEach(function (control) {
+        document.querySelectorAll('#mic, #speakerVolume, #motionDetection, #detectionType, #detectionSensitivity, #k15SensitivitySlider, #alarmToggle, #recordingToggle, #nightVisionToggle, #antiFlicker, #flipImageToggle, #timeWatermarkToggle').forEach(function (control) {
             control.disabled = true;
     });
     try {
@@ -135,10 +149,38 @@ function sendK15Ptz(direction) {
 
 function toggleK15Fullscreen() {
     const view = document.getElementById('k15CameraView');
-    if (!view) return;
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else view.requestFullscreen?.();
+    const button = document.getElementById('k15ViewerFullscreen');
+    if (!view || !button) return;
+    if (document.fullscreenElement === view) {
+        document.exitFullscreen?.();
+        return;
+    }
+    const setFallback = fullscreen => {
+        view.classList.toggle('is-fullscreen', fullscreen);
+        button.setAttribute('aria-pressed', String(fullscreen));
+    };
+    if (view.classList.contains('is-fullscreen')) {
+        setFallback(false);
+    } else if (typeof view.requestFullscreen === 'function') {
+        view.requestFullscreen().catch(() => setFallback(true));
+    } else {
+        setFallback(true);
+    }
 }
+
+document.addEventListener('fullscreenchange', () => {
+    const view = document.getElementById('k15CameraView');
+    const button = document.getElementById('k15ViewerFullscreen');
+    if (!view || !button) return;
+    const fullscreen = document.fullscreenElement === view;
+    view.classList.toggle('is-fullscreen', fullscreen);
+    button.setAttribute('aria-pressed', String(fullscreen));
+});
+
+document.addEventListener('keydown', event => {
+    const view = document.getElementById('k15CameraView');
+    if (event.key === 'Escape' && view?.classList.contains('is-fullscreen')) toggleK15Fullscreen();
+});
 
 function cycleK15Zoom() {
     k15ZoomIndex = (k15ZoomIndex + 1) % k15ZoomLevels.length;
@@ -182,6 +224,74 @@ function openK15PtzControls() {
 function closeK15PtzControls() {
     const overlay = document.getElementById('k15PtzOverlay');
     if (overlay) overlay.hidden = true;
+}
+
+function openK15PresetSheet() {
+    const sheet = document.getElementById('k15PresetSheet');
+    const list = document.getElementById('k15PresetList');
+    if (!sheet || !list || k15PresetLoadPending) return;
+    sheet.hidden = false;
+    list.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'k15-preset-status';
+    loading.textContent = 'Loading presets...';
+    list.appendChild(loading);
+    k15PresetLoadPending = true;
+    k15PresetLoadTimer = setTimeout(() => {
+        k15PresetLoadPending = false;
+        renderK15Presets([], 'Unable to load presets');
+    }, 15000);
+    try {
+        C4.sendCommand('GET_PRESETS_API', '', false, true);
+    } catch (error) {
+        clearTimeout(k15PresetLoadTimer);
+        k15PresetLoadPending = false;
+        renderK15Presets([], 'Unable to load presets');
+    }
+}
+
+function closeK15PresetSheet() {
+    const sheet = document.getElementById('k15PresetSheet');
+    if (sheet) sheet.hidden = true;
+    if (k15PresetLoadPending) {
+        clearTimeout(k15PresetLoadTimer);
+        k15PresetLoadPending = false;
+    }
+}
+
+function renderK15Presets(presets, error) {
+    const list = document.getElementById('k15PresetList');
+    if (!list) return;
+    list.replaceChildren();
+    if (error || !presets.length) {
+        const status = document.createElement('div');
+        status.className = 'k15-preset-status';
+        status.textContent = error || 'No presets available';
+        list.appendChild(status);
+        return;
+    }
+    presets.forEach((preset, index) => {
+        const button = document.createElement('button');
+        button.className = 'k15-preset-item';
+        button.type = 'button';
+        const name = document.createElement('span');
+        name.textContent = preset.name || `Preset ${index + 1}`;
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'chevron-right');
+        button.append(name, icon);
+        button.addEventListener('click', () => selectK15Preset(index + 1));
+        list.appendChild(button);
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function selectK15Preset(index) {
+    closeK15PresetSheet();
+    try {
+        C4.sendCommand('PTZ_GOTO_PRESET', JSON.stringify({ INDEX: index }), false, true);
+    } catch (error) {
+        console.error('Unable to send preset command', error);
+    }
 }
 
 function sendK15ViewerSetting(key, value) {
@@ -296,6 +406,7 @@ function updateK15SensitivityPreview(value) {
     const index = Number(value);
     if (!Number.isInteger(index) || index < 0 || index > 2) return;
     if (slider) {
+        slider.hidden = false;
         slider.value = String(index);
         slider.style.setProperty('--sensitivity-progress', `${index * 50}%`);
     }
@@ -339,6 +450,25 @@ function updateK15ViewerSpeaker(value = latestCameraSettings.beep_vol) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function updateK15SpeakerVolumePreview(value = latestCameraSettings.beep_vol) {
+    const slider = document.getElementById('speakerVolume');
+    const output = document.getElementById('speakerVolumeValue');
+    if (!slider || !output) return;
+    const volume = Number(value);
+    if (!Number.isInteger(volume) || volume < 0 || volume > 10) {
+        slider.disabled = true;
+        slider.hidden = true;
+        output.textContent = '...';
+        return;
+    }
+    slider.hidden = false;
+    slider.value = String(volume);
+    slider.disabled = k15SpeakerWritePending;
+    slider.style.setProperty('--speaker-fill', `${volume * 10}%`);
+    output.textContent = String(volume);
+    output.style.left = `calc(8px + ${volume * 10}% - ${volume * 1.6}px)`;
+}
+
 function toggleK15ViewerSpeaker() {
     if (k15SpeakerLoadPending || k15SpeakerWritePending) return;
     const current = Number(latestCameraSettings.beep_vol);
@@ -358,15 +488,21 @@ function toggleK15ViewerSpeaker() {
         }
         return;
     }
+    if (current === 0 && k15SpeakerVolumeBeforeMute === null) {
+        show('audioSettingsPanel');
+        return;
+    }
     const target = current === 0 ? k15SpeakerVolumeBeforeMute : 0;
     if (current > 0) k15SpeakerVolumeBeforeMute = current;
     k15SpeakerWritePending = true;
+    k15SpeakerTogglePending = true;
     updateK15ViewerSpeaker(current);
     beginSettingSave('camera');
     try {
         C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'beep_vol', value: target }), false, true);
     } catch (error) {
         k15SpeakerWritePending = false;
+        k15SpeakerTogglePending = false;
         updateK15ViewerSpeaker(current);
         finishSettingSave('camera', false, 'Unable to update speaker');
     }
@@ -376,6 +512,7 @@ function updateCameraSettingsUI(settings) {
     latestCameraSettings = { ...latestCameraSettings, ...settings };
     settings = latestCameraSettings;
     updateK15ViewerSpeaker(settings.beep_vol);
+    updateK15SpeakerVolumePreview(settings.beep_vol);
     const toggles = {
         motionDetection: 'motion_switch',
         flipImageToggle: 'flip_swt',
@@ -618,6 +755,7 @@ function initCameraSettings() {
     const recording = document.getElementById('recordingToggle');
     const nightVision = document.getElementById('nightVisionToggle');
     const antiFlicker = document.getElementById('antiFlicker');
+    const speakerVolume = document.getElementById('speakerVolume');
     const formatBtn = document.getElementById('formatStorageBtn');
     const flipImage = document.getElementById('flipImageToggle');
     const timeWatermark = document.getElementById('timeWatermarkToggle');
@@ -634,7 +772,7 @@ function initCameraSettings() {
     const fullZone = document.getElementById('fullDetectionZoneBtn');
     const zoneStatus = document.getElementById('detectionZoneStatus');
 
-    if (!motion && !alarm && !recording && !nightVision && !antiFlicker && !formatBtn && !saveEventTimeBtn && !flipImage && !timeWatermark) {
+    if (!motion && !alarm && !recording && !nightVision && !antiFlicker && !speakerVolume && !formatBtn && !saveEventTimeBtn && !flipImage && !timeWatermark) {
         return;
     }
 
@@ -653,6 +791,22 @@ function initCameraSettings() {
     if (sensitivitySlider) {
         sensitivitySlider.addEventListener('input', function () { updateK15SensitivityPreview(Number(this.value)); });
         sensitivitySlider.addEventListener('change', function () { sendSetting('motion.sen', Number(this.value)); });
+    }
+    if (speakerVolume) {
+        speakerVolume.addEventListener('input', function () { updateK15SpeakerVolumePreview(Number(this.value)); });
+        speakerVolume.addEventListener('change', function () {
+            const value = Number(this.value);
+            if (value === Number(latestCameraSettings.beep_vol)) return;
+            k15SpeakerWritePending = true;
+            k15SpeakerTogglePending = false;
+            updateK15ViewerSpeaker(value);
+            updateK15SpeakerVolumePreview(value);
+            if (!sendSetting('beep_vol', value)) {
+                k15SpeakerWritePending = false;
+                updateK15ViewerSpeaker();
+                updateK15SpeakerVolumePreview();
+            }
+        });
     }
     if (fullZone && zoneInputs.every(Boolean)) fullZone.addEventListener('click', function () {
         zoneInputs.forEach(input => { input.value = '0'; });
@@ -1087,6 +1241,12 @@ function onDataToUi(value) {
             obj = jsonObject;
         }
 
+        if (obj.type === 'camera_presets') {
+            clearTimeout(k15PresetLoadTimer);
+            k15PresetLoadPending = false;
+            renderK15Presets(obj.success ? (obj.presets || []) : [], obj.success ? null : (obj.error || 'Unable to load presets'));
+        }
+
         if (obj.type === 'camera_settings') {
             finishSettingsLoad();
             if (k15SpeakerLoadPending) {
@@ -1097,14 +1257,20 @@ function onDataToUi(value) {
                 updateCameraSettingsUI(obj.settings || {});
                 if (obj.setting_saved) {
                     const speakerWrite = k15SpeakerWritePending && obj.settings?.beep_vol !== undefined;
+                    const speakerToggle = speakerWrite && k15SpeakerTogglePending;
                     if (speakerWrite) {
                         k15SpeakerWritePending = false;
+                        k15SpeakerTogglePending = false;
                         updateK15ViewerSpeaker();
                     }
-                    const successMessage = speakerWrite
+                    const successMessage = speakerToggle
                         ? (Number(obj.settings.beep_vol) === 0 ? 'Sound off' : 'Sound on')
                         : 'Setting saved';
                     finishSettingSave('camera', true, undefined, successMessage);
+                    if (speakerToggle) {
+                        closeSettingSaveDialog();
+                        showK15Toast(successMessage);
+                    }
                 }
                 if (obj.event_time_updated) {
                     const status = document.getElementById('eventTimeStatus');
@@ -1136,11 +1302,13 @@ function onDataToUi(value) {
 
         if (obj.type === 'camera_setting_result' && !obj.success) {
             if (k15SpeakerWritePending) k15SpeakerWritePending = false;
+            k15SpeakerTogglePending = false;
             if (k15SpeakerLoadPending) {
                 clearTimeout(k15SpeakerLoadTimer);
                 k15SpeakerLoadPending = false;
             }
             updateK15ViewerSpeaker();
+            updateK15SpeakerVolumePreview();
             finishSettingSave('camera', false, obj.error);
             requestCameraSettings();
         }

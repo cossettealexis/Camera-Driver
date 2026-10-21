@@ -650,7 +650,7 @@ function ExecuteCommand(strCommand, tParams)
     end
 
     if strCommand == "PTZ_GOTO_PRESET" then
-        PTZ_GOTO_PRESET(tParams)
+        PTZ_GOTO_PRESET(CAMERA_BINDING, tParams)
         return
     end
 
@@ -4329,6 +4329,14 @@ function PTZ_GOTO_PRESET(idBinding, tParams)
     print("              PTZ_GOTO_PRESET (DYNAMIC MODE)                  ")
     print("================================================================")
 
+    if tParams == nil and type(idBinding) == "table" then
+        tParams = idBinding
+    end
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        tParams = ok and decoded or nil
+    end
+
     local vid = _props["VID"] or Properties["VID"]
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
 
@@ -4474,9 +4482,18 @@ function GET_PRESETS_API() -- v1.0.3
 
     local vid = _props["VID"] or Properties["VID"]
     local auth_token = _props["Auth Token"] or Properties["Auth Token"]
+    local function send_result(success, error_message)
+        SendDeviceInfoToUI({ type = "camera_presets", success = success, presets = PersistData.presets or {}, error = error_message })
+    end
 
     if not vid or vid == "" then
         print("ERROR: Missing VID")
+        send_result(false, "Missing device ID")
+        return
+    end
+    if not auth_token or auth_token == "" then
+        print("ERROR: Missing Auth Token")
+        send_result(false, "Missing authentication")
         return
     end
 
@@ -4502,20 +4519,23 @@ function GET_PRESETS_API() -- v1.0.3
     }, function(code, resp, _, err)
         print("Preset API response code:", code)
 
-        if err then
-            print("ERROR:", err)
+        if err or (code ~= 200 and code ~= 20000) then
+            print("ERROR:", err or code)
+            send_result(false, "Unable to load presets")
             return
         end
 
         local ok, data = pcall(json.decode, resp)
         if not ok or not data then
             print("JSON decode failed")
+            send_result(false, "Unable to read presets")
             return
         end
 
         if not data.data then
             print("No presets found")
             PersistData.presets = {}
+            send_result(true)
             return
         end
 
@@ -4552,6 +4572,7 @@ function GET_PRESETS_API() -- v1.0.3
         end
 
         C4:UpdateProperty("Status", "Presets loaded: " .. tostring(#PersistData.presets))
+        send_result(true)
     end)
 end
 

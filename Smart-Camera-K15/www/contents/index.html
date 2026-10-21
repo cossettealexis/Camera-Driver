@@ -557,6 +557,7 @@
         .viewer-title { min-width: 0; overflow: hidden; color: #f2f4f8; font-size: 18px; font-weight: 600; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
         .camera-view { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4px 12px; background: #101116; }
         .camera-view:fullscreen { width: 100vw; height: 100dvh; flex: none; padding: 0; }
+        .camera-view.is-fullscreen { position: fixed; inset: 0; z-index: 5000; width: auto; height: auto; flex: none; padding: 0; background: #101116; }
         .camera-stage { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
         .camera-frame { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #08090c; transform: scale(var(--viewer-zoom, 1)); transform-origin: center; transition: transform .18s ease; }
         .camera-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; color: rgba(255,255,255,.72); font-size: 14px; text-align: center; }
@@ -579,6 +580,16 @@
         .ptz-card { display: grid; justify-items: center; gap: 18px; width: min(100%, 360px); padding: 18px; border-radius: 24px; background: #292929; color: #fff; }
         .ptz-card-header { display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 18px; font-weight: 600; }
         .ptz-card-header button { display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: #070a0f; color: #fff; }
+        .k15-preset-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(0,0,0,.68); }
+        .k15-preset-sheet[hidden] { display: none; }
+        .k15-preset-card { width: min(100%, 420px); max-height: min(70vh, 560px); overflow-y: auto; padding: 18px 16px 16px; border-radius: 24px; background: #292929; color: #fff; }
+        .k15-preset-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 16px; font-weight: 600; }
+        .k15-preset-header button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #070a0f; color: #fff; }
+        .k15-preset-list { display: grid; gap: 8px; }
+        .k15-preset-item { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 12px 14px; border: 0; border-radius: 14px; background: #373737; color: #eee; font-size: 14px; text-align: left; }
+        .k15-preset-item svg { width: 18px; height: 18px; color: #999; }
+        .k15-preset-status { padding: 16px 8px; color: #aaa; font-size: 14px; text-align: center; }
+        .k15-preset-direction { width: 100%; min-height: 44px; margin-top: 12px; border: 1px solid #777; border-radius: 14px; background: transparent; color: #fff; font-size: 14px; }
         .ptz-pad { position: relative; display: grid; grid-template: repeat(3, 56px) / repeat(3, 56px); gap: 4px; align-items: center; justify-items: center; }
         .ptz-pad button { width: 52px; height: 52px; border: 0; border-radius: 50%; background: #070a0f; color: #ffffff; }
         .ptz-pad button svg { width: 24px; height: 24px; }
@@ -606,6 +617,7 @@
         .settings-loading-overlay { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.72); }
         .settings-loading-overlay[hidden] { display: none; }
         .settings-loading-card { display: grid; justify-items: center; gap: 16px; width: min(220px, 100%); min-height: 160px; padding: 24px; border-radius: 22px; background: var(--surface2); color: var(--text); font-size: 16px; font-weight: 600; }
+        .k15-status-toast { position: fixed; top: 50%; left: 50%; z-index: 12000; max-width: calc(100% - 32px); padding: 12px; transform: translate(-50%, -50%); border-radius: 12px; background: #292929; color: #fff; font-size: 15px; text-align: center; pointer-events: none; }
         .device-name-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.65); }
         .device-name-sheet[hidden] { display: none; }
         .device-name-card { width: 100%; padding: 16px 24px max(16px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: #292929; }
@@ -678,6 +690,16 @@
         .k15-storage-summary .subpage-status { grid-column: 1 / -1; }
         .settings-form > .btn { width: 100%; min-height: 52px; font-size: var(--setting-value-size); }
         .subpage-status { min-height: 22px; color: var(--muted); font-size: var(--setting-help-size); line-height: 1.4; }
+        .k15-speaker-setting { width: 100%; padding: 8px 0 32px; }
+        .k15-speaker-setting h2 { margin-bottom: 20px; font-size: var(--setting-label-size); font-weight: 500; }
+        .k15-speaker-track { position: relative; padding-top: 22px; margin: 0 24px; }
+        .k15-speaker-track input { appearance: none; display: block; width: 100%; height: 5px; margin: 0; border-radius: 5px; background: linear-gradient(to right, var(--accent) var(--speaker-fill,0%), #aaa var(--speaker-fill,0%)); }
+        .k15-speaker-track input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+        .k15-speaker-track input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--accent); }
+        .k15-speaker-track output { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: var(--accent); font-size: 12px; }
+        .k15-speaker-track .speaker-min, .k15-speaker-track .speaker-max { position: absolute; top: 19px; color: var(--muted); font-size: 12px; }
+        .k15-speaker-track .speaker-min { left: -24px; }
+        .k15-speaker-track .speaker-max { right: -24px; }
         #motionPanel .settings-page-content { gap: 12px; padding: 12px 16px 24px; }
         #motionPanel .settings-form { gap: 12px; max-width: 720px; }
         #motionPanel .k15-setting-card { padding: 0 12px; border-radius: 22px; }
@@ -751,13 +773,13 @@
                 <div class="camera-stage"><div class="camera-frame"><div class="camera-status" role="status">Live stream not available</div></div></div>
                 <div class="camera-controls">
                     <div class="camera-control-group"><span class="camera-chip small">HD</span><button class="camera-chip" id="k15ZoomChip" type="button" onclick="cycleK15Zoom()" aria-label="Change zoom" title="Change zoom">1.0X</button><button class="camera-icon-button" id="k15ViewerSpeaker" type="button" onclick="toggleK15ViewerSpeaker()" aria-label="Load speaker volume" title="Load speaker volume"><i data-lucide="volume-2"></i></button></div>
-                    <button class="camera-icon-button" type="button" onclick="toggleK15Fullscreen()" aria-label="Fullscreen" title="Fullscreen"><i data-lucide="maximize"></i></button>
+                    <button class="camera-icon-button" id="k15ViewerFullscreen" type="button" onclick="toggleK15Fullscreen()" aria-label="Fullscreen" title="Fullscreen" aria-pressed="false"><i data-lucide="maximize"></i></button>
                 </div>
                 <div class="camera-toolbar" id="k15ViewerToolbar">
                     <button type="button" disabled aria-label="Screenshot unavailable" title="Screenshot unavailable"><i data-lucide="scissors"></i></button>
-                    <button type="button" onclick="handleTakeSnapshot()" aria-label="Take snapshot" title="Take snapshot"><i data-lucide="circle-dot"></i></button>
+                    <button type="button" disabled aria-disabled="true" aria-label="Snapshot unavailable" title="Snapshot unavailable"><i data-lucide="circle-dot"></i></button>
                     <button class="primary" type="button" onclick="toggleK15ViewerMic()" aria-label="Start camera audio" title="Start camera audio"><i data-lucide="mic"></i></button>
-                    <button type="button" onclick="openK15PtzControls()" aria-label="Camera direction controls" title="Camera direction controls"><i data-lucide="scan-line"></i></button>
+                    <button type="button" onclick="openK15PresetSheet()" aria-label="Presets" title="Presets"><i data-lucide="focus"></i></button>
                     <button type="button" id="k15ViewerToolbarToggle" onclick="toggleK15ViewerToolbar(true)" aria-label="More camera controls" title="More camera controls"><i data-lucide="circle-arrow-left"></i></button>
                 </div>
                 <div class="camera-toolbar" id="k15ViewerAlternateToolbar" hidden>
@@ -781,6 +803,14 @@
             </div>
         </div>
 
+        <div id="k15PresetSheet" class="k15-preset-sheet" role="dialog" aria-modal="true" aria-labelledby="k15PresetTitle" onclick="if(event.target===this) closeK15PresetSheet()" hidden>
+            <div class="k15-preset-card">
+                <div class="k15-preset-header"><span id="k15PresetTitle">Presets</span><button type="button" onclick="closeK15PresetSheet()" aria-label="Close presets" title="Close"><i data-lucide="x"></i></button></div>
+                <div class="k15-preset-list" id="k15PresetList"><div class="k15-preset-status">Loading presets...</div></div>
+                <button class="k15-preset-direction" type="button" onclick="openK15PtzControls()">Camera Direction</button>
+            </div>
+        </div>
+
         <section id="homePanel" class="panel">
             <div class="settings-bar">
                 <button type="button" onclick="show('viewerPanel')" aria-label="Back to K15" title="Back to K15"><i data-lucide="chevron-left"></i></button>
@@ -798,7 +828,7 @@
                 </div>
                 <div class="settings-group">
                     <button class="settings-row" type="button" onclick="show('videoSettingsPanel')"><span>Video Settings</span><i data-lucide="chevron-right"></i></button>
-                    <button class="settings-row" type="button" onclick="show('micPanel')"><span>Audio Settings</span><i data-lucide="chevron-right"></i></button>
+                    <button class="settings-row" type="button" onclick="show('audioSettingsPanel')"><span>Audio Settings</span><i data-lucide="chevron-right"></i></button>
                     <button class="settings-row" type="button" disabled aria-disabled="true"><span>Notification Settings</span><i data-lucide="chevron-right"></i></button>
                 </div>
                 <div class="settings-group"><button class="settings-row" type="button" onclick="show('storagePanel')"><span>Internal Storage</span><i data-lucide="chevron-right"></i></button></div>
@@ -852,7 +882,7 @@
             </div>
         </section>
         <!-- MIC -->
-        <section id="micPanel" class="panel">
+        <section id="audioSettingsPanel" class="panel">
             <div class="topbar">
                 <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
@@ -861,9 +891,14 @@
             </div>
             <div class="content settings-page-content">
                 <div class="settings-form">
-                    <div class="k15-setting-card">
-                        <div class="k15-setting-row"><span>Microphone</span><label class="toggle subpage-toggle"><input type="checkbox" id="mic"><span class="slider"></span></label></div>
-                        <div class="subpage-status" id="micStatus">Refreshing...</div>
+                    <div class="k15-speaker-setting">
+                        <h2>Device Speaker Volume</h2>
+                        <div class="k15-speaker-track">
+                            <output id="speakerVolumeValue" for="speakerVolume">...</output>
+                            <span class="speaker-min">0</span>
+                            <input id="speakerVolume" type="range" min="0" max="10" step="1" aria-label="Device Speaker Volume" disabled hidden>
+                            <span class="speaker-max">10</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -960,7 +995,7 @@
                     <path d="M277 248h52l-6 50h-17l-8-31-10 31h-17z" fill="#a50831"/>
                     <path d="m280 298-3 8h15l5-8m26 0 4 8h14l-3-8" fill="#171717"/>
                 </svg>
-                <input class="motion-sensitivity-range" id="k15SensitivitySlider" type="range" min="0" max="2" step="1" value="1" aria-label="Detection Sensitivity" disabled>
+                <input class="motion-sensitivity-range" id="k15SensitivitySlider" type="range" min="0" max="2" step="1" aria-label="Detection Sensitivity" disabled hidden>
                 <div class="motion-sensitivity-labels"><span>Low</span><span id="k15SensitivityCurrent">...</span><span>High</span></div>
             </div>
         </section>
@@ -1095,6 +1130,7 @@
         </section>
         
     </div>
+    <div id="k15StatusToast" class="k15-status-toast" role="status" aria-live="polite" hidden></div>
     <!-- SUCCESS MODAL -->
     <div id="k15DetectionTypeSheet" class="k15-motion-sheet" role="dialog" aria-modal="true" aria-labelledby="k15DetectionTypeTitle" onclick="if(event.target===this) closeK15DetectionTypeSheet()" hidden>
         <div class="k15-motion-sheet-card">
@@ -1189,7 +1225,7 @@
             }
 
             if (typeof requestCameraSettings === 'function' &&
-                ['homePanel', 'micPanel', 'motionPanel', 'motionSensitivityPanel', 'recordingPanel', 'recordingModePanel', 'videoSettingsPanel', 'storagePanel', 'deviceInformationPanel'].includes(id)) {
+                ['homePanel', 'audioSettingsPanel', 'motionPanel', 'motionSensitivityPanel', 'recordingPanel', 'recordingModePanel', 'videoSettingsPanel', 'storagePanel', 'deviceInformationPanel'].includes(id)) {
                 requestCameraSettings(true);
             }
 
