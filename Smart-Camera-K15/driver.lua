@@ -596,6 +596,46 @@ function OnPropertyChanged(strProperty)
     end
 end
 
+function GET_NOTIFICATION_SETTINGS()
+    local alert = normalize_bool(Properties["Enable Alert Notifications"] or _props["Enable Alert Notifications"], nil)
+    local info = normalize_bool(Properties["Enable Info Notifications"] or _props["Enable Info Notifications"], nil)
+    SendDeviceInfoToUI({
+        type = "notification_settings",
+        success = alert ~= nil and info ~= nil,
+        enable_alerts = alert,
+        enable_info = info
+    })
+end
+
+function SET_NOTIFICATION_SETTING(tParams)
+    if type(tParams) == "string" then
+        local ok, decoded = pcall(json.decode, tParams)
+        tParams = ok and decoded or nil
+    end
+    if type(tParams) ~= "table" then
+        SendDeviceInfoToUI({ type = "notification_setting_result", success = false, error = "Invalid notification setting" })
+        return
+    end
+
+    local properties = {
+        enable_alerts = "Enable Alert Notifications",
+        enable_info = "Enable Info Notifications"
+    }
+    local key = tostring(tParams.key or "")
+    local property_name = properties[key]
+    local enabled = normalize_bool(tParams.value, nil)
+    if not property_name or enabled == nil then
+        SendDeviceInfoToUI({ type = "notification_setting_result", success = false, error = "Invalid notification setting" })
+        return
+    end
+
+    local property_value = enabled and "True" or "False"
+    _props[property_name] = property_value
+    user_settings[key] = enabled
+    C4:UpdateProperty(property_name, property_value)
+    SendDeviceInfoToUI({ type = "notification_setting_result", success = true, key = key, value = enabled })
+end
+
 function ExecuteCommand(strCommand, tParams)
     print("ExecuteCommand called: " .. strCommand)
 
@@ -719,6 +759,16 @@ function ExecuteCommand(strCommand, tParams)
 
     if strCommand == "GET_DEVICE_INFO" then
         GET_DEVICE_INFO()
+        return
+    end
+
+    if strCommand == "GET_NOTIFICATION_SETTINGS" then
+        GET_NOTIFICATION_SETTINGS()
+        return
+    end
+
+    if strCommand == "SET_NOTIFICATION_SETTING" then
+        SET_NOTIFICATION_SETTING(tParams)
         return
     end
 

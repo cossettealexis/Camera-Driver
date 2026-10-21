@@ -551,6 +551,18 @@
                 <description>Request supported camera settings state</description>
             </command>
             <command>
+                <name>GET_NOTIFICATION_SETTINGS</name>
+                <description>Request current alert and info notification preferences</description>
+            </command>
+            <command>
+                <name>SET_NOTIFICATION_SETTING</name>
+                <description>Update an alert or info notification preference</description>
+                <params>
+                    <param><name>key</name><type>STRING</type></param>
+                    <param><name>value</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
                 <name>SET_CAMERA_SETTING</name>
                 <description>Update an individual camera setting</description>
                 <params>

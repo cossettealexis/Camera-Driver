@@ -22,6 +22,9 @@ let deviceNameEdited = false;
 let storageFormatPending = false;
 let settingsLoadTimer = null;
 let settingsLoadPending = false;
+const k15NotificationSettings = { enable_alerts: null, enable_info: null };
+let k15NotificationLoadPending = false;
+let k15NotificationWritePending = false;
 let k15DetectionTypeDraft = null;
 const k15VideoOptionSpecs = {
     recordingMode: {
@@ -47,8 +50,7 @@ function finishSettingsLoad() {
     if (!settingsLoadPending) return;
     settingsLoadPending = false;
     clearTimeout(settingsLoadTimer);
-    const overlay = document.getElementById('settingsLoadingOverlay');
-    if (overlay) overlay.hidden = true;
+    updateK15SettingOverlay();
 }
 
 let k15ToastTimer = null;
@@ -62,10 +64,67 @@ function showK15Toast(message) {
     k15ToastTimer = setTimeout(() => { toast.hidden = true; }, 2500);
 }
 
+function updateK15NotificationSwitches() {
+    const controls = {
+        enableAlertNotifications: 'enable_alerts',
+        enableInfoNotifications: 'enable_info'
+    };
+    Object.entries(controls).forEach(([id, key]) => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        const value = k15NotificationSettings[key];
+        control.indeterminate = value === null;
+        if (value !== null) control.checked = value;
+        control.disabled = value === null || k15NotificationLoadPending || k15NotificationWritePending;
+    });
+}
+
+function requestK15NotificationSettings(showLoading = false) {
+    k15NotificationLoadPending = true;
+    updateK15NotificationSwitches();
+    if (showLoading) beginSettingsLoad();
+    try {
+        C4.sendCommand('GET_NOTIFICATION_SETTINGS', '', false, true);
+    } catch (error) {
+        k15NotificationLoadPending = false;
+        updateK15NotificationSwitches();
+        if (showLoading) finishSettingsLoad();
+        console.error('Failed to request notification settings', error);
+    }
+}
+
+function saveK15NotificationSetting(key, enabled) {
+    k15NotificationWritePending = true;
+    updateK15NotificationSwitches();
+    beginSettingSave('notifications');
+    try {
+        C4.sendCommand('SET_NOTIFICATION_SETTING', JSON.stringify({ key, value: enabled }), false, true);
+    } catch (error) {
+        k15NotificationWritePending = false;
+        updateK15NotificationSwitches();
+        finishSettingSave('notifications', false, 'Unable to save notification setting');
+    }
+}
+
+function initK15NotificationSettings() {
+    const alert = document.getElementById('enableAlertNotifications');
+    const info = document.getElementById('enableInfoNotifications');
+    if (alert) alert.addEventListener('change', () => saveK15NotificationSetting('enable_alerts', alert.checked));
+    if (info) info.addEventListener('change', () => saveK15NotificationSetting('enable_info', info.checked));
+}
+
+function updateK15SettingOverlay() {
+    const overlay = document.getElementById('settingsLoadingOverlay');
+    if (!overlay) return;
+    const pending = settingsLoadPending || pendingSettingSaves.size > 0;
+    overlay.hidden = !pending;
+    const label = document.getElementById('settingsLoadingLabel');
+    if (label) label.textContent = settingsLoadPending ? 'Loading...' : 'Setting up...';
+}
+
 function beginSettingsLoad() {
     settingsLoadPending = true;
-    const overlay = document.getElementById('settingsLoadingOverlay');
-    if (overlay) overlay.hidden = false;
+    updateK15SettingOverlay();
     clearTimeout(settingsLoadTimer);
     settingsLoadTimer = setTimeout(finishSettingsLoad, 15000);
 }
@@ -73,14 +132,9 @@ function beginSettingsLoad() {
 function beginSettingSave(group) {
     if (pendingSettingSaves.size === 0) settingSaveError = '';
     pendingSettingSaves.set(group, (pendingSettingSaves.get(group) || 0) + 1);
-    const modal = document.getElementById('settingSaveModal');
-    if (modal) modal.classList.add('show');
-    const message = document.getElementById('settingSaveMessage');
-    if (message) message.innerText = 'Setting up...';
-    const spinner = document.getElementById('settingSaveSpinner');
-    if (spinner) spinner.hidden = false;
-    const close = document.getElementById('settingSaveCloseBtn');
-    if (close) close.hidden = true;
+    const toast = document.getElementById('k15StatusToast');
+    if (toast) toast.hidden = true;
+    updateK15SettingOverlay();
 }
 
 function finishSettingSave(group, success, error, successMessage = 'Setting saved') {
@@ -90,19 +144,10 @@ function finishSettingSave(group, success, error, successMessage = 'Setting save
     if (pending === 1) pendingSettingSaves.delete(group);
     else pendingSettingSaves.set(group, pending - 1);
     if (group === 'name') updateK15DeviceNameConfirm();
-    if (pendingSettingSaves.size > 0) return;
-    const message = document.getElementById('settingSaveMessage');
-    if (message) message.innerText = settingSaveError || successMessage;
-    const spinner = document.getElementById('settingSaveSpinner');
-    if (spinner) spinner.hidden = true;
-    const close = document.getElementById('settingSaveCloseBtn');
-    if (close) close.hidden = false;
-}
-
-function closeSettingSaveDialog() {
-    if (pendingSettingSaves.size > 0) return;
-    const modal = document.getElementById('settingSaveModal');
-    if (modal) modal.classList.remove('show');
+    updateK15SettingOverlay();
+    if (pendingSettingSaves.size > 0 || settingsLoadPending) return;
+    showK15Toast(settingSaveError || successMessage);
+    settingSaveError = '';
 }
 
 
@@ -110,8 +155,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeControl4();
     requestDeviceInfo();
     initMicrophone();
+    initK15NotificationSettings();
     initCameraSettings();
-    initReboot();
     initDeviceName();
     initSnapshot();
     loadFaces();
@@ -121,14 +166,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function requestCameraSettings(showLoading = false) {
     if (showLoading) beginSettingsLoad();
+    const formatStorage = document.getElementById('formatStorageBtn');
+    if (formatStorage) formatStorage.disabled = true;
     const mic = document.getElementById('mic');
     const micStatus = document.getElementById('micStatus');
     if (isMicMuted === null) {
         if (mic) mic.indeterminate = true;
         if (micStatus) micStatus.innerText = 'Refreshing...';
     }
-        document.querySelectorAll('#mic, #speakerVolume, #motionDetection, #detectionType, #detectionSensitivity, #k15SensitivitySlider, #alarmToggle, #recordingToggle, #nightVisionToggle, #antiFlicker, #flipImageToggle, #timeWatermarkToggle').forEach(function (control) {
-            control.disabled = true;
+    document.querySelectorAll('#mic, #speakerVolume, #motionDetection, #detectionType, #detectionSensitivity, #k15SensitivitySlider, #detectionZoneX, #detectionZoneY, #detectionZoneWidth, #detectionZoneHeight, #saveDetectionZoneBtn, #alarmToggle, #recordingToggle, #nightVisionToggle, #antiFlicker, #flipImageToggle, #timeWatermarkToggle').forEach(function (control) {
+        control.disabled = true;
     });
     try {
         C4.sendCommand('GET_CAMERA_SETTINGS', '', false, true);
@@ -201,13 +248,6 @@ function toggleK15ViewerToolbar(showAlternate) {
     if (!primary || !alternate) return;
     primary.hidden = showAlternate;
     alternate.hidden = !showAlternate;
-}
-
-function toggleK15DetectionZone() {
-    const editor = document.getElementById('detectionZoneEditor');
-    if (!editor) return;
-    editor.hidden = !editor.hidden;
-    if (!editor.hidden) document.getElementById('detectionZoneX')?.focus();
 }
 
 function toggleK15ViewerMic() {
@@ -573,8 +613,13 @@ function updateCameraSettingsUI(settings) {
         if (coordinates.length === 4 && coordinates.every(value => /^\d+$/.test(value))) {
             ['detectionZoneX', 'detectionZoneY', 'detectionZoneWidth', 'detectionZoneHeight'].forEach(function (id, index) {
                 const control = document.getElementById(id);
-                if (control) control.value = coordinates[index];
+                if (control) {
+                    control.value = coordinates[index];
+                    control.disabled = false;
+                }
             });
+            const saveZone = document.getElementById('saveDetectionZoneBtn');
+            if (saveZone) saveZone.disabled = false;
         }
     }
     const nightVision = document.getElementById('nightVisionToggle');
@@ -609,6 +654,13 @@ function updateCameraSettingsUI(settings) {
     const storageAvailable = document.getElementById('storageAvailable');
     const capacity = settings.stored_capacity;
     const usage = settings.stored_usage;
+    const formatStorage = document.getElementById('formatStorageBtn');
+    const validStorage = capacity !== undefined && capacity !== null && String(capacity).trim() !== '' &&
+        usage !== undefined && usage !== null && String(usage).trim() !== '' &&
+        Number.isInteger(Number(capacity)) && Number(capacity) >= 0 && Number(capacity) <= 128 &&
+        Number.isInteger(Number(usage)) && Number(usage) >= 0 && Number(usage) <= 100;
+    if (formatStorage) formatStorage.disabled = storageFormatPending ||
+        !(Number(settings.stored_status) === 2 || (Number(settings.stored_status) === 0 && validStorage));
     if (storageTotal && capacity !== undefined && capacity !== null) {
         const total = Number(capacity);
         storageTotal.innerText = String(capacity).trim() !== '' && Number.isFinite(total) && total >= 0 && total <= 128
@@ -769,7 +821,6 @@ function initCameraSettings() {
     const sensitivitySlider = document.getElementById('k15SensitivitySlider');
     const zoneInputs = ['detectionZoneX', 'detectionZoneY', 'detectionZoneWidth', 'detectionZoneHeight'].map(id => document.getElementById(id));
     const saveZone = document.getElementById('saveDetectionZoneBtn');
-    const fullZone = document.getElementById('fullDetectionZoneBtn');
     const zoneStatus = document.getElementById('detectionZoneStatus');
 
     if (!motion && !alarm && !recording && !nightVision && !antiFlicker && !speakerVolume && !formatBtn && !saveEventTimeBtn && !flipImage && !timeWatermark) {
@@ -808,9 +859,6 @@ function initCameraSettings() {
             }
         });
     }
-    if (fullZone && zoneInputs.every(Boolean)) fullZone.addEventListener('click', function () {
-        zoneInputs.forEach(input => { input.value = '0'; });
-    });
     if (saveZone && zoneInputs.every(Boolean)) saveZone.addEventListener('click', function () {
         const coordinates = zoneInputs.map(input => Number(input.value));
         if (zoneInputs.some(input => !input.value) || coordinates.some(value => !Number.isSafeInteger(value) || value < 0)) {
@@ -874,7 +922,10 @@ function initCameraSettings() {
         const confirmBtn = document.getElementById('confirmStorageFormatBtn');
         const cancelBtn = document.getElementById('cancelStorageFormatBtn');
         formatBtn.addEventListener('click', function () {
-            if (!storageFormatPending && confirmation) confirmation.classList.add('show');
+            if (!formatBtn.disabled && !storageFormatPending && pendingSettingSaves.size === 0 && confirmation) {
+                confirmation.classList.add('show');
+                if (cancelBtn) cancelBtn.focus();
+            }
         });
         if (cancelBtn && confirmation) cancelBtn.addEventListener('click', function () {
             confirmation.classList.remove('show');
@@ -961,62 +1012,42 @@ function updateMicUI(muted) {
 }
 
 
-//Reboot
-function initReboot() {
-    const btn = document.getElementById('rebootBtn');
-    if (!btn) {
-        console.warn("⚠️ rebootBtn not found");
-        return;
-    }
-
-    btn.removeEventListener('click', handleReboot);
-    btn.addEventListener('click', handleReboot);
+function handleReboot() {
+    const dialog = document.getElementById('restartConfirmationDialog');
+    if (dialog) dialog.hidden = false;
 }
 
-function handleReboot() {
-    console.log('🔄 Reboot requested');
+function closeRestartConfirmation() {
+    const dialog = document.getElementById('restartConfirmationDialog');
+    if (dialog) dialog.hidden = true;
+}
 
-    const btn = document.getElementById('rebootBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Rebooting...";
-    }
-
+function confirmRestart() {
+    const dialog = document.getElementById('restartConfirmationDialog');
+    if (!dialog || dialog.hidden) return;
+    closeRestartConfirmation();
     try {
-        C4.sendCommand(
-            'REBOOT_DEVICE',
-            '',
-            false,
-            true
-        );
-
-        console.log("📤 REBOOT_DEVICE command sent");
-
-        // Show success modal immediately (optimistic – device will go offline)
-        showModal(
-            "Reboot command sent successfully.\nThe device will restart shortly.",
-            "Reboot Initiated"
-        );
-
-        // Optional: re-enable the button after a few seconds
-        // (in case the user stays on the page)
-        setTimeout(() => {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerText = "Reboot";
-            }
-        }, 4000);
-
-    } catch (e) {
-        console.error("Reboot command error", e);
-
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Reboot";
-        }
-
-        showModal("Failed to send reboot command", "Error");
+        C4.sendCommand('REBOOT_DEVICE', '', false, true);
+        showK15Toast('Reboot command sent successfully. The device will restart shortly.');
+    } catch (error) {
+        console.error('Reboot command error', error);
+        showK15Toast('Failed to send reboot command.');
     }
+}
+
+function openPairingModeConfirmation() {
+    const dialog = document.getElementById('devicePairingDialog');
+    if (dialog) dialog.hidden = false;
+}
+
+function closePairingModeConfirmation() {
+    const dialog = document.getElementById('devicePairingDialog');
+    if (dialog) dialog.hidden = true;
+}
+
+function confirmPairingMode() {
+    closePairingModeConfirmation();
+    showK15Toast('Device pairing mode is not available from the K15 driver.');
 }
 
 //snapshot
@@ -1247,6 +1278,21 @@ function onDataToUi(value) {
             renderK15Presets(obj.success ? (obj.presets || []) : [], obj.success ? null : (obj.error || 'Unable to load presets'));
         }
 
+        if (obj.type === 'notification_settings') {
+            finishSettingsLoad();
+            k15NotificationLoadPending = false;
+            k15NotificationSettings.enable_alerts = obj.success && typeof obj.enable_alerts === 'boolean' ? obj.enable_alerts : null;
+            k15NotificationSettings.enable_info = obj.success && typeof obj.enable_info === 'boolean' ? obj.enable_info : null;
+            updateK15NotificationSwitches();
+        }
+
+        if (obj.type === 'notification_setting_result') {
+            k15NotificationWritePending = false;
+            if (obj.success && typeof obj.value === 'boolean') k15NotificationSettings[obj.key] = obj.value;
+            updateK15NotificationSwitches();
+            finishSettingSave('notifications', obj.success, obj.error, 'Setting saved');
+        }
+
         if (obj.type === 'camera_settings') {
             finishSettingsLoad();
             if (k15SpeakerLoadPending) {
@@ -1262,15 +1308,12 @@ function onDataToUi(value) {
                         k15SpeakerWritePending = false;
                         k15SpeakerTogglePending = false;
                         updateK15ViewerSpeaker();
+                        updateK15SpeakerVolumePreview();
                     }
                     const successMessage = speakerToggle
                         ? (Number(obj.settings.beep_vol) === 0 ? 'Sound off' : 'Sound on')
                         : 'Setting saved';
                     finishSettingSave('camera', true, undefined, successMessage);
-                    if (speakerToggle) {
-                        closeSettingSaveDialog();
-                        showK15Toast(successMessage);
-                    }
                 }
                 if (obj.event_time_updated) {
                     const status = document.getElementById('eventTimeStatus');
@@ -1314,7 +1357,9 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'mic_setting_result') {
-            finishSettingSave('mic', obj.success, obj.error);
+            const muted = obj.mic_muted === true || obj.mic_muted === 1 || obj.mic_muted === '1' || obj.mic_muted === 'true';
+            if (obj.success && obj.mic_muted !== undefined && obj.mic_muted !== null) updateMicUI(muted);
+            finishSettingSave('mic', obj.success, obj.error, (obj.mic_muted !== undefined && obj.mic_muted !== null ? muted : isMicMuted) ? 'Call Ended' : 'Call Started');
         }
 
         if (obj.type === 'device_name_result' && !obj.success) {
