@@ -135,7 +135,8 @@ local camera_settings = {
     mark = 1,
     stored_status = 0,
     stored_capacity = 0,
-    stored_usage = 0
+    stored_usage = 0,
+    beep_vol = 0
 }
 
 conditional_state.MIC_MUTED = conditional_state.MIC_MUTED or false
@@ -882,7 +883,7 @@ local function apply_device_setting(key, value)
         ["motion.switch"] = { 0, 1 }, ["motion.type"] = { 0, 1 },
         ["motion.sen"] = { 0, 2 }, ["motion.rec_time"] = { 0, 60 },
         ["motion.interval"] = { 0, 120 }, siren_swt = { 0, 1 },
-        light_swt = { 0, 1 }, humanoid_track = { 0, 1 },
+        light_swt = { 0, 1 }, humanoid_track = { 0, 1 }, beep_vol = { 0, 10 },
         record_mode = { 0, 1 }, anti_flicker = { 0, 2 },
         flip_swt = { 0, 1 }, mark = { 0, 1 }
     }
@@ -1424,44 +1425,49 @@ function GET_DEVICES(p_vid)
                 print(json.encode(parsed, { indent = true }))
 
                 local target_device = nil
-                for i, device in ipairs(devices) do
-                    -- If IP is set, match by IP address
-                    if ip and ip ~= "" and device.local_ip == ip then
-                        target_device = device
-                        print("Found device matching IP " .. ip .. " at index " .. i)
-                        print("  Device Name: " .. (device.device_name or "N/A"))
-                        print("  Model: " .. (device.model or "N/A"))
-                        print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                        break
-                        -- If no IP set, filter by model or product subtype
-                    elseif (not ip or ip == "") then
-                        local model_match = device.model and
-                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
-                        local subtype_match = device.product_subtype and
-                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                local requested_vid = p_vid or _props["VID"] or Properties["VID"]
 
-                        if model_match or subtype_match then
+                if requested_vid and requested_vid ~= "" then
+                    for i, device in ipairs(devices) do
+                        if device.vid and string.lower(tostring(device.vid)) == string.lower(tostring(requested_vid)) then
                             target_device = device
-                            print("Found K26 device (no IP filter) at index " .. i)
-                            print("  Model: " .. (device.model or "N/A"))
-                            print("  Product Subtype: " .. (device.product_subtype or "N/A"))
-                            print("  Local IP: " .. (device.local_ip or "N/A"))
+                            print("Found device matching VID " .. tostring(requested_vid) .. " at index " .. i)
                             break
                         end
                     end
                 end
 
-                if not target_device and ip then
-                    print("WARNING: No device found matching IP " .. ip .. " in GET_DEVICES response")
-                    print("Keeping SDDP-discovered IP, waiting for correct device match")
-                    return
+                if not target_device and ip and ip ~= "" then
+                    for i, device in ipairs(devices) do
+                        if device.local_ip == ip then
+                            target_device = device
+                            print("Found device matching IP " .. ip .. " at index " .. i)
+                            break
+                        end
+                    end
+                end
+
+                if not target_device then
+                    for i, device in ipairs(devices) do
+                        local model_match = device.model and
+                            string.lower(device.model) == string.lower(GlobalObject.DeviceModel)
+                        local subtype_match = device.product_subtype and
+                            string.find(string.lower(device.product_subtype), string.lower(GlobalObject.ProductSubType))
+                        if model_match or subtype_match then
+                            target_device = device
+                            print("Found K15 device by model or product subtype at index " .. i)
+                            break
+                        end
+                    end
                 end
 
                 if target_device and target_device.vid then
                     local newVid = target_device.vid
 
                     RESET_MQTT_AND_BATTERY(_batteryPollVid, newVid)
-                    print("Storing device information for K26:")
+                    _props["VID"] = newVid
+                    C4:UpdateProperty("VID", newVid)
+                    print("Storing device information for K15:")
                     print("  VID: " .. newVid)
                     print("  Device Name: " .. (target_device.device_name or "N/A"))
                     print("  Model: " .. (target_device.model or "N/A"))
@@ -1475,9 +1481,9 @@ function GET_DEVICES(p_vid)
 
                     -- Set IP if needed
                     if target_device.local_ip and target_device.local_ip ~= "" then
-                        if not ip or ip == "" then
+                        if not ip or ip == "" or ip ~= target_device.local_ip then
                             SET_CAMERA_IP(target_device.local_ip)
-                            print("  IP Address property updated to: " .. target_device.local_ip)
+                            print("  IP Address property set to: " .. target_device.local_ip)
                         else
                             print("  IP Address already set to: " .. ip)
                         end
@@ -1493,9 +1499,10 @@ function GET_DEVICES(p_vid)
                         _props["Enable MQTT"] = "True"
                     end
 
-                    print("K26 properties updated successfully")
+                    print("K15 properties updated successfully")
+                    GET_DEVICE_INFO()
                 else
-                    print("ERROR: No K26 camera device found or vid missing")
+                    print("ERROR: No K15 camera device found or VID is missing")
                 end
             end
         else
@@ -2411,53 +2418,51 @@ end
 
 
 local function handle_online_status(new_online)
-    local now = os.time()
-
-    -- Always handle ONLINE event
     if new_online then
-        print("[STATUS] ONLINE event received")
+        C4:UpdateProperty("Camera Status", "Reconnecting")
+        C4:SetTimer(60 * 1000, function()
+            local now = os.time()
+            print("[STATUS] ONLINE event received")
 
-        -- Prevent too frequent calls (very important)
-        if now - last_ip_refresh >= MIN_REFRESH_GAP then
-            print("[STATUS] Calling GET_DEVICES (allowed)")
-            GET_DEVICES(Properties["VID"] or _props["VID"])
-            last_ip_refresh = now
-        else
-            print("[STATUS] Skipped GET_DEVICES (too frequent)")
-        end
-    end
+            -- Prevent too frequent calls (very important)
+            if now - last_ip_refresh >= MIN_REFRESH_GAP then
+                print("[STATUS] Calling GET_DEVICES (allowed)")
+                GET_DEVICES(Properties["VID"] or _props["VID"])
+                last_ip_refresh = now
+            else
+                print("[STATUS] Skipped GET_DEVICES (too frequent)")
+            end
 
-    -- Detect real state change (for notifications)
-    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
-        last_confirmed_online = new_online
-
-        if new_online then
             C4:UpdateProperty("Camera Status", "Online")
             _props["Camera Status"] = "Online"
-            send_notification(
-                NOTIFY.INFO,
-                EVENT.CAMERA_ONLINE,
-                "online",
-                COOLDOWN.online,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOnline()         -- Log online event
-        else
-            C4:UpdateProperty("Camera Status", "Offline")
-            _props["Camera Status"] = "Offline"
-            send_notification(
-                NOTIFY.ALERT,
-                EVENT.CAMERA_OFFLINE,
-                "offline",
-                COOLDOWN.offline,
-                nil,
-                nil,
-                nil
-            )
-            EventLogger.logCameraOffline()    
-        end
+
+            -- Detect real state change (for notifications)
+            if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+                last_confirmed_online = new_online
+                send_notification(
+                    NOTIFY.INFO,
+                    EVENT.CAMERA_ONLINE,
+                    "online",
+                    COOLDOWN.online
+                )
+                EventLogger.logCameraOnline()
+            end
+        end)
+        return
+    end
+
+    C4:UpdateProperty("Camera Status", "Offline")
+    _props["Camera Status"] = "Offline"
+
+    if last_confirmed_online == nil or new_online ~= last_confirmed_online then
+        last_confirmed_online = new_online
+        send_notification(
+            NOTIFY.ALERT,
+            EVENT.CAMERA_OFFLINE,
+            "offline",
+            COOLDOWN.offline
+        )
+        EventLogger.logCameraOffline()
     end
 end
 
@@ -3045,7 +3050,7 @@ function GET_DEVICE_PROPERTY(property_name, callback)
             vid = vid,
             data_ids = {
                 "motion", "siren_swt", "light_swt", "humanoid_track", "record_mode",
-                "icut_mode", "anti_flicker", "flip_swt", "mark", "stored",
+                "icut_mode", "anti_flicker", "flip_swt", "mark", "stored", "beep_vol",
                 "mic_on", "talk_on", "microphone", "ac_talk", "is_mic_on", "mic_state"
             },
             data_source = 0
@@ -4807,7 +4812,7 @@ function GET_DEVICE_INFO()
 
     if auth_token == "" or vid == "" then
         print("ERROR: Missing Auth Token or VID")
-        SendDeviceInfoToUI({ success = false, error = "Missing Auth Token or VID" })
+        SendDeviceInfoToUI({ type = "device_info", success = false, error = "Missing Auth Token or VID" })
         return
     end
 
@@ -4826,35 +4831,40 @@ function GET_DEVICE_INFO()
 
         if err or code ~= 200 then
             print("Request failed:", err or code)
-            SendDeviceInfoToUI({ success = false, error = "HTTP Error" })
+            SendDeviceInfoToUI({ type = "device_info", success = false, error = "HTTP Error" })
             return
         end
 
         local ok, result = pcall(json.decode, response or "")
         if not ok or not result or not result.data then
             print("JSON Parse Error")
-            SendDeviceInfoToUI({ success = false, error = "JSON Parse Error" })
+            SendDeviceInfoToUI({ type = "device_info", success = false, error = "JSON Parse Error" })
             return
         end
 
         local d = result.data
+        local online
+        local can_update
+        if tonumber(d.is_online) == 1 then online = true elseif tonumber(d.is_online) == 0 then online = false end
+        if tonumber(d.can_update) == 1 then can_update = true elseif tonumber(d.can_update) == 0 then can_update = false end
 
         -- Extract data safely
         local payload = {
             type           = "device_info",
             success        = true,
             device_name    = d.device_name or "Unknown",
+            product_id     = d.product_id or d.product_subtype or "",
             version        = d.version or "N/A",                    -- Firmware version
             release_date   = d.release_date or d.update_time or "N/A",  -- Release date
-            battery        = tonumber(d.power) or 0,
+            battery        = tonumber(d.power),
             wifi           = d.wifi or "",
             rssi           = d.rssi or "",
             ip             = d.ip or "",
             mac            = d.mac or "",
             serial         = d.device_sn or "",
             timezone       = d.timezone or "",
-            online         = (d.is_online == 1),
-            can_update     = (d.can_update == 1)
+            online         = online,
+            can_update     = can_update
         }
 
         print("Device Info Parsed:")

@@ -148,6 +148,34 @@ test('layout reserves footer space and allows long settings panels to scroll', (
     assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/)[0], /<br\s*\/?\s*>/);
 });
 
+test('player is the initial page and settings follow the K26/VD05 wording', () => {
+    const viewer = html.match(/<section id="viewerPanel"[^>]*>([\s\S]*?)<\/section>/)[0];
+    const settings = html.match(/<section id="homePanel"[^>]*>([\s\S]*?)<\/section>/)[0];
+    assert.match(viewer, /class="panel active"/);
+    assert.match(viewer, /Live stream not available/);
+    assert.match(viewer, /show\('homePanel'\)/);
+    for (const label of ['Motion Detection', 'Event Time Settings', 'Video Settings', 'Audio Settings',
+        'Notification Settings', 'Internal Storage', 'Device Information', 'Check Firmware Update',
+        'C4 Authentication Service', 'Restart', 'Delete Device']) {
+        assert.ok(settings.includes(label), label);
+    }
+    assert.match(html, /id="settingsLoadingOverlay"[^>]*hidden/);
+});
+
+test('device identity and information render only from the device-info API response', () => {
+    const { context, elements } = openSettings();
+    context.onDataToUi(JSON.stringify({ type: 'device_info', success: true, device_name: 'Entry Camera',
+        version: '1.2.3', release_date: '2026-10-21', serial: 'SN-1', ip: '192.0.2.4', mac: '00:11:22:33:44:55',
+        wifi: 'Office', battery: 81, online: true, can_update: false }));
+    assert.equal(elements.viewerDeviceName.textContent, 'Entry Camera');
+    assert.equal(elements.settingsDeviceName.textContent, 'Entry Camera');
+    assert.equal(elements.infoFirmwareVersion.textContent, '1.2.3');
+    assert.equal(elements.infoSerialNumber.textContent, 'SN-1');
+    assert.equal(elements.infoBattery.textContent, '81%');
+    assert.equal(elements.infoOnline.textContent, 'Online');
+    assert.equal(elements.firmwareUpdateStatus.textContent, 'The current version is the latest.');
+});
+
 test('opening and reopening settings fetches API values and restores toggles without writes', () => {
     const { context, document, elements, commands } = openSettings();
     assert.equal(commands[0][0], 'GET_CAMERA_SETTINGS');
@@ -164,11 +192,13 @@ test('opening and reopening settings fetches API values and restores toggles wit
     assert.equal(commands.length, 1);
     context.show('homePanel');
     assert.equal(commands.at(-1)[0], 'GET_CAMERA_SETTINGS');
+    assert.equal(elements.settingsLoadingOverlay.hidden, false);
     assert.equal(elements.smartTrackingToggle.disabled, false);
     document.dispatch('visibilitychange');
     context.window.dispatch('pageshow', { persisted: true });
-    assert.equal(commands.length, 4);
+    assert.equal(commands.length, 5);
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, settings: { humanoid_track: 1 } }));
+    assert.equal(elements.settingsLoadingOverlay.hidden, true);
     assert.equal(elements.smartTrackingToggle.checked, true);
     assert.equal(elements.smartTrackingToggle.disabled, false);
 });
@@ -273,11 +303,11 @@ test('video controls send one update each using existing device keys', () => {
     ]);
 });
 
-test('Recording is accessible only inside Video Settings and returns there', () => {
+test('Event Time Settings is available from Device Settings and Recording returns to Video Settings', () => {
     const home = html.match(/<section id="homePanel"[\s\S]*?<\/section>/)[0];
     const video = html.match(/<section id="videoSettingsPanel"[\s\S]*?<\/section>/)[0];
     const recording = html.match(/<section id="recordingPanel"[\s\S]*?<\/section>/)[0];
-    assert.ok(!home.includes("show('recordingPanel')"));
+    assert.ok(home.includes("show('recordingPanel')"));
     assert.ok(home.includes("show('videoSettingsPanel')"));
     assert.ok(video.includes("show('recordingPanel')"));
     assert.ok(recording.includes("show('videoSettingsPanel')"));
