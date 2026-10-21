@@ -2,12 +2,12 @@
 <devicedata>
     <copyright>Copyright © 2025 Slomins. All Rights Reserved.</copyright>
     <name>Slomins P160-SL Indoor Camera</name>
-    <version>13</version>
+    <version>14</version>
     <creator>Slomins</creator>
     <manufacturer>Slomins</manufacturer>
     <model>P160-SL</model>
     <created>12/16/2025 12:00 AM</created>
-    <modified>09/23/2026 12:00 AM</modified>
+    <modified>10/21/2026 12:00 AM</modified>
     <minimum_os_version>3.3.2</minimum_os_version>
     <control>lua_gen</control>
     <controlmethod>ip</controlmethod>
@@ -49,11 +49,11 @@
         <navigator_display_option proxybindingid="5005">
             <display_icons>
                 <Icon width="70" height="70">
-                    controller://driver/Slomins-indoor-P160/icons/device/settings_70.png</Icon>
+                    controller://driver/Slomins-indoor-P160/icons/device/blank.png</Icon>
                 <Icon width="90" height="90">
-                    controller://driver/Slomins-indoor-P160/icons/device/settings_90.png</Icon>
+                    controller://driver/Slomins-indoor-P160/icons/device/blank.png</Icon>
                 <Icon width="300" height="300">
-                    controller://driver/Slomins-indoor-P160/icons/device/settings_300.png</Icon>
+                    controller://driver/Slomins-indoor-P160/icons/device/blank.png</Icon>
             </display_icons>
         </navigator_display_option>
         <web_view_url proxybindingid="5005">controller://driver/Slomins-indoor-P160/contents/index.html</web_view_url>
@@ -354,6 +354,38 @@
             <command>
                 <name>GET_DEVICE_INFO</name>
                 <description>Request device info</description>
+                <params>
+                    <param><name>scope</name><type>STRING</type></param>
+                    <param><name>request_id</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
+                <name>GET_CAMERA_SETTINGS</name>
+                <description>Read settings for the requested page</description>
+                <params>
+                    <param><name>scope</name><type>STRING</type></param>
+                    <param><name>request_id</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
+                <name>SET_CAMERA_SETTING</name>
+                <description>Update a camera setting</description>
+                <params>
+                    <param><name>key</name><type>STRING</type></param>
+                    <param><name>value</name><type>STRING</type></param>
+                    <param><name>rec_time</name><type>STRING</type></param>
+                    <param><name>interval</name><type>STRING</type></param>
+                </params>
+            </command>
+            <command>
+                <name>FORMAT_STORAGE</name>
+                <description>Format local storage after confirmation</description>
+                <params><param><name>confirmed</name><type>STRING</type></param></params>
+            </command>
+            <command>
+                <name>GET_NOTIFICATION_HISTORY</name>
+                <description>Read notification history</description>
+                <params><param><name>page</name><type>STRING</type></param></params>
             </command>
             <command>
                 <name>SET_DEVICE_NAME</name>

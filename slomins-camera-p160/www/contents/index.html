@@ -4,26 +4,28 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>P160 Settings</title>
+    <title>P160</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* =========================
-   THEME
-========================= */
         :root {
-            --accent: #ad1c42;
-            --bg: #0f1115;
-            --surface: #181b21;
-            --surface2: #1f232b;
-            --border: #2d333c;
+            --accent: #e71048;
+            --bg: #101010;
+            --surface: #1c1c1c;
+            --surface2: #292929;
+            --border: #282828;
             --text: #ffffff;
-            --muted: #98a2b3;
+            --muted: #999999;
+            --setting-label-size: 20px;
+            --setting-value-size: 18px;
+            --setting-help-size: 16px;
+            --setting-row-height: 72px;
+            --setting-row-padding: 20px;
+            --setting-toggle-width: 80px;
+            --setting-toggle-height: 36px;
         }
 
-        /* =========================
-   RESET
-========================= */
+      
         * {
             margin: 0;
             padding: 0;
@@ -38,19 +40,18 @@
             background: var(--bg);
             color: var(--text);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* =========================
-   APP WRAPPER
-========================= */
+       
         .app {
             width: 100%;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
         }
 
-        /* =========================
-   PANELS
-========================= */
+
         .panel {
             display: none;
             width: 100%;
@@ -192,9 +193,6 @@
             max-width: 260px;
         }
 
-        /* =========================
-   BUTTON
-========================= */
         .btn {
             background: var(--accent);
             border: none;
@@ -205,9 +203,6 @@
             cursor: pointer;
         }
 
-        /* =========================
-   TOGGLE
-========================= */
         .toggle {
             position: relative;
             width: 70px;
@@ -252,25 +247,19 @@
         }
 
         .footer {
+            flex-shrink: 0;
             padding: 12px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: -80px !important;
         }
 
-       
-         .version-info {
+        .version-info {
             display: inline-block;
             text-align: left;
-            line-height: 0.9;
-        }
-        
-        .version-info span {
-            display: block;
-            margin: 0 !important;
+            line-height: 1.5;
         }
 
 
@@ -307,119 +296,767 @@
             width: 50px;
             height: 50px;
         }
+
+        /* =========================
+           FACIAL RECOGNITION STYLES
+        ========================= */
+        .settings-section {
+            width: 100%;
+            max-width: 340px;
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 4px;
+        }
+
+        .settings-section.visible {
+            display: flex;
+        }
+
+        .setting-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            text-align: left;
+            max-height: 280px;
+            overflow-y: scroll;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        /* Range slider */
+        .range-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        .range-wrap input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #333;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        .range-wrap input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .range-value {
+            min-width: 42px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            text-align: right;
+        }
+
+        /* Quality segmented control */
+        .segmented {
+            display: flex;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+            margin-bottom: 4px;
+        }
+
+        .segmented button {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            padding: 8px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: .15s;
+        }
+
+        .segmented button.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Face list */
+        .face-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+            margin-bottom: 4px;
+        }
+
+        .p160-motion-content { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; text-align: left; }
+        .p160-motion-card { margin-bottom: 12px; padding: 4px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+        .p160-motion-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .p160-motion-row:last-child { border-bottom: 0; }
+        .p160-motion-row label, .p160-motion-name { font-size: 15px; font-weight: 600; }
+        .p160-motion-row select { max-width: 48%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); text-align: right; }
+        .p160-motion-row select:disabled, .p160-motion-row input:disabled { opacity: .5; }
+        .p160-motion-detail { flex: 1; min-width: 0; }
+        .p160-motion-desc { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+        .p160-motion-link { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+        .p160-motion-status { min-height: 18px; color: var(--muted); font-size: 12px; text-align: center; }
+        .p160-zone-inputs { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+        .p160-zone-inputs input { display: block; width: 100%; margin-top: 5px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: white; }
+        [hidden] { display: none !important; }
+
+        .toggle { flex-shrink: 0; }
+        .toggle input:disabled + .slider { opacity: .45; cursor: not-allowed; }
+        .toggle input:indeterminate + .slider:before { transform: translateX(16px); }
+        .p160-motion-content { background: #101010; padding: 24px 18px 90px; }
+        .p160-motion-card { padding: 0 16px; border: 0; border-radius: 22px; background: #1c1c1c; margin-bottom: 16px; }
+        .p160-motion-row { gap: 16px; padding: 14px 0; border-color: #373737; }
+        .motion-choice-row { width: 100%; border-top: 0; border-left: 0; border-right: 0; background: transparent; color: white; text-align: left; cursor: pointer; }
+        .motion-choice-row:disabled { cursor: default; }
+        .motion-choice-value { display: flex; align-items: center; gap: 8px; color: #999; font-size: 14px; flex-shrink: 0; }
+        .motion-choice-value svg { width: 18px; height: 18px; }
+        .motion-option-overlay { position: fixed; inset: 0; z-index: 2200; display: flex; align-items: flex-end; justify-content: center; padding: 8px; background: rgba(0,0,0,.72); }
+        .motion-option-card { width: min(100%, 760px); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 18px 12px 8px; border-radius: 24px; background: #292929; }
+        .motion-option-title { text-align: center; font-size: 16px; font-weight: 600; }
+        .motion-option-description { margin: 8px 0 16px; text-align: center; font-size: 13px; line-height: 1.3; color: #aaa; }
+        .motion-option-confirm { width: 100%; margin-top: 24px; min-height: 44px; border: 0; border-radius: 12px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: white; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .motion-option-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 46px; padding: 12px 0; border: 0; border-top: 1px solid #383838; color: #ddd; text-align: left; font-size: 14px; cursor: pointer; }
+        .motion-option-item input { appearance: none; width: 20px; height: 20px; flex: 0 0 20px; border: 1px solid #999; border-radius: 50%; pointer-events: none; }
+        .motion-option-item input:checked { border-color: #e71048; background: #e71048; }
+        .motion-option-item input:checked::after { content: ''; display: block; width: 5px; height: 9px; margin: 2px 6px; border: solid #292929; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .motion-option-type { padding: 16px; margin-top: 10px; border-radius: 20px; background: #373737; border: 0; }
+        .motion-option-subtitle { display: block; margin-top: 6px; font-size: 12px; color: #ddd; }
+        .motion-option-range { position: relative; margin-top: 14px; padding: 42px 12px 14px; border-radius: 20px; background: #373737; }
+        .motion-option-range input { appearance: none; display: block; width: 100%; height: 5px; margin: 4px 0 16px; border-radius: 5px; background: linear-gradient(to right,#ff1b5b var(--range-fill,0%),#aaa var(--range-fill,0%)); cursor: pointer; }
+        .motion-option-range input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #b50b38; }
+        .motion-option-range input::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #b50b38; }
+        .motion-option-range output { position: absolute; top: 20px; transform: translateX(-50%); font-size: 12px; color: #ff1b5b; }
+        .motion-option-bounds { display: flex; justify-content: space-between; gap: 8px; color: #aaa; font-size: 12px; }
+        .setting-save-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.7); }
+        .setting-save-overlay[data-loading="true"] { background: #101010; }
+        .setting-save-card { width: 190px; min-height: 156px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; border-radius: 24px; background: #292929; color: #eee; font-size: 15px; font-weight: 600; }
+        .setting-save-spinner { width: 64px; height: 64px; border: 10px solid #672536; border-right-color: #ce0d42; border-bottom-color: #ce0d42; border-radius: 50%; animation: setting-save-spin .8s linear infinite; }
+        .setting-save-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 3100; max-width: calc(100% - 32px); padding: 12px; border-radius: 12px; background: #292929; color: white; font-size: 15px; text-align: center; pointer-events: none; }
+        @keyframes setting-save-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .setting-save-spinner { animation-duration: 2s; } }
+
+        .settings-bar { display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; align-items: center; width: 100%; min-height: 46px; margin: 0 auto; padding: 0 16px; }
+        .settings-bar h1 { font-size: 22px; font-weight: 600; text-align: center; }
+        .settings-bar .back { background: transparent; }
+        #viewerPanel { background: #0f1118; }
+        .viewer-header { position: relative; display: grid; grid-template-columns: 48px minmax(0,1fr) 48px; align-items: center; flex: 0 0 56px; padding: 0 16px; background: #121722; }
+        .viewer-header-title { min-width: 0; overflow: hidden; color: #f2f4f8; font-size: 18px; font-weight: 600; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+        .viewer-header-button { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 0; background: transparent; color: #f2f4f8; cursor: pointer; }
+        .viewer-header-button svg { width: 24px; height: 24px; }
+        .camera-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4px 14px; background: #0f1118; }
+        .camera-view:fullscreen { width: 100vw; height: 100dvh; flex: none; padding: 0; }
+        .camera-view.is-fullscreen { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 5000; width: auto; height: auto; flex: none; padding: 0; background: #0f1118; }
+        .camera-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #0f1118; }
+        .camera-frame { position: relative; flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 4 / 3; overflow: hidden; background: #090b10; transform: scale(var(--viewer-zoom,1)); }
+        .viewer-error[hidden] { display: none; }
+        .viewer-error { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: max-content; max-width: calc(100% - 36px); color: rgba(255,255,255,.75); font-size: 14px; text-align: center; }
+        .camera-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 14px 6px; }
+        .camera-footer-left,.camera-footer-right { display: flex; align-items: center; gap: 10px; }
+        .camera-footer-right { margin-left: auto; }
+        .chip { display: inline-flex; align-items: center; justify-content: center; min-width: 72px; height: 32px; border-radius: 999px; border: 2px solid rgba(255,255,255,.72); background: rgba(12,18,27,.28); color: rgba(255,255,255,.96); font-size: 15px; font-weight: 700; padding: 0 14px; }
+        .chip.small { min-width: 60px; }
+        button.chip { cursor: pointer; }
+        .chip svg { width: 18px; height: 18px; }
+        .toolbar { display: flex; align-items: center; justify-content: space-evenly; gap: 0; padding: 10px 0 4px; }
+        .toolbar[hidden] { display: none; }
+        .tool-btn { width: 68px; height: 68px; flex: 0 0 68px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: #070a0f; color: white; cursor: pointer; }
+        .tool-btn svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+        .tool-btn.primary { width: 88px; height: 88px; flex-basis: 88px; background: #4b5877; }
+        .tool-btn.primary svg { width: 34px; height: 34px; }
+        .tool-btn:disabled { opacity: .9; cursor: not-allowed; }
+        #p160ViewerZoom:disabled, #p160ViewerSnapshot:disabled, #p160ViewerAlarm:disabled { opacity: .4; cursor: not-allowed; }
+        #p160ViewerMic.is-active { background: #4b5877; }
+        #p160ViewerMic.is-muted { opacity: .66; }
+        #p160ViewerSpeaker.is-muted { opacity: .66; }
+        .viewer-notifications { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .notification-history-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 20px; }
+        .notification-history-filter { min-width: 50px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #1c1c1c; color: #ddd; font-size: 14px; }
+        .notification-history-list { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+        .notification-history-card { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 12px; min-height: 80px; padding: 10px; border-radius: 16px; background: #1c1c1c; color: #ddd; }
+        .notification-history-media { position: relative; }
+        .notification-history-thumb, .notification-history-placeholder { width: 64px; height: 64px; border-radius: 10px; background: #303238; object-fit: cover; }
+        .notification-history-placeholder { display: grid; place-items: center; color: var(--accent); }
+        .notification-history-placeholder svg { width: 28px; height: 28px; }
+        .notification-history-duration { position: absolute; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 4px; background: rgba(0,0,0,.8); color: white; font-size: 11px; }
+        .notification-history-copy { min-width: 0; }
+        .notification-history-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+        .notification-history-detail { margin-top: 6px; color: #aaa; font-size: 14px; }
+        .notification-history-description { margin-top: 6px; color: #999; font-size: 13px; line-height: 1.3; overflow-wrap: anywhere; }
+        .notification-history-time { align-self: start; padding-top: 4px; color: #999; font-size: 12px; white-space: nowrap; }
+        .notification-history-empty { padding: 36px 16px; color: #999; font-size: 15px; text-align: center; }
+        .notification-history-load { display: block; min-height: 40px; margin: 12px auto; padding: 0 18px; border: 1px solid #555; border-radius: 12px; background: transparent; color: #ddd; cursor: pointer; }
+        .notification-history-load[hidden] { display: none; }
+        .viewer-alert-dialog { position: fixed; inset: 0; z-index: 3600; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.68); }
+        .viewer-alert-dialog[hidden] { display: none; }
+        .viewer-alert-card { width: min(100%,640px); padding: 20px; border-radius: 24px; background: #292929; }
+        .viewer-alert-copy { margin: 0 0 26px; color: #ddd; font-size: 18px; font-weight: 600; line-height: 1.4; text-align: center; }
+        .viewer-alert-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .viewer-alert-actions button { min-height: 48px; border-radius: 16px; color: #fff; font-size: 18px; font-weight: 600; cursor: pointer; }
+        .viewer-alert-cancel { border: 1px solid #999; background: transparent; }
+        .viewer-alert-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        @media (max-width: 520px) { .notification-history-card { grid-template-columns: 56px minmax(0,1fr); gap: 10px; } .notification-history-thumb, .notification-history-placeholder { width: 56px; height: 56px; } .notification-history-time { grid-column: 2; grid-row: 2; padding-top: 0; } .viewer-alert-copy { font-size: 16px; } .viewer-alert-actions { gap: 12px; } }
+        @media (max-width: 420px) { .tool-btn { width: 58px; height: 58px; flex-basis: 58px; } .tool-btn svg { width: 27px; height: 27px; } .tool-btn.primary { width: 76px; height: 76px; flex-basis: 76px; } .tool-btn.primary svg { width: 32px; height: 32px; } }
+        .p160-stream-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; color: rgba(255,255,255,.75); font-size: 14px; text-align: center; }
+        .settings-home { flex: 1; min-height: 0; width: 100%; margin: 0 auto; overflow-y: auto; padding: 8px 24px 40px; scrollbar-width: none; }
+        .settings-home::-webkit-scrollbar { display: none; }
+        .settings-device { display: grid; grid-template-columns: 58px minmax(0,1fr) 28px; align-items: center; gap: 16px; min-height: 112px; padding: 20px 24px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-device-picture { width: 58px; height: 58px; display: flex; align-items: center; justify-content: center; color: #eeeeee; }
+        .settings-device-picture svg { width: 54px; height: 54px; stroke-width: 1.25; }
+        .settings-device-name { font-size: 18px; line-height: 1.4; font-weight: 400; overflow-wrap: anywhere; }
+        .settings-device-type { margin-top: 10px; font-size: 15px; color: var(--muted); }
+        .settings-edit { align-self: end; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; background: transparent; color: #777777; cursor: pointer; }
+        .settings-edit svg { width: 19px; height: 19px; }
+        .settings-shortcuts { display: grid; grid-template-columns: 1fr 1fr; min-height: 112px; padding: 18px 6px; margin-bottom: 18px; border-radius: 30px; background: var(--surface); }
+        .settings-shortcut { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; min-width: 0; padding: 8px; border: 0; background: transparent; color: #dddddd; font-size: 14px; cursor: pointer; }
+        .settings-shortcut svg { width: 28px; height: 28px; color: var(--accent); stroke-width: 1.6; }
+        .settings-group { margin-bottom: 18px; padding: 0 16px; border-radius: 30px; background: var(--surface); }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; min-height: 56px; padding: 16px 0; border: 0; border-bottom: 1px solid #242424; background: transparent; color: #dddddd; font-size: 17px; font-weight: 400; text-align: left; cursor: pointer; }
+        .settings-row:last-child { border-bottom: 0; }
+        .settings-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+        .settings-row .chevron { flex: 0 0 18px; color: #777777; }
+        .settings-row:disabled, .settings-shortcut:disabled { opacity: 1; cursor: not-allowed; }
+        .settings-status-row { min-height: 56px; padding: 10px 0; }
+        .settings-status-row .toggle { width: 70px; height: 32px; }
+        .settings-status-row .slider:before { width: 42px; height: 26px; top: 3px; left: 3px; }
+        .settings-status-row input[aria-busy="true"] + .slider:before { width: 26px; transform: translateX(19px); }
+        .settings-status-row input:checked + .slider:before { transform: translateX(22px); }
+        .settings-detail { max-width: 48%; color: var(--muted); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
+        #eventTimePanel input { width: 90px; min-height: 40px; flex-shrink: 0; padding: 6px 10px; border: 1px solid #555; border-radius: 8px; background: #292929; color: white; font-size: 18px; text-align: right; }
+        #eventTimePanel input:disabled, #saveEventTimes:disabled { opacity: .4; cursor: not-allowed; }
+        .settings-delete { justify-content: center; min-height: 62px; color: #e33232; }
+        .settings-subpage { flex: 1; min-height: 0; overflow-y: auto; width: 100%; margin: 0 auto; padding: 18px 24px 40px; }
+        .settings-info .settings-row { cursor: default; }
+        .video-settings { padding: 18px 8px 40px; }
+        .video-settings .settings-group { margin-bottom: 12px; padding: 0 12px; border-radius: 26px; }
+        .device-name-sheet { position: fixed; inset: 0; z-index: 2300; display: flex; align-items: flex-end; padding: 16px; background: rgba(0,0,0,.65); }
+        .device-name-card { width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 16px; border-radius: 28px; background: #292929; }
+        .device-name-title { margin: 0 0 28px; color: #eeeeee; font-size: 15px; font-weight: 600; text-align: center; }
+        .device-name-field { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 14px; background: #1c1c1c; }
+        .device-name-field input { width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: none; background: transparent; color: #eeeeee; font-size: 14px; }
+        .device-name-clear { display: flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; border: 0; background: transparent; color: #888888; cursor: pointer; }
+        .device-name-clear svg { width: 18px; height: 18px; }
+        .device-name-error { min-height: 18px; padding-top: 4px; color: #ff7777; font-size: 12px; }
+        .device-name-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .device-name-actions button { min-height: 38px; padding: 8px 16px; border-radius: 14px; color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .device-name-cancel { border: 1px solid #999999; background: transparent; }
+        .device-name-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        .device-name-confirm:disabled { opacity: .45; cursor: not-allowed; }
+        .speaker-setting { padding: 8px 0 32px; }
+        .speaker-setting h2 { font-size: 14px; font-weight: 500; margin-bottom: 20px; }
+        .speaker-track { position: relative; padding-top: 22px; margin: 0 24px; }
+        .speaker-track input { appearance: none; display: block; width: 100%; height: 5px; margin: 0; border-radius: 5px; background: linear-gradient(to right,#f51b53 var(--speaker-fill,0%),#aaaaaa var(--speaker-fill,0%)); }
+        .speaker-track input::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; background: #d61143; border-radius: 50%; }
+        .speaker-track input::-moz-range-thumb { width: 14px; height: 14px; border: 0; background: #d61143; border-radius: 50%; }
+        .speaker-track output { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: #f51b53; font-size: 12px; }
+        .speaker-min, .speaker-max { position: absolute; top: 19px; color: #aaa; font-size: 12px; }
+        .speaker-min { left: -24px; } .speaker-max { right: -24px; }
+        .notification-heading { padding: 0 2px 12px; color: #aaa; font-size: 14px; font-weight: 400; }
+        .notification-row { padding: 12px 0; border-bottom: 1px solid #292929; }
+        .notification-row:last-child { border-bottom: 0; }
+        .notification-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+        .notification-copy { padding-top: 6px; color: #aaa; font-size: 12px; line-height: 1.3; }
+        .compact-toggle { width: 48px; height: 22px; }
+        .compact-toggle .slider:before { width: 28px; height: 18px; left: 2px; top: 2px; }
+        .compact-toggle input:checked + .slider:before { transform: translateX(16px); }
+        .compact-toggle input:indeterminate + .slider:before { width: 18px; transform: translateX(13px); }
+        .storage-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 8px 24px; }
+        .storage-summary { min-height: 248px; padding: 20px; border-radius: 18px; background: #1c1c1c; }
+        .storage-summary > svg { width: 36px; height: 42px; margin-bottom: 10px; color: var(--accent); }
+        .storage-metric { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 14px; font-size: 20px; font-weight: 600; }
+        .storage-status { margin: 18px 0; color: #aaa; font-size: 13px; }
+        .storage-protection { display: flex; align-items: center; gap: 18px; min-height: 112px; padding: 20px 28px; margin-top: 12px; border-radius: 18px; background: #1c1c1c; }
+        .storage-protection > svg { flex: 0 0 42px; width: 42px; height: 42px; color: var(--accent); }
+        .storage-protection-title { font-size: 20px; font-weight: 600; }
+        .storage-protection-copy { margin-top: 6px; color: #aaa; font-size: 16px; line-height: 1.35; }
+        .storage-footer { flex-shrink: 0; padding: 12px 16px 20px; }
+        .format-storage-button { width: 100%; min-height: 52px; padding: 14px; border: 0; border-radius: 14px; background: linear-gradient(100deg,#ff1b5b,#d80c3d); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .format-storage-button:disabled { opacity: .45; cursor: not-allowed; }
+        .storage-format-overlay { position: fixed; inset: 0; z-index: 2400; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.7); }
+        .storage-format-card { width: min(100%,640px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 18px 16px; border-radius: 24px; background: #292929; }
+        .storage-format-title { margin: 0 0 20px; text-align: center; font-size: 16px; font-weight: 600; }
+        .storage-format-warning { margin-bottom: 16px; color: #ff3131; font-size: 14px; line-height: 1.4; }
+        @media (max-width: 420px) { .storage-protection { gap: 14px; padding: 18px 20px; } .storage-protection-title { font-size: 17px; } .storage-protection-copy { font-size: 14px; } }
+        .information-header { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid #333; }
+        .information-header > svg { flex: 0 0 52px; width: 52px; height: 52px; color: #ddd; }
+        .information-main { min-width: 0; flex: 1; }
+        .information-name { padding-bottom: 10px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+        .information-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; font-size: 13px; }
+        .information-line > span:last-child { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+        .information-copy { flex: 0 0 26px; height: 26px; padding: 3px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .information-copy svg { width: 16px; height: 16px; }
+        .information-secondary { display: block; padding-top: 6px; color: #aaa; font-size: 12px; line-height: 1.3; }
+        .device-information { padding: 0 8px 24px; }
+        .device-information .settings-group { margin-bottom: 12px; padding: 0 20px; border-radius: 28px; background: var(--surface); }
+        .information-last-updated { padding: 0 0 8px; color: var(--muted); font-size: 13px; text-align: center; }
+        .information-camera { flex: 0 0 64px; width: 64px; height: 58px; color: #eee; stroke-width: 1.4; }
+        .information-line .information-serial { display: flex; flex: 0 1 auto; min-width: 0; align-items: center; gap: 8px; white-space: nowrap; }
+        .information-serial > span { min-width: 0; overflow-wrap: normal; text-align: right; white-space: nowrap; font-size: var(--setting-help-size); }
+        .information-action-value { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; color: #999; font-size: 15px; }
+        .information-action-value svg { width: 18px; height: 18px; }
+        .information-sync .information-secondary { max-width: 460px; }
+        .c4-auth-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 40px; }
+        .c4-auth-card { margin-bottom: 22px; padding: 18px 22px; border-radius: 28px; background: var(--surface); }
+        .c4-auth-user { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #ddd; font-size: 20px; font-weight: 500; }
+        .c4-auth-user-copy { display: flex; align-items: center; justify-content: center; flex: 0 0 34px; width: 34px; height: 34px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .c4-auth-user-copy svg { width: 22px; height: 22px; }
+        .c4-auth-user-copy:disabled { opacity: .4; cursor: not-allowed; }
+        .c4-auth-description { margin-top: 4px; padding-right: 40px; color: #aaa; font-size: 16px; line-height: 1.4; }
+        .c4-pairing-row { display: grid; grid-template-columns: minmax(0,1fr) auto 22px; align-items: center; gap: 16px; width: 100%; padding: 18px 22px; border: 0; border-radius: 28px; background: var(--surface); color: #ddd; text-align: left; cursor: pointer; }
+        .c4-pairing-copy { min-width: 0; }
+        .c4-pairing-title { font-size: 20px; font-weight: 500; }
+        .c4-pairing-description { display: block; margin-top: 6px; color: #aaa; font-size: 16px; line-height: 1.35; }
+        .c4-pairing-value { color: #999; font-size: 16px; white-space: nowrap; }
+        .c4-pairing-chevron { width: 20px; height: 20px; color: #888; }
+        .c4-pairing-dialog { position: fixed; inset: 0; z-index: 3500; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.68); }
+        .c4-pairing-dialog[hidden] { display: none; }
+        .c4-pairing-dialog-card { width: min(100%,700px); padding: 20px 22px 22px; border-radius: 26px; background: #292929; }
+        .c4-pairing-dialog-title { margin-bottom: 22px; color: #ddd; font-size: 20px; font-weight: 600; text-align: center; }
+        .c4-pairing-dialog-copy { margin-bottom: 32px; color: #ddd; font-size: 18px; font-weight: 600; text-align: center; }
+        .c4-pairing-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .c4-pairing-dialog-actions button { min-height: 52px; border-radius: 16px; color: #fff; font-size: 18px; font-weight: 600; cursor: pointer; }
+        .c4-pairing-cancel { border: 1px solid #999; background: transparent; }
+        .c4-pairing-confirm { border: 0; background: linear-gradient(100deg,#ff1b5b,#d80c3d); }
+        @media (max-width: 520px) { .c4-auth-card, .c4-pairing-row { padding: 16px 20px; border-radius: 26px; } .c4-auth-user, .c4-pairing-title { font-size: 17px; } .c4-auth-description, .c4-pairing-description, .c4-pairing-value { font-size: 15px; } .c4-pairing-dialog-copy { font-size: 16px; } .c4-pairing-dialog-actions { gap: 12px; } }
+        .status-light-value { margin-left: auto; color: var(--muted); font-size: 13px; }
+        #motionDetectionPanel .p160-motion-content { padding: 20px 12px 40px; }
+        #motionDetectionPanel .p160-motion-card { padding: 0 20px; margin-bottom: 18px; border-radius: 28px; }
+        .settings-subpage .settings-row, .p160-motion-row {
+            min-height: var(--setting-row-height);
+            padding: var(--setting-row-padding) 0;
+            font-size: var(--setting-label-size);
+            line-height: 1.4;
+            gap: 20px;
+        }
+        .p160-motion-row label, .p160-motion-name { font-size: var(--setting-label-size); font-weight: 500; }
+        .p160-motion-row > span:first-child, .settings-subpage .settings-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+        .settings-subpage .settings-detail, .motion-choice-value { font-size: var(--setting-value-size); line-height: 1.4; }
+        .motion-choice-value { max-width: 52%; min-width: 0; }
+        .motion-choice-value > span { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+        .motion-choice-value svg { width: 22px; height: 22px; flex-shrink: 0; }
+        .p160-motion-desc, .information-secondary { font-size: var(--setting-help-size); line-height: 1.4; }
+        .p160-motion-status, .settings-subpage .status { font-size: var(--setting-help-size); }
+        .panel:not(#homePanel) .toggle { width: var(--setting-toggle-width); height: var(--setting-toggle-height); }
+        .panel:not(#homePanel) .toggle .slider:before { width: 40px; height: 28px; left: 4px; top: 4px; }
+        .panel:not(#homePanel) .toggle input:checked + .slider:before { transform: translateX(32px); }
+        .panel:not(#homePanel) .toggle input:indeterminate + .slider:before { width: 28px; transform: translateX(22px); }
+        .settings-subpage .settings-group { padding-right: 20px; padding-left: 20px; margin-bottom: 18px; }
+        .speaker-setting h2, .notification-title, .storage-metric, .information-name { font-size: var(--setting-label-size); line-height: 1.4; }
+        .speaker-track { padding-top: 30px; margin: 0 32px; }
+        .speaker-track input { height: 7px; }
+        .speaker-track input::-webkit-slider-thumb { width: 20px; height: 20px; }
+        .speaker-track input::-moz-range-thumb { width: 20px; height: 20px; }
+        .speaker-track output, .speaker-min, .speaker-max { font-size: var(--setting-help-size); }
+        .speaker-min, .speaker-max { top: 24px; }
+        .speaker-min { left: -32px; } .speaker-max { right: -32px; }
+        .notification-heading, .storage-status, .information-line { font-size: var(--setting-value-size); line-height: 1.4; }
+        .notification-row { padding: var(--setting-row-padding) 0; }
+        .notification-copy { padding-top: 10px; font-size: var(--setting-help-size); line-height: 1.4; }
+        .information-line > span { min-width: 0; overflow-wrap: anywhere; }
+        .information-line > span:first-child { flex-shrink: 0; }
+        .information-copy { flex-basis: 34px; height: 34px; }
+        .information-copy svg { width: 22px; height: 22px; }
+        .format-storage-button { min-height: 56px; font-size: var(--setting-value-size); }
+        .motion-option-card { width: 100%; padding: 24px 20px 16px; }
+        .motion-option-title, .device-name-title, .storage-format-title { font-size: var(--setting-label-size); line-height: 1.4; }
+        .motion-option-description, .motion-option-subtitle, .storage-format-warning { font-size: var(--setting-help-size); line-height: 1.4; }
+        .motion-option-item { min-height: var(--setting-row-height); padding: 20px 0; font-size: var(--setting-value-size); }
+        .motion-option-type { padding: 20px; }
+        .motion-option-item input { width: 24px; height: 24px; flex-basis: 24px; }
+        .motion-option-item input:checked::after { margin: 4px 8px; }
+        .motion-option-range output, .motion-option-bounds { font-size: var(--setting-help-size); }
+        .motion-option-confirm, .device-name-actions button { min-height: 52px; font-size: var(--setting-value-size); }
+        .device-name-field { min-height: 52px; }
+        .device-name-field input { font-size: var(--setting-value-size); }
+        .device-name-error { font-size: 14px; }
+        .panel:not(#homePanel) .content .desc { max-width: 420px; font-size: var(--setting-help-size); line-height: 1.4; }
+        .panel:not(#homePanel) .content .status { font-size: var(--setting-value-size); }
+        .panel:not(#homePanel) .content .btn { min-height: 52px; font-size: var(--setting-value-size); }
+        .p160-zone-inputs { font-size: var(--setting-value-size); }
+        .p160-zone-inputs input { font-size: var(--setting-value-size); padding: 14px; }
+        .face-name-input { font-size: var(--setting-label-size); }
+        .face-meta, .empty-faces { font-size: var(--setting-help-size); }
+        @media (min-width: 768px) { .settings-home { padding-right: 28px; padding-left: 28px; } }
+
+        .face-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .face-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            background: var(--surface2);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .face-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .face-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .face-name-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            color: var(--text);
+            font-size: var(--setting-label-size);
+            font-weight: 500;
+            outline: none;
+            padding: 4px 0;
+            transition: border-color .15s;
+        }
+
+        .face-name-input:focus {
+            border-bottom-color: var(--accent);
+        }
+
+        .face-meta {
+            font-size: var(--setting-help-size);
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .empty-faces {
+            text-align: center;
+            color: var(--muted);
+            font-size: var(--setting-help-size);
+            padding: 24px 0;
+        }
+        #facialRecPanel { background: #101010; }
+        .face-management-header { display: grid; grid-template-columns: 64px minmax(0,1fr) 64px; align-items: center; padding: 16px; }
+        .face-management-title { font-size: 22px; font-weight: 600; text-align: center; }
+        .face-edit-action { border: 0; background: transparent; color: #ddd; padding: 10px 0; font-size: var(--setting-value-size); cursor: pointer; }
+        .face-management-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 26px; }
+        .face-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; min-height: min(58vh,420px); }
+        .face-empty-art { position: relative; width: 74px; height: 74px; border-radius: 14px; background: #222331; }
+        .face-empty-art svg { position: absolute; top: -7px; left: -7px; width: 88px; height: 88px; color: #f31c59; stroke-width: 1.4; }
+        .face-empty-art svg.face-empty-person { top: 12px; left: 12px; width: 50px; height: 50px; stroke-width: 1.6; }
+        .face-empty-label { color: #999; font-size: var(--setting-value-size); text-align: center; }
+        .face-entry { display: flex; align-items: center; gap: 18px; width: 100%; min-height: 88px; padding: 16px 0; border: 0; background: transparent; color: #ddd; text-align: left; cursor: pointer; }
+        .face-entry-image { width: 64px; height: 64px; flex: 0 0 64px; object-fit: cover; background: #222; }
+        .face-image-placeholder { display: flex; align-items: center; justify-content: center; color: #999; }
+        .face-image-placeholder svg { width: 30px; height: 30px; }
+        .face-entry-details { min-width: 0; flex: 1; }
+        .face-entry-name { display: block; font-size: var(--setting-label-size); overflow-wrap: anywhere; }
+        .face-entry-time { display: block; margin-top: 6px; font-size: var(--setting-help-size); line-height: 1.4; color: #999; overflow-wrap: anywhere; }
+        .face-selection { appearance: none; width: 24px; height: 24px; flex: 0 0 24px; border: 1px solid #999; border-radius: 50%; background: transparent; }
+        .face-selection:checked { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 4px #1c1c1c; }
+        .face-selection:disabled { opacity: .35; }
+        .face-edit-toolbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; background: #1c1c1c; color: #aaa; font-size: var(--setting-help-size); }
+        .face-delete-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: auto; flex-shrink: 0; background: transparent; border: 0; color: #aaa; cursor: pointer; }
+        .face-delete-button:disabled { opacity: .35; cursor: default; }
+        .face-sheet, .face-delete-overlay { position: fixed; inset: 0; z-index: 2400; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(0,0,0,.7); }
+        .face-sheet-card { width: 100%; max-height: calc(100dvh - 36px); overflow-y: auto; padding: 20px 14px; border-radius: 24px; background: #292929; }
+        .face-sheet-title { margin-bottom: 28px; text-align: center; font-size: var(--setting-label-size); font-weight: 600; }
+        .face-sheet-input { width: 100%; padding: 14px; border: 0; border-radius: 14px; background: #1c1c1c; color: white; font-size: var(--setting-value-size); }
+        .face-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+        .face-sheet-actions button { min-height: 52px; padding: 12px; border-radius: 14px; font-size: var(--setting-value-size); cursor: pointer; }
+        .face-sheet-cancel { border: 1px solid #999; background: transparent; color: white; }
+        .face-sheet-confirm { border: 0; background: #e71048; color: white; }
+        .face-delete-overlay { align-items: center; }
+        .face-sheet-error { min-height: 22px; margin-top: 8px; color: #ff7777; font-size: var(--setting-help-size); }
     </style>
 </head>
 <body>
-    <div class="app">
+    <div class="app" inert>
+        <section id="viewerPanel" class="panel active">
+            <header class="viewer-header">
+                <button class="viewer-header-button" type="button" onclick="history.back()" aria-label="Back" title="Back"><i data-lucide="chevron-left"></i></button>
+                <h1 class="viewer-header-title" id="viewerDeviceName">Plug-In Camera</h1>
+                <button class="viewer-header-button" type="button" onclick="show('homePanel')" aria-label="Settings" title="Settings"><i data-lucide="settings"></i></button>
+            </header>
+            <main class="camera-view" id="p160CameraView">
+                <div class="camera-stage" id="p160CameraStage">
+                    <div class="camera-frame" id="p160CameraFrame">
+                        <div class="viewer-error" id="p160StreamStatus" role="status">Live stream not available</div>
+                    </div>
+                </div>
+                <div class="camera-footer">
+                    <div class="camera-footer-left"><div class="chip small">HD</div><button class="chip" id="p160ZoomChip" type="button" aria-label="Change zoom" title="Change zoom">1.0X</button></div>
+                    <div class="camera-footer-right"><button class="chip small" id="p160ViewerFullscreen" type="button" aria-label="Fullscreen" title="Fullscreen"><i data-lucide="maximize"></i></button></div>
+                </div>
+                <div class="toolbar" id="p160ViewerToolbar">
+                    <button class="tool-btn" id="p160ViewerZoom" type="button" aria-label="Take screenshot" title="Screen capture unavailable" disabled><i data-lucide="scissors"></i></button>
+                    <button class="tool-btn" id="p160ViewerSnapshot" type="button" aria-label="Take snapshot" title="Snapshot capture unavailable" disabled><i data-lucide="circle-dot"></i></button>
+                    <button class="tool-btn primary" id="p160ViewerMic" type="button" aria-label="Start camera call" title="Start camera call"><i data-lucide="mic"></i></button>
+                    <button class="tool-btn" id="p160ViewerSpeaker" type="button" aria-label="Load speaker volume" aria-pressed="false" title="Load speaker volume"><i data-lucide="volume-2"></i></button>
+                    <button class="tool-btn" id="p160ViewerEndCall" type="button" aria-label="More camera controls" title="More camera controls"><i data-lucide="circle-arrow-left"></i></button>
+                </div>
+                <div class="toolbar" id="p160ViewerAlternateToolbar" hidden>
+                    <button class="tool-btn" id="p160ViewerAlarm" type="button" aria-label="Alarm unavailable" title="Alarm unavailable" disabled><i data-lucide="bell-ring"></i></button>
+                    <button class="tool-btn" id="p160ViewerAlbum" type="button" aria-label="Open latest snapshot" title="Open latest snapshot"><i data-lucide="image"></i></button>
+                    <button class="tool-btn" id="p160ViewerNotifications" type="button" aria-label="Notifications" title="Notifications"><i data-lucide="rotate-ccw"></i></button>
+                    <button class="tool-btn" id="p160ViewerToolbarBack" type="button" aria-label="Back to camera controls" title="Back"><i data-lucide="x"></i></button>
+                </div>
+            </main>
+        </section>
+
+        <section id="notificationHistoryPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('viewerPanel')" aria-label="Back to camera"><i data-lucide="chevron-left"></i></button><h1>Notifications</h1><div></div></div>
+            <div class="viewer-notifications"><div class="notification-history-scroll"><button class="notification-history-filter" type="button" aria-pressed="true">All</button><div id="notificationHistoryList" class="notification-history-list"><div class="notification-history-empty">Loading notifications...</div></div><button class="notification-history-load" id="notificationHistoryLoadMore" type="button" onclick="loadMoreP160Notifications()" hidden>Load more</button></div></div>
+        </section>
+
         <!-- HOME -->
-        <section id="homePanel" class="panel active">
-            <div class="header">
+        <section id="homePanel" class="panel">
+            <div class="settings-bar">
+                <button class="back" onclick="show('viewerPanel')" aria-label="Back to camera" title="Back to camera"><i data-lucide="chevron-left"></i></button>
                 <h1>Device Settings</h1>
-                <p>P160 Camera Controls</p>
+                <div></div>
             </div>
-            <div class="list">
-                <div class="item" onclick="show('rebootPanel')">
-                    <div class="left">
-                        <i data-lucide="rotate-cw" class="icon"></i>
-                        <div>
-                            <div class="title">Reboot</div>
-                            <div class="subtitle">Restart device</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+            <div class="settings-home">
+                <div class="settings-device">
+                    <div class="settings-device-picture"><i data-lucide="webcam" aria-hidden="true"></i></div>
+                    <div><div id="homeModelName" class="settings-device-name">Plug-In Camera</div><div id="homeDeviceName" class="settings-device-type">...</div></div>
+                    <button class="settings-edit" onclick="openDeviceNameSheet()" aria-label="Edit device name" title="Edit device name"><i data-lucide="pencil-line"></i></button>
                 </div>
-                <div class="item" onclick="show('micPanel')">
-                    <div class="left">
-                        <i data-lucide="mic" class="icon"></i>
-                        <div>
-                            <div class="title">Microphone</div>
-                            <div class="subtitle">Audio capture control</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-shortcuts">
+                    <button class="settings-shortcut" onclick="show('motionDetectionPanel')"><i data-lucide="scan-line"></i><span>Motion Detection</span></button>
+                    <button class="settings-shortcut" onclick="show('eventTimePanel')"><i data-lucide="clock-3"></i><span>Event Time Settings</span></button>
                 </div>
-                <div class="item" onclick="show('deviceNamePanel')">
-                    <div class="left">
-                        <i data-lucide="smartphone" class="icon"></i>
-                        <div>
-                            <div class="title">Device Name</div>
-                            <div class="subtitle">Device name control</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="show('videoSettingsPanel')"><span>Video Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" onclick="show('audioSettingsPanel')"><span>Audio Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" onclick="show('notificationSettingsPanel')"><span>Notification Settings</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
-                <div class="item" id="snapshotHomeBtn">
-                    <div class="left">
-                        <i data-lucide="camera" class="icon"></i>
-                        <div>
-                            <div class="title">Take Snapshot</div>
-                            <div class="subtitle">Capture current view</div>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="chevron"></i>
+                <div class="settings-group"><button class="settings-row" onclick="show('storagePanel')"><span>Internal Storage</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group">
+                    <button class="settings-row" onclick="show('deviceInformationPanel')"><span>Device Information</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                    <button class="settings-row" disabled title="Firmware update action is not available from the P160 driver"><span>Check Firmware Update</span><span class="settings-detail" id="firmwareAvailability">...</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
+                <div class="settings-group"><button class="settings-row" type="button" onclick="openC4AuthenticationService()"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row" onclick="show('rebootPanel')"><span>Restart</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row settings-delete" disabled title="Device deletion is not available from this driver">Delete Device</button></div>
             </div>
         </section>
 
+        <section id="eventTimePanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Event Time Settings</h1><div></div></div>
+            <div class="settings-subpage">
+                <div class="settings-group">
+                    <label class="settings-row" for="eventRecordingTime"><span>Event Recording Time</span><input id="eventRecordingTime" type="number" min="0" max="60" step="1" disabled></label>
+                    <label class="settings-row" for="eventInterval"><span>Event Interval</span><input id="eventInterval" type="number" min="0" max="120" step="1" disabled></label>
+                </div>
+                <button class="btn" id="saveEventTimes" disabled>Confirm</button>
+            </div>
+        </section>
+        <section id="audioSettingsPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Audio Settings</h1><div></div></div>
+            <div class="settings-subpage">
+                <div class="speaker-setting"><h2>Device Speaker Volume</h2><div class="speaker-track"><output id="speakerVolumeValue">...</output><span class="speaker-min">0</span><input id="speakerVolume" type="range" min="0" max="10" step="1" aria-label="Device Speaker Volume" disabled><span class="speaker-max">10</span></div></div>
+            </div>
+        </section>
+        <section id="videoSettingsPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Video Settings</h1><div></div></div>
+            <div class="settings-subpage video-settings">
+                <div class="settings-group"><button class="settings-row" id="nightVisionMode" onclick="openMotionOption('nightVisionMode')" disabled><span>Night Vision Mode</span><span class="motion-choice-value"><span id="nightVisionModeValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
+                <div class="settings-group"><button class="settings-row" id="antiFlicker" onclick="openMotionOption('antiFlicker')" disabled><span>Anti-Flicker</span><span class="motion-choice-value"><span id="antiFlickerValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
+                <div class="settings-group"><div class="settings-row"><label for="flipImageToggle">Flip Image</label><label class="toggle"><input id="flipImageToggle" type="checkbox" aria-label="Flip Image" disabled><span class="slider"></span></label></div></div>
+                <div class="settings-group"><div class="settings-row"><label for="timeWatermarkToggle">Time Watermark</label><label class="toggle"><input id="timeWatermarkToggle" type="checkbox" aria-label="Time Watermark" disabled><span class="slider"></span></label></div></div>
+            </div>
+        </section>
+        <section id="notificationSettingsPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Notification Settings</h1><div></div></div>
+            <div class="settings-subpage">
+                <h2 class="notification-heading">Receive App Notifications</h2>
+                <div class="settings-group">
+                    <div class="notification-row"><div class="notification-title"><label for="appAlertNotification">Alert Notification</label><label class="toggle compact-toggle" title="App notification API mapping is required"><input id="appAlertNotification" type="checkbox" aria-label="Alert Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">After enabling this, you will receive message notifications when the device detects events such as abnormalities, low battery, or emergencies.</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appMotionNotification">Motion Detection</label><label class="toggle compact-toggle" title="App notification API mapping is required"><input id="appMotionNotification" type="checkbox" aria-label="Motion Detection notifications" disabled><span class="slider"></span></label></div><div class="notification-copy">Once enabled, you will receive a message notification when the device detects a moving object</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appOfflineNotification">Offline Notification</label><label class="toggle compact-toggle" title="App notification API mapping is required"><input id="appOfflineNotification" type="checkbox" aria-label="Offline Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">Once enabled, you will receive a message notification when the device detects an offline event (to avoid frequent alerts, you will be reminded again after an 8-hour interval)</div></div>
+                    <div class="notification-row"><div class="notification-title"><label for="appEventNotification">Event Notification</label><label class="toggle compact-toggle" title="App notification API mapping is required"><input id="appEventNotification" type="checkbox" aria-label="Event Notification" disabled><span class="slider"></span></label></div><div class="notification-copy">When enabled, you will receive notifications for non-emergency system events that require your attention</div></div>
+                </div>
+            </div>
+        </section>
+        <section id="storagePanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Internal Storage</h1><div></div></div>
+            <div class="storage-content">
+                <div class="storage-summary"><i data-lucide="card-sim" aria-hidden="true"></i><div class="storage-metric"><span>Total:</span><span id="storageTotal">...</span></div><div class="storage-metric"><span>Available:</span><span id="storageAvailable">...</span></div><div class="storage-status" id="storageStatus" hidden>...</div></div>
+            </div>
+            <div class="storage-footer"><button class="format-storage-button" id="formatStorageButton" onclick="openStorageFormat()" disabled>Format Local Storage</button></div>
+        </section>
+        <section id="deviceInformationPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Device Information</h1><div></div></div>
+            <div class="settings-subpage device-information">
+                <div class="settings-group settings-info">
+                    <div class="information-header"><i data-lucide="cctv" class="information-camera" aria-hidden="true"></i><div class="information-main"><div class="information-name" id="deviceVersion">...</div><div class="information-line"><span>Version</span><span id="firmwareVersion">...</span></div><div class="information-line"><span>SN</span><span class="information-serial"><span id="deviceSerial">...</span><button class="information-copy" id="copyDeviceSerial" type="button" onclick="copyDeviceSerial()" aria-label="Copy SN" title="Copy SN" disabled><i data-lucide="copy"></i></button></span></div></div></div>
+                    <div class="settings-row"><span>Device Time Zone</span><span class="settings-detail" id="deviceTimezone">...</span></div>
+                    <div class="settings-row"><span>IP Address</span><span class="settings-detail" id="deviceIp">...</span></div>
+                    <div class="settings-row"><span>MAC Address</span><span class="settings-detail" id="deviceMac">...</span></div>
+                </div>
+                <div class="settings-group"><button class="settings-row" type="button" disabled title="Wi-Fi replacement API mapping is not available"><span>Wi-Fi Name<span class="information-secondary" id="deviceWifi">...</span></span><span class="information-action-value">Replace<i data-lucide="chevron-right"></i></span></button><div class="settings-row"><span>WiFi Signal</span><span class="settings-detail" id="deviceSignal">...</span></div></div>
+                <div class="settings-group"><button class="settings-row information-sync" type="button" disabled title="Time synchronization API mapping is not available"><span>Sync Time<span class="information-secondary">If the device time is incorrect (e.g., due to Daylight Saving Time or time zone changes), please tap Sync to update it to the current accurate time.</span></span><span class="information-action-value">Sync<i data-lucide="chevron-right"></i></span></button></div>
+            </div>
+        </section>
+        <section id="c4AuthenticationPanel" class="panel">
+            <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>C4 Authentication Service</h1><div></div></div>
+            <div class="c4-auth-content">
+                <div class="c4-auth-card"><div class="c4-auth-user"><span>User Identifier</span><button class="c4-auth-user-copy" id="copyUserIdentifier" type="button" onclick="copyUserIdentifier()" aria-label="Copy user identifier" title="Copy user identifier" disabled><i data-lucide="copy"></i></button></div><p class="c4-auth-description">This is for verifying your identity. Do not disclose this information.</p><span id="c4UserIdentifier" hidden></span></div>
+                <button class="c4-pairing-row" type="button" onclick="openPairingModeConfirmation()"><span class="c4-pairing-copy"><span class="c4-pairing-title">Device Pairing Mode</span><span class="c4-pairing-description">Once enabled, the device will continuously send signal broadcasts within the local area network (LAN) and can be used for device authentication and binding.</span></span><span class="c4-pairing-value" id="devicePairingModeValue">OFF</span><i data-lucide="chevron-right" class="c4-pairing-chevron"></i></button>
+            </div>
+        </section>
+
+        <section id="motionDetectionPanel" class="panel">
+            <div class="topbar">
+                <button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="h2" style="flex:1;text-align:center;">Motion Detection</div>
+                <div style="width:38px;"></div>
+            </div>
+            <div class="p160-motion-content">
+                <div class="p160-motion-card">
+                    <div class="p160-motion-row"><label for="motionDetectionToggle">Motion Detection</label><label class="toggle"><input type="checkbox" id="motionDetectionToggle" disabled aria-label="Motion Detection"><span class="slider"></span></label></div>
+                </div>
+                <div class="p160-motion-card" id="motionSettingsGroup" hidden>
+                    <button class="p160-motion-row motion-choice-row" id="motionDetectionType" onclick="openMotionOption('motionDetectionType')" disabled><span class="p160-motion-name">Detection Type</span><span class="motion-choice-value"><span id="motionDetectionTypeValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="p160-motion-row motion-choice-row" id="motionSensitivity" onclick="openMotionOption('motionSensitivity')" disabled><span class="p160-motion-name">Detection Sensitivity</span><span class="motion-choice-value"><span id="motionSensitivityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="p160-motion-row p160-motion-link" id="motionZoneOpen" type="button" disabled><span><span class="p160-motion-name">Set Detection Zone</span><span class="p160-motion-desc" style="display:block">Set the alarm area you are concerned about.</span></span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div class="p160-motion-card">
+                    <div class="p160-motion-row" id="facialRecognitionRow"><label for="faceRecEnable">Facial Recognition</label><label class="toggle"><input type="checkbox" id="faceRecEnable" aria-label="Facial Recognition" disabled><span class="slider"></span></label></div>
+                    <button class="p160-motion-row motion-choice-row" id="faceSimilarity" data-face-option hidden onclick="openMotionOption('faceSimilarity')" disabled><span class="p160-motion-name">Face Similarity Threshold</span><span class="motion-choice-value"><span id="faceSimilarityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="p160-motion-row motion-choice-row" id="faceQuality" data-face-option hidden onclick="openMotionOption('faceQuality')" disabled><span class="p160-motion-name">Face Image Quality Threshold</span><span class="motion-choice-value"><span id="faceQualityValue">...</span><i data-lucide="chevron-right"></i></span></button>
+                    <button class="p160-motion-row p160-motion-link" id="p160FaceManagement" type="button" title="Face management is unavailable" disabled hidden><span class="p160-motion-name">Face Management</span><i data-lucide="chevron-right" class="chevron"></i></button>
+                </div>
+                <div id="p160MotionStatus" class="p160-motion-status" role="status"></div>
+            </div>
+        </section>
+
+        <section id="detectionZonePanel" class="panel">
+            <div class="topbar"><button class="back" onclick="show('motionDetectionPanel')" aria-label="Back"><i data-lucide="arrow-left"></i></button><div class="h2" style="flex:1;text-align:center;">Set Detection Zone</div><div style="width:38px;"></div></div>
+            <div class="p160-motion-content">
+                <div class="p160-zone-inputs">
+                    <label>X<input id="p160ZoneX" type="number" min="0" step="1" disabled></label>
+                    <label>Y<input id="p160ZoneY" type="number" min="0" step="1" disabled></label>
+                    <label>Width<input id="p160ZoneWidth" type="number" min="0" step="1" disabled></label>
+                    <label>Height<input id="p160ZoneHeight" type="number" min="0" step="1" disabled></label>
+                </div>
+                <button class="btn" id="p160ZoneSave" disabled>Confirm</button>
+                <div class="p160-motion-status" id="p160ZoneStatus" role="status"></div>
+            </div>
+        </section>
+
+        <!-- REBOOT -->
         <section id="rebootPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+                <button class="back" onclick="show('homePanel')" aria-label="Back">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
             <div class="content">
                 <i data-lucide="rotate-cw" class="bigIcon"></i>
-                <div class="h2">Reboot Device</div>
-                <div class="desc">This will restart the camera system.</div>
+                <div class="h2">Restart</div>
                 <button class="btn" id="rebootBtn">
-                    Reboot
+                    Restart
                 </button>
             </div>
         </section>
         <!-- MIC -->
         <section id="micPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
+                <button class="back" onclick="show('audioSettingsPanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
             </div>
             <div class="content">
                 <i data-lucide="mic" class="bigIcon"></i>
                 <div class="h2">Microphone</div>
-                <div class="desc">Enable or disable audio capture.</div>
-
                 <label class="toggle">
-                    <input type="checkbox" id="mic">
+                    <input type="checkbox" id="mic" aria-label="Microphone">
                     <span class="slider"></span>
                 </label>
-
-                <div class="status" id="micStatus">Enabled</div>
-
+                <div class="status" id="micStatus" aria-live="polite">Switch on to start a call.</div>
             </div>
         </section>
-        <!-- DEVICE NAME -->
-        <section id="deviceNamePanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
+        <!-- =========================
+             FACIAL RECOGNITION PANEL
+        ========================= -->
+        <section id="facialRecPanel" class="panel">
+            <div class="face-management-header">
+                <button class="back" onclick="leaveFaceManagement()" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="face-management-title">Face Management</div>
+                <button class="face-edit-action" id="faceEditButton" onclick="toggleFaceEditMode()">Edit</button>
             </div>
-            <div class="content">
-                <i data-lucide="edit-3" class="bigIcon"></i>
-                <div class="h2">Device Name</div>
-                <div class="desc">Set a custom name for this device</div>
-
-                <div style="width: 100%; max-width: 280px; margin: 20px 0;">
-                    <input type="text" id="deviceNameInput" placeholder="Enter device name" maxlength="32"
-                        style="width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px;">
-                </div>
-                <button class="btn" id="updateNameBtn">
-                    Update Name
-                </button>
+            <div class="face-management-list">
+                <div id="faceList" role="status"></div>
+                <button class="face-edit-action" id="faceLoadMore" onclick="loadFaces(facePage + 1)" hidden>Load More</button>
+            </div>
+            <div class="face-edit-toolbar" id="faceEditToolbar" hidden>
+                <input class="face-selection" id="faceSelectAll" type="checkbox" aria-label="Select all faces" onchange="selectAllFaces(this.checked)">
+                <label for="faceSelectAll">Select All (Selected: <span id="faceSelectedCount">0</span>)</label>
+                <button class="face-delete-button" id="faceDeleteButton" onclick="openFaceDeleteConfirmation()" aria-label="Delete selected faces" title="Delete selected faces" disabled><i data-lucide="trash-2"></i></button>
             </div>
         </section>
         
     </div>
+    <div class="face-sheet" id="faceNamingSheet" role="dialog" aria-modal="true" aria-labelledby="faceNamingTitle" hidden>
+        <div class="face-sheet-card"><div class="face-sheet-title" id="faceNamingTitle">Face Naming</div><input class="face-sheet-input" id="faceNamingInput" maxlength="40" aria-label="Face name"><div class="face-sheet-error" id="faceNamingError" role="status"></div><div class="face-sheet-actions"><button class="face-sheet-cancel" onclick="closeFaceNaming()">Cancel</button><button class="face-sheet-confirm" onclick="confirmFaceNaming()">Confirm</button></div></div>
+    </div>
+    <div class="face-delete-overlay" id="faceDeleteConfirmation" role="dialog" aria-modal="true" aria-labelledby="faceDeleteTitle" hidden>
+        <div class="face-sheet-card"><div class="face-sheet-title" id="faceDeleteTitle">Delete selected faces?</div><div class="face-sheet-actions"><button class="face-sheet-cancel" onclick="closeFaceDeleteConfirmation()">Cancel</button><button class="face-sheet-confirm" onclick="confirmFaceDeletion()">Delete</button></div></div>
+    </div>
+    <div class="c4-pairing-dialog" id="devicePairingDialog" role="dialog" aria-modal="true" aria-labelledby="devicePairingDialogTitle" hidden>
+        <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="devicePairingDialogTitle">Tips</h2><p class="c4-pairing-dialog-copy">Confirm whether to enable device pairing mode?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closePairingModeConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmPairingMode()">Confirm</button></div></div>
+    </div>
+    <div class="storage-format-overlay" id="storageFormatDialog" role="dialog" aria-modal="true" aria-labelledby="storageFormatTitle" hidden>
+        <div class="storage-format-card"><h2 class="storage-format-title" id="storageFormatTitle">Format Local Storage</h2><div class="storage-format-warning">WARNING: This operation will format the local storage, and all saved videos and records will be permanently lost and cannot be recovered. Proceed with caution.<br>The device cannot connect to the App during formatting. Do not leave this page.<br>The device will restart after formatting is complete.<br>By clicking &quot;Next,&quot; you confirm that you fully understand the purpose and consequences of the formatting operation.</div><div class="device-name-actions"><button class="device-name-cancel" id="cancelStorageFormat" onclick="closeStorageFormat()">Cancel</button><button class="device-name-confirm" id="confirmStorageFormat" onclick="confirmStorageFormat()">Next</button></div></div>
+    </div>
+    <div class="device-name-sheet" id="deviceNameSheet" role="dialog" aria-modal="true" aria-labelledby="deviceNameTitle" onclick="if(event.target===this) closeDeviceNameSheet()" hidden>
+        <div class="device-name-card">
+            <h2 class="device-name-title" id="deviceNameTitle">Change Device Name</h2>
+            <div class="device-name-field"><input id="deviceNameInput" type="text" maxlength="32" aria-label="Device name" autocomplete="off" spellcheck="false"><button class="device-name-clear" type="button" onclick="clearDeviceName()" aria-label="Clear device name" title="Clear device name"><i data-lucide="circle-x"></i></button></div>
+            <div class="device-name-error" id="deviceNameStatus" role="status" aria-live="polite"></div>
+            <div class="device-name-actions"><button class="device-name-cancel" type="button" onclick="closeDeviceNameSheet()">Cancel</button><button class="device-name-confirm" id="updateNameBtn" type="button" disabled>Confirm</button></div>
+        </div>
+    </div>
+    <div class="motion-option-overlay" id="motionOptionSheet" role="dialog" aria-modal="true" aria-labelledby="motionOptionTitle" onclick="if(event.target===this) closeMotionOption()" hidden>
+        <div class="motion-option-card">
+            <div class="motion-option-title" id="motionOptionTitle"></div>
+            <div class="motion-option-description" id="motionOptionDescription"></div>
+            <div id="motionOptionBody"></div>
+            <button class="motion-option-confirm" id="motionOptionConfirm" onclick="confirmMotionOption()">Confirm</button>
+        </div>
+    </div>
+    <div id="settingSaveOverlay" class="setting-save-overlay" data-loading="true" role="dialog" aria-modal="true" aria-labelledby="settingSaveLabel" tabindex="-1">
+        <div class="setting-save-card" role="status"><div class="setting-save-spinner" aria-hidden="true"></div><div id="settingSaveLabel">Loading...</div></div>
+    </div>
+    <div id="settingSaveToast" class="setting-save-toast" role="status" aria-live="polite" hidden></div>
     <!-- SUCCESS MODAL -->
     <div id="successModal" class="modal">
         <div class="modal-content">
@@ -431,7 +1068,7 @@
             <button class="btn" onclick="closeModal()">OK</button>
         </div>
     </div>
-     <div id="snapshotModal" class="modal">
+    <div id="snapshotModal" class="modal">
         <div class="modal-content">
             <div class="h2" id="snapshotModalTitle">Snapshot</div>
     
@@ -444,16 +1081,12 @@
             <button class="btn" onclick="closeSnapshotModal()">Close</button>
         </div>
     </div>
-    <footer class="footer">
-        <div class="version-info">
-            <span id="deviceVersion">Device: Loading...</span><br>
-            <span id="firmwareVersion">Firmware: Loading...</span><br>
-            <span id="releaseDate">Release: Loading...</span>
-        </div>
-    </footer>
     <script src="https://unpkg.com/lucide@latest"></script>
+
     <script>
+
         lucide.createIcons();
+
         /* =========================
            NAVIGATION
         ========================= */
@@ -464,6 +1097,16 @@
 
             document.getElementById(id)
                 .classList.add('active');
+
+            if (id === 'motionDetectionPanel' && typeof requestCameraSettings === 'function') requestCameraSettings();
+            if (id === 'videoSettingsPanel' && typeof requestCameraSettings === 'function') requestCameraSettings('video');
+            if (id === 'audioSettingsPanel' && typeof requestCameraSettings === 'function') requestCameraSettings('audio');
+            if (id === 'notificationSettingsPanel' && typeof requestCameraSettings === 'function') requestCameraSettings('notifications');
+            if (id === 'storagePanel' && typeof requestCameraSettings === 'function') requestCameraSettings('storage');
+            if (id === 'eventTimePanel' && typeof requestCameraSettings === 'function') requestCameraSettings('event');
+            if (id === 'facialRecPanel' && typeof loadFaces === 'function') loadFaces();
+            if (id === 'deviceInformationPanel' && typeof requestCameraSettings === 'function') requestCameraSettings('information');
+            document.querySelector('.footer').hidden = id === 'viewerPanel' || id === 'facialRecPanel';
 
             lucide.createIcons();
         }
@@ -480,19 +1123,6 @@
         /* =========================
            TOGGLES
         ========================= */
-        document.addEventListener('DOMContentLoaded', () => {
-
-            document.getElementById('mic').addEventListener('change', function () {
-
-                document.getElementById('micStatus').innerText =
-                    this.checked ? "Enabled" : "Disabled";
-
-                console.log(this.checked ? "MIC_ON" : "MIC_OFF");
-
-            });
-
-        });
-
         // Modal Functions
         function showModal(message, title = "Success") {
                 const modal = document.getElementById('successModal');
@@ -512,6 +1142,13 @@
                 }
     </script>
     <script src="javascript/index.js" type="text/javascript"></script>
+    <footer class="footer" hidden>
+        <div class="version-info">
+            <span id="footerDeviceVersion">Device: Loading...</span><br>
+            <span id="footerFirmwareVersion">Firmware: Loading...</span><br>
+            <span id="footerReleaseDate">Release: Loading...</span>
+        </div>
+    </footer>
 </body>
 
 </html>

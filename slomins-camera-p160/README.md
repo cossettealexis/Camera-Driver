@@ -33,6 +33,15 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 - Customizable device naming
 - Memory card detection and monitoring
 
+**WebView**
+- Opens on the camera viewer; the Settings gear opens Device Settings.
+- Matches K26/VD05 styling, loading overlays, and API-confirmed save feedback.
+- Event Time Settings reads recording time and interval from `motion` and saves both together while preserving the other motion fields.
+- Audio, video, storage, device information, and notification history read API values. Video enum choices require the camera's returned definitions.
+- Restart, rename, speaker, microphone, and storage formatting wait for driver acknowledgements.
+- Live video in this WebView is not wired; it displays "Live stream not available". Existing Control4 camera-proxy streaming is unchanged.
+- Alarm, capture, app-notification preferences, deletion, and pairing remain unavailable where a supported API mapping is not established.
+
 **Two-Way Audio**
 - Microphone mute/unmute control
 - Speaker volume adjustment (1-10 levels)
