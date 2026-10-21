@@ -52,6 +52,39 @@ const motionOptionSpecs = {
     }
 };
 
+function formatP160VideoChoice(id, label, value) {
+    const normalized = String(label || '').trim().toLowerCase();
+    if (id === 'recordingMode') {
+        if (normalized.includes('event') || Number(value) === 0) return 'Event Recording Mode';
+        if (normalized.includes('continuous') || /24\s*(?:hr|hour)/.test(normalized) || Number(value) === 1) return '24hr Continuous Record';
+    }
+    if (id === 'nightVisionMode') {
+        if (normalized.includes('auto')) return 'Automatic';
+        if (normalized === 'off') return 'OFF';
+        if (normalized === 'on') return 'ON';
+    }
+    if (id === 'antiFlicker') {
+        if (normalized === 'off' || normalized.includes('关闭') || Number(value) === 0) return 'OFF';
+        if (normalized.includes('50') || Number(value) === 1) return '50Hz';
+        if (normalized.includes('60') || Number(value) === 2) return '60Hz';
+    }
+    return String(label || '');
+}
+
+function describeP160VideoChoice(id, label, apiDescription) {
+    if (apiDescription) return String(apiDescription);
+    if (id === 'recordingMode') {
+        if (label === 'Event Recording Mode') return 'In Event Recording Mode, the device is woken up by events to record, which provides longer battery life.';
+        if (label === '24hr Continuous Record') return '24-Hour Uninterrupted Recording';
+    }
+    if (id === 'nightVisionMode') {
+        if (label === 'Automatic') return 'When the light is dark, it will automatically switch to infrared night vision mode';
+        if (label === 'OFF') return 'Enable when the device is in consistently bright lighting conditions.Selecting this mode will always turn off the infrared fill light during recording.';
+        if (label === 'ON') return 'Enable when the device is in consistently dim lighting conditions.Selecting this mode will always turn on the infrared fill light during recording.';
+    }
+    return '';
+}
+
 function showSettingToast(message) {
     const toast = document.getElementById('settingSaveToast');
     clearTimeout(settingToastTimer);
@@ -91,19 +124,19 @@ function beginSettingSave(kind, label = 'Setting up...') {
     pendingSettingSaves.set(kind, {
         label,
         count: (previous?.count || 0) + 1,
-        timer: setTimeout(() => {
-            pendingSettingSaves.delete(kind);
-            settingSaveFailed = true;
-            if (kind === 'camera') updateCameraSettingsUI({});
-            if (kind === 'mic') updateMicUI(isMicMuted);
-            if (kind === 'speakerVolume') {
-                viewerSpeakerWritePending = false;
-                updateViewerSpeaker(latestCameraSettings.beep_vol);
-            }
-            if (kind === 'name') updateDeviceNameConfirm();
-            updateSettingSaveOverlay();
-            showSettingToast('Setting update timed out');
-        }, 20000)
+            timer: setTimeout(() => {
+                pendingSettingSaves.delete(kind);
+                settingSaveFailed = true;
+                if (kind === 'camera') updateCameraSettingsUI({});
+                if (kind === 'mic') updateMicUI(isMicMuted);
+                if (kind === 'speakerVolume') {
+                    viewerSpeakerWritePending = false;
+                    updateViewerSpeaker(latestCameraSettings.beep_vol);
+                }
+                if (kind === 'name') updateDeviceNameConfirm();
+                updateSettingSaveOverlay();
+                showSettingToast(kind === 'format' ? 'Format request timed out' : 'Setting update timed out');
+            }, kind === 'format' ? 120000 : 20000)
     });
     document.getElementById('settingSaveToast').hidden = true;
     updateSettingSaveOverlay();
@@ -736,18 +769,8 @@ function updateCameraSettingsUI(settings) {
         const choices = latestCameraSettings.choices?.[key] || [];
         const spec = motionOptionSpecs[id];
         spec.values = choices.map(option => Number(option.value));
-        if (id === 'recordingMode') {
-            const modeLabels = choices.map(option => {
-                const label = String(option.label || '');
-                if (/event/i.test(label)) return 'Event Recording Mode';
-                if (/continuous|24\s*hr/i.test(label)) return '24hr Continuous Record';
-                return label;
-            });
-            spec.labels = modeLabels;
-            spec.descriptions = modeLabels.map(label => label === 'Event Recording Mode'
-                ? 'In Event Recording Mode, the device is woken up by events to record, which provides longer battery life.'
-                : label === '24hr Continuous Record' ? '24-Hour Uninterrupted Recording' : '');
-        } else spec.labels = choices.map(option => String(option.label));
+        spec.labels = choices.map(option => formatP160VideoChoice(id, option.label, option.value));
+        spec.descriptions = choices.map((option, index) => describeP160VideoChoice(id, spec.labels[index], option.description));
         const valid = value !== undefined && value !== null && value !== '' && motionOptionSpecs[id].values.includes(Number(value));
         if (valid) {
             const control = document.getElementById(id);
@@ -1486,7 +1509,7 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'storage_format') {
-            finishSettingSave('format', obj.success, obj.error || 'Format request failed', 'Format command accepted');
+            finishSettingSave('format', obj.success, obj.error || 'Format request failed', 'Formatted Successfully');
             if (obj.success) {
                 closeStorageFormat();
                 document.getElementById('formatStorageButton').disabled = true;

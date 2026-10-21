@@ -832,19 +832,32 @@ function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
                 if name then
                     values[name] = value
                     local definition = item.define
-                    if type(definition) == "string" then definition = json.decode(definition) end
-                    if type(definition) == "table" and type(definition.enumOptions) == "table" then
+                    if type(definition) == "string" then
+                        local definition_ok, decoded = pcall(json.decode, definition)
+                        definition = definition_ok and decoded or nil
+                    end
+                    if type(definition) == "table" and
+                        (type(definition.enumOptions) == "table" or type(definition.mapping) == "table") then
                         local choices = {}
-                        for _, option in ipairs(definition.enumOptions) do
+                        for _, option in ipairs(definition.enumOptions or {}) do
                             if type(option) == "table" then
-                                local option_value = tonumber(option.value)
-                                local label = option.name or option.label
+                                local option_value = tonumber(option.value or option.val)
+                                local label = option.title or option.name or option.label
+                                if option_value and type(label) == "string" then
+                                    table.insert(choices, { value = option_value, label = label, description = option.desc })
+                                end
+                            end
+                        end
+                        if #choices == 0 and type(definition.mapping) == "table" then
+                            for raw_value, label in pairs(definition.mapping) do
+                                local option_value = tonumber(raw_value)
                                 if option_value and type(label) == "string" then
                                     table.insert(choices, { value = option_value, label = label })
                                 end
                             end
                         end
-                        property_choices[name] = choices
+                        table.sort(choices, function(left, right) return left.value < right.value end)
+                        if #choices > 0 then property_choices[name] = choices end
                     end
                 elseif type(key) == "string" then values[key] = item end
             elseif type(key) == "string" then values[key] = item end
@@ -893,6 +906,12 @@ function GET_CAMERA_SETTINGS(params)
             local value = type(motion) == "table" and motion[field] or nil
             if value == nil then value = values["motion." .. field] end
             settings["motion_" .. field] = value
+        end
+        if scope == "video" then
+            for _, key in ipairs({ "record_mode", "icut_mode", "anti_flicker" }) do
+                print(string.format("[P160_VIDEO_SETTINGS] %s value=%s choices=%s", key,
+                    tostring(settings[key]), json.encode(property_choices[key] or {})))
+            end
         end
         local stored = values.stored
         if type(stored) == "string" then stored = json.decode(stored) end
@@ -1017,27 +1036,35 @@ function UPDATE_CAMERA_SETTING(params)
 end
 
 function FORMAT_STORAGE(params)
-    if type(params) == "string" then params = json.decode(params) end
-    if type(params) ~= "table" then return end
-    if params.confirmed ~= true and params.confirmed ~= "true" and params.confirmed ~= "1" and params.confirmed ~= 1 then return end
+    local function send_result(success, error_message)
+        SendDeviceInfoToUI({ type = "storage_format", success = success == true, error = error_message })
+    end
     local vid = _props["VID"] or Properties["VID"]
     local token = _props["Auth Token"] or Properties["Auth Token"]
     local app_id = GetCldBusCredentials()
     if not vid or vid == "" or not token or token == "" or not app_id or app_id == "" then
-        SendDeviceInfoToUI({ type = "storage_format", success = false, error = "Missing device or API credentials" })
+        send_result(false, "Missing device or API credentials")
         return
     end
+    local url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action"
+    local body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
+    print("[FORMAT] POST " .. url)
+    print("[FORMAT] Request body: " .. body)
     transport.execute({
-        url = GlobalObject.LnduBaseUrl .. "/api/v3/openapi/device/do-action",
+        url = url,
         method = "POST",
         headers = { ["Content-Type"] = "application/json", ["Authorization"] = "Bearer " .. token, ["App-Name"] = app_id },
-        body = json.encode({ vid = vid, action_id = "ac_sd_reset", input_params = json.encode({ t = os.time() }) })
+        body = body
     }, function(code, response, _, err)
-        local parsed = json.decode(response or "")
-        local api_code = type(parsed) == "table" and tonumber(parsed.code)
-        local success = not err and (code == 200 or code == 20000) and (api_code == 0 or api_code == 200 or api_code == 20000)
-        SendDeviceInfoToUI({ type = "storage_format", success = success == true,
-            error = not success and (type(parsed) == "table" and parsed.message or "Format request failed") or nil })
+        print("[FORMAT] HTTP status: " .. tostring(code))
+        print("[FORMAT] Transport error: " .. tostring(err))
+        print("[FORMAT] Response body: " .. tostring(response))
+        local ok, parsed = pcall(json.decode, response or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        local success = not err and (code == 200 or code == 20000) and
+            type(parsed) == "table" and (api_code == 0 or api_code == 200 or api_code == 20000)
+        local error_message = not success and ok and type(parsed) == "table" and parsed.message or "Format request failed"
+        send_result(success, error_message)
     end)
 end
 

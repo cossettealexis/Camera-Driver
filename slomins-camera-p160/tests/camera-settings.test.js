@@ -168,7 +168,22 @@ test('P160 timing sliders match the screenshot and reject out-of-range API value
     assert.match(driver, /rec_time < 10 or rec_time > 15/);
 });
 
-test('P160 restart waits for a result and video choices come from camera metadata', () => {
+test('P160 storage format keeps the loading state long enough for the API result', () => {
+    const start = driver.indexOf('function FORMAT_STORAGE(');
+    const end = driver.indexOf('function ExecuteCommand(', start);
+    const format = driver.slice(start, end);
+    assert.match(javascript, /kind === 'format' \? 120000 : 20000/);
+    assert.match(javascript, /Format request timed out/);
+    assert.match(javascript, /Formatted Successfully/);
+    assert.doesNotMatch(javascript, /Format request submitted/);
+    assert.doesNotMatch(javascript, /Format command accepted/);
+    assert.match(format, /action_id = "ac_sd_reset"/);
+    assert.doesNotMatch(format, /Format confirmation required/);
+    assert.match(format, /\[FORMAT\] Response body:/);
+    assert.match(format, /send_result\(success, error_message\)/);
+});
+
+test('P160 restart waits for a result and video choices use camera metadata with screenshot wording', () => {
     const { context, document, commands, app } = fixture();
     context.handleReboot();
     assert.equal(document.getElementById('restartConfirmationDialog').hidden, false);
@@ -185,11 +200,33 @@ test('P160 restart waits for a result and video choices come from camera metadat
     context.onDataToUi(JSON.stringify({ type: 'restart_result', success: true }));
     assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
     assert.equal(document.getElementById('settingSaveToast').hidden, true);
-    context.updateCameraSettingsUI({ icut_mode: 3,
-        choices: { icut_mode: [{ value: 3, label: 'Camera supplied mode' }] } });
+    context.updateCameraSettingsUI({ record_mode: 1, icut_mode: 0, anti_flicker: 0,
+        choices: {
+            record_mode: [{ value: 0, label: '事件录像' }, { value: 1, label: '循环录像' }],
+            icut_mode: [{ value: 0, label: 'Automatic', description: 'API automatic description' },
+                { value: 1, label: 'OFF', description: 'API off description' }, { value: 2, label: 'ON', description: 'API on description' }],
+            anti_flicker: [{ value: 0, label: '0：关闭功能' }, { value: 1, label: '1：50Hz' }, { value: 2, label: '2：60Hz' }]
+        } });
+    assert.equal(document.getElementById('recordingModeValue').textContent, '24hr Continuous Record');
+    assert.equal(document.getElementById('nightVisionModeValue').textContent, 'Automatic');
+    assert.equal(document.getElementById('antiFlickerValue').textContent, 'OFF');
+    context.openMotionOption('recordingMode');
+    assert.equal(document.getElementById('motionOptionBody').children[0].children[0].textContent, 'Event Recording Mode');
+    assert.equal(document.getElementById('motionOptionBody').children[1].children[0].textContent, '24hr Continuous Record');
+    context.closeMotionOption();
+    context.openMotionOption('nightVisionMode');
+    assert.equal(document.getElementById('motionOptionBody').children[0].children[0].textContent, 'Automatic');
+    assert.equal(document.getElementById('motionOptionBody').children[0].children[1].textContent, 'API automatic description');
+    assert.equal(document.getElementById('motionOptionBody').children[1].children[0].textContent, 'OFF');
+    assert.equal(document.getElementById('motionOptionBody').children[2].children[0].textContent, 'ON');
+    context.closeMotionOption();
+    assert.match(driver, /\[P160_VIDEO_SETTINGS\]/);
     assert.equal(document.getElementById('nightVisionMode').disabled, false);
-    assert.equal(document.getElementById('nightVisionModeValue').textContent, 'Camera supplied mode');
-    assert.match(driver, /definition\.enumOptions/);
+    assert.equal(document.getElementById('nightVisionModeValue').textContent, 'Automatic');
+    assert.match(driver, /option\.value or option\.val/);
+    assert.match(driver, /option\.title or option\.name or option\.label/);
+    assert.match(driver, /option\.desc/);
+    assert.match(driver, /definition\.mapping/);
     assert.match(driver, /type = "restart_result"/);
     assert.match(driver, /return ExecuteCommand\(strCommand, tParams\)/);
 });
