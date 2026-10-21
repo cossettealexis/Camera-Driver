@@ -37,6 +37,7 @@ Complete Control4 driver for Slomins P160-SL IP Camera with full API integration
 - Opens on the camera viewer; the Settings gear opens Device Settings.
 - Matches K26/VD05 styling, loading overlays, and API-confirmed save feedback.
 - Event Time Settings reads recording time and interval from `motion` and saves both together while preserving the other motion fields.
+- Motion Detection shows only its enable toggle and Detection Type. Event Time Settings uses Maximum Event Recording Length (10-15s) and Event Trigger Interval (0-120s) sliders; Confirm submits both values together.
 - Audio, video, storage, device information, and notification history read API values. Video enum choices require the camera's returned definitions.
 - Restart, rename, speaker, microphone, and storage formatting wait for driver acknowledgements.
 - Live video in this WebView is not wired; it displays "Live stream not available". Existing Control4 camera-proxy streaming is unchanged.

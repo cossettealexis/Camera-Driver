@@ -45,6 +45,13 @@ test('P160 opens the viewer and has the screenshot home labels in order', () => 
     assert.doesNotMatch(icons, /settings_\d+\.png/);
     assert.match(html, /id="viewerPanel" class="panel active"/);
     assert.match(html, /onclick="show\('homePanel'\)" aria-label="Settings"/);
+    assert.match(home, /onclick="handleReboot\(\)"[^>]*><span>Restart<\/span>/);
+    assert.doesNotMatch(html, /id="rebootPanel"|id="rebootBtn"/);
+    const toolbar = html.match(/<div class="toolbar" id="p160ViewerAlternateToolbar"[\s\S]*?<\/div>/)[0];
+    assert.match(toolbar, /id="p160ViewerAlbum"[\s\S]*id="p160ViewerVideo"[\s\S]*id="p160ViewerAlarm"[\s\S]*id="p160ViewerToolbarBack"/);
+    assert.doesNotMatch(toolbar, /Notifications|rotate-ccw/);
+    assert.match(toolbar, /id="p160ViewerVideo"[^>]*disabled/);
+    assert.match(toolbar, /id="p160ViewerAlarm"[^>]*disabled/);
     const home = html.match(/<section id="homePanel"[\s\S]*?<\/section>/)[0];
     const labels = ['Plug-In Camera', 'Motion Detection', 'Event Time Settings', 'Video Settings',
         'Audio Settings', 'Notification Settings', 'Internal Storage', 'Device Information',
@@ -59,6 +66,36 @@ test('P160 opens the viewer and has the screenshot home labels in order', () => 
     assert.doesNotMatch(home, /Status Light/);
     assert.doesNotMatch(html, /41 Days|We have provided 41/);
     assert.ok(html.indexOf('<footer') > html.indexOf('</head>'));
+});
+
+test('P160 video settings use API recording-mode choices and values', () => {
+    const video = html.match(/<section id="videoSettingsPanel"[\s\S]*?<\/section>/)[0];
+    const controls = ['Recording Mode', 'Night Vision Mode', 'Anti-Flicker', 'Flip Image', 'Time Watermark'];
+    let previous = -1;
+    for (const label of controls) {
+        const position = video.indexOf('>' + label + '<');
+        assert.ok(position > previous, label);
+        previous = position;
+    }
+    assert.match(driver, /video = \{ "record_mode", "icut_mode", "anti_flicker", "flip_swt", "mark" \}/);
+    assert.match(driver, /elseif key == "record_mode" or key == "icut_mode"/);
+
+    const { context, document, commands } = fixture();
+    context.requestCameraSettings('video');
+    const request = JSON.parse(commands[0][1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, complete: true, success: true,
+        settings: { record_mode: 1, choices: { record_mode: [
+            { value: 0, label: 'Event Recording Mode' }, { value: 1, label: '24hr Continuous Record' }
+        ], icut_mode: [{ value: 0, label: 'Automatic' }], anti_flicker: [{ value: 0, label: 'OFF' }] },
+        icut_mode: 0, anti_flicker: 0, flip_swt: 0, mark: 1 } }));
+    assert.equal(document.getElementById('recordingMode').disabled, false);
+    assert.equal(document.getElementById('recordingModeValue').textContent, '24hr Continuous Record');
+    context.openMotionOption('recordingMode');
+    assert.equal(document.getElementById('motionOptionTitle').textContent, 'Recording Mode');
+    assert.equal(document.getElementById('motionOptionBody').children[1].children[0].textContent, '24hr Continuous Record');
+    context.motionOptionDraft.value = 0;
+    context.confirmMotionOption();
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'record_mode', value: 0 });
 });
 
 test('P160 startup device-info loading finishes from the correlated API response', () => {
@@ -81,25 +118,73 @@ test('P160 event timing is API-loaded and both times are sent in one acknowledge
     const request = JSON.parse(commands.at(-1)[1]);
     assert.equal(document.getElementById('saveEventTimes').disabled, true);
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, complete: true,
-        success: true, settings: { motion_rec_time: 30, motion_interval: 60 } }));
+        success: true, settings: { motion_rec_time: 15, motion_interval: 60 } }));
     assert.equal(document.getElementById('saveEventTimes').disabled, false);
-    document.getElementById('eventRecordingTime').value = '45';
+    assert.equal(document.getElementById('eventRecordingTimeValue').textContent, '15');
+    assert.equal(document.getElementById('eventIntervalValue').textContent, '60');
+    document.getElementById('eventRecordingTime').value = '10';
     document.getElementById('eventInterval').value = '90';
+    document.getElementById('eventRecordingTime').dispatch('input');
+    document.getElementById('eventInterval').dispatch('input');
+    assert.equal(commands.length, 1, 'dragging sliders must not issue API writes');
+    assert.equal(document.getElementById('eventRecordingTimeValue').textContent, '10');
+    assert.equal(document.getElementById('eventIntervalValue').textContent, '90');
     document.getElementById('saveEventTimes').dispatch('click');
-    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'motion', rec_time: 45, interval: 90 });
+    assert.deepEqual(JSON.parse(commands.at(-1)[1]), { key: 'motion', rec_time: 10, interval: 90 });
     assert.equal(document.getElementById('settingSaveOverlay').hidden, false);
     context.onDataToUi(JSON.stringify({ type: 'camera_settings', success: true, setting_saved: true,
-        settings: { motion_rec_time: 45, motion_interval: 90 } }));
+        settings: { motion_rec_time: 10, motion_interval: 90 } }));
     assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
     assert.match(driver, /motion\.rec_time = change\.rec_time[\s\S]*motion\.interval = change\.interval/);
 });
 
+test('P160 motion only shows toggle and type and waits only for those API fields', () => {
+    const panel = html.match(/<section id="motionDetectionPanel"[\s\S]*?<\/section>/)[0];
+    assert.match(panel, /id="motionDetectionToggle"/);
+    assert.match(panel, /id="motionDetectionType"/);
+    assert.doesNotMatch(panel, /Detection Sensitivity|Set Detection Zone|Facial Recognition|Face Management/);
+    const { context, document, commands } = fixture();
+    context.requestCameraSettings('motion');
+    const request = JSON.parse(commands.at(-1)[1]);
+    context.onDataToUi(JSON.stringify({ type: 'camera_settings', ...request, success: true,
+        settings: { motion_switch: 1, motion_type: 1 }, complete: true }));
+    assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
+    assert.equal(document.getElementById('motionDetectionToggle').checked, true);
+    assert.equal(document.getElementById('motionDetectionTypeValue').textContent, 'Person Detection');
+});
+
+test('P160 timing sliders match the screenshot and reject out-of-range API values', () => {
+    const panel = html.match(/<section id="eventTimePanel"[\s\S]*?<\/section>/)[0];
+    assert.match(panel, /Maximum Event Recording Length/);
+    assert.match(panel, /Event Trigger Interval/);
+    assert.match(panel, /id="eventRecordingTime" type="range" min="10" max="15"/);
+    assert.match(panel, /id="eventInterval" type="range" min="0" max="120"/);
+    assert.match(panel, /class="storage-footer"[\s\S]*id="saveEventTimes"/);
+    const { context, document, commands } = fixture();
+    context.updateCameraSettingsUI({ motion_rec_time: 30, motion_interval: 60 });
+    assert.equal(document.getElementById('saveEventTimes').disabled, true);
+    document.getElementById('saveEventTimes').dispatch('click');
+    assert.equal(commands.length, 0);
+    assert.match(driver, /rec_time < 10 or rec_time > 15/);
+});
+
 test('P160 restart waits for a result and video choices come from camera metadata', () => {
-    const { context, document } = fixture();
+    const { context, document, commands, app } = fixture();
     context.handleReboot();
+    assert.equal(document.getElementById('restartConfirmationDialog').hidden, false);
+    assert.equal(commands.length, 0);
+    assert.match(html, /Are you sure you want to restart this device\?/);
+    context.closeRestartConfirmation();
+    assert.equal(commands.length, 0);
+    context.handleReboot();
+    context.confirmRestart();
+    assert.equal(commands.at(-1)[0], 'REBOOT_DEVICE');
     assert.equal(document.getElementById('settingSaveOverlay').hidden, false);
+    assert.equal(document.getElementById('settingSaveLabel').textContent, 'Restarting device please wait');
+    assert.equal(app.inert, true);
     context.onDataToUi(JSON.stringify({ type: 'restart_result', success: true }));
     assert.equal(document.getElementById('settingSaveOverlay').hidden, true);
+    assert.equal(document.getElementById('settingSaveToast').hidden, true);
     context.updateCameraSettingsUI({ icut_mode: 3,
         choices: { icut_mode: [{ value: 3, label: 'Camera supplied mode' }] } });
     assert.equal(document.getElementById('nightVisionMode').disabled, false);
@@ -120,10 +205,27 @@ test('P160 history verifies returned VID and does not invent doorbell visitor ev
     assert.match(handler, /item\.vid == tostring\(vid\)/);
     assert.doesNotMatch(handler, /vid = item\.vid or vid/);
     assert.match(handler, /has_more = #notifications >= page_size/);
+    assert.match(handler, /desc = type\(item\.desc\) == "string" and item\.desc or ""/);
     const { context } = fixture();
     const presentation = context.describeP160Notification({ message_type: 'door bell', device_name: 'Plug-In Camera' });
     assert.equal(presentation.title, 'Camera Event');
     assert.equal(presentation.detail, 'Reported type: door bell');
     assert.equal(presentation.description, 'Plug-In Camera');
     assert.doesNotMatch(javascript, /received a visitor click on the doorbell/);
+});
+
+test('P160 uses API descriptions when message_type conflicts with the actual event', () => {
+    const { context } = fixture();
+    const examples = [
+        { message_type: 'door_bell', desc: "CA Plug-In Camera detected someone's presence", title: 'Human Detection Event' },
+        { message_type: 'door_bell', desc: 'CA Plug-In Camera detected abnormal movement', title: 'Motion Detection Event' },
+        { message_type: 'move_detect', desc: 'CA Plug-In Camera has entered offline mode', title: 'Camera Offline Event' },
+        { message_type: 'door_bell', desc: 'Camera supplied description', title: 'Camera Event' }
+    ];
+    for (const example of examples) {
+        const presentation = context.describeP160Notification({ ...example, device_name: 'CA Plug-In Camera' });
+        assert.equal(presentation.title, example.title);
+        assert.equal(presentation.description, example.desc);
+        assert.equal(presentation.detail, undefined);
+    }
 });

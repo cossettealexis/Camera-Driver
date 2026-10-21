@@ -486,7 +486,7 @@
         .tool-btn.primary { width: 88px; height: 88px; flex-basis: 88px; background: #4b5877; }
         .tool-btn.primary svg { width: 34px; height: 34px; }
         .tool-btn:disabled { opacity: .9; cursor: not-allowed; }
-        #p160ViewerZoom:disabled, #p160ViewerSnapshot:disabled, #p160ViewerAlarm:disabled { opacity: .4; cursor: not-allowed; }
+        #p160ViewerZoom:disabled, #p160ViewerSnapshot:disabled, #p160ViewerVideo:disabled, #p160ViewerAlarm:disabled { opacity: .4; cursor: not-allowed; }
         #p160ViewerMic.is-active { background: #4b5877; }
         #p160ViewerMic.is-muted { opacity: .66; }
         #p160ViewerSpeaker.is-muted { opacity: .66; }
@@ -543,7 +543,15 @@
         .settings-status-row input[aria-busy="true"] + .slider:before { width: 26px; transform: translateX(19px); }
         .settings-status-row input:checked + .slider:before { transform: translateX(22px); }
         .settings-detail { max-width: 48%; color: var(--muted); font-size: 15px; text-align: right; overflow-wrap: anywhere; }
-        #eventTimePanel input { width: 90px; min-height: 40px; flex-shrink: 0; padding: 6px 10px; border: 1px solid #555; border-radius: 8px; background: #292929; color: white; font-size: 18px; text-align: right; }
+        .event-time-content { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; }
+        .event-time-setting { margin-bottom: 42px; }
+        .event-time-setting > label { display: block; margin-bottom: 8px; font-size: var(--setting-label-size); line-height: 1.4; }
+        .event-time-range { position: relative; margin: 0 20px; padding-top: 30px; }
+        .event-time-range input { appearance: none; display: block; width: 100%; height: 7px; margin: 0; border: 0; border-radius: 5px; background: linear-gradient(to right,#f51b53 var(--event-fill,0%),#aaa var(--event-fill,0%)); cursor: pointer; }
+        .event-time-range input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border: 0; border-radius: 50%; background: #d61143; }
+        .event-time-range input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #d61143; }
+        .event-time-range output { position: absolute; top: 0; transform: translateX(-50%); color: #f51b53; font-size: var(--setting-help-size); }
+        .event-time-bounds { display: flex; justify-content: space-between; margin-top: 14px; color: #aaa; font-size: var(--setting-help-size); }
         #eventTimePanel input:disabled, #saveEventTimes:disabled { opacity: .4; cursor: not-allowed; }
         .settings-delete { justify-content: center; min-height: 62px; color: #e33232; }
         .settings-subpage { flex: 1; min-height: 0; overflow-y: auto; width: 100%; margin: 0 auto; padding: 18px 24px 40px; }
@@ -822,9 +830,9 @@
                     <button class="tool-btn" id="p160ViewerEndCall" type="button" aria-label="More camera controls" title="More camera controls"><i data-lucide="circle-arrow-left"></i></button>
                 </div>
                 <div class="toolbar" id="p160ViewerAlternateToolbar" hidden>
-                    <button class="tool-btn" id="p160ViewerAlarm" type="button" aria-label="Alarm unavailable" title="Alarm unavailable" disabled><i data-lucide="bell-ring"></i></button>
-                    <button class="tool-btn" id="p160ViewerAlbum" type="button" aria-label="Open latest snapshot" title="Open latest snapshot"><i data-lucide="image"></i></button>
-                    <button class="tool-btn" id="p160ViewerNotifications" type="button" aria-label="Notifications" title="Notifications"><i data-lucide="rotate-ccw"></i></button>
+                    <button class="tool-btn" id="p160ViewerAlbum" type="button" aria-label="Album" title="Album"><i data-lucide="images"></i></button>
+                    <button class="tool-btn" id="p160ViewerVideo" type="button" aria-label="Video unavailable" title="Video unavailable" disabled><i data-lucide="film"></i></button>
+                    <button class="tool-btn" id="p160ViewerAlarm" type="button" aria-label="Alarm unavailable" title="Alarm unavailable" disabled><i data-lucide="siren"></i></button>
                     <button class="tool-btn" id="p160ViewerToolbarBack" type="button" aria-label="Back to camera controls" title="Back"><i data-lucide="x"></i></button>
                 </div>
             </main>
@@ -863,20 +871,24 @@
                     <button class="settings-row" disabled title="Firmware update action is not available from the P160 driver"><span>Check Firmware Update</span><span class="settings-detail" id="firmwareAvailability">...</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
                 <div class="settings-group"><button class="settings-row" type="button" onclick="openC4AuthenticationService()"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
-                <div class="settings-group"><button class="settings-row" onclick="show('rebootPanel')"><span>Restart</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row" onclick="handleReboot()"><span>Restart</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
                 <div class="settings-group"><button class="settings-row settings-delete" disabled title="Device deletion is not available from this driver">Delete Device</button></div>
             </div>
         </section>
 
         <section id="eventTimePanel" class="panel">
             <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Event Time Settings</h1><div></div></div>
-            <div class="settings-subpage">
-                <div class="settings-group">
-                    <label class="settings-row" for="eventRecordingTime"><span>Event Recording Time</span><input id="eventRecordingTime" type="number" min="0" max="60" step="1" disabled></label>
-                    <label class="settings-row" for="eventInterval"><span>Event Interval</span><input id="eventInterval" type="number" min="0" max="120" step="1" disabled></label>
+            <div class="event-time-content">
+                <div class="event-time-setting">
+                    <label for="eventRecordingTime">Maximum Event Recording Length</label>
+                    <div class="event-time-range"><output id="eventRecordingTimeValue" for="eventRecordingTime">...</output><input id="eventRecordingTime" type="range" min="10" max="15" step="1" disabled><div class="event-time-bounds"><span>10s</span><span>15s</span></div></div>
                 </div>
-                <button class="btn" id="saveEventTimes" disabled>Confirm</button>
+                <div class="event-time-setting">
+                    <label for="eventInterval">Event Trigger Interval</label>
+                    <div class="event-time-range"><output id="eventIntervalValue" for="eventInterval">...</output><input id="eventInterval" type="range" min="0" max="120" step="1" disabled><div class="event-time-bounds"><span>0s</span><span>120s</span></div></div>
+                </div>
             </div>
+            <div class="storage-footer"><button class="format-storage-button" id="saveEventTimes" disabled>Confirm</button></div>
         </section>
         <section id="audioSettingsPanel" class="panel">
             <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Audio Settings</h1><div></div></div>
@@ -887,6 +899,7 @@
         <section id="videoSettingsPanel" class="panel">
             <div class="settings-bar"><button class="back" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button><h1>Video Settings</h1><div></div></div>
             <div class="settings-subpage video-settings">
+                <div class="settings-group"><button class="settings-row" id="recordingMode" onclick="openMotionOption('recordingMode')" disabled><span>Recording Mode</span><span class="motion-choice-value"><span id="recordingModeValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
                 <div class="settings-group"><button class="settings-row" id="nightVisionMode" onclick="openMotionOption('nightVisionMode')" disabled><span>Night Vision Mode</span><span class="motion-choice-value"><span id="nightVisionModeValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
                 <div class="settings-group"><button class="settings-row" id="antiFlicker" onclick="openMotionOption('antiFlicker')" disabled><span>Anti-Flicker</span><span class="motion-choice-value"><span id="antiFlickerValue">...</span><i data-lucide="chevron-right" class="chevron"></i></span></button></div>
                 <div class="settings-group"><div class="settings-row"><label for="flipImageToggle">Flip Image</label><label class="toggle"><input id="flipImageToggle" type="checkbox" aria-label="Flip Image" disabled><span class="slider"></span></label></div></div>
@@ -945,14 +958,6 @@
                 </div>
                 <div class="p160-motion-card" id="motionSettingsGroup" hidden>
                     <button class="p160-motion-row motion-choice-row" id="motionDetectionType" onclick="openMotionOption('motionDetectionType')" disabled><span class="p160-motion-name">Detection Type</span><span class="motion-choice-value"><span id="motionDetectionTypeValue">...</span><i data-lucide="chevron-right"></i></span></button>
-                    <button class="p160-motion-row motion-choice-row" id="motionSensitivity" onclick="openMotionOption('motionSensitivity')" disabled><span class="p160-motion-name">Detection Sensitivity</span><span class="motion-choice-value"><span id="motionSensitivityValue">...</span><i data-lucide="chevron-right"></i></span></button>
-                    <button class="p160-motion-row p160-motion-link" id="motionZoneOpen" type="button" disabled><span><span class="p160-motion-name">Set Detection Zone</span><span class="p160-motion-desc" style="display:block">Set the alarm area you are concerned about.</span></span><i data-lucide="chevron-right" class="chevron"></i></button>
-                </div>
-                <div class="p160-motion-card">
-                    <div class="p160-motion-row" id="facialRecognitionRow"><label for="faceRecEnable">Facial Recognition</label><label class="toggle"><input type="checkbox" id="faceRecEnable" aria-label="Facial Recognition" disabled><span class="slider"></span></label></div>
-                    <button class="p160-motion-row motion-choice-row" id="faceSimilarity" data-face-option hidden onclick="openMotionOption('faceSimilarity')" disabled><span class="p160-motion-name">Face Similarity Threshold</span><span class="motion-choice-value"><span id="faceSimilarityValue">...</span><i data-lucide="chevron-right"></i></span></button>
-                    <button class="p160-motion-row motion-choice-row" id="faceQuality" data-face-option hidden onclick="openMotionOption('faceQuality')" disabled><span class="p160-motion-name">Face Image Quality Threshold</span><span class="motion-choice-value"><span id="faceQualityValue">...</span><i data-lucide="chevron-right"></i></span></button>
-                    <button class="p160-motion-row p160-motion-link" id="p160FaceManagement" type="button" title="Face management is unavailable" disabled hidden><span class="p160-motion-name">Face Management</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
                 <div id="p160MotionStatus" class="p160-motion-status" role="status"></div>
             </div>
@@ -972,21 +977,6 @@
             </div>
         </section>
 
-        <!-- REBOOT -->
-        <section id="rebootPanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('homePanel')" aria-label="Back">
-                    <i data-lucide="arrow-left"></i>
-                </button>
-            </div>
-            <div class="content">
-                <i data-lucide="rotate-cw" class="bigIcon"></i>
-                <div class="h2">Restart</div>
-                <button class="btn" id="rebootBtn">
-                    Restart
-                </button>
-            </div>
-        </section>
         <!-- MIC -->
         <section id="micPanel" class="panel">
             <div class="topbar">
@@ -1033,6 +1023,9 @@
     </div>
     <div class="c4-pairing-dialog" id="devicePairingDialog" role="dialog" aria-modal="true" aria-labelledby="devicePairingDialogTitle" hidden>
         <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="devicePairingDialogTitle">Tips</h2><p class="c4-pairing-dialog-copy">Confirm whether to enable device pairing mode?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closePairingModeConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmPairingMode()">Confirm</button></div></div>
+    </div>
+    <div class="c4-pairing-dialog" id="restartConfirmationDialog" role="dialog" aria-modal="true" aria-labelledby="restartConfirmationTitle" hidden>
+        <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="restartConfirmationTitle">Tips</h2><p class="c4-pairing-dialog-copy">Are you sure you want to restart this device?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closeRestartConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmRestart()">OK</button></div></div>
     </div>
     <div class="storage-format-overlay" id="storageFormatDialog" role="dialog" aria-modal="true" aria-labelledby="storageFormatTitle" hidden>
         <div class="storage-format-card"><h2 class="storage-format-title" id="storageFormatTitle">Format Local Storage</h2><div class="storage-format-warning">WARNING: This operation will format the local storage, and all saved videos and records will be permanently lost and cannot be recovered. Proceed with caution.<br>The device cannot connect to the App during formatting. Do not leave this page.<br>The device will restart after formatting is complete.<br>By clicking &quot;Next,&quot; you confirm that you fully understand the purpose and consequences of the formatting operation.</div><div class="device-name-actions"><button class="device-name-cancel" id="cancelStorageFormat" onclick="closeStorageFormat()">Cancel</button><button class="device-name-confirm" id="confirmStorageFormat" onclick="confirmStorageFormat()">Next</button></div></div>

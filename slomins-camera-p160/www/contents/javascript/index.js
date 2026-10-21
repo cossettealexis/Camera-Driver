@@ -40,18 +40,8 @@ const motionOptionSpecs = {
         key: 'motion.type', title: 'Detection Type', labels: ['Motion Detection', 'Person Detection'],
         descriptions: ['All detected movements trigger events', 'Only people can trigger the detector']
     },
-    motionSensitivity: {
-        key: 'motion.sen', title: 'Detection Sensitivity', min: 0, max: 2, slider: true,
-        labels: ['Low', 'Medium', 'High'], immediate: true,
-        description: 'Motion detected in zone. Starting recording.'
-    },
-    faceSimilarity: {
-        key: 'unknow_thld', title: 'Face Similarity Threshold', min: 1, max: 99, slider: true,
-        description: 'The higher the threshold, the fewer misjudgments in facial recognition, but the probability of missed judgments may increase'
-    },
-    faceQuality: {
-        key: 'unknow_faceq', title: 'Face Image Quality Threshold', immediate: true,
-        labels: ['Low', 'Medium', 'High'], description: 'Filter low-quality facial images according to the set threshold'
+    recordingMode: {
+        key: 'record_mode', title: 'Recording Mode', values: [], labels: [], descriptions: []
     },
     nightVisionMode: {
         key: 'icut_mode', title: 'Night Vision Mode', immediate: true,
@@ -79,6 +69,7 @@ function updateSettingSaveOverlay() {
         (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || pendingSettingSaves.values().next().value?.label || 'Setting up...');
     const app = document.querySelector('.app');
     if (app) app.inert = pending || !document.getElementById('deviceNameSheet').hidden || !document.getElementById('storageFormatDialog').hidden ||
+        !document.getElementById('restartConfirmationDialog').hidden ||
         !document.getElementById('faceNamingSheet').hidden || !document.getElementById('faceDeleteConfirmation').hidden;
     if (pending) overlay.focus();
 }
@@ -130,7 +121,7 @@ function finishSettingSave(kind, success, error, message = 'Settings saved') {
     if (kind === 'name') updateDeviceNameConfirm();
     updateSettingSaveOverlay();
     if (!success) showSettingToast(error || 'Unable to save settings');
-    else if (!settingsLoading && pendingSettingSaves.size === 0 && !settingSaveFailed) showSettingToast(message);
+    else if (message && !settingsLoading && pendingSettingSaves.size === 0 && !settingSaveFailed) showSettingToast(message);
 }
 
 function closeMotionOption() {
@@ -237,32 +228,23 @@ function updateMotionChoiceLabels() {
 function updateMotionVisibility() {
     const motion = document.getElementById('motionDetectionToggle');
     document.getElementById('motionSettingsGroup').hidden = motion.indeterminate || !motion.checked;
-    const facial = document.getElementById('faceRecEnable');
-    document.getElementById('facialRecognitionRow').style.borderBottom = facial.indeterminate || !facial.checked ? '0' : '';
-    ['faceSimilarity', 'faceQuality'].forEach(id => {
-        const row = document.getElementById(id);
-        row.hidden = facial.indeterminate || !facial.checked || row.disabled;
-    });
-    document.getElementById('p160FaceManagement').hidden = !facial.indeterminate && !facial.checked;
 }
 
 function resetCameraSettings() {
     latestCameraSettings = {};
     updateViewerSpeaker(latestCameraSettings.beep_vol);
-    ['motionDetectionToggle', 'faceRecEnable', 'flipImageToggle', 'timeWatermarkToggle',
+    ['motionDetectionToggle', 'flipImageToggle', 'timeWatermarkToggle',
         'appAlertNotification', 'appMotionNotification', 'appOfflineNotification', 'appEventNotification'].forEach(id => {
         const control = document.getElementById(id);
         control.disabled = true;
         control.indeterminate = true;
         control.checked = false;
     });
-    ['motionDetectionType', 'motionSensitivity', 'faceSimilarity', 'faceQuality', 'nightVisionMode', 'antiFlicker', 'speakerVolume', 'p160ZoneX', 'p160ZoneY', 'p160ZoneWidth', 'p160ZoneHeight'].forEach(id => {
+    ['motionDetectionType', 'recordingMode', 'nightVisionMode', 'antiFlicker', 'speakerVolume'].forEach(id => {
         const control = document.getElementById(id);
         control.disabled = true;
         control.value = '';
     });
-    document.getElementById('motionZoneOpen').disabled = true;
-    document.getElementById('p160ZoneSave').disabled = true;
     document.getElementById('speakerVolumeValue').textContent = '...';
     ['storageTotal', 'storageAvailable', 'storageStatus'].forEach(id => { document.getElementById(id).textContent = '...'; });
     document.getElementById('formatStorageButton').disabled = true;
@@ -271,6 +253,7 @@ function resetCameraSettings() {
         control.disabled = true;
         if (id !== 'saveEventTimes') control.value = '';
     });
+    updateEventTimePreview();
     updateMotionChoiceLabels();
     updateMotionVisibility();
 }
@@ -290,13 +273,7 @@ function cameraSettingsReady() {
             .every(id => !document.getElementById(id).disabled);
     }
     const motion = document.getElementById('motionDetectionToggle');
-    const facial = document.getElementById('faceRecEnable');
-    if (motion.disabled || facial.disabled) return false;
-    const motionReady = !motion.checked || ['motionDetectionType', 'motionSensitivity', 'p160ZoneSave']
-        .every(id => !document.getElementById(id).disabled);
-    const facialReady = !facial.checked || ['faceSimilarity', 'faceQuality']
-        .every(id => !document.getElementById(id).disabled);
-    return motionReady && facialReady;
+    return !motion.disabled && (!motion.checked || !document.getElementById('motionDetectionType').disabled);
 }
 
 function fitP160LivePreviewFrame() {
@@ -424,6 +401,14 @@ function loadMoreP160Notifications() {
 }
 
 function describeP160Notification(item) {
+    const description = typeof item.desc === 'string' ? item.desc.trim() : '';
+    if (description) {
+        let title = 'Camera Event';
+        if (/detected someone's presence/i.test(description)) title = 'Human Detection Event';
+        else if (/detected (?:abnormal movement|motion)/i.test(description)) title = 'Motion Detection Event';
+        else if (/has entered offline mode/i.test(description)) title = 'Camera Offline Event';
+        return { title, description };
+    }
     const rawType = String(item.message_type || 'Notification').trim();
     const normalized = rawType.toLowerCase().replace(/[\s-]+/g, '_');
     const device = item.device_name || 'Camera';
@@ -559,7 +544,6 @@ function initP160ViewerControls() {
     document.getElementById('p160ViewerFullscreen').addEventListener('click', toggleP160ViewerFullscreen);
     document.getElementById('p160ZoomChip').addEventListener('click', cycleP160LiveZoom);
     document.getElementById('p160ViewerAlbum').addEventListener('click', openLatestP160Snapshot);
-    document.getElementById('p160ViewerNotifications').addEventListener('click', openP160ViewerNotifications);
     document.getElementById('p160ViewerToolbarBack').addEventListener('click', () => toggleP160ViewerToolbar(false));
     document.addEventListener('fullscreenchange', () => {
         const player = document.getElementById('p160CameraView');
@@ -579,7 +563,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeControl4();
     initP160ViewerControls();
     initMicrophone();
-    initReboot();
     initDeviceName();
     initSnapshot();
     initCameraSettings();
@@ -707,17 +690,30 @@ function setCameraSettingsStatus(message) {
     if (status) status.innerText = message || '';
 }
 
+function updateEventTimePreview() {
+    [['eventRecordingTime', 10, 15], ['eventInterval', 0, 120]].forEach(([id, minimum, maximum]) => {
+        const control = document.getElementById(id);
+        const progress = control.disabled ? 0 : (Number(control.value) - minimum) / (maximum - minimum);
+        control.style.setProperty('--event-fill', `${progress * 100}%`);
+        const output = document.getElementById(`${id}Value`);
+        output.textContent = control.disabled ? '...' : control.value;
+        output.style.left = `calc(10px + ${progress * 100}% - ${progress * 20}px)`;
+    });
+}
+
 function updateCameraSettingsUI(settings) {
     latestCameraSettings = { ...latestCameraSettings, ...settings };
     const integerInRange = (value, limit) => value !== undefined && value !== null && value !== '' &&
         Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= limit;
-    const eventReady = integerInRange(latestCameraSettings.motion_rec_time, 60) && integerInRange(latestCameraSettings.motion_interval, 120);
+    const eventReady = integerInRange(latestCameraSettings.motion_rec_time, 15) && Number(latestCameraSettings.motion_rec_time) >= 10 &&
+        integerInRange(latestCameraSettings.motion_interval, 120);
     document.getElementById('saveEventTimes').disabled = !eventReady;
     [['eventRecordingTime', 'motion_rec_time'], ['eventInterval', 'motion_interval']].forEach(([id, key]) => {
         const control = document.getElementById(id);
         control.disabled = !eventReady;
         control.value = eventReady ? String(latestCameraSettings[key]) : '';
     });
+    updateEventTimePreview();
     const motionEnabled = Number(latestCameraSettings.motion_switch) === 1;
     const motionToggle = document.getElementById('motionDetectionToggle');
     if (motionToggle && integerInRange(latestCameraSettings.motion_switch, 1)) {
@@ -728,39 +724,30 @@ function updateCameraSettingsUI(settings) {
     const motionGroup = document.getElementById('motionSettingsGroup');
     if (motionGroup) motionGroup.hidden = !motionEnabled;
 
-    [
-        ['motionDetectionType', 'motion_type'],
-        ['motionSensitivity', 'motion_sen']
-    ].forEach(([id, key]) => {
+    [['motionDetectionType', 'motion_type']].forEach(([id, key]) => {
         const control = document.getElementById(id);
         if (control && integerInRange(latestCameraSettings[key], key === 'motion_type' ? 1 : 2)) {
             control.value = String(latestCameraSettings[key]);
             control.disabled = false;
         }
     });
-    const facial = document.getElementById('faceRecEnable');
-    if (integerInRange(latestCameraSettings.unknow_snapswt, 1)) {
-        facial.checked = Number(latestCameraSettings.unknow_snapswt) === 1;
-        facial.indeterminate = false;
-        facial.disabled = false;
-    }
-    const similarity = latestCameraSettings.unknow_thld;
-    if (similarity !== undefined && similarity !== null && similarity !== '' &&
-        Number.isFinite(Number(similarity)) && Number(similarity) >= .01 && Number(similarity) <= .99) {
-        const control = document.getElementById('faceSimilarity');
-        control.value = String(Number(similarity));
-        control.disabled = false;
-    }
-    if (integerInRange(latestCameraSettings.unknow_faceq, 2)) {
-        const control = document.getElementById('faceQuality');
-        control.value = String(latestCameraSettings.unknow_faceq);
-        control.disabled = false;
-    }
-    [['nightVisionMode', 'icut_mode'], ['antiFlicker', 'anti_flicker']].forEach(([id, key]) => {
+    [['recordingMode', 'record_mode'], ['nightVisionMode', 'icut_mode'], ['antiFlicker', 'anti_flicker']].forEach(([id, key]) => {
         const value = latestCameraSettings[key];
         const choices = latestCameraSettings.choices?.[key] || [];
-        motionOptionSpecs[id].values = choices.map(option => Number(option.value));
-        motionOptionSpecs[id].labels = choices.map(option => String(option.label));
+        const spec = motionOptionSpecs[id];
+        spec.values = choices.map(option => Number(option.value));
+        if (id === 'recordingMode') {
+            const modeLabels = choices.map(option => {
+                const label = String(option.label || '');
+                if (/event/i.test(label)) return 'Event Recording Mode';
+                if (/continuous|24\s*hr/i.test(label)) return '24hr Continuous Record';
+                return label;
+            });
+            spec.labels = modeLabels;
+            spec.descriptions = modeLabels.map(label => label === 'Event Recording Mode'
+                ? 'In Event Recording Mode, the device is woken up by events to record, which provides longer battery life.'
+                : label === '24hr Continuous Record' ? '24-Hour Uninterrupted Recording' : '');
+        } else spec.labels = choices.map(option => String(option.label));
         const valid = value !== undefined && value !== null && value !== '' && motionOptionSpecs[id].values.includes(Number(value));
         if (valid) {
             const control = document.getElementById(id);
@@ -794,32 +781,18 @@ function updateCameraSettingsUI(settings) {
         document.getElementById('storageAvailable').textContent = `${Number((Number(capacity) * (1 - Number(usage) / 100)).toFixed(2))} GB`;
         document.getElementById('formatStorageButton').disabled = false;
     } else document.getElementById('formatStorageButton').disabled = Number(storageState) !== 2;
-    const zone = document.getElementById('motionZoneOpen');
-    if (zone && typeof latestCameraSettings.motion_x_y_w_h === 'string') {
-        const coordinates = latestCameraSettings.motion_x_y_w_h.split(':');
-        if (coordinates.length === 4 && coordinates.every(value => /^\d+$/.test(value))) {
-            ['p160ZoneX', 'p160ZoneY', 'p160ZoneWidth', 'p160ZoneHeight'].forEach((id, index) => {
-                const input = document.getElementById(id);
-                if (input) {
-                    input.value = coordinates[index];
-                    input.disabled = false;
-                }
-            });
-            zone.disabled = false;
-            const save = document.getElementById('p160ZoneSave');
-            if (save) save.disabled = false;
-        }
-    }
     updateMotionChoiceLabels();
     updateMotionVisibility();
 }
 
 function initCameraSettings() {
     resetCameraSettings();
+    ['eventRecordingTime', 'eventInterval'].forEach(id => document.getElementById(id).addEventListener('input', updateEventTimePreview));
     document.getElementById('saveEventTimes').addEventListener('click', () => {
         const rec_time = Number(document.getElementById('eventRecordingTime').value);
         const interval = Number(document.getElementById('eventInterval').value);
-        if (!Number.isInteger(rec_time) || rec_time < 0 || rec_time > 60 ||
+        if (document.getElementById('saveEventTimes').disabled || pendingSettingSaves.has('camera')) return;
+        if (!Number.isInteger(rec_time) || rec_time < 10 || rec_time > 15 ||
             !Number.isInteger(interval) || interval < 0 || interval > 120) return;
         beginSettingSave('camera');
         try { C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'motion', rec_time, interval }), false, true); }
@@ -827,21 +800,12 @@ function initCameraSettings() {
     });
     const motionToggle = document.getElementById('motionDetectionToggle');
     const detectionType = document.getElementById('motionDetectionType');
-    const sensitivity = document.getElementById('motionSensitivity');
-    const zoneOpen = document.getElementById('motionZoneOpen');
-    const zoneSave = document.getElementById('p160ZoneSave');
 
     if (motionToggle) motionToggle.addEventListener('change', () => {
         updateMotionVisibility();
         sendCameraSetting('motion.switch', motionToggle.checked ? 1 : 0);
     });
     if (detectionType) detectionType.addEventListener('change', () => sendCameraSetting('motion.type', detectionType.value));
-    if (sensitivity) sensitivity.addEventListener('change', () => sendCameraSetting('motion.sen', sensitivity.value));
-    const facial = document.getElementById('faceRecEnable');
-    facial.addEventListener('change', () => {
-        updateMotionVisibility();
-        sendCameraSetting('unknow_snapswt', facial.checked ? 1 : 0);
-    });
     [['flipImageToggle', 'flip_swt'], ['timeWatermarkToggle', 'mark']].forEach(([id, key]) => {
         const control = document.getElementById(id);
         control.addEventListener('change', () => sendCameraSetting(key, control.checked ? 1 : 0));
@@ -849,19 +813,6 @@ function initCameraSettings() {
     const volume = document.getElementById('speakerVolume');
     volume.addEventListener('input', updateSpeakerVolumePreview);
     volume.addEventListener('change', () => sendCameraSetting('beep_vol', Number(volume.value)));
-    if (zoneOpen) zoneOpen.addEventListener('click', () => show('detectionZonePanel'));
-    if (zoneSave) zoneSave.addEventListener('click', () => {
-        const coordinates = ['p160ZoneX', 'p160ZoneY', 'p160ZoneWidth', 'p160ZoneHeight']
-            .map(id => document.getElementById(id)?.value);
-        if (coordinates.some(value => !/^\d+$/.test(value || ''))) {
-            const status = document.getElementById('p160ZoneStatus');
-            if (status) status.innerText = 'Enter four whole-number coordinates';
-            return;
-        }
-        sendCameraSetting('motion.x_y_w_h', coordinates.join(':'));
-        const status = document.getElementById('p160ZoneStatus');
-        if (status) status.innerText = '';
-    });
 }
 
 function initializeControl4() {
@@ -1071,21 +1022,22 @@ function updateMicUI(muted) {
 }
 
 
-//Reboot
-function initReboot() {
-    const btn = document.getElementById('rebootBtn');
-    if (!btn) {
-        console.warn("rebootBtn not found");
-        return;
-    }
-
-    btn.removeEventListener('click', handleReboot);
-    btn.addEventListener('click', handleReboot);
-}
-
 function handleReboot() {
     if (pendingSettingSaves.has('restart')) return;
-    beginSettingSave('restart', 'Restarting...');
+    document.getElementById('restartConfirmationDialog').hidden = false;
+    updateSettingSaveOverlay();
+}
+
+function closeRestartConfirmation() {
+    document.getElementById('restartConfirmationDialog').hidden = true;
+    updateSettingSaveOverlay();
+}
+
+function confirmRestart() {
+    if (document.getElementById('restartConfirmationDialog').hidden || pendingSettingSaves.has('restart')) return;
+    closeRestartConfirmation();
+    if (pendingSettingSaves.has('restart')) return;
+    beginSettingSave('restart', 'Restarting device please wait');
     try {
         C4.sendCommand('REBOOT_DEVICE', '', false, true);
     } catch (error) {
@@ -1419,7 +1371,7 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'restart_result') {
-            finishSettingSave('restart', obj.success, obj.error, 'Restart command accepted');
+            finishSettingSave('restart', obj.success, obj.error, '');
             return;
         }
 

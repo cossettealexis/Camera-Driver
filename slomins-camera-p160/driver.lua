@@ -697,8 +697,8 @@ local property_choices = {}
 local settings_property_groups = {
     home = { "beep_vol" },
     event = { "motion" },
-    motion = { "motion", "unknow_snapswt", "unknow_thld", "unknow_faceq" },
-    video = { "icut_mode", "anti_flicker", "flip_swt", "mark" },
+    motion = { "motion" },
+    video = { "record_mode", "icut_mode", "anti_flicker", "flip_swt", "mark" },
     audio = { "beep_vol" },
     storage = { "stored" },
     notifications = {}
@@ -772,7 +772,7 @@ function GET_DEVICE_PROPERTY(property_name, callback, data_ids)
         local requested_ids = data_ids
         if requested_ids == nil then
             requested_ids = { "motion", "siren_swt", "light_swt", "unknow_snapswt", "unknow_thld", "unknow_faceq",
-                "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored", "indicator_swt" }
+                "record_mode", "icut_mode", "anti_flicker", "flip_swt", "mark", "beep_vol", "stored", "indicator_swt" }
         elseif requested_ids == false then requested_ids = nil end
         req.body = json.encode({
             vid = vid,
@@ -885,7 +885,8 @@ function GET_CAMERA_SETTINGS(params)
             choices = property_choices,
             siren_swt = values.siren_swt, light_swt = values.light_swt,
             unknow_snapswt = values.unknow_snapswt, unknow_thld = values.unknow_thld, unknow_faceq = values.unknow_faceq,
-            icut_mode = values.icut_mode, anti_flicker = values.anti_flicker, flip_swt = values.flip_swt, mark = values.mark,
+            record_mode = values.record_mode, icut_mode = values.icut_mode, anti_flicker = values.anti_flicker,
+            flip_swt = values.flip_swt, mark = values.mark,
             beep_vol = values.beep_vol, indicator_swt = values.indicator_swt
         }
         for _, field in ipairs({ "switch", "type", "sen", "x_y_w_h", "rec_time", "interval" }) do
@@ -920,7 +921,7 @@ local function process_p160_motion_setting()
         local data
         if change.key == "alarm" then
             data = { siren_swt = change.value, light_swt = change.value }
-        elseif change.key == "unknow_snapswt" or change.key == "unknow_thld" or change.key == "unknow_faceq" or
+        elseif change.key == "record_mode" or change.key == "unknow_snapswt" or change.key == "unknow_thld" or change.key == "unknow_faceq" or
             change.key == "icut_mode" or change.key == "anti_flicker" or change.key == "flip_swt" or change.key == "mark" or change.key == "beep_vol" or change.key == "indicator_swt" then
             if values[change.key] == nil then finish("Setting unavailable on this camera") return end
             data = { [change.key] = change.value }
@@ -971,7 +972,7 @@ function UPDATE_CAMERA_SETTING(params)
     if key == "motion" then
         local rec_time = tonumber(params.rec_time)
         local interval = tonumber(params.interval)
-        if not rec_time or rec_time % 1 ~= 0 or rec_time < 0 or rec_time > 60 or
+        if not rec_time or rec_time % 1 ~= 0 or rec_time < 10 or rec_time > 15 or
             not interval or interval % 1 ~= 0 or interval < 0 or interval > 120 then return reject() end
         table.insert(motion_setting_queue, { key = key, rec_time = rec_time, interval = interval })
     elseif key == "alarm" then
@@ -996,7 +997,7 @@ function UPDATE_CAMERA_SETTING(params)
         value = tonumber(value)
         if not value or value ~= value or value < 0.01 or value > 0.99 then return reject() end
         table.insert(motion_setting_queue, { key = key, value = value })
-    elseif key == "icut_mode" or key == "anti_flicker" then
+    elseif key == "record_mode" or key == "icut_mode" or key == "anti_flicker" then
         value = tonumber(value)
         local allowed = false
         for _, option in ipairs(property_choices[key] or {}) do
@@ -4716,7 +4717,8 @@ function GET_NOTIFICATION_HISTORY(params)
                     image_url = item.image_url or "",
                     video_url = item.video_url or "",
                     video_sec = tonumber(item.video_sec) or 0,
-                    message_type = item.message_type or ""
+                    message_type = item.message_type or "",
+                    desc = type(item.desc) == "string" and item.desc or ""
                 })
             end
         end
