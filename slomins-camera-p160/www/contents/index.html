@@ -40,18 +40,12 @@
             overflow: hidden;
         }
 
-        body {
-            display: flex;
-            flex-direction: column;
-        }
-
         /* =========================
    APP WRAPPER
 ========================= */
         .app {
             width: 100%;
-            flex: 1;
-            min-height: 0;
+            height: 100%;
         }
 
         /* =========================
@@ -258,24 +252,25 @@
         }
 
         .footer {
-            padding: 20px 16px;
+            padding: 12px 16px;
             background: var(--surface);
             border-top: 1px solid var(--border);
             text-align: center;
             font-size: 12px;
             color: var(--muted);
-            margin-top: auto;
+            margin-top: -80px !important;
         }
 
-        .version-info {
+       
+         .version-info {
             display: inline-block;
             text-align: left;
-            line-height: 1.5;
+            line-height: 0.9;
         }
         
         .version-info span {
             display: block;
-            margin: 4px 0;
+            margin: 0 !important;
         }
 
 
@@ -353,6 +348,16 @@
                     </div>
                     <i data-lucide="chevron-right" class="chevron"></i>
                 </div>
+                <div class="item" id="snapshotHomeBtn">
+                    <div class="left">
+                        <i data-lucide="camera" class="icon"></i>
+                        <div>
+                            <div class="title">Take Snapshot</div>
+                            <div class="subtitle">Capture current view</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="chevron"></i>
+                </div>
             </div>
         </section>
 
@@ -424,6 +429,19 @@
             <div class="desc" id="modalMessage">Device name updated successfully!</div>
             <br>
             <button class="btn" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+     <div id="snapshotModal" class="modal">
+        <div class="modal-content">
+            <div class="h2" id="snapshotModalTitle">Snapshot</div>
+    
+            <img id="snapshotModalImage"
+                style="width:100%; max-height:280px; object-fit:contain; border-radius:12px; margin:16px 0; background:#000;"
+                alt="Camera Snapshot" />
+    
+            <div class="desc" id="snapshotModalMessage">Capturing...</div>
+            <br>
+            <button class="btn" onclick="closeSnapshotModal()">Close</button>
         </div>
     </div>
     <footer class="footer">
