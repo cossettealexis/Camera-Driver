@@ -571,6 +571,7 @@
         .camera-toolbar[hidden] { display: none; }
         .camera-toolbar > button { display: flex; align-items: center; justify-content: center; width: 68px; height: 68px; flex: 0 0 68px; border: 0; border-radius: 50%; background: #070a0f; color: white; cursor: pointer; }
         .camera-toolbar > button.primary { width: 88px; height: 88px; flex-basis: 88px; background: #4b5877; }
+        #k15ViewerLights[aria-pressed="true"] { background: var(--accent); color: #fff; }
         .camera-toolbar > button:disabled { opacity: .4; cursor: not-allowed; }
         .camera-toolbar button svg { width: 30px; height: 30px; }
         .camera-toolbar > button.primary svg { width: 34px; height: 34px; }
@@ -579,16 +580,33 @@
         .ptz-card { display: grid; justify-items: center; gap: 18px; width: min(100%, 360px); padding: 18px; border-radius: 24px; background: #292929; color: #fff; }
         .ptz-card-header { display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 18px; font-weight: 600; }
         .ptz-card-header button { display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 50%; background: #070a0f; color: #fff; }
-        .k15-preset-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(0,0,0,.68); }
+        .k15-preset-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.12); }
         .k15-preset-sheet[hidden] { display: none; }
-        .k15-preset-card { width: min(100%, 420px); max-height: min(70vh, 560px); overflow-y: auto; padding: 18px 16px 16px; border-radius: 24px; background: #292929; color: #fff; }
-        .k15-preset-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 16px; font-weight: 600; }
-        .k15-preset-header button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #070a0f; color: #fff; }
-        .k15-preset-list { display: grid; gap: 8px; }
-        .k15-preset-item { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 12px 14px; border: 0; border-radius: 14px; background: #373737; color: #eee; font-size: 14px; text-align: left; }
-        .k15-preset-item svg { width: 18px; height: 18px; color: #999; }
-        .k15-preset-status { padding: 16px 8px; color: #aaa; font-size: 14px; text-align: center; }
-        .k15-preset-direction { width: 100%; min-height: 44px; margin-top: 12px; border: 1px solid #777; border-radius: 14px; background: transparent; color: #fff; font-size: 14px; }
+        .k15-preset-card { display: flex; flex-direction: column; width: 100%; height: min(740px, calc(100dvh - 32px)); min-height: 0; padding: 12px 14px max(16px, env(safe-area-inset-bottom, 0px)); border: 1px solid #555; border-radius: 24px 24px 0 0; background: #292929; color: #fff; }
+        .k15-preset-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
+        .k15-preset-tabs { display: flex; gap: 24px; min-width: 0; }
+        .k15-preset-tabs button { position: relative; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: #aaa; font-size: 16px; white-space: nowrap; cursor: pointer; }
+        .k15-preset-tabs button[aria-selected="true"] { color: var(--accent); }
+        .k15-preset-tabs button[aria-selected="true"]::after { position: absolute; bottom: 0; left: calc(50% - 14px); width: 28px; height: 2px; background: var(--accent); content: ''; }
+        .k15-preset-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+        .k15-preset-actions button { display: grid; place-items: center; width: 36px; height: 40px; padding: 6px; border: 0; background: transparent; color: #eee; cursor: pointer; }
+        .k15-preset-actions button:disabled { opacity: .45; cursor: not-allowed; }
+        .k15-preset-actions svg { width: 22px; height: 22px; }
+        .k15-preset-panel { flex: 1; min-height: 0; overflow-y: auto; }
+        .k15-preset-list { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); align-content: start; gap: 12px; }
+        .k15-preset-item { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 0; border: 0; background: transparent; color: #bbb; font-size: 13px; text-align: center; cursor: pointer; }
+        .k15-preset-media { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #373737; }
+        .k15-preset-media > * { grid-area: 1 / 1; }
+        .k15-preset-media img { width: 100%; height: 100%; object-fit: cover; }
+        .k15-preset-media svg { width: 38px; height: 38px; color: #777; }
+        .k15-preset-item > span:last-child { width: 100%; overflow-wrap: anywhere; }
+        .k15-preset-status { grid-column: 1 / -1; padding: 16px 8px; color: #aaa; font-size: 14px; text-align: center; }
+        .k15-ptz-dial { display: grid; grid-template: repeat(3, 60px) / repeat(3, 60px); width: 180px; height: 180px; margin: 18px auto; border-radius: 50%; background: linear-gradient(#252525,#171717); }
+        .k15-ptz-dial button { display: grid; place-items: center; align-self: center; justify-self: center; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; color: #999; cursor: pointer; touch-action: none; user-select: none; }
+        .k15-ptz-dial button svg { width: 20px; height: 20px; }
+        .k15-ptz-dial button:active { color: #fff; }
+        .k15-ptz-dial .k15-ptz-stop { border: 1px solid #ccd2df; border-radius: 50%; background: #aab5c7; }
+        @media (orientation: portrait) { .k15-preset-card { height: 56dvh; } .k15-preset-tabs { gap: 16px; } .k15-preset-tabs button { font-size: 14px; } .k15-preset-list { gap: 10px; } }
         .ptz-pad { position: relative; display: grid; grid-template: repeat(3, 56px) / repeat(3, 56px); gap: 4px; align-items: center; justify-items: center; }
         .ptz-pad button { width: 52px; height: 52px; border: 0; border-radius: 50%; background: #070a0f; color: #ffffff; }
         .ptz-pad button svg { width: 24px; height: 24px; }
@@ -618,18 +636,19 @@
         .settings-loading-overlay { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.72); }
         .settings-loading-overlay[hidden] { display: none; }
         .settings-loading-card { display: grid; justify-items: center; gap: 16px; width: min(220px, 100%); min-height: 160px; padding: 24px; border-radius: 22px; background: var(--surface2); color: var(--text); font-size: 16px; font-weight: 600; }
+        #settingsLoadingLabel { white-space: pre-line; text-align: center; }
         .k15-status-toast { position: fixed; top: 50%; left: 50%; z-index: 12000; max-width: calc(100% - 32px); padding: 12px; transform: translate(-50%, -50%); border-radius: 12px; background: #292929; color: #fff; font-size: 15px; text-align: center; pointer-events: none; }
-        .device-name-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,.65); }
+        .device-name-sheet { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: flex-end; justify-content: center; padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); background: rgba(0,0,0,.65); }
         .device-name-sheet[hidden] { display: none; }
-        .device-name-card { width: 100%; padding: 16px 24px max(16px, env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: #292929; }
-        .device-name-title { margin: 0 0 28px; color: #eee; font-size: 16px; font-weight: 600; text-align: center; }
-        .device-name-field { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 14px; background: #1c1c1c; }
-        .device-name-field input { width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: none; background: transparent; color: #eee; font-size: 16px; }
+        .device-name-card { width: 100%; max-height: min(100%, calc(100dvh - 32px)); overflow-y: auto; padding: 16px; border-radius: 28px; background: #292929; }
+        .device-name-title { margin: 0 0 28px; color: #eee; font-size: var(--setting-label-size); font-weight: 600; line-height: 1.4; text-align: center; }
+        .device-name-field { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 12px; border-radius: 14px; background: #1c1c1c; }
+        .device-name-field input { width: 100%; min-width: 0; padding: 10px 0; border: 0; outline: none; background: transparent; color: #eee; font-size: var(--setting-value-size); }
         .device-name-clear { display: flex; align-items: center; justify-content: center; flex: 0 0 28px; height: 28px; border: 0; background: transparent; color: #888; }
         .device-name-clear svg { width: 18px; height: 18px; }
         .device-name-error { min-height: 18px; padding-top: 4px; color: #ff7777; font-size: 12px; }
-        .device-name-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 4px; }
-        .device-name-actions button { min-height: 44px; padding: 8px 16px; border-radius: 14px; color: #fff; font-size: 15px; font-weight: 600; }
+        .device-name-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-top: 4px; }
+        .device-name-actions button { min-height: 52px; padding: 8px 16px; border-radius: 14px; color: #fff; font-size: var(--setting-value-size); font-weight: 600; }
         .device-name-cancel { border: 1px solid #999; background: transparent; }
         .device-name-confirm { border: 0; background: var(--accent); }
         .device-name-confirm:disabled { opacity: .45; }
@@ -699,6 +718,16 @@
         #formatStorageConfirmModal .storage-format-card { width: min(100%,640px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 18px 16px; border-radius: 24px; background: #292929; }
         .storage-format-title { margin: 0 0 20px; text-align: center; font-size: var(--setting-label-size); font-weight: 600; line-height: 1.4; }
         .storage-format-warning { margin-bottom: 16px; color: #ff3131; font-size: var(--setting-help-size); line-height: 1.4; text-align: left; }
+        .event-time-content { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; }
+        .event-time-setting { margin-bottom: 42px; }
+        .event-time-setting > label { display: block; margin-bottom: 8px; font-size: var(--setting-label-size); line-height: 1.4; }
+        .event-time-range { position: relative; margin: 0 20px; padding-top: 30px; }
+        .event-time-range input { appearance: none; display: block; width: 100%; height: 7px; margin: 0; border: 0; border-radius: 5px; background: linear-gradient(to right,#f51b53 var(--event-fill,0%),#aaa var(--event-fill,0%)); cursor: pointer; }
+        .event-time-range input::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border: 0; border-radius: 50%; background: #d61143; }
+        .event-time-range input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #d61143; }
+        .event-time-range output { position: absolute; top: 0; transform: translateX(-50%); color: #f51b53; font-size: var(--setting-help-size); }
+        .event-time-bounds { display: flex; justify-content: space-between; margin-top: 14px; color: #aaa; font-size: var(--setting-help-size); }
+        #recordingPanel input:disabled { opacity: .4; cursor: not-allowed; }
         .settings-form > .btn { width: 100%; min-height: 52px; font-size: var(--setting-value-size); }
         .subpage-status { min-height: 22px; color: var(--muted); font-size: var(--setting-help-size); line-height: 1.4; }
         .k15-speaker-setting { width: 100%; padding: 8px 0 32px; }
@@ -726,7 +755,10 @@
         .c4-auth-content { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 40px; }
         .c4-auth-card { margin-bottom: 22px; padding: 18px 22px; border-radius: 28px; background: var(--surface); }
         .c4-auth-user { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #ddd; font-size: 20px; font-weight: 500; }
-        .c4-auth-description { margin-top: 4px; color: #aaa; font-size: 16px; line-height: 1.4; }
+        .c4-auth-user-copy { display: flex; align-items: center; justify-content: center; flex: 0 0 34px; width: 34px; height: 34px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .c4-auth-user-copy svg { width: 22px; height: 22px; }
+        .c4-auth-user-copy:disabled { opacity: .4; cursor: not-allowed; }
+        .c4-auth-description { margin-top: 4px; padding-right: 40px; color: #aaa; font-size: 16px; line-height: 1.4; }
         .c4-pairing-row { display: grid; grid-template-columns: minmax(0,1fr) auto 22px; align-items: center; gap: 16px; width: 100%; padding: 18px 22px; border: 0; border-radius: 28px; background: var(--surface); color: #ddd; text-align: left; cursor: pointer; }
         .c4-pairing-copy { min-width: 0; }
         .c4-pairing-title { font-size: 20px; font-weight: 500; }
@@ -752,6 +784,15 @@
         .information-name { padding-bottom: 10px; font-size: var(--setting-label-size); font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
         .information-line { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; font-size: var(--setting-value-size); line-height: 1.4; }
         .information-line > span:last-child { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+        .information-serial { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .information-serial > span { min-width: 0; overflow-wrap: anywhere; }
+        .information-copy { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; padding: 3px; border: 0; background: transparent; color: #aaa; cursor: pointer; }
+        .information-copy svg { width: 22px; height: 22px; }
+        .information-copy:disabled { opacity: .4; cursor: not-allowed; }
+        .information-secondary { display: block; padding-top: 6px; color: #aaa; font-size: var(--setting-help-size); line-height: 1.4; }
+        .information-action-value { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; color: #999; font-size: 15px; }
+        .information-action-value svg { width: 18px; height: 18px; }
+        .information-sync > span:first-child { min-width: 0; }
         .device-information .settings-row { min-height: var(--setting-row-height); padding: var(--setting-row-padding) 0; border-bottom: 1px solid #373737; font-size: var(--setting-label-size); line-height: 1.4; }
         .device-information .settings-row:last-child { border-bottom: 0; }
         .device-information .settings-detail { min-width: 0; color: var(--muted); font-size: var(--setting-value-size); text-align: right; overflow-wrap: anywhere; }
@@ -818,7 +859,7 @@
         <section id="viewerPanel" class="panel active">
             <header class="viewer-header">
                 <button type="button" onclick="history.back()" aria-label="Back" title="Back"><i data-lucide="chevron-left"></i></button>
-                <h1 class="viewer-title" id="viewerDeviceName">...</h1>
+                <h1 class="viewer-title" id="viewerDeviceName">PoE PTZ Camera</h1>
                 <button type="button" onclick="show('homePanel')" aria-label="Settings" title="Settings"><i data-lucide="settings"></i></button>
             </header>
             <main class="camera-view" id="k15CameraView">
@@ -836,37 +877,44 @@
                 </div>
                 <div class="camera-toolbar" id="k15ViewerAlternateToolbar" hidden>
                     <button type="button" id="k15ViewerAlarm" onclick="toggleK15ViewerAlarm()" aria-label="Alarm" title="Alarm" disabled><i data-lucide="bell-ring"></i></button>
-                    <button type="button" onclick="openLatestK15Snapshot()" aria-label="Latest snapshot" title="Latest snapshot"><i data-lucide="image"></i></button>
+                    <button type="button" id="k15ViewerAlbum" onclick="openK15Album()" aria-label="Album" title="Album"><i data-lucide="images"></i></button>
                     <button type="button" disabled aria-disabled="true" aria-label="Video settings unavailable" title="Video settings unavailable"><i data-lucide="film"></i></button>
-                    <button type="button" id="k15ViewerNightVision" onclick="cycleK15NightVision()" aria-label="Change night vision mode" title="Change night vision mode" disabled><i data-lucide="lightbulb"></i></button>
+                    <button type="button" id="k15ViewerLights" onclick="toggleK15ViewerLights()" aria-label="Lights on" title="Lights on" aria-pressed="false" disabled><i data-lucide="lightbulb"></i></button>
                     <button type="button" id="k15ViewerToolbarBack" onclick="toggleK15ViewerToolbar(false)" aria-label="Back to camera controls" title="Back"><i data-lucide="x"></i></button>
                 </div>
             </main>
         </section>
 
-        <div id="k15PtzOverlay" class="ptz-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="k15PtzTitle">
-            <div class="ptz-card">
-                <div class="ptz-card-header"><h2 id="k15PtzTitle">Camera Direction</h2><button type="button" onclick="closeK15PtzControls()" aria-label="Close camera controls" title="Close"><i data-lucide="x"></i></button></div>
-                <div class="ptz-pad" aria-label="Camera direction controls">
-                    <span></span><button type="button" onclick="sendK15Ptz('up')" aria-label="Tilt up" title="Tilt up"><i data-lucide="chevron-up"></i></button><span></span>
-                    <button type="button" onclick="sendK15Ptz('left')" aria-label="Pan left" title="Pan left"><i data-lucide="chevron-left"></i></button><button type="button" onclick="sendK15Ptz('stop')" aria-label="Stop camera movement" title="Stop"><i data-lucide="circle"></i></button><button type="button" onclick="sendK15Ptz('right')" aria-label="Pan right" title="Pan right"><i data-lucide="chevron-right"></i></button>
-                    <span></span><button type="button" onclick="sendK15Ptz('down')" aria-label="Tilt down" title="Tilt down"><i data-lucide="chevron-down"></i></button><span></span>
-                </div>
-            </div>
-        </div>
-
-        <div id="k15PresetSheet" class="k15-preset-sheet" role="dialog" aria-modal="true" aria-labelledby="k15PresetTitle" onclick="if(event.target===this) closeK15PresetSheet()" hidden>
+        <div id="k15PresetSheet" class="k15-preset-sheet" role="dialog" aria-modal="true" aria-label="PTZ and preset controls" onclick="if(event.target===this) closeK15PresetSheet()" onkeydown="if(event.key==='Escape') closeK15PresetSheet()" hidden>
             <div class="k15-preset-card">
-                <div class="k15-preset-header"><span id="k15PresetTitle">Presets</span><button type="button" onclick="closeK15PresetSheet()" aria-label="Close presets" title="Close"><i data-lucide="x"></i></button></div>
-                <div class="k15-preset-list" id="k15PresetList"><div class="k15-preset-status">Loading presets...</div></div>
-                <button class="k15-preset-direction" type="button" onclick="openK15PtzControls()">Camera Direction</button>
+                <div class="k15-preset-header">
+                    <div class="k15-preset-tabs" role="tablist" aria-label="Camera controls">
+                        <button id="k15PtzTab" type="button" role="tab" aria-selected="true" aria-controls="k15PtzPanel" onclick="selectK15PresetTab('ptz')">PTZ Unit</button>
+                        <button id="k15PresetTab" type="button" role="tab" aria-selected="false" aria-controls="k15PresetPanel" tabindex="-1" onclick="selectK15PresetTab('presets')">Preset Point</button>
+                    </div>
+                    <div class="k15-preset-actions">
+                        <button id="k15EditPresets" type="button" disabled hidden aria-label="Edit presets unavailable" title="Preset editing is not supported by the K15 driver"><i data-lucide="pencil-line"></i></button>
+                        <button type="button" disabled aria-label="Add preset unavailable" title="Adding presets is not supported by the K15 driver"><i data-lucide="map-pin-plus"></i></button>
+                        <button type="button" onclick="closeK15PresetSheet()" aria-label="Close camera controls" title="Close"><i data-lucide="x"></i></button>
+                    </div>
+                </div>
+                <div id="k15PtzPanel" class="k15-preset-panel" role="tabpanel" aria-labelledby="k15PtzTab">
+                    <div class="k15-ptz-dial" aria-label="Camera direction controls">
+                        <span></span><button type="button" data-direction="up" aria-label="Tilt up" title="Tilt up"><i data-lucide="chevron-up"></i></button><span></span>
+                        <button type="button" data-direction="left" aria-label="Pan left" title="Pan left"><i data-lucide="chevron-left"></i></button><button class="k15-ptz-stop" type="button" onclick="sendK15Ptz('stop')" aria-label="Stop camera movement" title="Stop"></button><button type="button" data-direction="right" aria-label="Pan right" title="Pan right"><i data-lucide="chevron-right"></i></button>
+                        <span></span><button type="button" data-direction="down" aria-label="Tilt down" title="Tilt down"><i data-lucide="chevron-down"></i></button><span></span>
+                    </div>
+                </div>
+                <div id="k15PresetPanel" class="k15-preset-panel" role="tabpanel" aria-labelledby="k15PresetTab" hidden>
+                    <div class="k15-preset-list" id="k15PresetList"><div class="k15-preset-status">Loading presets...</div></div>
+                </div>
             </div>
         </div>
 
         <section id="homePanel" class="panel">
             <div class="settings-bar">
                 <button type="button" onclick="show('viewerPanel')" aria-label="Back to K15" title="Back to K15"><i data-lucide="chevron-left"></i></button>
-                <h1>K15</h1><span></span>
+                <h1>Device Settings</h1><span></span>
             </div>
             <div class="settings-home">
                 <div class="settings-device">
@@ -902,33 +950,35 @@
             <div class="content settings-page-content device-information">
                 <div class="settings-form">
                     <div class="settings-group settings-info">
-                        <div class="information-header"><i data-lucide="cctv" class="information-camera" aria-hidden="true"></i><div class="information-main"><div class="information-name" id="infoDeviceName">...</div><div class="information-line"><span>Version</span><span id="infoFirmwareVersion">...</span></div><div class="information-line"><span>SN</span><span id="infoSerialNumber">...</span></div></div></div>
-                        <div class="settings-row"><span>Release Date</span><span class="settings-detail" id="infoReleaseDate">...</span></div>
+                        <div class="information-header"><i data-lucide="cctv" class="information-camera" aria-hidden="true"></i><div class="information-main"><div class="information-name" id="infoDeviceName">...</div><div class="information-line"><span>Version</span><span id="infoFirmwareVersion">...</span></div><div class="information-line"><span>SN</span><span class="information-serial"><span id="infoSerialNumber">...</span><button class="information-copy" id="copyDeviceSerial" type="button" onclick="copyK15DeviceSerial()" aria-label="Copy SN" title="Copy SN" disabled><i data-lucide="copy"></i></button></span></div></div></div>
+                        <div class="settings-row"><span>Device Time Zone</span><span class="settings-detail" id="infoTimezone">...</span></div>
                         <div class="settings-row"><span>IP Address</span><span class="settings-detail" id="infoIpAddress">...</span></div>
                         <div class="settings-row"><span>MAC Address</span><span class="settings-detail" id="infoMacAddress">...</span></div>
                     </div>
                     <div class="settings-group">
-                        <div class="settings-row"><span>Wi-Fi</span><span class="settings-detail" id="infoWifi">...</span></div>
-                        <div class="settings-row"><span>Battery</span><span class="settings-detail" id="infoBattery">...</span></div>
-                        <div class="settings-row"><span>Status</span><span class="settings-detail" id="infoOnline">...</span></div>
+                        <div class="settings-row"><span>WiFi Signal</span><span class="settings-detail" id="infoSignal">...</span></div>
+                    </div>
+                    <div class="settings-group">
+                        <button class="settings-row information-sync" type="button" disabled title="Time synchronization is not available from the K15 driver"><span>Sync Time<span class="information-secondary">If the device time is incorrect (e.g., due to Daylight Saving Time or time zone changes), please tap Sync to update it to the current accurate time.</span></span><span class="information-action-value">Sync<i data-lucide="chevron-right"></i></span></button>
                     </div>
                 </div>
             </div>
         </section>
 
         <section id="c4AuthenticationPanel" class="panel">
-            <div class="topbar">
-                <button class="back" type="button" onclick="show('homePanel')" aria-label="Back to Device Settings"><i data-lucide="arrow-left"></i></button>
+            <div class="settings-bar">
+                <button class="back" type="button" onclick="show('homePanel')" aria-label="Back"><i data-lucide="chevron-left"></i></button>
                 <h1>C4 Authentication Service</h1><span></span>
             </div>
             <div class="c4-auth-content">
                 <div class="c4-auth-card">
-                    <div class="c4-auth-user">User Identifier</div>
-                    <p class="c4-auth-description">A C4 user identifier is not available from this driver.</p>
+                    <div class="c4-auth-user"><span>User Identifier</span><button class="c4-auth-user-copy" id="copyUserIdentifier" type="button" onclick="copyUserIdentifier()" aria-label="Copy user identifier" title="Copy user identifier" disabled><i data-lucide="copy"></i></button></div>
+                    <p class="c4-auth-description">This is for verifying your identity. Do not disclose this information.</p>
+                    <span id="c4UserIdentifier" hidden></span>
                 </div>
                 <button class="c4-pairing-row" type="button" onclick="openPairingModeConfirmation()">
                     <span class="c4-pairing-copy"><span class="c4-pairing-title">Device Pairing Mode</span><span class="c4-pairing-description">Once enabled, the device will continuously send signal broadcasts within the local area network (LAN) and can be used for device authentication and binding.</span></span>
-                    <span class="c4-pairing-value">Unavailable</span><i data-lucide="chevron-right" class="c4-pairing-chevron"></i>
+                    <span class="c4-pairing-value" id="devicePairingModeValue">OFF</span><i data-lucide="chevron-right" class="c4-pairing-chevron"></i>
                 </button>
             </div>
         </section>
@@ -968,7 +1018,15 @@
                             <div class="k15-notification-copy">After enabling this, you will receive message notifications when the device detects events such as abnormalities, low battery, or emergencies.</div>
                         </div>
                         <div class="k15-notification-row">
-                            <div class="k15-notification-title"><label for="enableInfoNotifications">Info Notification</label><label class="toggle k15-notification-toggle"><input type="checkbox" id="enableInfoNotifications" aria-label="Info Notification" disabled><span class="slider"></span></label></div>
+                            <div class="k15-notification-title"><label for="appMotionNotification">Motion Detection</label><label class="toggle k15-notification-toggle" title="App notification API mapping is required"><input type="checkbox" id="appMotionNotification" aria-label="Motion Detection notifications" disabled><span class="slider"></span></label></div>
+                            <div class="k15-notification-copy">Once enabled, you will receive a message notification when the device detects a moving object</div>
+                        </div>
+                        <div class="k15-notification-row">
+                            <div class="k15-notification-title"><label for="appOfflineNotification">Offline Notification</label><label class="toggle k15-notification-toggle" title="App notification API mapping is required"><input type="checkbox" id="appOfflineNotification" aria-label="Offline Notification" disabled><span class="slider"></span></label></div>
+                            <div class="k15-notification-copy">Once enabled, you will receive a message notification when the device detects an offline event (to avoid frequent alerts, you will be reminded again after an 8-hour interval)</div>
+                        </div>
+                        <div class="k15-notification-row">
+                            <div class="k15-notification-title"><label for="enableInfoNotifications">Event Notification</label><label class="toggle k15-notification-toggle"><input type="checkbox" id="enableInfoNotifications" aria-label="Event Notification" disabled><span class="slider"></span></label></div>
                             <div class="k15-notification-copy">When enabled, you will receive notifications for non-emergency system events that require your attention</div>
                         </div>
                     </div>
@@ -1064,28 +1122,23 @@
 
         <section id="recordingPanel" class="panel">
             <div class="topbar">
-                <button class="back" onclick="show('videoSettingsPanel')">
+                <button class="back" onclick="show('homePanel')">
                     <i data-lucide="arrow-left"></i>
                 </button>
                 <h1>Event Time Settings</h1><span></span>
             </div>
-            <div class="content settings-page-content">
-                <div class="settings-form">
-                    <div class="k15-setting-card recording-timing">
-                        <div class="setting-label">Event Time Settings</div>
-                        <label for="recordMaxLength">
-                            <span>Maximum Event Recording Length</span>
-                            <input type="number" id="recordMaxLength" min="0" max="60" step="1" required>
-                        </label>
-                        <label for="recordTriggerInterval">
-                            <span>Event Trigger Interval</span>
-                            <input type="number" id="recordTriggerInterval" min="0" max="120" step="1" required>
-                        </label>
-                        <button class="btn" id="saveEventTimeBtn"><i data-lucide="check" class="icon" style="color:inherit; vertical-align:middle;"></i> Confirm</button>
-                        <div class="status" id="eventTimeStatus" role="status"></div>
-                    </div>
+            <div class="event-time-content">
+                <div class="event-time-setting">
+                    <label for="recordMaxLength">Maximum Event Recording Length</label>
+                    <div class="event-time-range"><output id="recordMaxLengthValue" for="recordMaxLength">...</output><input type="range" id="recordMaxLength" min="10" max="15" step="1" disabled><div class="event-time-bounds"><span>10s</span><span>15s</span></div></div>
                 </div>
+                <div class="event-time-setting">
+                    <label for="recordTriggerInterval">Event Trigger Interval</label>
+                    <div class="event-time-range"><output id="recordTriggerIntervalValue" for="recordTriggerInterval">...</output><input type="range" id="recordTriggerInterval" min="0" max="120" step="1" disabled><div class="event-time-bounds"><span>0s</span><span>120s</span></div></div>
+                </div>
+                <div class="status" id="eventTimeStatus" role="status"></div>
             </div>
+            <div class="storage-footer"><button class="format-storage-button" id="saveEventTimeBtn" disabled>Confirm</button></div>
         </section>
 
         <section id="recordingModePanel" class="panel">
@@ -1279,7 +1332,7 @@
                 requestDeviceInfo(true);
             }
 
-            if ((id === 'homePanel' || id === 'deviceInformationPanel') && typeof requestDeviceInfo === 'function') {
+            if ((id === 'viewerPanel' || id === 'homePanel' || id === 'deviceInformationPanel' || id === 'c4AuthenticationPanel') && typeof requestDeviceInfo === 'function') {
                 requestDeviceInfo();
             }
 

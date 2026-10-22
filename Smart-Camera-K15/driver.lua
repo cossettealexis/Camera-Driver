@@ -4934,6 +4934,7 @@ function GET_DEVICE_INFO()
             mac            = d.mac or "",
             serial         = d.device_sn or "",
             timezone       = d.timezone or "",
+            user_identifier = GlobalObject.CustomerEmail or Properties["Account"] or "",
             online         = online,
             can_update     = can_update
         }
@@ -4942,7 +4943,7 @@ function GET_DEVICE_INFO()
         print("   Name:", payload.device_name)
         print("   Firmware:", payload.version)
         print("   Release:", payload.release_date)
-        print("   Battery:", payload.battery .. "%")
+        print("   Battery:", payload.battery ~= nil and (tostring(payload.battery) .. "%") or "N/A")
 
         -- Update Control4 driver properties
         C4:UpdateProperty("Software Version", payload.version)
@@ -5093,6 +5094,7 @@ function REBOOT_DEVICE(tParams)
 
     if not vid or vid == "" or not token or token == "" then
         print("[REBOOT] ERROR: Missing VID or Token")
+        SendDeviceInfoToUI({ type = "restart_result", success = false, error = "Missing device or authentication" })
         return false
     end
 
@@ -5120,11 +5122,16 @@ function REBOOT_DEVICE(tParams)
         method  = "POST",
         headers = headers,
         body    = json.encode(body)
-    }, function(code, resp)
+    }, function(code, resp, _, err)
         print("[REBOOT] Cloud response code:", code)
         print("[REBOOT] Response:", resp)
 
-        if code == 200 or code == 20000 then
+        local ok, parsed = pcall(json.decode, resp or "")
+        local api_code = ok and type(parsed) == "table" and tonumber(parsed.code)
+        local success = not err and (code == 200 or code == 20000) and (api_code == 0 or api_code == 200 or api_code == 20000)
+        SendDeviceInfoToUI({ type = "restart_result", success = success == true,
+            error = not success and "Restart request failed" or nil })
+        if success then
             C4:UpdateProperty("Status", "Reboot command sent")
             print("[REBOOT] SUCCESS – device will restart shortly")
         else

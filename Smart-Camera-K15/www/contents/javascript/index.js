@@ -113,13 +113,15 @@ function initK15NotificationSettings() {
     if (info) info.addEventListener('change', () => saveK15NotificationSetting('enable_info', info.checked));
 }
 
+let k15RestartTimer = null;
+
 function updateK15SettingOverlay() {
     const overlay = document.getElementById('settingsLoadingOverlay');
     if (!overlay) return;
     const pending = settingsLoadPending || pendingSettingSaves.size > 0;
     overlay.hidden = !pending;
     const label = document.getElementById('settingsLoadingLabel');
-    if (label) label.textContent = settingsLoadPending ? 'Loading...' : 'Setting up...';
+    if (label) label.textContent = pendingSettingSaves.has('restart') ? 'Restarting device.\nPlease wait...' : settingsLoadPending ? 'Loading...' : 'Setting up...';
 }
 
 function beginSettingsLoad() {
@@ -140,13 +142,17 @@ function beginSettingSave(group) {
 function finishSettingSave(group, success, error, successMessage = 'Setting saved') {
     const pending = pendingSettingSaves.get(group);
     if (!pending) return;
+    if (group === 'restart') {
+        clearTimeout(k15RestartTimer);
+        k15RestartTimer = null;
+    }
     if (!success) settingSaveError = error || 'Setting could not be saved';
     if (pending === 1) pendingSettingSaves.delete(group);
     else pendingSettingSaves.set(group, pending - 1);
     if (group === 'name') updateK15DeviceNameConfirm();
     updateK15SettingOverlay();
     if (pendingSettingSaves.size > 0 || settingsLoadPending) return;
-    showK15Toast(settingSaveError || successMessage);
+    if (settingSaveError || successMessage) showK15Toast(settingSaveError || successMessage);
     settingSaveError = '';
 }
 
@@ -166,6 +172,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function requestCameraSettings(showLoading = false) {
     if (showLoading) beginSettingsLoad();
+    ['recordMaxLength', 'recordTriggerInterval', 'saveEventTimeBtn'].forEach(function (id) {
+        const control = document.getElementById(id);
+        if (control) control.disabled = true;
+    });
     const formatStorage = document.getElementById('formatStorageBtn');
     if (formatStorage) formatStorage.disabled = true;
     const mic = document.getElementById('mic');
@@ -254,23 +264,82 @@ function toggleK15ViewerMic() {
     sendMicCommand(isMicMuted === false);
 }
 
-function openK15PtzControls() {
-    const overlay = document.getElementById('k15PtzOverlay');
-    if (!overlay) return;
-    overlay.hidden = false;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+let k15PtzMoving = false;
+
+function stopK15PtzMovement() {
+    if (!k15PtzMoving) return;
+    k15PtzMoving = false;
+    sendK15Ptz('stop');
 }
 
-function closeK15PtzControls() {
-    const overlay = document.getElementById('k15PtzOverlay');
-    if (overlay) overlay.hidden = true;
+function initK15PresetControls() {
+    document.querySelectorAll('#k15PtzPanel [data-direction]').forEach(button => {
+        if (button.dataset.bound) return;
+        button.dataset.bound = 'true';
+        const start = function () {
+            if (k15PtzMoving) return;
+            k15PtzMoving = true;
+            sendK15Ptz(button.dataset.direction);
+        };
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            button.setPointerCapture(event.pointerId);
+            start();
+        });
+        ['pointerup', 'pointercancel', 'lostpointercapture', 'blur'].forEach(type => {
+            button.addEventListener(type, stopK15PtzMovement);
+        });
+        button.addEventListener('keydown', event => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            if (!event.repeat) start();
+        });
+        button.addEventListener('keyup', event => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            stopK15PtzMovement();
+        });
+    });
+    const tabs = document.querySelector('.k15-preset-tabs');
+    if (tabs && !tabs.dataset.bound) {
+        tabs.dataset.bound = 'true';
+        tabs.addEventListener('keydown', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const presetSelected = document.getElementById('k15PresetTab').getAttribute('aria-selected') === 'true';
+            selectK15PresetTab(event.key === 'Home' ? 'ptz' : event.key === 'End' ? 'presets' : presetSelected ? 'ptz' : 'presets');
+        });
+        window.addEventListener('blur', stopK15PtzMovement);
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) stopK15PtzMovement();
+        });
+    }
+}
+
+function selectK15PresetTab(tab) {
+    stopK15PtzMovement();
+    const presets = tab === 'presets';
+    document.getElementById('k15PtzPanel').hidden = presets;
+    document.getElementById('k15PresetPanel').hidden = !presets;
+    document.getElementById('k15EditPresets').hidden = !presets;
+    ['k15PtzTab', 'k15PresetTab'].forEach((id, index) => {
+        const button = document.getElementById(id);
+        const selected = presets === (index === 1);
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+        if (selected) button.focus();
+    });
 }
 
 function openK15PresetSheet() {
     const sheet = document.getElementById('k15PresetSheet');
     const list = document.getElementById('k15PresetList');
-    if (!sheet || !list || k15PresetLoadPending) return;
+    if (!sheet || !list) return;
     sheet.hidden = false;
+    initK15PresetControls();
+    selectK15PresetTab('ptz');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (k15PresetLoadPending) return;
     list.replaceChildren();
     const loading = document.createElement('div');
     loading.className = 'k15-preset-status';
@@ -291,12 +360,14 @@ function openK15PresetSheet() {
 }
 
 function closeK15PresetSheet() {
+    stopK15PtzMovement();
     const sheet = document.getElementById('k15PresetSheet');
     if (sheet) sheet.hidden = true;
     if (k15PresetLoadPending) {
         clearTimeout(k15PresetLoadTimer);
         k15PresetLoadPending = false;
     }
+    document.querySelector('[onclick="openK15PresetSheet()"]')?.focus();
 }
 
 function renderK15Presets(presets, error) {
@@ -316,9 +387,24 @@ function renderK15Presets(presets, error) {
         button.type = 'button';
         const name = document.createElement('span');
         name.textContent = preset.name || `Preset ${index + 1}`;
+        const media = document.createElement('span');
+        media.className = 'k15-preset-media';
         const icon = document.createElement('i');
-        icon.setAttribute('data-lucide', 'chevron-right');
-        button.append(name, icon);
+        icon.setAttribute('data-lucide', 'image');
+        icon.setAttribute('aria-hidden', 'true');
+        media.appendChild(icon);
+        if (typeof preset.img === 'string' && /^https?:\/\//i.test(preset.img)) {
+            const image = document.createElement('img');
+            image.alt = '';
+            image.loading = 'lazy';
+            image.addEventListener('load', () => {
+                media.querySelector('svg, i')?.remove();
+            });
+            image.addEventListener('error', () => image.remove());
+            image.src = preset.img;
+            media.appendChild(image);
+        }
+        button.append(media, name);
         button.addEventListener('click', () => selectK15Preset(index + 1));
         list.appendChild(button);
     });
@@ -326,7 +412,7 @@ function renderK15Presets(presets, error) {
 }
 
 function selectK15Preset(index) {
-    closeK15PresetSheet();
+    stopK15PtzMovement();
     try {
         C4.sendCommand('PTZ_GOTO_PRESET', JSON.stringify({ INDEX: index }), false, true);
     } catch (error) {
@@ -353,20 +439,30 @@ function toggleK15ViewerAlarm() {
     sendK15ViewerSetting('light_swt', enabled ? 1 : 0);
 }
 
-function cycleK15NightVision() {
-    const current = Number(latestCameraSettings.icut_mode);
-    const modes = [0, 2, 3];
-    const index = modes.indexOf(current);
-    if (index < 0) return;
-    sendK15ViewerSetting('icut_mode', modes[(index + 1) % modes.length]);
+let k15LightsWritePending = false;
+
+function toggleK15ViewerLights() {
+    const value = latestCameraSettings.light_swt;
+    if (k15LightsWritePending || pendingSettingSaves.size > 0 || value === undefined || value === null || ![0, 1].includes(Number(value))) return;
+    k15LightsWritePending = true;
+    const button = document.getElementById('k15ViewerLights');
+    if (button) button.disabled = true;
+    beginSettingSave('camera');
+    try {
+        C4.sendCommand('SET_CAMERA_SETTING', JSON.stringify({ key: 'light_swt', value: Number(value) === 1 ? 0 : 1 }), false, true);
+    } catch (error) {
+        k15LightsWritePending = false;
+        if (button) button.disabled = false;
+        finishSettingSave('camera', false, 'Unable to update lights');
+    }
 }
 
-function openLatestK15Snapshot() {
+function openK15Album() {
     if (!latestSnapshotUrl) {
-        showModal('Take a snapshot first', 'Snapshot');
+        showK15Toast('No captured snapshots available');
         return;
     }
-    openSnapshotModal(latestSnapshotUrl, 'Snapshot captured');
+    openSnapshotModal(latestSnapshotUrl, 'Latest captured snapshot');
 }
 
 function openK15DetectionTypeSheet() {
@@ -442,6 +538,7 @@ function closeK15VideoOption() {
 function updateK15SensitivityPreview(value) {
     const slider = document.getElementById('k15SensitivitySlider');
     const label = document.getElementById('k15SensitivityCurrent');
+    const rowLabel = document.getElementById('detectionSensitivityValue');
     const labels = ['Low', 'Medium', 'High'];
     const index = Number(value);
     if (!Number.isInteger(index) || index < 0 || index > 2) return;
@@ -451,6 +548,7 @@ function updateK15SensitivityPreview(value) {
         slider.style.setProperty('--sensitivity-progress', `${index * 50}%`);
     }
     if (label) label.textContent = labels[index];
+    if (rowLabel) rowLabel.textContent = labels[index];
 }
 
 document.addEventListener('visibilitychange', function () {
@@ -583,8 +681,15 @@ function updateCameraSettingsUI(settings) {
         settings.siren_swt !== undefined && settings.siren_swt !== null &&
         settings.light_swt !== undefined && settings.light_swt !== null
     );
-    const viewerNightVision = document.getElementById('k15ViewerNightVision');
-    if (viewerNightVision) viewerNightVision.disabled = settings.icut_mode === undefined || settings.icut_mode === null;
+    const viewerLights = document.getElementById('k15ViewerLights');
+    if (viewerLights) {
+        const valid = settings.light_swt !== undefined && settings.light_swt !== null && [0, 1].includes(Number(settings.light_swt));
+        const enabled = valid && Number(settings.light_swt) === 1;
+        viewerLights.disabled = !valid || k15LightsWritePending;
+        viewerLights.setAttribute('aria-pressed', String(enabled));
+        viewerLights.setAttribute('aria-label', enabled ? 'Lights off' : 'Lights on');
+        viewerLights.title = enabled ? 'Lights off' : 'Lights on';
+    }
     const motionTypeValue = document.getElementById('detectionTypeValue');
     const motionType = Number(settings.motion_type);
     if (motionTypeValue && [0, 1].includes(motionType)) {
@@ -678,9 +783,23 @@ function updateCameraSettingsUI(settings) {
     const recordingTimes = { recordMaxLength: 'motion_rec_time', recordTriggerInterval: 'motion_interval' };
     Object.entries(recordingTimes).forEach(function ([id, key]) {
         const control = document.getElementById(id);
-        if (control && settings[key] !== undefined && settings[key] !== null) {
+        const value = Number(settings[key]);
+        const valid = control && settings[key] !== undefined && settings[key] !== null &&
+            String(settings[key]).trim() !== '' && Number.isInteger(value) &&
+            value >= Number(control.min) && value <= Number(control.max);
+        if (control) control.disabled = !valid;
+        if (valid) {
             control.value = String(settings[key]);
+            updateK15EventTimePreview(control);
+        } else {
+            const output = document.getElementById(id + 'Value');
+            if (output) output.textContent = '...';
         }
+    });
+    const saveEventTime = document.getElementById('saveEventTimeBtn');
+    if (saveEventTime) saveEventTime.disabled = Object.keys(recordingTimes).some(function (id) {
+        const control = document.getElementById(id);
+        return !control || control.disabled;
     });
 }
 
@@ -801,6 +920,16 @@ function initDeviceName() {
 // MICROPHONE
 // =====================================================
 
+function updateK15EventTimePreview(control) {
+    const output = document.getElementById(control.id + 'Value');
+    const progress = (Number(control.value) - Number(control.min)) / (Number(control.max) - Number(control.min));
+    control.style.setProperty('--event-fill', (progress * 100) + '%');
+    if (output) {
+        output.textContent = control.value;
+        output.style.left = 'calc(' + (progress * 100) + '% + ' + (10 - progress * 20) + 'px)';
+    }
+}
+
 function initCameraSettings() {
     const motion = document.getElementById('motionDetection');
     const alarm = document.getElementById('alarmToggle');
@@ -865,18 +994,22 @@ function initCameraSettings() {
             if (zoneStatus) zoneStatus.innerText = 'Enter nonnegative whole numbers for the detection zone.';
             return;
         }
-        const sent = sendSetting('motion.x_y_w_h', coordinates.join(':'));
-        if (zoneStatus) zoneStatus.innerText = sent ? 'Update requested.' : 'Failed to send update.';
+        if (zoneStatus) zoneStatus.innerText = '';
+        sendSetting('motion.x_y_w_h', coordinates.join(':'));
     });
 
     if (saveEventTimeBtn && recordMaxLength && recordTriggerInterval) {
+        [recordMaxLength, recordTriggerInterval].forEach(function (control) {
+            control.addEventListener('input', function () { updateK15EventTimePreview(control); });
+        });
         saveEventTimeBtn.addEventListener('click', function () {
+            if (saveEventTimeBtn.disabled || recordMaxLength.disabled || recordTriggerInterval.disabled) return;
             const maxLength = Number(recordMaxLength.value);
             const interval = Number(recordTriggerInterval.value);
             if (!recordMaxLength.value || !recordTriggerInterval.value ||
-                !Number.isInteger(maxLength) || maxLength < 0 || maxLength > 60 ||
+                !Number.isInteger(maxLength) || maxLength < 10 || maxLength > 15 ||
                 !Number.isInteger(interval) || interval < 0 || interval > 120) {
-                if (eventTimeStatus) eventTimeStatus.innerText = 'Recording length must be 0-60 seconds; interval must be 0-120 seconds.';
+                if (eventTimeStatus) eventTimeStatus.innerText = 'Recording length must be 10-15 seconds; interval must be 0-120 seconds.';
                 return;
             }
             const sent = sendSetting('motion', { rec_time: maxLength, interval: interval });
@@ -1012,7 +1145,30 @@ function updateMicUI(muted) {
 }
 
 
+async function copyUserIdentifier() {
+    const identifier = document.getElementById('c4UserIdentifier')?.textContent;
+    if (!identifier || identifier === '...') return;
+    try {
+        await navigator.clipboard.writeText(identifier);
+        showK15Toast('User identifier copied');
+    } catch (error) {
+        showK15Toast('Clipboard unavailable');
+    }
+}
+
+async function copyK15DeviceSerial() {
+    const serial = document.getElementById('infoSerialNumber')?.textContent.trim();
+    if (!serial || serial === '...' || serial === 'N/A') return;
+    try {
+        await navigator.clipboard.writeText(serial);
+        showK15Toast('SN copied');
+    } catch (error) {
+        showK15Toast('Clipboard unavailable');
+    }
+}
+
 function handleReboot() {
+    if (pendingSettingSaves.has('restart')) return;
     const dialog = document.getElementById('restartConfirmationDialog');
     if (dialog) dialog.hidden = false;
 }
@@ -1024,14 +1180,17 @@ function closeRestartConfirmation() {
 
 function confirmRestart() {
     const dialog = document.getElementById('restartConfirmationDialog');
-    if (!dialog || dialog.hidden) return;
+    if (!dialog || dialog.hidden || pendingSettingSaves.has('restart')) return;
     closeRestartConfirmation();
+    beginSettingSave('restart');
+    k15RestartTimer = setTimeout(() => {
+        finishSettingSave('restart', false, 'Restart request timed out');
+    }, 20000);
     try {
         C4.sendCommand('REBOOT_DEVICE', '', false, true);
-        showK15Toast('Reboot command sent successfully. The device will restart shortly.');
     } catch (error) {
         console.error('Reboot command error', error);
-        showK15Toast('Failed to send reboot command.');
+        finishSettingSave('restart', false, 'Unable to restart');
     }
 }
 
@@ -1300,6 +1459,8 @@ function onDataToUi(value) {
                 k15SpeakerLoadPending = false;
             }
             if (obj.success) {
+                const lightsWrite = k15LightsWritePending && obj.setting_saved && obj.settings?.light_swt !== undefined;
+                if (lightsWrite) k15LightsWritePending = false;
                 updateCameraSettingsUI(obj.settings || {});
                 if (obj.setting_saved) {
                     const speakerWrite = k15SpeakerWritePending && obj.settings?.beep_vol !== undefined;
@@ -1312,7 +1473,7 @@ function onDataToUi(value) {
                     }
                     const successMessage = speakerToggle
                         ? (Number(obj.settings.beep_vol) === 0 ? 'Sound off' : 'Sound on')
-                        : 'Setting saved';
+                        : lightsWrite ? (Number(obj.settings.light_swt) === 1 ? 'Lights on' : 'Lights off') : 'Setting saved';
                     finishSettingSave('camera', true, undefined, successMessage);
                 }
                 if (obj.event_time_updated) {
@@ -1330,6 +1491,10 @@ function onDataToUi(value) {
             if (status && isMicMuted === null) status.innerText = '';
         }
 
+        if (obj.type === 'restart_result') {
+            finishSettingSave('restart', obj.success, obj.error, '');
+        }
+
         if (obj.type === 'storage_format') {
             storageFormatPending = false;
             const formatBtn = document.getElementById('formatStorageBtn');
@@ -1344,6 +1509,7 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'camera_setting_result' && !obj.success) {
+            k15LightsWritePending = false;
             if (k15SpeakerWritePending) k15SpeakerWritePending = false;
             k15SpeakerTogglePending = false;
             if (k15SpeakerLoadPending) {
@@ -1397,18 +1563,23 @@ function onDataToUi(value) {
             const infoValues = {
                 infoDeviceName: deviceName,
                 infoFirmwareVersion: obj.version || 'N/A',
-                infoReleaseDate: obj.release_date || 'N/A',
+                infoTimezone: obj.timezone || 'N/A',
                 infoSerialNumber: obj.serial || 'N/A',
                 infoIpAddress: obj.ip || 'N/A',
                 infoMacAddress: obj.mac || 'N/A',
-                infoWifi: obj.wifi || 'N/A',
-                infoBattery: obj.battery !== undefined && obj.battery !== null && Number.isFinite(Number(obj.battery)) ? `${obj.battery}%` : 'N/A',
-                infoOnline: obj.online === true ? 'Online' : obj.online === false ? 'Offline' : 'N/A'
+                infoSignal: obj.rssi !== undefined && obj.rssi !== null && String(obj.rssi).trim() !== '' ? String(obj.rssi) : 'N/A'
             };
+            const identifier = typeof obj.user_identifier === 'string' ? obj.user_identifier : '';
+            const identifierValue = document.getElementById('c4UserIdentifier');
+            const copyIdentifier = document.getElementById('copyUserIdentifier');
+            if (identifierValue) identifierValue.textContent = identifier || '...';
+            if (copyIdentifier) copyIdentifier.disabled = !identifier;
             Object.entries(infoValues).forEach(([id, value]) => {
                 const element = document.getElementById(id);
                 if (element) element.textContent = value;
             });
+            const copySerial = document.getElementById('copyDeviceSerial');
+            if (copySerial) copySerial.disabled = !obj.serial || !String(obj.serial).trim() || obj.serial === 'N/A';
             const firmwareStatus = document.getElementById('firmwareUpdateStatus');
             if (firmwareStatus && typeof obj.can_update === 'boolean') {
                 firmwareStatus.textContent = obj.can_update ? 'Update available' : 'The current version is the latest.';
@@ -1416,10 +1587,16 @@ function onDataToUi(value) {
         }
 
         if (obj.type === 'device_info' && !obj.success) {
-            ['infoDeviceName', 'infoFirmwareVersion', 'infoReleaseDate', 'infoSerialNumber', 'infoIpAddress', 'infoMacAddress', 'infoWifi', 'infoBattery', 'infoOnline'].forEach(id => {
+            const identifierValue = document.getElementById('c4UserIdentifier');
+            const copyIdentifier = document.getElementById('copyUserIdentifier');
+            if (identifierValue) identifierValue.textContent = '...';
+            if (copyIdentifier) copyIdentifier.disabled = true;
+            ['infoDeviceName', 'infoFirmwareVersion', 'infoTimezone', 'infoSerialNumber', 'infoIpAddress', 'infoMacAddress', 'infoSignal'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) element.textContent = 'N/A';
             });
+            const copySerial = document.getElementById('copyDeviceSerial');
+            if (copySerial) copySerial.disabled = true;
         }
 
         // =========================
