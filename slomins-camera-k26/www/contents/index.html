@@ -452,6 +452,7 @@
         .setting-save-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.7); }
         .setting-save-overlay[data-loading="true"] { background: #101010; }
         .setting-save-card { width: 190px; min-height: 156px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px; border-radius: 24px; background: #292929; color: #eee; font-size: 15px; font-weight: 600; }
+        #settingSaveLabel { white-space: pre-line; text-align: center; }
         .setting-save-spinner { width: 64px; height: 64px; border: 10px solid #672536; border-right-color: #ce0d42; border-bottom-color: #ce0d42; border-radius: 50%; animation: setting-save-spin .8s linear infinite; }
         .setting-save-toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 3100; max-width: calc(100% - 32px); padding: 12px; border-radius: 12px; background: #292929; color: white; font-size: 15px; text-align: center; pointer-events: none; }
         @keyframes setting-save-spin { to { transform: rotate(360deg); } }
@@ -864,6 +865,7 @@
                     <button class="settings-row" disabled title="Firmware update action is not available from the K26 driver"><span>Check Firmware Update</span><span class="settings-detail" id="firmwareAvailability">...</span><i data-lucide="chevron-right" class="chevron"></i></button>
                 </div>
                 <div class="settings-group"><button class="settings-row" type="button" onclick="openC4AuthenticationService()"><span>C4 Authentication Service</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
+                <div class="settings-group"><button class="settings-row" type="button" onclick="handleReboot()"><span>Restart</span><i data-lucide="chevron-right" class="chevron"></i></button></div>
                 <div class="settings-group"><button class="settings-row settings-delete" disabled title="Device deletion is not available from this driver">Delete Device</button></div>
             </div>
         </section>
@@ -967,22 +969,6 @@
             </div>
         </section>
 
-        <!-- REBOOT -->
-        <section id="rebootPanel" class="panel">
-            <div class="topbar">
-                <button class="back" onclick="show('deviceInformationPanel')">
-                    <i data-lucide="arrow-left"></i>
-                </button>
-            </div>
-            <div class="content">
-                <i data-lucide="rotate-cw" class="bigIcon"></i>
-                <div class="h2">Reboot Device</div>
-                <div class="desc">This will restart the camera system.</div>
-                <button class="btn" id="rebootBtn">
-                    Reboot
-                </button>
-            </div>
-        </section>
         <!-- MIC -->
         <section id="micPanel" class="panel">
             <div class="topbar">
@@ -1026,6 +1012,9 @@
     </div>
     <div class="face-delete-overlay" id="faceDeleteConfirmation" role="dialog" aria-modal="true" aria-labelledby="faceDeleteTitle" hidden>
         <div class="face-sheet-card"><div class="face-sheet-title" id="faceDeleteTitle">Delete selected faces?</div><div class="face-sheet-actions"><button class="face-sheet-cancel" onclick="closeFaceDeleteConfirmation()">Cancel</button><button class="face-sheet-confirm" onclick="confirmFaceDeletion()">Delete</button></div></div>
+    </div>
+    <div class="c4-pairing-dialog" id="restartConfirmationDialog" role="dialog" aria-modal="true" aria-labelledby="restartConfirmationTitle" hidden>
+        <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="restartConfirmationTitle">Tips</h2><p class="c4-pairing-dialog-copy">Are you sure you want to restart this device?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closeRestartConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmRestart()">OK</button></div></div>
     </div>
     <div class="c4-pairing-dialog" id="devicePairingDialog" role="dialog" aria-modal="true" aria-labelledby="devicePairingDialogTitle" hidden>
         <div class="c4-pairing-dialog-card"><h2 class="c4-pairing-dialog-title" id="devicePairingDialogTitle">Tips</h2><p class="c4-pairing-dialog-copy">Confirm whether to enable device pairing mode?</p><div class="c4-pairing-dialog-actions"><button class="c4-pairing-cancel" type="button" onclick="closePairingModeConfirmation()">Cancel</button><button class="c4-pairing-confirm" type="button" onclick="confirmPairingMode()">Confirm</button></div></div>

@@ -84,7 +84,7 @@ function updateSettingSaveOverlay() {
         (pendingSettingSaves.get('mic')?.label || pendingSettingSaves.get('speakerVolume')?.label || pendingSettingSaves.values().next().value?.label || 'Setting up...');
     const app = document.querySelector('.app');
     if (app) app.inert = pending || !document.getElementById('deviceNameSheet').hidden || !document.getElementById('storageFormatDialog').hidden ||
-        !document.getElementById('faceNamingSheet').hidden || !document.getElementById('faceDeleteConfirmation').hidden;
+        !document.getElementById('restartConfirmationDialog').hidden || !document.getElementById('faceNamingSheet').hidden || !document.getElementById('faceDeleteConfirmation').hidden;
     if (pending) overlay.focus();
 }
 
@@ -117,7 +117,7 @@ function beginSettingSave(kind, label = 'Setting up...') {
             }
             if (kind === 'name') updateDeviceNameConfirm();
             updateSettingSaveOverlay();
-            showSettingToast('Setting update timed out');
+            showSettingToast(kind === 'restart' ? 'Restart request timed out' : 'Setting update timed out');
         }, 20000)
     });
     document.getElementById('settingSaveToast').hidden = true;
@@ -136,7 +136,7 @@ function finishSettingSave(kind, success, error, message = 'Settings saved') {
     if (kind === 'name') updateDeviceNameConfirm();
     updateSettingSaveOverlay();
     if (!success) showSettingToast(error || 'Unable to save settings');
-    else if (!settingsLoading && pendingSettingSaves.size === 0 && !settingSaveFailed) showSettingToast(message);
+    else if (message && !settingsLoading && pendingSettingSaves.size === 0 && !settingSaveFailed) showSettingToast(message);
 }
 
 function closeMotionOption() {
@@ -585,7 +585,6 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeControl4();
     initK26ViewerControls();
     initMicrophone();
-    initReboot();
     initDeviceName();
     initSnapshot();
     initCameraSettings();
@@ -1074,61 +1073,26 @@ function updateMicUI(muted) {
 }
 
 
-//Reboot
-function initReboot() {
-    const btn = document.getElementById('rebootBtn');
-    if (!btn) {
-        console.warn("rebootBtn not found");
-        return;
-    }
-
-    btn.removeEventListener('click', handleReboot);
-    btn.addEventListener('click', handleReboot);
+function handleReboot() {
+    if (pendingSettingSaves.has('restart')) return;
+    document.getElementById('restartConfirmationDialog').hidden = false;
+    updateSettingSaveOverlay();
 }
 
-function handleReboot() {
-    console.log('🔄 Reboot requested');
+function closeRestartConfirmation() {
+    document.getElementById('restartConfirmationDialog').hidden = true;
+    updateSettingSaveOverlay();
+}
 
-    const btn = document.getElementById('rebootBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Rebooting...";
-    }
-
+function confirmRestart() {
+    const dialog = document.getElementById('restartConfirmationDialog');
+    if (!dialog || dialog.hidden || pendingSettingSaves.has('restart')) return;
+    closeRestartConfirmation();
+    beginSettingSave('restart', 'Restarting device.\nPlease wait...');
     try {
-        C4.sendCommand(
-            'REBOOT_DEVICE',
-            '',
-            false,
-            true
-        );
-
-        console.log("📤 REBOOT_DEVICE command sent");
-
-        // Show success modal immediately (optimistic – device will go offline)
-        showModal(
-            "Reboot command sent successfully.\nThe device will restart shortly.",
-            "Reboot Initiated"
-        );
-
-        // Optional: re-enable the button after a few seconds
-        // (in case the user stays on the page)
-        setTimeout(() => {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerText = "Reboot";
-            }
-        }, 4000);
-
-    } catch (e) {
-        console.error("Reboot command error", e);
-
-        if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Reboot";
-        }
-
-        showModal("Failed to send reboot command", "Error");
+        C4.sendCommand('REBOOT_DEVICE', '', false, true);
+    } catch (error) {
+        finishSettingSave('restart', false, 'Unable to send restart request');
     }
 }
 
@@ -1454,6 +1418,11 @@ function onDataToUi(value) {
             notificationHistoryPage = Number(obj.page) || 1;
             notificationHistoryHasMore = obj.has_more === true;
             renderK26Notifications(obj.notifications || [], notificationHistoryPage > 1);
+            return;
+        }
+
+        if (obj.type === 'restart_result') {
+            finishSettingSave('restart', obj.success === true, obj.error || 'Restart request failed', '');
             return;
         }
 

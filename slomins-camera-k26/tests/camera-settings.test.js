@@ -1164,3 +1164,55 @@ test('K26 call commands use LAN channel 2 and return success and failure acknowl
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /K26 call assertions passed/);
 });
+
+test('K26 restart submits ac_restart and reports the verified API result', () => {
+    const start = driver.indexOf('function REBOOT_DEVICE(');
+    const end = driver.indexOf('\nfunction DELETE_STRANGER_FACES(', start);
+    const handler = driver.slice(start, end);
+    assert.ok(start >= 0 && end > start, 'restart handler boundaries missing');
+
+    const source = `
+        local json = require('CldBusApi.dkjson')
+        local _props = { VID='camera-1', ['Auth Token']='token' }
+        local Properties = { ['Base API URL']='https://example.invalid', AppId='test-app' }
+        local GlobalObject = { LnduBaseUrl='https://example.invalid', CldBusAppId='test-app' }
+        local requests, messages = {}, {}
+        local status_code, api_code, transport_error = 200, 20000, nil
+        local function SendDeviceInfoToUI(value) messages[#messages+1]=value end
+        local function print() end
+        local C4 = { UpdateProperty=function() end }
+        local transport = { execute=function(request, callback)
+            requests[#requests+1]=request
+            callback(status_code, json.encode({code=api_code,message='success'}), {}, transport_error)
+        end }
+        ${handler}
+        assert(REBOOT_DEVICE({}) == true)
+        local request=requests[1]
+        local body=json.decode(request.body)
+        assert(request.url=='https://example.invalid/api/v3/openapi/device/do-action')
+        assert(request.method=='POST' and request.headers['Authorization']=='Bearer token')
+        assert(request.headers['App-Name']=='test-app')
+        assert(body.vid=='camera-1' and body.action_id=='ac_restart')
+        local params=json.decode(body.input_params)
+        assert(type(params.t)=='number' and params.t>0)
+        assert(messages[#messages].type=='restart_result' and messages[#messages].success==true)
+
+        api_code=400
+        REBOOT_DEVICE({})
+        assert(messages[#messages].type=='restart_result' and messages[#messages].success==false)
+
+        api_code=20000
+        status_code=503
+        REBOOT_DEVICE({})
+        assert(messages[#messages].success==false)
+
+        local request_count=#requests
+        _props['Auth Token']=''
+        assert(REBOOT_DEVICE({})==false and #requests==request_count)
+        assert(messages[#messages].type=='restart_result' and messages[#messages].success==false)
+        io.write('K26 restart assertions passed')
+    `;
+    const result = spawnSync('npx', ['--yes', '--package=fengari-node-cli', 'fengari', '-e', source], { encoding: 'utf8', cwd: root });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /K26 restart assertions passed/);
+});
